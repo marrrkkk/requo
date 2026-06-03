@@ -15,6 +15,8 @@ import {
   getPlanPriceLabel,
 } from "@/lib/billing/plans";
 import { startPolarCheckout } from "@/features/billing/start-checkout";
+import { dashboardPath } from "@/features/businesses/routes";
+import { authClient } from "@/lib/auth/client";
 import { getAuthPathWithNext } from "@/lib/auth/redirects";
 import type {
   BillingCurrency,
@@ -30,10 +32,17 @@ export function PricingIntervalToggle({
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const [pendingPlan, setPendingPlan] = useState<PaidPlan | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { data: session } = authClient.useSession();
   const savingsPercent = getYearlySavingsPercent("pro", currency);
 
   function handleSubscribe(plan: PaidPlan) {
     if (isPending) return;
+
+    if (session?.user) {
+      window.location.assign(dashboardPath);
+      return;
+    }
+
     setPendingPlan(plan);
     startTransition(async () => {
       // Business-scoped billing requires a specific business context to start checkout.
