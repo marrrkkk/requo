@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
+  clearOnboardingDraft,
   createEmptyOnboardingDraft,
   getRecommendedStarterTemplateForBusinessType,
   onboardingSessionStorageKey,
@@ -142,6 +143,25 @@ export function OnboardingForm({ action, detectedCountryCode, initialProfile }: 
       ...mapServerFieldErrors(state.fieldErrors),
     }));
   }, [state.fieldErrors]);
+
+  // Re-persist draft to sessionStorage if the server action returned an error
+  // (we clear sessionStorage optimistically before submit).
+  useEffect(() => {
+    if (!isDraftHydrated) {
+      return;
+    }
+
+    if (state.error || state.fieldErrors) {
+      try {
+        window.sessionStorage.setItem(
+          onboardingSessionStorageKey,
+          JSON.stringify({ currentStep, draft }),
+        );
+      } catch {
+        // Ignore write failures
+      }
+    }
+  }, [state.error, state.fieldErrors, isDraftHydrated, currentStep, draft]);
 
   function updateField<FieldName extends OnboardingFieldName>(
     field: FieldName,
@@ -356,7 +376,12 @@ export function OnboardingForm({ action, detectedCountryCode, initialProfile }: 
           if (firstInvalidStepIndex >= 0) {
             event.preventDefault();
             setCurrentStep(firstInvalidStepIndex);
+            return;
           }
+
+          // Clear session storage before submitting so the draft doesn't
+          // persist for the next user session on this browser.
+          clearOnboardingDraft();
         }}
       >
         <input name="firstName" type="hidden" value={draft.firstName} />
