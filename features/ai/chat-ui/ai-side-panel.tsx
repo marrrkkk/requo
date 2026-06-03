@@ -3,10 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, Plus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { RequoIcon } from "@/components/shared/requo-icon";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   PromptInput,
   PromptInputTextarea,
@@ -201,7 +206,7 @@ export function AiSidePanel({
   businessId,
   userName,
 }: AiSidePanelProps) {
-  const { isOpen, conversationId, setConversation } = useAiPanel();
+  const { isOpen, conversationId, setConversation, close } = useAiPanel();
   const pathname = usePathname();
   const [contextDismissed, setContextDismissed] = useState(false);
 
@@ -233,16 +238,9 @@ export function AiSidePanel({
 
   if (!isOpen) return null;
 
-  return (
-    <div
-      className={cn(
-        "ai-side-panel sticky top-[53px] hidden w-[380px] shrink-0 flex-col border-l border-border/60 bg-background md:flex",
-        "h-[calc(100svh-53px)]",
-        "animate-in slide-in-from-right-2 fade-in duration-200",
-      )}
-      data-ai-panel
-    >
-      {/* Panel body */}
+  // Shared panel content used by both desktop and mobile
+  const panelContent = (
+    <>
       <div className="flex-1 overflow-hidden">
         {conversationId ? (
           /* Active global conversation — with page context for entity awareness */
@@ -276,6 +274,61 @@ export function AiSidePanel({
           <ContextChip label={contextLabel} onDismiss={() => setContextDismissed(true)} />
         </div>
       )}
-    </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop: sticky side panel */}
+      <div
+        className={cn(
+          "ai-side-panel sticky top-[53px] hidden w-[380px] shrink-0 flex-col border-l border-border/60 bg-background md:flex",
+          "h-[calc(100svh-53px)]",
+          "animate-in slide-in-from-right-2 fade-in duration-200",
+        )}
+        data-ai-panel
+      >
+        {panelContent}
+      </div>
+
+      {/* Mobile: fullscreen sheet */}
+      <Sheet open={isOpen} onOpenChange={(open) => { if (!open) close(); }}>
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          className="md:hidden w-full max-w-full inset-0 flex flex-col p-0"
+        >
+          {/* Mobile sheet header */}
+          <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <RequoIcon className="size-4 text-primary" />
+              <SheetTitle className="text-sm font-medium">Requo AI</SheetTitle>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => setConversation(null)}
+                title="New chat"
+              >
+                <Plus className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={close}
+                title="Close"
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+          </div>
+          {/* Sheet body */}
+          <div className="flex flex-1 flex-col overflow-hidden">
+            {panelContent}
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
