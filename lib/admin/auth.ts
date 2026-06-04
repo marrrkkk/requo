@@ -2,6 +2,7 @@ import "server-only";
 
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 
 const COOKIE_NAME = "admin-session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 24; // 24 hours
@@ -63,6 +64,7 @@ export async function createAdminSession(): Promise<void> {
  * JWT is present.
  */
 export async function verifyAdminSession(): Promise<boolean> {
+  await connection();
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
 

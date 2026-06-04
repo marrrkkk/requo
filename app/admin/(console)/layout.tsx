@@ -9,6 +9,15 @@ import AdminLoading from "./loading";
 export const preferredRegion = "syd1";
 
 /**
+ * Exempt the layout entry point from instant validation — the admin session
+ * cookie check always redirects unauthenticated users, which prevents
+ * validation from reaching the page segment. Sibling navigations within
+ * the console (e.g. /admin/users → /admin/businesses) are still validated
+ * by the `unstable_instant` exports on each page.
+ */
+export const unstable_instant = false;
+
+/**
  * Admin console layout (auth-gated).
  *
  * Lives inside the `(console)` route group so the login page in `(auth)`

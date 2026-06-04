@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
 import { getAccountProfileForUser } from "@/features/account/queries";
@@ -16,17 +17,41 @@ import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { timed } from "@/lib/dev/server-timing";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
+import OnboardingLoading from "./loading";
+
 export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "Onboarding - Requo",
   description: "Set up your first business to start capturing inquiries.",
 });
 
 export const unstable_instant = {
-  prefetch: 'static',
-  unstable_disableValidation: true,
+  prefetch: "static",
+  samples: [
+    {
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
-export default async function OnboardingPage() {
+/**
+ * Onboarding page — non-blocking structural shell.
+ *
+ * Returns the structural shell synchronously with skeleton fallback.
+ * All dynamic reads (session, profile, memberships, geo-detection)
+ * are resolved inside a Suspense-wrapped child server component.
+ */
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<OnboardingLoading />}>
+      <OnboardingPageContent />
+    </Suspense>
+  );
+}
+
+async function OnboardingPageContent() {
   const session = await requireSession();
 
   await ensureProfileForUser({
@@ -49,8 +74,11 @@ export default async function OnboardingPage() {
   }
 
   const headerStore = await headers();
-  const geoCountry = headerStore.get("x-vercel-ip-country")?.toUpperCase() ?? "";
-  const detectedCountryCode = isSupportedBusinessCountryCode(geoCountry) ? geoCountry : "";
+  const geoCountry =
+    headerStore.get("x-vercel-ip-country")?.toUpperCase() ?? "";
+  const detectedCountryCode = isSupportedBusinessCountryCode(geoCountry)
+    ? geoCountry
+    : "";
 
   return (
     <>

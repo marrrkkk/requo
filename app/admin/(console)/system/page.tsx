@@ -8,10 +8,7 @@ import { createNoIndexMetadata } from "@/lib/seo/site";
 
 import { AdminSystemLoading } from "@/features/admin/components/system/admin-system-loading";
 
-export const unstable_instant = {
-  prefetch: "static",
-  unstable_disableValidation: true,
-};
+export const unstable_instant = false;
 
 export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "System - Requo admin",

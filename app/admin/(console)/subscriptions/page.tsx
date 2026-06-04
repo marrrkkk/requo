@@ -13,10 +13,7 @@ import {
 } from "@/features/admin/components/admin-subscriptions-list-sections";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const unstable_instant = {
-  prefetch: "static",
-  unstable_disableValidation: true,
-};
+export const unstable_instant = false;
 
 export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "Subscriptions - Requo admin",
