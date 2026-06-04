@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { AuthShell } from "@/components/shell/auth-shell";
 import { LoginForm } from "@/features/auth/components/login-form";
@@ -12,6 +13,7 @@ import { onboardingPath } from "@/features/onboarding/routes";
 import { dashboardPath } from "@/features/businesses/routes";
 import { isEmailConfigured } from "@/lib/env";
 import { createNoIndexMetadata } from "@/lib/seo/site";
+import { AuthFormSkeleton } from "@/features/auth/components/auth-form-skeleton";
 
 export const metadata: Metadata = createNoIndexMetadata({
   description: "Log in to Requo to manage inquiries, quotes, and follow-up.",
@@ -19,11 +21,39 @@ export const metadata: Metadata = createNoIndexMetadata({
 });
 
 export const unstable_instant = {
-  prefetch: 'static',
-  unstable_disableValidation: true,
+  prefetch: "static",
+  samples: [
+    {
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+      searchParams: { next: null, reset: null, verified: null, error: null },
+    },
+  ],
 };
 
-export default async function LoginPage({
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    next?: string | string[];
+  }>;
+}) {
+  return (
+    <AuthShell
+      title="Welcome back"
+      description="Sign in to your account to continue"
+      layout="centered"
+    >
+      <Suspense fallback={<AuthFormSkeleton />}>
+        <LoginContent searchParams={searchParams} />
+      </Suspense>
+    </AuthShell>
+  );
+}
+
+async function LoginContent({
   searchParams,
 }: {
   searchParams: Promise<{
@@ -49,15 +79,9 @@ export default async function LoginPage({
   const socialProviders: SocialAuthProvider[] = ["google"];
 
   return (
-    <AuthShell
-      title="Welcome back"
-      description="Sign in to your account to continue"
-      layout="centered"
-    >
-      <LoginForm
-        magicLinkEnabled={isEmailConfigured}
-        socialProviders={socialProviders}
-      />
-    </AuthShell>
+    <LoginForm
+      magicLinkEnabled={isEmailConfigured}
+      socialProviders={socialProviders}
+    />
   );
 }
