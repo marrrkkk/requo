@@ -24,7 +24,7 @@ import {
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
 import { ArchivedRecordBanner } from "@/components/shared/archived-record-banner";
-import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
+import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -37,6 +37,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { InfoTile } from "@/components/shared/info-tile";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CustomerHistoryPanel } from "@/features/customers/components/customer-history-panel";
 import { InquiryWorkflowSteps } from "@/features/businesses/components/workflow-steps";
 import { getCustomerHistoryForBusiness } from "@/features/customers/queries";
@@ -93,6 +94,7 @@ import { Button } from "@/components/ui/button";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { hasFeatureAccess } from "@/lib/plans";
 import { createNoIndexMetadata } from "@/lib/seo/site";
+import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -105,21 +107,44 @@ type InquiryDetailPageProps = {
 };
 
 export const unstable_instant = {
-  prefetch: 'static',
-  unstable_disableValidation: true,
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo", id: "sample-inquiry-id" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
+/**
+ * Inquiry detail page — returns the structural shell synchronously.
+ *
+ * All dynamic reads (params, getAppShellContext, getInquiryDetailForBusiness)
+ * are pushed into `<Suspense>`-wrapped child server components so the shell
+ * paints instantly on client navigation. Independently-failing regions (follow-ups,
+ * customer history) are wrapped in co-located error boundaries.
+ */
 export default function InquiryDetailPage({
   params,
 }: InquiryDetailPageProps) {
+  // No awaits. Return the structural shell synchronously.
   return (
-    <Suspense fallback={<DashboardDetailPageSkeleton variant="inquiry" />}>
-      <InquiryDetailContent params={params} />
-    </Suspense>
+    <DashboardPage className="pb-24">
+      <Suspense fallback={<InquiryDetailShellSkeleton />}>
+        <InquiryDetailRegion params={params} />
+      </Suspense>
+    </DashboardPage>
   );
 }
 
-async function InquiryDetailContent({
+/* -------------------------------------------------------------------------- */
+/*  Main detail region — resolves params + context + data inside Suspense     */
+/* -------------------------------------------------------------------------- */
+
+async function InquiryDetailRegion({
   params,
 }: InquiryDetailPageProps) {
   const resolvedParams = await params;
@@ -193,7 +218,7 @@ async function InquiryDetailContent({
   );
 
   return (
-    <DashboardPage className="pb-24">
+    <>
       {duplicateRecord && !duplicateRecord.dismissedAt ? (
         <InquiryDuplicateBanner
           duplicate={{
@@ -442,13 +467,15 @@ async function InquiryDetailContent({
               noteAction={noteAction}
             />
 
-            <Suspense fallback={<CustomerHistoryFallback locked={!canViewCustomerHistory} />}>
-              <StreamedCustomerHistory
-                businessSlug={businessSlug}
-                historyPromise={customerHistoryPromise}
-                locked={!canViewCustomerHistory}
-              />
-            </Suspense>
+            <RegionErrorBoundary fallback={<CustomerHistoryFallback locked={!canViewCustomerHistory} />}>
+              <Suspense fallback={<CustomerHistoryFallback locked={!canViewCustomerHistory} />}>
+                <StreamedCustomerHistory
+                  businessSlug={businessSlug}
+                  historyPromise={customerHistoryPromise}
+                  locked={!canViewCustomerHistory}
+                />
+              </Suspense>
+            </RegionErrorBoundary>
 
             <DashboardSection
               description="Submission and owner actions."
@@ -564,17 +591,19 @@ async function InquiryDetailContent({
           </DashboardSection>
 
           <div id="follow-ups">
-            <Suspense fallback={<FollowUpPanelFallback />}>
-              <StreamedFollowUpPanel
-                businessSlug={businessSlug}
-                createAction={createFollowUpAction}
-                ctaDescription="Set a reminder for the next customer touchpoint on this inquiry."
-                defaultChannel={inquiry.customerContactMethod}
-                defaultReason="Follow up with the customer to keep this inquiry moving."
-                defaultTitle={`Follow up with ${inquiry.customerName}`}
-                followUpsPromise={followUpsPromise}
-              />
-            </Suspense>
+            <RegionErrorBoundary fallback={<FollowUpPanelFallback />}>
+              <Suspense fallback={<FollowUpPanelFallback />}>
+                <StreamedFollowUpPanel
+                  businessSlug={businessSlug}
+                  createAction={createFollowUpAction}
+                  ctaDescription="Set a reminder for the next customer touchpoint on this inquiry."
+                  defaultChannel={inquiry.customerContactMethod}
+                  defaultReason="Follow up with the customer to keep this inquiry moving."
+                  defaultTitle={`Follow up with ${inquiry.customerName}`}
+                  followUpsPromise={followUpsPromise}
+                />
+              </Suspense>
+            </RegionErrorBoundary>
           </div>
 
           <DashboardSection
@@ -633,9 +662,13 @@ async function InquiryDetailContent({
 
         </DashboardSidebarStack>
       </DashboardDetailLayout>
-    </DashboardPage>
+    </>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Helper components                                                          */
+/* -------------------------------------------------------------------------- */
 
 function InquiryNotesSheetSection({
   inquiry,
@@ -848,8 +881,165 @@ async function StreamedCustomerHistory({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Fallbacks                                                                  */
+/*  Fallbacks / skeletons                                                      */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Skeleton shown inside the synchronous DashboardPage shell while the
+ * main detail region resolves (cold cache). Renders the header and detail
+ * layout skeletons without an outer DashboardPage wrapper (the shell
+ * provides that synchronously above).
+ */
+function InquiryDetailShellSkeleton() {
+  return (
+    <>
+      <header className="dashboard-detail-header">
+        <div className="dashboard-detail-header-copy">
+          <div className="flex flex-col gap-3">
+            <Skeleton className="h-4 w-24 rounded-md" />
+            <Skeleton className="h-11 w-full max-w-xl rounded-2xl" />
+            <Skeleton className="h-4 w-full max-w-2xl rounded-md" />
+          </div>
+          <div className="dashboard-detail-header-meta">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton
+                className={cn(
+                  "h-9 rounded-full",
+                  index === 0 ? "w-28" : index === 1 ? "w-32" : "w-36",
+                )}
+                key={index}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="dashboard-detail-header-actions">
+          {["sm:w-28", "sm:w-24", "sm:w-40"].map((width, index) => (
+            <Skeleton
+              className={cn("h-11 w-full rounded-xl", width)}
+              key={index}
+            />
+          ))}
+        </div>
+      </header>
+
+      <DashboardDetailLayout className="xl:grid-cols-[1.45fr_0.95fr]">
+        <DashboardSidebarStack>
+          <section className="section-panel p-5 sm:p-6">
+            <div className="flex flex-col gap-5">
+              <div className="min-w-0">
+                <Skeleton className="h-6 w-32 rounded-md" />
+                <Skeleton className="mt-3 h-4 w-48 rounded-md" />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div className="info-tile" key={index}>
+                    <div className="flex flex-col gap-2">
+                      <Skeleton className="h-3 w-20 rounded-md" />
+                      <Skeleton className="h-5 w-full rounded-md" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="soft-panel px-5 py-5 shadow-none">
+                <Skeleton className="h-3 w-20 rounded-md" />
+                <div className="mt-3 flex flex-col gap-2">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <Skeleton className="h-4 w-full rounded-md last:w-4/5" key={index} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div className="dashboard-detail-support-grid">
+            <section className="section-panel p-5 sm:p-6">
+              <div className="flex flex-col gap-5">
+                <Skeleton className="h-6 w-28 rounded-md" />
+                <div className="flex flex-col gap-3">
+                  <div className="soft-panel animate-pulse px-4 py-4 shadow-none">
+                    <Skeleton className="h-4 w-full max-w-sm rounded-md" />
+                    <Skeleton className="mt-3 h-3 w-24 rounded-md" />
+                  </div>
+                </div>
+                <Skeleton className="h-11 w-full rounded-xl" />
+              </div>
+            </section>
+
+            <section className="section-panel p-5 sm:p-6">
+              <div className="flex flex-col gap-5">
+                <Skeleton className="h-6 w-36 rounded-md" />
+                <div className="grid animate-pulse gap-3 sm:grid-cols-2">
+                  <div className="soft-panel px-4 py-4 shadow-none">
+                    <Skeleton className="h-3 w-20 rounded-md" />
+                    <Skeleton className="mt-2 h-5 w-8 rounded-md" />
+                  </div>
+                  <div className="soft-panel px-4 py-4 shadow-none">
+                    <Skeleton className="h-3 w-20 rounded-md" />
+                    <Skeleton className="mt-2 h-5 w-8 rounded-md" />
+                  </div>
+                </div>
+                <Skeleton className="h-11 w-full rounded-xl" />
+              </div>
+            </section>
+
+            <section className="section-panel p-5 sm:p-6">
+              <div className="flex flex-col gap-5">
+                <Skeleton className="h-6 w-28 rounded-md" />
+                <div className="soft-panel animate-pulse px-4 py-4 shadow-none">
+                  <Skeleton className="h-4 w-full max-w-sm rounded-md" />
+                  <Skeleton className="mt-3 h-3 w-24 rounded-md" />
+                </div>
+                <Skeleton className="h-11 w-full rounded-xl" />
+              </div>
+            </section>
+          </div>
+        </DashboardSidebarStack>
+
+        <DashboardSidebarStack>
+          <section className="section-panel p-5 sm:p-6">
+            <div className="flex flex-col gap-5">
+              <Skeleton className="h-6 w-32 rounded-md" />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="info-tile">
+                  <div className="flex flex-col gap-2">
+                    <Skeleton className="h-3 w-20 rounded-md" />
+                    <Skeleton className="h-5 w-full rounded-md" />
+                  </div>
+                </div>
+                <div className="info-tile">
+                  <div className="flex flex-col gap-2">
+                    <Skeleton className="h-3 w-20 rounded-md" />
+                    <Skeleton className="h-5 w-full rounded-md" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="section-panel p-5 sm:p-6">
+            <div className="flex flex-col gap-5">
+              <Skeleton className="h-6 w-24 rounded-md" />
+              <div className="soft-panel animate-pulse px-4 py-4 shadow-none">
+                <Skeleton className="h-4 w-40 rounded-md" />
+                <Skeleton className="mt-2 h-3 w-64 rounded-md" />
+              </div>
+            </div>
+          </section>
+
+          <section className="section-panel p-5 sm:p-6">
+            <div className="flex flex-col gap-5">
+              <Skeleton className="h-6 w-28 rounded-md" />
+              <div className="soft-panel animate-pulse px-4 py-4 shadow-none">
+                <Skeleton className="h-4 w-36 rounded-md" />
+                <Skeleton className="mt-2 h-3 w-52 rounded-md" />
+              </div>
+            </div>
+          </section>
+        </DashboardSidebarStack>
+      </DashboardDetailLayout>
+    </>
+  );
+}
 
 function FollowUpPanelFallback() {
   return (

@@ -35,7 +35,7 @@ import {
   type SuggestionChip,
 } from "@/features/ai/chat-ui/dashboard-chat-input";
 import { DashboardTour } from "@/features/onboarding/components/dashboard-tour";
-import { getDashboardTourCompletedForMembership } from "@/features/onboarding/queries";
+import { getCachedDashboardTourCompleted } from "@/features/onboarding/queries";
 import { NextStepSection } from "@/features/onboarding/components/next-step-section";
 import { MilestoneCelebrator } from "@/features/onboarding/components/milestone-celebrator";
 import type { MilestoneKey } from "@/features/onboarding/milestones";
@@ -44,7 +44,6 @@ import { createNoIndexMetadata } from "@/lib/seo/site";
 import { formatQuoteDate } from "@/features/quotes/utils";
 import type { BusinessOverviewData } from "@/features/businesses/types";
 import type { FollowUpOverviewData } from "@/features/follow-ups/types";
-import type { FreeAnalyticsData } from "@/features/analytics/types";
 
 type DashboardOverviewPageProps = {
   params: Promise<{ businessSlug: string }>;
@@ -57,161 +56,134 @@ export const metadata: Metadata = createNoIndexMetadata({
 
 export const unstable_instant = {
   prefetch: "static",
-  unstable_disableValidation: true,
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
+/**
+ * Home page — returns the structural shell synchronously.
+ *
+ * All dynamic reads (params, getAppShellContext, data queries) are pushed into
+ * <Suspense>-wrapped child server components so the static shell is prefetchable
+ * and sibling navigations paint instantly.
+ */
 export default function DashboardOverviewPage({
   params,
 }: DashboardOverviewPageProps) {
-  return <DashboardOverviewContent params={params} />;
-}
-
-async function DashboardOverviewContent({
-  params,
-}: DashboardOverviewPageProps) {
-  const { businessSlug } = await params;
-  const { user, businessContext } = await getAppShellContext(businessSlug);
-
-  const businessId = businessContext.business.id;
-  const dashboardTourCompleted = await getDashboardTourCompletedForMembership(
-    businessContext.membershipId,
-  );
-
-  const overviewPromise = getBusinessOverviewData(businessId);
-  const followUpOverviewPromise = getFollowUpOverviewForBusiness(businessId);
-  const summaryPromise = getBusinessDashboardSummaryData(businessId);
-  const analyticsPromise = getFreeAnalytics(businessId);
-
   return (
     <div className="home-page-container home-entrance">
       {/* Greeting */}
       <section className="home-entrance-section w-full max-w-5xl mx-auto">
-        <Suspense fallback={<GreetingFallback userName={user.name} />}>
-          <GreetingWithData
-            userName={user.name}
-            overviewPromise={overviewPromise}
-            followUpOverviewPromise={followUpOverviewPromise}
-            summaryPromise={summaryPromise}
-          />
+        <Suspense fallback={<GreetingFallback />}>
+          <GreetingRegion params={params} />
         </Suspense>
       </section>
 
       {/* Next step suggestion */}
       <section className="home-entrance-section w-full max-w-5xl mx-auto mt-4">
         <Suspense fallback={null}>
-          <NextStepSection
-            businessId={businessId}
-            businessSlug={businessSlug}
-            businessType={businessContext.business.businessType}
-            publicInquiryEnabled={businessContext.business.publicInquiryEnabled}
-          />
+          <NextStepRegion params={params} />
         </Suspense>
       </section>
 
       {/* 30-day velocity stats */}
       <section className="home-entrance-section w-full max-w-5xl mx-auto mt-5">
         <Suspense fallback={<VelocityStatsFallback />}>
-          <VelocityStats
-            businessSlug={businessSlug}
-            analyticsPromise={analyticsPromise}
-          />
+          <VelocityStatsRegion params={params} />
         </Suspense>
       </section>
 
       {/* Priority queue */}
       <section className="home-entrance-section w-full max-w-5xl mx-auto mt-8 pb-24">
         <Suspense fallback={<NeedsAttentionFallback />}>
-          <NeedsAttentionContent
-            businessSlug={businessSlug}
-            overviewPromise={overviewPromise}
-            followUpOverviewPromise={followUpOverviewPromise}
-          />
+          <NeedsAttentionRegion params={params} />
         </Suspense>
       </section>
 
       {/* AI chat input — fixed floating bottom center */}
       <div className="fixed bottom-5 left-0 right-0 z-40 pointer-events-none lg:left-[17.5rem]">
         <div className="pointer-events-auto">
-          <Suspense
-            fallback={
-              <ChatInputFallback
-                businessSlug={businessSlug}
-                userId={user.id}
-                businessId={businessId}
-              />
-            }
-          >
-            <ChatInputWithSuggestions
-              businessSlug={businessSlug}
-              userId={user.id}
-              businessId={businessId}
-              overviewPromise={overviewPromise}
-              followUpOverviewPromise={followUpOverviewPromise}
-            />
+          <Suspense fallback={<ChatInputFallbackShell />}>
+            <ChatInputRegion params={params} />
           </Suspense>
         </div>
       </div>
 
-      <DashboardTour
-        businessId={businessId}
-        completed={dashboardTourCompleted}
-      />
-
+      {/* Dashboard tour */}
       <Suspense fallback={null}>
-        <MilestoneSection
-          businessId={businessId}
-          summaryPromise={summaryPromise}
-        />
+        <DashboardTourRegion params={params} />
+      </Suspense>
+
+      {/* Milestone celebrations */}
+      <Suspense fallback={null}>
+        <MilestoneRegion params={params} />
       </Suspense>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Milestone celebrations
+// Suspense-wrapped async child server components
 // ---------------------------------------------------------------------------
 
-async function MilestoneSection({
-  businessId,
-  summaryPromise,
+async function GreetingRegion({
+  params,
 }: {
-  businessId: string;
-  summaryPromise: Promise<Awaited<ReturnType<typeof getBusinessDashboardSummaryData>>>;
+  params: Promise<{ businessSlug: string }>;
 }) {
-  const { getChecklistProgressForBusiness } = await import(
-    "@/features/onboarding/queries"
-  );
+  const { businessSlug } = await params;
+  const { user, businessContext } = await getAppShellContext(businessSlug);
+  const businessId = businessContext.business.id;
 
-  const [summary, progress] = await Promise.all([
-    summaryPromise,
-    getChecklistProgressForBusiness(businessId),
+  const [overview, followUpOverview, summary] = await Promise.all([
+    getBusinessOverviewData(businessId),
+    getFollowUpOverviewForBusiness(businessId),
+    getBusinessDashboardSummaryData(businessId),
   ]);
 
-  const achieved: MilestoneKey[] = [];
-
-  if (summary.totalInquiries > 0) achieved.push("first-inquiry");
-  if (summary.totalQuotes > 0) achieved.push("first-quote-sent");
-  if (summary.wonCount > 0) achieved.push("first-quote-accepted");
-  if (progress.hasJob) achieved.push("first-job");
-  if (progress.hasInvoice) achieved.push("first-invoice");
-
-  if (achieved.length === 0) return null;
-
-  return <MilestoneCelebrator achieved={achieved} />;
+  return (
+    <DashboardGreeting
+      userName={user.name}
+      counts={overview.counts}
+      followUpCounts={followUpOverview.counts}
+      summary={summary}
+    />
+  );
 }
 
-// ---------------------------------------------------------------------------
-// 30-day velocity stats
-// ---------------------------------------------------------------------------
-
-async function VelocityStats({
-  businessSlug,
-  analyticsPromise,
+async function NextStepRegion({
+  params,
 }: {
-  businessSlug: string;
-  analyticsPromise: Promise<FreeAnalyticsData>;
+  params: Promise<{ businessSlug: string }>;
 }) {
-  const analytics = await analyticsPromise;
+  const { businessSlug } = await params;
+  const { businessContext } = await getAppShellContext(businessSlug);
+
+  return (
+    <NextStepSection
+      businessId={businessContext.business.id}
+      businessSlug={businessSlug}
+      businessType={businessContext.business.businessType}
+      publicInquiryEnabled={businessContext.business.publicInquiryEnabled}
+    />
+  );
+}
+
+async function VelocityStatsRegion({
+  params,
+}: {
+  params: Promise<{ businessSlug: string }>;
+}) {
+  const { businessSlug } = await params;
+  const { businessContext } = await getAppShellContext(businessSlug);
+  const analytics = await getFreeAnalytics(businessContext.business.id);
 
   const hasActivity =
     analytics.inquirySubmissions > 0 ||
@@ -269,167 +241,18 @@ async function VelocityStats({
   );
 }
 
-function StatCard({
-  label,
-  value,
-  suffix,
-  highlight,
-  icon,
+async function NeedsAttentionRegion({
+  params,
 }: {
-  label: string;
-  value: number | string;
-  suffix: string;
-  highlight?: boolean;
-  icon: React.ReactNode;
+  params: Promise<{ businessSlug: string }>;
 }) {
-  return (
-    <div className="group relative rounded-xl border border-border/60 bg-card px-4 py-4 transition-all duration-200 hover:border-border hover:shadow-sm">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        <div className={`rounded-lg p-1.5 ${highlight ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-          {icon}
-        </div>
-      </div>
-      <p
-        className={`mt-2 text-2xl font-semibold tracking-tight ${highlight ? "text-primary" : "text-foreground"}`}
-      >
-        {value}
-      </p>
-      <p className="mt-0.5 text-[0.7rem] text-muted-foreground">{suffix}</p>
-    </div>
-  );
-}
+  const { businessSlug } = await params;
+  const { businessContext } = await getAppShellContext(businessSlug);
+  const businessId = businessContext.business.id;
 
-function VelocityStatsFallback() {
-  return (
-    <div className="flex flex-col gap-3">
-      <Skeleton className="h-3 w-20 rounded-md" />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div className="rounded-xl border border-border/60 bg-card px-4 py-4" key={i}>
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-3 w-16 rounded-md" />
-              <Skeleton className="size-7 rounded-lg" />
-            </div>
-            <Skeleton className="mt-2 h-7 w-12 rounded-md" />
-            <Skeleton className="mt-1 h-2.5 w-14 rounded-md" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// AI chat input with contextual suggestions
-// ---------------------------------------------------------------------------
-
-async function ChatInputWithSuggestions({
-  businessSlug,
-  userId,
-  businessId,
-  overviewPromise,
-  followUpOverviewPromise,
-}: {
-  businessSlug: string;
-  userId: string;
-  businessId: string;
-  overviewPromise: Promise<BusinessOverviewData>;
-  followUpOverviewPromise: Promise<FollowUpOverviewData>;
-}) {
   const [overview, followUpOverview] = await Promise.all([
-    overviewPromise,
-    followUpOverviewPromise,
-  ]);
-
-  const suggestions = buildContextualSuggestions(overview, followUpOverview);
-
-  return (
-    <DashboardChatInput
-      businessSlug={businessSlug}
-      userId={userId}
-      businessId={businessId}
-      suggestions={suggestions}
-    />
-  );
-}
-
-function ChatInputFallback({
-  businessSlug,
-  userId,
-  businessId,
-}: {
-  businessSlug: string;
-  userId: string;
-  businessId: string;
-}) {
-  return (
-    <DashboardChatInput
-      businessSlug={businessSlug}
-      userId={userId}
-      businessId={businessId}
-    />
-  );
-}
-
-/**
- * Build up to 3 contextual suggestion chips based on what's in the queue.
- */
-function buildContextualSuggestions(
-  overview: BusinessOverviewData,
-  followUpOverview: FollowUpOverviewData,
-): SuggestionChip[] {
-  const chips: SuggestionChip[] = [];
-
-  if (followUpOverview.overdue.length > 0) {
-    const first = followUpOverview.overdue[0];
-    chips.push({
-      label: `Follow up with ${first.customerName}`,
-      prompt: `Help me follow up with ${first.customerName} about "${first.title}"`,
-    });
-  }
-
-  if (overview.newInquiries.length > 0) {
-    const first = overview.newInquiries[0];
-    chips.push({
-      label: `Draft quote for ${first.customerName}`,
-      prompt: `Draft a quote for ${first.customerName}'s ${first.serviceCategory} inquiry`,
-    });
-  }
-
-  if (overview.recentAcceptedQuotes.length > 0) {
-    chips.push({
-      label: "Summarize accepted quotes",
-      prompt: "Summarize my recently accepted quotes and suggest next steps",
-    });
-  }
-
-  if (chips.length === 0) {
-    chips.push(
-      { label: "Summarize this week", prompt: "Summarize my business activity this week" },
-      { label: "Draft a quote", prompt: "Help me draft a new quote" },
-    );
-  }
-
-  return chips.slice(0, 3);
-}
-
-// ---------------------------------------------------------------------------
-// Needs attention
-// ---------------------------------------------------------------------------
-
-async function NeedsAttentionContent({
-  businessSlug,
-  overviewPromise,
-  followUpOverviewPromise,
-}: {
-  businessSlug: string;
-  overviewPromise: Promise<BusinessOverviewData>;
-  followUpOverviewPromise: Promise<FollowUpOverviewData>;
-}) {
-  const [overview, followUpOverview] = await Promise.all([
-    overviewPromise,
-    followUpOverviewPromise,
+    getBusinessOverviewData(businessId),
+    getFollowUpOverviewForBusiness(businessId),
   ]);
 
   const items: NeedsAttentionItemData[] = [
@@ -540,9 +363,163 @@ async function NeedsAttentionContent({
   );
 }
 
+async function ChatInputRegion({
+  params,
+}: {
+  params: Promise<{ businessSlug: string }>;
+}) {
+  const { businessSlug } = await params;
+  const { user, businessContext } = await getAppShellContext(businessSlug);
+  const businessId = businessContext.business.id;
+
+  const [overview, followUpOverview] = await Promise.all([
+    getBusinessOverviewData(businessId),
+    getFollowUpOverviewForBusiness(businessId),
+  ]);
+
+  const suggestions = buildContextualSuggestions(overview, followUpOverview);
+
+  return (
+    <DashboardChatInput
+      businessSlug={businessSlug}
+      userId={user.id}
+      businessId={businessId}
+      suggestions={suggestions}
+    />
+  );
+}
+
+async function DashboardTourRegion({
+  params,
+}: {
+  params: Promise<{ businessSlug: string }>;
+}) {
+  const { businessSlug } = await params;
+  const { businessContext } = await getAppShellContext(businessSlug);
+  const dashboardTourCompleted = await getCachedDashboardTourCompleted(
+    businessContext.membershipId,
+    businessContext.business.id,
+  );
+
+  return (
+    <DashboardTour
+      businessId={businessContext.business.id}
+      completed={dashboardTourCompleted}
+    />
+  );
+}
+
+async function MilestoneRegion({
+  params,
+}: {
+  params: Promise<{ businessSlug: string }>;
+}) {
+  const { businessSlug } = await params;
+  const { businessContext } = await getAppShellContext(businessSlug);
+  const businessId = businessContext.business.id;
+
+  const { getChecklistProgressForBusiness } = await import(
+    "@/features/onboarding/queries"
+  );
+
+  const [summary, progress] = await Promise.all([
+    getBusinessDashboardSummaryData(businessId),
+    getChecklistProgressForBusiness(businessId),
+  ]);
+
+  const achieved: MilestoneKey[] = [];
+
+  if (summary.totalInquiries > 0) achieved.push("first-inquiry");
+  if (summary.totalQuotes > 0) achieved.push("first-quote-sent");
+  if (summary.wonCount > 0) achieved.push("first-quote-accepted");
+  if (progress.hasJob) achieved.push("first-job");
+  if (progress.hasInvoice) achieved.push("first-invoice");
+
+  if (achieved.length === 0) return null;
+
+  return <MilestoneCelebrator achieved={achieved} />;
+}
+
 // ---------------------------------------------------------------------------
-// Empty state
+// Pure helper functions
 // ---------------------------------------------------------------------------
+
+/**
+ * Build up to 3 contextual suggestion chips based on what's in the queue.
+ */
+function buildContextualSuggestions(
+  overview: BusinessOverviewData,
+  followUpOverview: FollowUpOverviewData,
+): SuggestionChip[] {
+  const chips: SuggestionChip[] = [];
+
+  if (followUpOverview.overdue.length > 0) {
+    const first = followUpOverview.overdue[0];
+    chips.push({
+      label: `Follow up with ${first.customerName}`,
+      prompt: `Help me follow up with ${first.customerName} about "${first.title}"`,
+    });
+  }
+
+  if (overview.newInquiries.length > 0) {
+    const first = overview.newInquiries[0];
+    chips.push({
+      label: `Draft quote for ${first.customerName}`,
+      prompt: `Draft a quote for ${first.customerName}'s ${first.serviceCategory} inquiry`,
+    });
+  }
+
+  if (overview.recentAcceptedQuotes.length > 0) {
+    chips.push({
+      label: "Summarize accepted quotes",
+      prompt: "Summarize my recently accepted quotes and suggest next steps",
+    });
+  }
+
+  if (chips.length === 0) {
+    chips.push(
+      { label: "Summarize this week", prompt: "Summarize my business activity this week" },
+      { label: "Draft a quote", prompt: "Help me draft a new quote" },
+    );
+  }
+
+  return chips.slice(0, 3);
+}
+
+// ---------------------------------------------------------------------------
+// Static UI components (rendered synchronously in the shell)
+// ---------------------------------------------------------------------------
+
+function StatCard({
+  label,
+  value,
+  suffix,
+  highlight,
+  icon,
+}: {
+  label: string;
+  value: number | string;
+  suffix: string;
+  highlight?: boolean;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="group relative rounded-xl border border-border/60 bg-card px-4 py-4 transition-all duration-200 hover:border-border hover:shadow-sm">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <div className={`rounded-lg p-1.5 ${highlight ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+          {icon}
+        </div>
+      </div>
+      <p
+        className={`mt-2 text-2xl font-semibold tracking-tight ${highlight ? "text-primary" : "text-foreground"}`}
+      >
+        {value}
+      </p>
+      <p className="mt-0.5 text-[0.7rem] text-muted-foreground">{suffix}</p>
+    </div>
+  );
+}
 
 function EmptyQueueState({ businessSlug }: { businessSlug: string }) {
   return (
@@ -580,45 +557,34 @@ function EmptyQueueState({ businessSlug }: { businessSlug: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// Greeting helpers
+// Skeleton fallbacks
 // ---------------------------------------------------------------------------
 
-async function GreetingWithData({
-  userName,
-  overviewPromise,
-  followUpOverviewPromise,
-  summaryPromise,
-}: {
-  userName: string;
-  overviewPromise: Promise<BusinessOverviewData>;
-  followUpOverviewPromise: Promise<FollowUpOverviewData>;
-  summaryPromise: Promise<Awaited<ReturnType<typeof getBusinessDashboardSummaryData>>>;
-}) {
-  const [overview, followUpOverview, summary] = await Promise.all([
-    overviewPromise,
-    followUpOverviewPromise,
-    summaryPromise,
-  ]);
-
+function GreetingFallback() {
   return (
-    <DashboardGreeting
-      userName={userName}
-      counts={overview.counts}
-      followUpCounts={followUpOverview.counts}
-      summary={summary}
-    />
+    <div className="flex flex-col gap-2">
+      <Skeleton className="h-8 w-56 rounded-lg sm:w-64" />
+      <Skeleton className="h-4 w-72 rounded-md sm:w-80" />
+    </div>
   );
 }
 
-function GreetingFallback({ userName }: { userName: string }) {
-  const firstName = userName.split(" ")[0] || userName;
-
+function VelocityStatsFallback() {
   return (
-    <div className="flex flex-col gap-1">
-      <h1 className="font-heading text-[1.5rem] font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
-        Welcome back, {firstName}
-      </h1>
-      <p className="text-sm text-muted-foreground">Loading your overview...</p>
+    <div className="flex flex-col gap-3">
+      <Skeleton className="h-3 w-20 rounded-md" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div className="rounded-xl border border-border/60 bg-card px-4 py-4" key={i}>
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-3 w-16 rounded-md" />
+              <Skeleton className="size-7 rounded-lg" />
+            </div>
+            <Skeleton className="mt-2 h-7 w-12 rounded-md" />
+            <Skeleton className="mt-1 h-2.5 w-14 rounded-md" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -639,6 +605,14 @@ function NeedsAttentionFallback() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function ChatInputFallbackShell() {
+  return (
+    <div className="flex flex-col items-center px-4">
+      <Skeleton className="h-[44px] w-full max-w-lg rounded-full" />
     </div>
   );
 }

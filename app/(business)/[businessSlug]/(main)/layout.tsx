@@ -100,11 +100,9 @@ export default async function BusinessMainLayout({
           <Suspense fallback={null}>
             <RecentBusinessTrackerSlot businessSlug={businessSlug} />
           </Suspense>
-          <Suspense fallback={null}>
-            <BillingBoundary businessSlug={businessSlug}>
-              {children}
-            </BillingBoundary>
-          </Suspense>
+          <BillingBoundary businessSlug={businessSlug}>
+            {children}
+          </BillingBoundary>
         </DashboardShellFrame>
       </PendingMessageProvider>
     </>
@@ -256,7 +254,23 @@ async function RecentBusinessTrackerSlot({ businessSlug }: { businessSlug: strin
   return <RecentBusinessTracker businessSlug={businessContext.business.slug} />;
 }
 
-async function BillingBoundary({
+function BillingBoundary({
+  businessSlug,
+  children,
+}: {
+  businessSlug: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense fallback={<>{children}</>}>
+      <BillingBoundaryContent businessSlug={businessSlug}>
+        {children}
+      </BillingBoundaryContent>
+    </Suspense>
+  );
+}
+
+async function BillingBoundaryContent({
   businessSlug,
   children,
 }: {

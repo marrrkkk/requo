@@ -65,11 +65,52 @@ export const metadata: Metadata = createNoIndexMetadata({
 });
 
 export const unstable_instant = {
-  prefetch: 'static',
-  unstable_disableValidation: true,
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
-export default async function InquiriesPage({
+/**
+ * Inquiries list page — non-blocking structural shell.
+ *
+ * Returns the DashboardPage shell and skeleton fallbacks synchronously.
+ * All dynamic reads (params, searchParams, getAppShellContext, queries)
+ * are resolved inside Suspense-wrapped child server components.
+ */
+export default function InquiriesPage({
+  params,
+  searchParams,
+}: InquiriesPageProps) {
+  return (
+    <DashboardPage>
+      <PageHeader
+        title="Inquiries"
+        description="List, filter, and manage inquiries for this business."
+      />
+
+      <Suspense fallback={<InquiryListControlsFallback />}>
+        <InquiriesControlsRegion params={params} searchParams={searchParams} />
+      </Suspense>
+
+      <Suspense fallback={<InquiryListContentFallback />}>
+        <InquiriesListRegion params={params} searchParams={searchParams} />
+      </Suspense>
+    </DashboardPage>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Controls region — resolves context and passes data to controls section
+// ---------------------------------------------------------------------------
+
+async function InquiriesControlsRegion({
   params,
   searchParams,
 }: InquiriesPageProps) {
@@ -97,6 +138,73 @@ export default async function InquiriesPage({
     form: filters.form,
     sort: filters.sort,
   };
+
+  const canExport = hasFeatureAccess(
+    businessContext.business.plan,
+    "exports",
+  );
+
+  const inquiryCountPromise = getInquiryListCountForBusiness({
+    businessId: businessContext.business.id,
+    filters: baseFilters,
+  });
+  const inquiryFormOptionsPromise = getBusinessInquiryFormOptionsForBusiness(
+    businessContext.business.id,
+  );
+  const archivedItemsPromise = getInquiryListPageForBusiness({
+    businessId: businessContext.business.id,
+    filters: { view: "archived", status: "all", form: "all", sort: "newest" },
+    page: 1,
+    pageSize: 50,
+  });
+
+  return (
+    <InquiryListControlsSection
+      businessSlug={businessSlug}
+      canExport={canExport}
+      filters={filters}
+      formOptionsPromise={inquiryFormOptionsPromise}
+      archivedItemsPromise={archivedItemsPromise}
+      unarchiveAction={unarchiveInquiryAction}
+      searchParams={resolvedSearchParams}
+      totalItemsPromise={inquiryCountPromise}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// List region — resolves context and passes page data to content section
+// ---------------------------------------------------------------------------
+
+async function InquiriesListRegion({
+  params,
+  searchParams,
+}: InquiriesPageProps) {
+  const [{ businessSlug }, resolvedSearchParams] = await Promise.all([
+    params,
+    searchParams,
+  ]);
+  const { businessContext } = await getAppShellContext(businessSlug);
+
+  const parsedFilters = inquiryListFiltersSchema.safeParse(resolvedSearchParams);
+  const filters = parsedFilters.success
+    ? parsedFilters.data
+    : {
+        q: undefined,
+        view: "active" as const,
+        status: "all" as const,
+        form: "all",
+        sort: "newest" as const,
+        page: 1,
+      };
+  const baseFilters = {
+    q: filters.q,
+    view: filters.view,
+    status: filters.status,
+    form: filters.form,
+    sort: filters.sort,
+  };
+
   const inquiryCountPromise = getInquiryListCountForBusiness({
     businessId: businessContext.business.id,
     filters: baseFilters,
@@ -129,19 +237,6 @@ export default async function InquiriesPage({
     };
   });
 
-  const inquiryFormOptionsPromise = getBusinessInquiryFormOptionsForBusiness(
-    businessContext.business.id,
-  );
-  const archivedItemsPromise = getInquiryListPageForBusiness({
-    businessId: businessContext.business.id,
-    filters: { view: "archived", status: "all", form: "all", sort: "newest" },
-    page: 1,
-    pageSize: 50,
-  });
-  const canExport = hasFeatureAccess(
-    businessContext.business.plan,
-    "exports",
-  );
   const hasNonViewFilters = Boolean(
     baseFilters.q ||
       baseFilters.status !== "all" ||
@@ -161,36 +256,14 @@ export default async function InquiriesPage({
   })();
 
   return (
-    <DashboardPage>
-      <PageHeader
-        title="Inquiries"
-        description="List, filter, and manage inquiries for this business."
-      />
-
-      <Suspense fallback={<InquiryListControlsFallback />}>
-        <InquiryListControlsSection
-          businessSlug={businessSlug}
-          canExport={canExport}
-          filters={filters}
-          formOptionsPromise={inquiryFormOptionsPromise}
-          archivedItemsPromise={archivedItemsPromise}
-          unarchiveAction={unarchiveInquiryAction}
-          searchParams={resolvedSearchParams}
-          totalItemsPromise={inquiryCountPromise}
-        />
-      </Suspense>
-
-      <Suspense fallback={<InquiryListContentFallback />}>
-        <InquiryListContentSection
-          businessSlug={businessSlug}
-          clearFiltersPath={clearFiltersPath}
-          filters={filters}
-          hasNonViewFilters={hasNonViewFilters}
-          pageDataPromise={inquiryPageDataPromise}
-          searchParams={resolvedSearchParams}
-          totalItemsPromise={inquiryCountPromise}
-        />
-      </Suspense>
-    </DashboardPage>
+    <InquiryListContentSection
+      businessSlug={businessSlug}
+      clearFiltersPath={clearFiltersPath}
+      filters={filters}
+      hasNonViewFilters={hasNonViewFilters}
+      pageDataPromise={inquiryPageDataPromise}
+      searchParams={resolvedSearchParams}
+      totalItemsPromise={inquiryCountPromise}
+    />
   );
 }
