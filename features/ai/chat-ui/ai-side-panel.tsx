@@ -12,6 +12,7 @@ import {
   SheetContent,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useIsMdScreen } from "@/hooks/use-md-screen";
 import {
   PromptInput,
   PromptInputTextarea,
@@ -208,6 +209,7 @@ export function AiSidePanel({
 }: AiSidePanelProps) {
   const { isOpen, conversationId, setConversation, close } = useAiPanel();
   const pathname = usePathname();
+  const isDesktop = useIsMdScreen();
   const [contextDismissed, setContextDismissed] = useState(false);
 
   // Detect page context for entity-aware AI (same global chat, extra context)
@@ -291,44 +293,46 @@ export function AiSidePanel({
         {panelContent}
       </div>
 
-      {/* Mobile: fullscreen sheet */}
-      <Sheet open={isOpen} onOpenChange={(open) => { if (!open) close(); }}>
-        <SheetContent
-          side="right"
-          showCloseButton={false}
-          className="md:hidden w-full max-w-full inset-0 flex flex-col p-0"
-        >
-          {/* Mobile sheet header */}
-          <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <RequoIcon className="size-4 text-primary" />
-              <SheetTitle className="text-sm font-medium">Requo AI</SheetTitle>
+      {/* Mobile: fullscreen sheet — only rendered below md breakpoint to avoid overlay on desktop */}
+      {!isDesktop && (
+        <Sheet open={isOpen} onOpenChange={(open) => { if (!open) close(); }}>
+          <SheetContent
+            side="right"
+            showCloseButton={false}
+            className="w-full max-w-full inset-0 flex flex-col p-0"
+          >
+            {/* Mobile sheet header */}
+            <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <RequoIcon className="size-4 text-primary" />
+                <SheetTitle className="text-sm font-medium">Requo AI</SheetTitle>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => setConversation(null)}
+                  title="New chat"
+                >
+                  <Plus className="size-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={close}
+                  title="Close"
+                >
+                  <X className="size-4" />
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => setConversation(null)}
-                title="New chat"
-              >
-                <Plus className="size-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={close}
-                title="Close"
-              >
-                <X className="size-4" />
-              </Button>
+            {/* Sheet body */}
+            <div className="flex flex-1 flex-col overflow-hidden">
+              {panelContent}
             </div>
-          </div>
-          {/* Sheet body */}
-          <div className="flex flex-1 flex-col overflow-hidden">
-            {panelContent}
-          </div>
-        </SheetContent>
-      </Sheet>
+          </SheetContent>
+        </Sheet>
+      )}
     </>
   );
 }
