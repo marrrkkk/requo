@@ -25,16 +25,27 @@ export const metadata: Metadata = createNoIndexMetadata({
     "General business profile settings, branding, and lifecycle actions.",
 });
 
-export const unstable_instant = { prefetch: "static", unstable_disableValidation: true };
+export const unstable_instant = {
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
+};
 
-export default async function BusinessGeneralSettingsPage() {
-  // Auth gate runs synchronously with the page frame; the slow settings
-  // query streams in below via <Suspense>.
-  const { user, businessContext } = await getBusinessOwnerPageContext();
-  const settingsPromise = getBusinessSettingsForBusiness(
-    businessContext.business.id,
-  );
-
+/**
+ * General settings page — non-blocking structural shell.
+ *
+ * Returns the page header synchronously. All dynamic reads
+ * (getBusinessOwnerPageContext, settings queries) are resolved
+ * inside a Suspense-wrapped child server component.
+ */
+export default function BusinessGeneralSettingsPage() {
   return (
     <>
       <PageHeader
@@ -43,23 +54,17 @@ export default async function BusinessGeneralSettingsPage() {
         description="Customer-facing details used on inquiry pages, quotes, and emails."
       />
       <Suspense fallback={<SettingsFormBodySkeleton />}>
-        <BusinessGeneralSettingsBody
-          settingsPromise={settingsPromise}
-          userEmail={user.email}
-        />
+        <BusinessGeneralSettingsContent />
       </Suspense>
     </>
   );
 }
 
-async function BusinessGeneralSettingsBody({
-  settingsPromise,
-  userEmail,
-}: {
-  settingsPromise: ReturnType<typeof getBusinessSettingsForBusiness>;
-  userEmail: string;
-}) {
-  const settings = await settingsPromise;
+async function BusinessGeneralSettingsContent() {
+  const { user, businessContext } = await getBusinessOwnerPageContext();
+  const settings = await getBusinessSettingsForBusiness(
+    businessContext.business.id,
+  );
 
   if (!settings) {
     notFound();
@@ -108,7 +113,7 @@ async function BusinessGeneralSettingsBody({
             settings.id,
             settings.slug,
           )}
-          fallbackContactEmail={userEmail}
+          fallbackContactEmail={user.email}
           key={`business-settings-${settings.updatedAt.getTime()}`}
           logoPreviewUrl={logoPreviewUrl}
           restoreAction={restoreBusinessAction.bind(
@@ -136,7 +141,7 @@ async function BusinessGeneralSettingsBody({
         settings.id,
         settings.slug,
       )}
-      fallbackContactEmail={userEmail}
+      fallbackContactEmail={user.email}
       key={`business-settings-${settings.updatedAt.getTime()}`}
       logoPreviewUrl={logoPreviewUrl}
       restoreAction={restoreBusinessAction.bind(

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { BookOpen, CircleHelp, ExternalLink, Mail, MessageCircle } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
@@ -43,14 +44,37 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Get help with onboarding, billing, troubleshooting, and product usage.",
 });
 
-export const unstable_instant = { prefetch: "static", unstable_disableValidation: true };
+export const unstable_instant = {
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
+};
 
-export default async function BusinessSupportSettingsPage() {
-  await getBusinessOperationalPageContext();
+/**
+ * Support settings page — non-blocking structural shell.
+ *
+ * Returns the page content synchronously. The auth gate
+ * (getBusinessOperationalPageContext) is resolved inside a
+ * Suspense-wrapped child server component that redirects
+ * unauthorized users without blocking the shell render.
+ */
+export default function BusinessSupportSettingsPage() {
   const crispEnabled = Boolean(env.CRISP_WEBSITE_ID);
 
   return (
     <>
+      {/* Auth gate — redirects unauthorized users once resolved */}
+      <Suspense fallback={null}>
+        <SupportAuthGate />
+      </Suspense>
+
       <PageHeader
         eyebrow="Business"
         title="Support"
@@ -133,4 +157,13 @@ export default async function BusinessSupportSettingsPage() {
       <CrispChatWidgetServer />
     </>
   );
+}
+
+/**
+ * Auth gate component — resolves the business operational page context.
+ * Redirects unauthorized users; renders nothing on success.
+ */
+async function SupportAuthGate() {
+  await getBusinessOperationalPageContext();
+  return null;
 }

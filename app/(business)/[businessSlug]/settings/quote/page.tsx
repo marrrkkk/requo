@@ -31,23 +31,27 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Business quote defaults and templates.",
 });
 
-export const unstable_instant = { prefetch: "static", unstable_disableValidation: true };
+export const unstable_instant = {
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
+};
 
-export default async function BusinessQuoteSettingsPage() {
-  const { businessContext } = await getBusinessOperationalPageContext();
-  const businessId = businessContext.business.id;
-  const businessPlan = businessContext.business.plan;
-
-  const settingsPromise = getBusinessSettingsForBusiness(businessId);
-  const autoJobPromise = isAutoCreateJobOnAcceptanceEnabled(businessId);
-
-  const hasLibraryAccess = hasFeatureAccess(businessPlan, "quoteLibrary");
-  const quoteLibraryPromise = hasLibraryAccess
-    ? getQuoteLibraryForBusiness(businessId)
-    : null;
-  const billingPromise =
-    !hasLibraryAccess ? getBusinessBillingOverview(businessId) : null;
-
+/**
+ * Quote settings page — non-blocking structural shell.
+ *
+ * Returns the page header synchronously. All dynamic reads
+ * (getBusinessOperationalPageContext, settings/library/billing queries)
+ * are resolved inside Suspense-wrapped child server components.
+ */
+export default function BusinessQuoteSettingsPage() {
   return (
     <>
       <PageHeader
@@ -58,41 +62,25 @@ export default async function BusinessQuoteSettingsPage() {
 
       {/* Defaults section */}
       <Suspense fallback={<SettingsFormBodySkeleton />}>
-        <BusinessQuoteSettingsBody
-          settingsPromise={settingsPromise}
-          autoJobPromise={autoJobPromise}
-        />
+        <BusinessQuoteSettingsContent />
       </Suspense>
 
       {/* Templates section */}
-      {hasLibraryAccess && quoteLibraryPromise ? (
-        <Suspense fallback={<SettingsCollectionBodySkeleton />}>
-          <QuoteTemplatesBody
-            businessPlan={businessPlan}
-            quoteLibraryPromise={quoteLibraryPromise}
-            settingsPromise={settingsPromise}
-          />
-        </Suspense>
-      ) : billingPromise ? (
-        <Suspense fallback={<SettingsCollectionBodySkeleton />}>
-          <LockedTemplatesBody
-            plan={businessPlan}
-            billingPromise={billingPromise}
-          />
-        </Suspense>
-      ) : null}
+      <Suspense fallback={<SettingsCollectionBodySkeleton />}>
+        <QuoteTemplatesContent />
+      </Suspense>
     </>
   );
 }
 
-async function BusinessQuoteSettingsBody({
-  settingsPromise,
-  autoJobPromise,
-}: {
-  settingsPromise: ReturnType<typeof getBusinessSettingsForBusiness>;
-  autoJobPromise: ReturnType<typeof isAutoCreateJobOnAcceptanceEnabled>;
-}) {
-  const [settings, autoJob] = await Promise.all([settingsPromise, autoJobPromise]);
+async function BusinessQuoteSettingsContent() {
+  const { businessContext } = await getBusinessOperationalPageContext();
+  const businessId = businessContext.business.id;
+
+  const [settings, autoJob] = await Promise.all([
+    getBusinessSettingsForBusiness(businessId),
+    isAutoCreateJobOnAcceptanceEnabled(businessId),
+  ]);
 
   if (!settings) {
     notFound();
@@ -108,65 +96,55 @@ async function BusinessQuoteSettingsBody({
   );
 }
 
-async function QuoteTemplatesBody({
-  businessPlan,
-  quoteLibraryPromise,
-  settingsPromise,
-}: {
-  businessPlan: Awaited<
-    ReturnType<typeof getBusinessOperationalPageContext>
-  >["businessContext"]["business"]["plan"];
-  quoteLibraryPromise: ReturnType<typeof getQuoteLibraryForBusiness>;
-  settingsPromise: ReturnType<typeof getBusinessSettingsForBusiness>;
-}) {
-  const [quoteLibrary, settings] = await Promise.all([
-    quoteLibraryPromise,
-    settingsPromise,
-  ]);
-  const templates = quoteLibrary.filter((entry) => entry.kind === "template");
-  const availableBlocks: QuoteLibraryBlockReference[] = quoteLibrary
-    .filter((entry) => entry.kind !== "template")
-    .map((entry) => ({
-      id: entry.id,
-      name: entry.name,
-      currency: entry.currency,
-      totalInCents: entry.totalInCents,
-      items: entry.items,
-    }));
+async function QuoteTemplatesContent() {
+  const { businessContext } = await getBusinessOperationalPageContext();
+  const businessId = businessContext.business.id;
+  const businessPlan = businessContext.business.plan;
 
-  return (
-    <QuoteTemplatesManager
-      availableBlocks={availableBlocks}
-      businessDefaults={settings ? {
-        defaultQuoteNotes: settings.defaultQuoteNotes,
-        defaultQuoteTerms: settings.defaultQuoteTerms,
-        defaultQuoteValidityDays: settings.defaultQuoteValidityDays,
-      } : undefined}
-      createAction={createQuoteLibraryEntryAction}
-      deleteAction={deleteQuoteLibraryEntryAction}
-      pricingLimit={getUsageLimit(businessPlan, "pricingEntriesPerBusiness")}
-      templates={templates}
-      totalLibraryCount={quoteLibrary.length}
-      updateAction={updateQuoteLibraryEntryAction}
-    />
+  const hasLibraryAccess = hasFeatureAccess(businessPlan, "quoteLibrary");
+
+  if (hasLibraryAccess) {
+    const [quoteLibrary, settings] = await Promise.all([
+      getQuoteLibraryForBusiness(businessId),
+      getBusinessSettingsForBusiness(businessId),
+    ]);
+    const templates = quoteLibrary.filter((entry) => entry.kind === "template");
+    const availableBlocks: QuoteLibraryBlockReference[] = quoteLibrary
+      .filter((entry) => entry.kind !== "template")
+      .map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        currency: entry.currency,
+        totalInCents: entry.totalInCents,
+        items: entry.items,
+      }));
+
+    return (
+      <QuoteTemplatesManager
+        availableBlocks={availableBlocks}
+        businessDefaults={settings ? {
+          defaultQuoteNotes: settings.defaultQuoteNotes,
+          defaultQuoteTerms: settings.defaultQuoteTerms,
+          defaultQuoteValidityDays: settings.defaultQuoteValidityDays,
+        } : undefined}
+        createAction={createQuoteLibraryEntryAction}
+        deleteAction={deleteQuoteLibraryEntryAction}
+        pricingLimit={getUsageLimit(businessPlan, "pricingEntriesPerBusiness")}
+        templates={templates}
+        totalLibraryCount={quoteLibrary.length}
+        updateAction={updateQuoteLibraryEntryAction}
+      />
+    );
+  }
+
+  const billingOverview = await getBusinessBillingOverview(businessId).catch(
+    () => null,
   );
-}
-
-async function LockedTemplatesBody({
-  plan,
-  billingPromise,
-}: {
-  plan: Awaited<
-    ReturnType<typeof getBusinessOperationalPageContext>
-  >["businessContext"]["business"]["plan"];
-  billingPromise: ReturnType<typeof getBusinessBillingOverview>;
-}) {
-  const billingOverview = await billingPromise;
 
   return (
     <LockedFeaturePage
       feature="quoteLibrary"
-      plan={plan}
+      plan={businessPlan}
       description="Upgrade to create reusable quote templates and speed up quoting."
       upgradeAction={
         billingOverview

@@ -17,14 +17,56 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Edit the email templates Requo sends on behalf of this business.",
 });
 
-export const unstable_instant = { prefetch: "static", unstable_disableValidation: true };
+export const unstable_instant = {
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
+};
 
-export default async function BusinessEmailTemplateSettingsPage() {
+/**
+ * Email template settings page — non-blocking structural shell.
+ *
+ * Returns the page header synchronously. All dynamic reads
+ * (getBusinessOperationalPageContext, billing, settings queries)
+ * are resolved inside a Suspense-wrapped child server component.
+ */
+export default function BusinessEmailTemplateSettingsPage() {
+  return (
+    <>
+      <PageHeader
+        eyebrow="Quotes"
+        title="Email templates"
+        description="Customize the automated email sent with your quotes."
+      />
+
+      <Suspense fallback={<SettingsFormBodySkeleton />}>
+        <BusinessEmailTemplateSettingsContent />
+      </Suspense>
+    </>
+  );
+}
+
+async function BusinessEmailTemplateSettingsContent() {
   const { user, businessContext } = await getBusinessOperationalPageContext();
 
   const billingOverview = await getBusinessBillingOverview(
     businessContext.business.id,
   ).catch(() => null);
+
+  const settings = await getBusinessSettingsForBusiness(
+    businessContext.business.id,
+  );
+
+  if (!settings) {
+    notFound();
+  }
 
   return (
     <FeatureGate
@@ -42,37 +84,11 @@ export default async function BusinessEmailTemplateSettingsPage() {
           : undefined
       }
     >
-      <PageHeader
-        eyebrow="Quotes"
-        title="Email templates"
-        description="Customize the automated email sent with your quotes."
+      <BusinessEmailTemplateForm
+        action={updateBusinessEmailTemplateSettingsAction}
+        key={`business-email-template-settings-${settings.updatedAt.getTime()}`}
+        settings={settings}
       />
-
-      <Suspense fallback={<SettingsFormBodySkeleton />}>
-        <BusinessEmailTemplateSettingsBody
-          businessId={businessContext.business.id}
-        />
-      </Suspense>
     </FeatureGate>
-  );
-}
-
-async function BusinessEmailTemplateSettingsBody({
-  businessId,
-}: {
-  businessId: string;
-}) {
-  const settings = await getBusinessSettingsForBusiness(businessId);
-
-  if (!settings) {
-    notFound();
-  }
-
-  return (
-    <BusinessEmailTemplateForm
-      action={updateBusinessEmailTemplateSettingsAction}
-      key={`business-email-template-settings-${settings.updatedAt.getTime()}`}
-      settings={settings}
-    />
   );
 }

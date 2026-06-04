@@ -29,26 +29,20 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Manage the pricing library used to build quotes quickly.",
 });
 
-export const unstable_instant = { prefetch: "static", unstable_disableValidation: true };
+export const unstable_instant = {
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
+};
 
-export default async function BusinessPricingPage() {
-  const { businessContext } = await getBusinessOperationalPageContext();
-  const hasAccess = hasFeatureAccess(
-    businessContext.business.plan,
-    "quoteLibrary",
-  );
-
-  const billingPromise = hasAccess
-    ? null
-    : getBusinessBillingOverview(businessContext.business.id);
-
-  const settingsPromise = hasAccess
-    ? getBusinessSettingsForBusiness(businessContext.business.id)
-    : null;
-  const quoteLibraryPromise = hasAccess
-    ? getQuoteLibraryForBusiness(businessContext.business.id)
-    : null;
-
+export default function BusinessPricingPage() {
   return (
     <>
       <PageHeader
@@ -56,39 +50,48 @@ export default async function BusinessPricingPage() {
         title="Pricing"
         description="Reusable pricing blocks and packages for faster quotes."
       />
-
-      {hasAccess && settingsPromise && quoteLibraryPromise ? (
-        <Suspense fallback={<SettingsPricingBodySkeleton />}>
-          <BusinessPricingBody
-            businessPlan={businessContext.business.plan}
-            settingsPromise={settingsPromise}
-            quoteLibraryPromise={quoteLibraryPromise}
-          />
-        </Suspense>
-      ) : billingPromise ? (
-        <Suspense fallback={<SettingsPricingBodySkeleton />}>
-          <LockedPricingBody
-            plan={businessContext.business.plan}
-            billingPromise={billingPromise}
-          />
-        </Suspense>
-      ) : null}
+      <Suspense fallback={<SettingsPricingBodySkeleton />}>
+        <PricingContent />
+      </Suspense>
     </>
   );
 }
 
-async function BusinessPricingBody({
-  businessPlan,
-  settingsPromise,
-  quoteLibraryPromise,
-}: {
-  businessPlan: Awaited<ReturnType<typeof getBusinessOperationalPageContext>>["businessContext"]["business"]["plan"];
-  settingsPromise: ReturnType<typeof getBusinessSettingsForBusiness>;
-  quoteLibraryPromise: ReturnType<typeof getQuoteLibraryForBusiness>;
-}) {
+async function PricingContent() {
+  const { businessContext } = await getBusinessOperationalPageContext();
+  const hasAccess = hasFeatureAccess(
+    businessContext.business.plan,
+    "quoteLibrary",
+  );
+
+  if (!hasAccess) {
+    const billingOverview = await getBusinessBillingOverview(
+      businessContext.business.id,
+    );
+
+    return (
+      <LockedFeaturePage
+        feature="quoteLibrary"
+        plan={businessContext.business.plan}
+        description="Upgrade to build reusable pricing blocks and speed up quote creation."
+        upgradeAction={
+          billingOverview
+            ? {
+                userId: billingOverview.userId,
+                businessId: billingOverview.businessId,
+                businessSlug: billingOverview.businessSlug,
+                currentPlan: billingOverview.currentPlan,
+                ctaLabel: "Upgrade for pricing library",
+              }
+            : undefined
+        }
+      />
+    );
+  }
+
   const [settings, quoteLibrary] = await Promise.all([
-    settingsPromise,
-    quoteLibraryPromise,
+    getBusinessSettingsForBusiness(businessContext.business.id),
+    getQuoteLibraryForBusiness(businessContext.business.id),
   ]);
 
   if (!settings) {
@@ -104,42 +107,13 @@ async function BusinessPricingBody({
     <BusinessPricingLibraryManager
       createAction={createQuoteLibraryEntryAction}
       deleteAction={deleteQuoteLibraryEntryAction}
-      pricingLimit={getUsageLimit(businessPlan, "pricingEntriesPerBusiness")}
+      pricingLimit={getUsageLimit(businessContext.business.plan, "pricingEntriesPerBusiness")}
       quoteLibrary={pricingEntries}
       updateAction={updateQuoteLibraryEntryAction}
-      importerEnabled={hasFeatureAccess(businessPlan, "aiAssistant")}
+      importerEnabled={hasFeatureAccess(businessContext.business.plan, "aiAssistant")}
       analyzeImportAction={analyzeImportAction}
       commitKnowledgeImportAction={commitKnowledgeImportAction}
       commitPricingImportAction={commitPricingImportAction}
-    />
-  );
-}
-
-async function LockedPricingBody({
-  plan,
-  billingPromise,
-}: {
-  plan: Awaited<ReturnType<typeof getBusinessOperationalPageContext>>["businessContext"]["business"]["plan"];
-  billingPromise: ReturnType<typeof getBusinessBillingOverview>;
-}) {
-  const billingOverview = await billingPromise;
-
-  return (
-    <LockedFeaturePage
-      feature="quoteLibrary"
-      plan={plan}
-      description="Upgrade to build reusable pricing blocks and speed up quote creation."
-      upgradeAction={
-        billingOverview
-          ? {
-              userId: billingOverview.userId,
-              businessId: billingOverview.businessId,
-              businessSlug: billingOverview.businessSlug,
-              currentPlan: billingOverview.currentPlan,
-              ctaLabel: "Upgrade for pricing library",
-            }
-          : undefined
-      }
     />
   );
 }

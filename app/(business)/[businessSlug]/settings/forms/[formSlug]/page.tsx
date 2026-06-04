@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/shared/page-header";
+import { ManagerBodySkeleton } from "@/components/shell/settings-body-skeletons";
 import {
   applyBusinessInquiryFormPresetAction,
   archiveBusinessInquiryFormFromDetailAction,
@@ -35,11 +36,46 @@ export const metadata: Metadata = createNoIndexMetadata({
 });
 
 export const unstable_instant = {
-  prefetch: 'static',
-  unstable_disableValidation: true,
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo", formSlug: "default" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
-export default async function BusinessFormSettingsPage({
+export default function BusinessFormSettingsPage({
+  params,
+}: {
+  params: Promise<{ formSlug: string }>;
+}) {
+  return (
+    <>
+      <Suspense fallback={<FormEditorFallback />}>
+        <FormEditorContent params={params} />
+      </Suspense>
+    </>
+  );
+}
+
+function FormEditorFallback() {
+  return (
+    <>
+      <PageHeader
+        eyebrow="Forms"
+        title="Form editor"
+        description="Edit the fields, public page, preview, and publishing controls for this inquiry workflow."
+      />
+      <ManagerBodySkeleton />
+    </>
+  );
+}
+
+async function FormEditorContent({
   params,
 }: {
   params: Promise<{ formSlug: string }>;

@@ -29,29 +29,20 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Manage business knowledge entries used by AI features.",
 });
 
-export const unstable_instant = { prefetch: "static", unstable_disableValidation: true };
+export const unstable_instant = {
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
+};
 
-export default async function BusinessKnowledgePage() {
-  const { businessContext } = await getBusinessOperationalPageContext();
-  const hasAccess = hasFeatureAccess(
-    businessContext.business.plan,
-    "knowledgeBase",
-  );
-
-  const billingPromise = hasAccess
-    ? null
-    : getBusinessBillingOverview(businessContext.business.id);
-
-  const memoryDataPromise = hasAccess
-    ? getMemoryDashboardData(businessContext.business.id)
-    : null;
-  const memorySummaryPromise = hasAccess
-    ? getMemorySummaryForBusiness(
-        businessContext.business.id,
-        businessContext.business.plan,
-      )
-    : null;
-
+export default function BusinessKnowledgePage() {
   return (
     <>
       <PageHeader
@@ -59,39 +50,51 @@ export default async function BusinessKnowledgePage() {
         title="Knowledge"
         description="Saved context for AI drafting."
       />
-
-      {hasAccess && memoryDataPromise && memorySummaryPromise ? (
-        <Suspense fallback={<SettingsCollectionBodySkeleton />}>
-          <BusinessKnowledgeBody
-            businessPlan={businessContext.business.plan}
-            memoryDataPromise={memoryDataPromise}
-            memorySummaryPromise={memorySummaryPromise}
-          />
-        </Suspense>
-      ) : billingPromise ? (
-        <Suspense fallback={<SettingsCollectionBodySkeleton />}>
-          <LockedKnowledgeBody
-            plan={businessContext.business.plan}
-            billingPromise={billingPromise}
-          />
-        </Suspense>
-      ) : null}
+      <Suspense fallback={<SettingsCollectionBodySkeleton />}>
+        <KnowledgeContent />
+      </Suspense>
     </>
   );
 }
 
-async function BusinessKnowledgeBody({
-  businessPlan,
-  memoryDataPromise,
-  memorySummaryPromise,
-}: {
-  businessPlan: Awaited<ReturnType<typeof getBusinessOperationalPageContext>>["businessContext"]["business"]["plan"];
-  memoryDataPromise: ReturnType<typeof getMemoryDashboardData>;
-  memorySummaryPromise: ReturnType<typeof getMemorySummaryForBusiness>;
-}) {
+async function KnowledgeContent() {
+  const { businessContext } = await getBusinessOperationalPageContext();
+  const hasAccess = hasFeatureAccess(
+    businessContext.business.plan,
+    "knowledgeBase",
+  );
+
+  if (!hasAccess) {
+    const billingOverview = await getBusinessBillingOverview(
+      businessContext.business.id,
+    );
+
+    return (
+      <LockedFeaturePage
+        feature="knowledgeBase"
+        plan={businessContext.business.plan}
+        description="Upgrade to save reusable context and train better AI drafts."
+        upgradeAction={
+          billingOverview
+            ? {
+                userId: billingOverview.userId,
+                businessId: billingOverview.businessId,
+                businessSlug: billingOverview.businessSlug,
+                currentPlan: billingOverview.currentPlan,
+                ctaLabel: "Upgrade for Knowledge",
+              }
+            : undefined
+        }
+      />
+    );
+  }
+
   const [memoryData, memorySummary] = await Promise.all([
-    memoryDataPromise,
-    memorySummaryPromise,
+    getMemoryDashboardData(businessContext.business.id),
+    getMemorySummaryForBusiness(
+      businessContext.business.id,
+      businessContext.business.plan,
+    ),
   ]);
 
   return (
@@ -101,39 +104,10 @@ async function BusinessKnowledgeBody({
       createAction={createMemoryAction}
       updateAction={updateMemoryAction}
       deleteAction={deleteMemoryAction}
-      importerEnabled={hasFeatureAccess(businessPlan, "aiAssistant")}
+      importerEnabled={hasFeatureAccess(businessContext.business.plan, "aiAssistant")}
       analyzeImportAction={analyzeImportAction}
       commitKnowledgeImportAction={commitKnowledgeImportAction}
       commitPricingImportAction={commitPricingImportAction}
-    />
-  );
-}
-
-async function LockedKnowledgeBody({
-  plan,
-  billingPromise,
-}: {
-  plan: Awaited<ReturnType<typeof getBusinessOperationalPageContext>>["businessContext"]["business"]["plan"];
-  billingPromise: ReturnType<typeof getBusinessBillingOverview>;
-}) {
-  const billingOverview = await billingPromise;
-
-  return (
-    <LockedFeaturePage
-      feature="knowledgeBase"
-      plan={plan}
-      description="Upgrade to save reusable context and train better AI drafts."
-      upgradeAction={
-        billingOverview
-          ? {
-              userId: billingOverview.userId,
-              businessId: billingOverview.businessId,
-              businessSlug: billingOverview.businessSlug,
-              currentPlan: billingOverview.currentPlan,
-              ctaLabel: "Upgrade for Knowledge",
-            }
-          : undefined
-      }
     />
   );
 }
