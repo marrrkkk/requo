@@ -8,10 +8,10 @@ export const siteDescription =
 
 /** Official Requo social profiles for Organization `sameAs` and marketing footer. */
 export const siteSameAs = [
-  "https://www.linkedin.com/company/requo",
+  "https://www.linkedin.com/company/requo-app",
   "https://x.com/requoapp",
   "https://www.instagram.com/requoapp",
-  "https://www.facebook.com/requoapp",
+  "https://www.facebook.com/profile.php?id=61590244777923",
 ] as const;
 
 const defaultSocialImagePath = "/opengraph-image";
