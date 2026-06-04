@@ -5,6 +5,7 @@ import { Suspense } from "react";
 
 import { DashboardEmptyState, DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
+import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
 import { ManagerBodySkeleton } from "@/components/shell/settings-body-skeletons";
 import { Button } from "@/components/ui/button";
 import { createManualInquiryAction } from "@/features/inquiries/actions";
@@ -27,10 +28,45 @@ export const metadata: Metadata = createNoIndexMetadata({
 
 export const unstable_instant = {
   prefetch: "static",
-  unstable_disableValidation: true,
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
-export default async function NewInquiryPage({
+/**
+ * New inquiry page — returns the structural shell synchronously.
+ *
+ * All dynamic reads (params, searchParams, getAppShellContext, form queries) are
+ * pushed into a `<Suspense>`-wrapped child server component so the shell paints
+ * instantly on client navigation.
+ */
+export default function NewInquiryPage({
+  params,
+  searchParams,
+}: NewInquiryPageProps) {
+  return (
+    <DashboardPage>
+      <PageHeader
+        eyebrow="New inquiry"
+        title="Quick-add inquiry"
+        description="Capture the essentials from a call, chat, walk-in, or forwarded message. You can add deeper form details later."
+      />
+      <RegionErrorBoundary fallback={<ManagerBodySkeleton />}>
+        <Suspense fallback={<ManagerBodySkeleton />}>
+          <NewInquiryContent params={params} searchParams={searchParams} />
+        </Suspense>
+      </RegionErrorBoundary>
+    </DashboardPage>
+  );
+}
+
+async function NewInquiryContent({
   params,
   searchParams,
 }: NewInquiryPageProps) {
@@ -39,52 +75,18 @@ export default async function NewInquiryPage({
     searchParams,
   ]);
   const { businessContext } = await getAppShellContext(businessSlug);
-  const inquiryFormsPromise = getInquiryEditorFormsForBusiness(
+  const inquiryForms = await getInquiryEditorFormsForBusiness(
     businessContext.business.id,
   );
 
-  return (
-    <DashboardPage>
-      <PageHeader
-        eyebrow="New inquiry"
-        title="Quick-add inquiry"
-        description="Capture the essentials from a call, chat, walk-in, or forwarded message. You can add deeper form details later."
-      />
-      <Suspense fallback={<ManagerBodySkeleton />}>
-        <NewInquiryEditorBody
-          businessName={businessContext.business.name}
-          businessSlug={businessContext.business.slug}
-          businessPlan={businessContext.business.plan}
-          inquiryFormsPromise={inquiryFormsPromise}
-          searchParams={resolvedSearchParams}
-        />
-      </Suspense>
-    </DashboardPage>
-  );
-}
-
-async function NewInquiryEditorBody({
-  businessName,
-  businessSlug,
-  businessPlan,
-  inquiryFormsPromise,
-  searchParams,
-}: {
-  businessName: string;
-  businessSlug: string;
-  businessPlan: Awaited<ReturnType<typeof getAppShellContext>>["businessContext"]["business"]["plan"];
-  inquiryFormsPromise: ReturnType<typeof getInquiryEditorFormsForBusiness>;
-  searchParams: Record<string, string | string[] | undefined>;
-}) {
-  const inquiryForms = await inquiryFormsPromise;
-  const requestedFormSlug = Array.isArray(searchParams.form)
-    ? searchParams.form[0]
-    : searchParams.form;
+  const requestedFormSlug = Array.isArray(resolvedSearchParams.form)
+    ? resolvedSearchParams.form[0]
+    : resolvedSearchParams.form;
   const initialFormSlug =
     (requestedFormSlug &&
       inquiryForms.find((form) => form.slug === requestedFormSlug)?.slug) ??
     inquiryForms[0]?.slug;
-  const uploadHelpText = getPublicInquiryAttachmentHelpText(businessPlan);
+  const uploadHelpText = getPublicInquiryAttachmentHelpText(businessContext.business.plan);
 
   if (!initialFormSlug) {
     return (
@@ -107,7 +109,7 @@ async function NewInquiryEditorBody({
   return (
     <ManualInquiryEditor
       action={createManualInquiryAction}
-      businessName={businessName}
+      businessName={businessContext.business.name}
       forms={inquiryForms}
       initialFormSlug={initialFormSlug}
       uploadHelpText={uploadHelpText}

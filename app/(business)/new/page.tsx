@@ -25,7 +25,14 @@ export const metadata: Metadata = createNoIndexMetadata({
 
 export const unstable_instant = {
   prefetch: "static",
-  unstable_disableValidation: true,
+  samples: [
+    {
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
 export default function NewBusinessPage() {

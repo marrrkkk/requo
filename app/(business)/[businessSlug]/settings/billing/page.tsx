@@ -28,23 +28,20 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Business billing overview, usage, and payment history.",
 });
 
-export const unstable_instant = { prefetch: "static", unstable_disableValidation: true };
+export const unstable_instant = {
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
+};
 
-export default async function BillingSettingsPage() {
-  const { user, businessContext } = await getBusinessOwnerPageContext();
-  const businessId = businessContext.business.id;
-
-  // Start all fetches up front. Two Suspense boundaries consume
-  // them so each section can paint independently.
-  const billingOverviewPromise = getBusinessBillingOverview(businessId);
-  const inquiriesThisMonthPromise = getMonthlyInquiryCount(businessId);
-  const quotesThisMonthPromise = getMonthlyQuoteCount(businessId);
-  const requoQuoteEmailsThisMonthPromise =
-    getMonthlyRequoQuoteSendCount(businessId);
-  const membersPromise = getBusinessMemberCount(businessId);
-  const liveFormsPromise = getBusinessLiveFormsCount(businessId);
-  const paymentHistoryPromise = getAccountPaymentHistory(businessId);
-
+export default function BillingSettingsPage() {
   return (
     <>
       <PageHeader
@@ -56,15 +53,7 @@ export default async function BillingSettingsPage() {
       <div className="mx-auto w-full max-w-5xl">
         <div className="flex flex-col gap-10">
           <Suspense fallback={<BillingStatusCardBodySkeleton />}>
-            <BillingStatusSection
-              userId={user.id}
-              billingOverviewPromise={billingOverviewPromise}
-              inquiriesThisMonthPromise={inquiriesThisMonthPromise}
-              quotesThisMonthPromise={quotesThisMonthPromise}
-              requoQuoteEmailsThisMonthPromise={requoQuoteEmailsThisMonthPromise}
-              membersPromise={membersPromise}
-              liveFormsPromise={liveFormsPromise}
-            />
+            <BillingStatusSection />
           </Suspense>
 
           <div className="flex flex-col gap-4">
@@ -72,9 +61,7 @@ export default async function BillingSettingsPage() {
               Order history
             </h3>
             <Suspense fallback={<PaymentHistoryBodySkeleton />}>
-              <PaymentHistorySection
-                paymentHistoryPromise={paymentHistoryPromise}
-              />
+              <PaymentHistorySection />
             </Suspense>
           </div>
         </div>
@@ -83,25 +70,10 @@ export default async function BillingSettingsPage() {
   );
 }
 
-async function BillingStatusSection({
-  userId,
-  billingOverviewPromise,
-  inquiriesThisMonthPromise,
-  quotesThisMonthPromise,
-  requoQuoteEmailsThisMonthPromise,
-  membersPromise,
-  liveFormsPromise,
-}: {
-  userId: string;
-  billingOverviewPromise: ReturnType<typeof getBusinessBillingOverview>;
-  inquiriesThisMonthPromise: ReturnType<typeof getMonthlyInquiryCount>;
-  quotesThisMonthPromise: ReturnType<typeof getMonthlyQuoteCount>;
-  requoQuoteEmailsThisMonthPromise: ReturnType<
-    typeof getMonthlyRequoQuoteSendCount
-  >;
-  membersPromise: ReturnType<typeof getBusinessMemberCount>;
-  liveFormsPromise: ReturnType<typeof getBusinessLiveFormsCount>;
-}) {
+async function BillingStatusSection() {
+  const { user, businessContext } = await getBusinessOwnerPageContext();
+  const businessId = businessContext.business.id;
+
   const [
     billingOverview,
     inquiriesThisMonth,
@@ -110,18 +82,18 @@ async function BillingStatusSection({
     members,
     liveForms,
   ] = await Promise.all([
-    billingOverviewPromise,
-    inquiriesThisMonthPromise,
-    quotesThisMonthPromise,
-    requoQuoteEmailsThisMonthPromise,
-    membersPromise,
-    liveFormsPromise,
+    getBusinessBillingOverview(businessId),
+    getMonthlyInquiryCount(businessId),
+    getMonthlyQuoteCount(businessId),
+    getMonthlyRequoQuoteSendCount(businessId),
+    getBusinessMemberCount(businessId),
+    getBusinessLiveFormsCount(businessId),
   ]);
 
   if (!billingOverview) return null;
 
   const plan = billingOverview.currentPlan;
-  const aiUsage = await getMonthlyUsageSummary(userId, plan);
+  const aiUsage = await getMonthlyUsageSummary(user.id, plan);
 
   return (
     <BillingStatusCard
@@ -146,12 +118,11 @@ async function BillingStatusSection({
   );
 }
 
-async function PaymentHistorySection({
-  paymentHistoryPromise,
-}: {
-  paymentHistoryPromise: ReturnType<typeof getAccountPaymentHistory>;
-}) {
-  const paymentHistory = await paymentHistoryPromise;
+async function PaymentHistorySection() {
+  const { businessContext } = await getBusinessOwnerPageContext();
+  const businessId = businessContext.business.id;
+
+  const paymentHistory = await getAccountPaymentHistory(businessId);
 
   return <PaymentHistoryTable records={paymentHistory} />;
 }

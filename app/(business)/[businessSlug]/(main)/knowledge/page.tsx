@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
 import {
@@ -17,13 +18,42 @@ type KnowledgePageProps = {
 };
 
 export const unstable_instant = {
-  prefetch: 'static',
-  unstable_disableValidation: true,
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
-export default async function KnowledgePage({ params }: KnowledgePageProps) {
+/**
+ * Knowledge page — returns null synchronously and redirects from a Suspense child.
+ *
+ * The redirect is a dynamic read (requires session + business context),
+ * so it lives inside a Suspense-wrapped child server component.
+ */
+export default function KnowledgePage({ params }: KnowledgePageProps) {
+  return (
+    <Suspense fallback={null}>
+      <KnowledgeRedirect params={params} />
+    </Suspense>
+  );
+}
+
+async function KnowledgeRedirect({
+  params,
+}: {
+  params: Promise<{ businessSlug: string }>;
+}) {
   const { businessSlug } = await params;
   const { businessContext } = await getAppShellContext(businessSlug);
 
   redirect(getBusinessSettingsPath(businessContext.business.slug, "knowledge"));
+
+  // Unreachable — redirect() throws; this satisfies TypeScript's JSX component type
+  return null;
 }

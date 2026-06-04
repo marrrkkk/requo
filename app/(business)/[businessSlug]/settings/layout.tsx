@@ -8,7 +8,7 @@ import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { getUnifiedSettingsNavigation } from "@/features/settings/navigation";
-import { SettingsShellFrame } from "@/features/settings/components/settings-shell-frame";
+import { SettingsShellFrame, SettingsUserMenu } from "@/features/settings/components/settings-shell-frame";
 import { BusinessCheckoutProvider } from "@/features/billing/components/business-checkout-provider";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
@@ -34,7 +34,6 @@ export default async function SettingsLayout({
 }) {
   const { businessSlug } = await params;
   const groups = getUnifiedSettingsNavigation(businessSlug);
-  const userData = await resolveSettingsUser(businessSlug);
 
   return (
     <>
@@ -44,7 +43,11 @@ export default async function SettingsLayout({
       <SettingsShellFrame
         businessSlug={businessSlug}
         groups={groups}
-        user={userData}
+        userMenuSlot={
+          <Suspense fallback={<UserMenuSkeleton />}>
+            <UserMenuSlot businessSlug={businessSlug} />
+          </Suspense>
+        }
         businessNameSlot={
           <Suspense
             fallback={
@@ -130,7 +133,7 @@ async function BusinessNameSlot({ businessSlug }: { businessSlug: string }) {
   );
 }
 
-async function resolveSettingsUser(businessSlug: string) {
+async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
   const session = await requireSession();
   const [shellContext, profile] = await Promise.all([
     getAppShellContext(businessSlug),
@@ -145,10 +148,22 @@ async function resolveSettingsUser(businessSlug: string) {
     oauthImage: user.image ?? null,
   });
 
-  return {
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    avatarSrc,
-  };
+  return (
+    <SettingsUserMenu
+      user={{ id: user.id, email: user.email, name: user.name, avatarSrc }}
+      businessSlug={businessSlug}
+    />
+  );
+}
+
+function UserMenuSkeleton() {
+  return (
+    <div className="flex items-center gap-2.5 px-2 py-1.5">
+      <Skeleton className="size-8 shrink-0 rounded-lg" />
+      <div className="flex flex-col gap-1">
+        <Skeleton className="h-3.5 w-20 rounded" />
+        <Skeleton className="h-3 w-28 rounded" />
+      </div>
+    </div>
+  );
 }

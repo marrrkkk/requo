@@ -59,14 +59,25 @@ export async function generateMetadata({
   params: Promise<{ businessSlug: string }>;
 }): Promise<Metadata> {
   const { businessSlug } = await params;
-  const { businessContext } = await getAppShellContext(businessSlug);
 
-  const businessName = businessContext.business.name;
+  try {
+    const { businessContext } = await getAppShellContext(businessSlug);
+    const businessName = businessContext.business.name;
 
-  return {
-    title: {
-      default: businessName,
-      template: `%s - ${businessName} | ${siteName}`,
-    },
-  };
+    return {
+      title: {
+        default: businessName,
+        template: `%s - ${businessName} | ${siteName}`,
+      },
+    };
+  } catch {
+    // During instant validation or when session/business is unavailable,
+    // fall back to generic metadata. The route will redirect elsewhere.
+    return {
+      title: {
+        default: businessSlug,
+        template: `%s | ${siteName}`,
+      },
+    };
+  }
 }

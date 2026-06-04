@@ -20,15 +20,18 @@ export const metadata: Metadata = createNoIndexMetadata({
 
 export const unstable_instant = {
   prefetch: "static",
-  unstable_disableValidation: true,
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
-export default async function BusinessFormsSettingsPage() {
-  const { businessContext } = await getBusinessOperationalPageContext();
-  const settingsPromise = getBusinessInquiryFormsSettingsForBusiness(
-    businessContext.business.id,
-  );
-
+export default function BusinessFormsSettingsPage() {
   return (
     <>
       <PageHeader
@@ -36,23 +39,17 @@ export default async function BusinessFormsSettingsPage() {
         description="Manage inquiry capture, public URLs, and starting intake defaults."
       />
       <Suspense fallback={<ManagerBodySkeleton />}>
-        <BusinessFormsBody
-          businessPlan={businessContext.business.plan}
-          settingsPromise={settingsPromise}
-        />
+        <FormsContent />
       </Suspense>
     </>
   );
 }
 
-async function BusinessFormsBody({
-  businessPlan,
-  settingsPromise,
-}: {
-  businessPlan: Awaited<ReturnType<typeof getBusinessOperationalPageContext>>["businessContext"]["business"]["plan"];
-  settingsPromise: ReturnType<typeof getBusinessInquiryFormsSettingsForBusiness>;
-}) {
-  const settings = await settingsPromise;
+async function FormsContent() {
+  const { businessContext } = await getBusinessOperationalPageContext();
+  const settings = await getBusinessInquiryFormsSettingsForBusiness(
+    businessContext.business.id,
+  );
 
   if (!settings) {
     notFound();
@@ -63,7 +60,7 @@ async function BusinessFormsBody({
       createAction={createBusinessInquiryFormAction}
       unarchiveAction={unarchiveBusinessInquiryFormAction}
       settings={settings}
-      plan={businessPlan}
+      plan={businessContext.business.plan}
     />
   );
 }

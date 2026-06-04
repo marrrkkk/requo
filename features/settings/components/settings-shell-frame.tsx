@@ -86,7 +86,7 @@ export type SettingsShellFrameProps = {
   children: ReactNode;
   businessSlug: string;
   groups: SettingsNavigationGroup[];
-  user: SettingsUserData;
+  user?: SettingsUserData;
   userMenuSlot?: ReactNode;
   businessNameSlot: ReactNode;
 };
@@ -101,6 +101,7 @@ export function SettingsShellFrame({
   businessSlug,
   groups,
   user,
+  userMenuSlot,
   businessNameSlot,
 }: SettingsShellFrameProps) {
   const businessDashboardPath = getBusinessDashboardPath(businessSlug);
@@ -154,7 +155,7 @@ export function SettingsShellFrame({
         <SidebarSeparator />
 
         <SidebarFooter className="p-3 pt-2">
-          <SettingsUserMenu user={user} businessSlug={businessSlug} />
+          {userMenuSlot ?? (user ? <SettingsUserMenu user={user} businessSlug={businessSlug} /> : null)}
         </SidebarFooter>
 
         <SidebarRail />
@@ -257,7 +258,7 @@ const SettingsNavigationItem = memo(function SettingsNavigationItem({
   );
 });
 
-function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserData; businessSlug: string }) {
+export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserData; businessSlug: string }) {
   const [isPending, startTransition] = useTransition();
   const { isMobile, setOpenMobile } = useSidebar();
   const businessDashboardPath = getBusinessDashboardPath(businessSlug);

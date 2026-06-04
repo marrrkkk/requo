@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { MailCheck } from "lucide-react";
 import Link from "next/link";
 
@@ -12,11 +13,49 @@ export const metadata: Metadata = createNoIndexMetadata({
 });
 
 export const unstable_instant = {
-  prefetch: 'static',
-  unstable_disableValidation: true,
+  prefetch: "static",
+  samples: [
+    {
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+      searchParams: { email: null, reason: null },
+    },
+  ],
 };
 
-export default async function CheckEmailPage({
+export default function CheckEmailPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    email?: string | string[];
+    reason?: string | string[];
+  }>;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <AuthShell badge="Verify email" title="Check your inbox" layout="centered">
+          <div className="flex flex-col items-center justify-center gap-5 pt-2 text-center">
+            <div className="rounded-full bg-primary/10 p-4">
+              <MailCheck className="size-7 text-primary" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <p className="text-sm leading-6 text-muted-foreground">
+                Loading…
+              </p>
+            </div>
+          </div>
+        </AuthShell>
+      }
+    >
+      <CheckEmailContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function CheckEmailContent({
   searchParams,
 }: {
   searchParams: Promise<{

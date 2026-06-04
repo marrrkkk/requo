@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
 import { AuthShell } from "@/components/shell/auth-shell";
-import { AuthenticatedPageRedirect } from "@/features/auth/components/authenticated-page-redirect";
 import { dashboardPath } from "@/features/businesses/routes";
 import { ResetPasswordForm } from "@/features/auth/components/reset-password-form";
+import { getOptionalSession } from "@/lib/auth/session";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -12,8 +14,16 @@ export const metadata: Metadata = createNoIndexMetadata({
 });
 
 export const unstable_instant = {
-  prefetch: 'static',
-  unstable_disableValidation: true,
+  prefetch: "static",
+  samples: [
+    {
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+      searchParams: { token: "sample-reset-token" },
+    },
+  ],
 };
 
 export default function ResetPasswordPage() {
@@ -23,8 +33,18 @@ export default function ResetPasswordPage() {
       title="Choose a new password"
       layout="centered"
     >
-      <AuthenticatedPageRedirect redirectTo={dashboardPath} />
+      <Suspense fallback={null}>
+        <AuthRedirectGuard />
+      </Suspense>
       <ResetPasswordForm />
     </AuthShell>
   );
+}
+
+async function AuthRedirectGuard() {
+  const session = await getOptionalSession();
+  if (session) {
+    redirect(dashboardPath);
+  }
+  return null;
 }

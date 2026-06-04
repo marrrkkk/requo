@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/shared/page-header";
+import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   applyBusinessInquiryFormPresetAction,
   archiveBusinessInquiryFormFromDetailAction,
@@ -35,15 +37,76 @@ export const metadata: Metadata = createNoIndexMetadata({
 });
 
 export const unstable_instant = {
-  prefetch: 'static',
-  unstable_disableValidation: true,
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo", formSlug: "default" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
-export default async function BusinessFormPage({
-  params,
-}: {
+type FormPageProps = {
   params: Promise<{ formSlug: string }>;
-}) {
+};
+
+/**
+ * Form editor page — returns the structural shell synchronously.
+ *
+ * All dynamic reads (params, session, getBusinessOperationalPageContext, form
+ * editor queries) are pushed into a `<Suspense>`-wrapped child server component
+ * so the shell paints instantly on client navigation.
+ */
+export default function BusinessFormPage({ params }: FormPageProps) {
+  return (
+    <>
+      <RegionErrorBoundary fallback={<FormEditorSkeleton />}>
+        <Suspense fallback={<FormEditorSkeleton />}>
+          <FormEditorContent params={params} />
+        </Suspense>
+      </RegionErrorBoundary>
+    </>
+  );
+}
+
+function FormEditorSkeleton() {
+  return (
+    <>
+      <PageHeader
+        eyebrow="Forms"
+        title="Loading form..."
+        description="Edit the fields, public page, preview, and publishing controls for this inquiry workflow."
+      />
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center gap-2 border-b border-border/80 pb-3">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton className="h-9 w-24 rounded-lg" key={index} />
+          ))}
+        </div>
+        <div className="section-panel animate-pulse p-5 sm:p-6">
+          <div className="flex flex-col gap-5">
+            <Skeleton className="h-6 w-32 rounded-md" />
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="grid gap-3">
+                <Skeleton className="h-4 w-24 rounded-md" />
+                <Skeleton className="h-12 w-full rounded-xl" />
+              </div>
+              <div className="grid gap-3">
+                <Skeleton className="h-4 w-24 rounded-md" />
+                <Skeleton className="h-12 w-full rounded-xl" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+async function FormEditorContent({ params }: FormPageProps) {
   const [session, { businessContext }, { formSlug }] = await Promise.all([
     requireSession(),
     getBusinessOperationalPageContext(),

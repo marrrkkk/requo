@@ -14,14 +14,20 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Business invoice defaults and payment terms.",
 });
 
-export const unstable_instant = { prefetch: "static", unstable_disableValidation: true };
+export const unstable_instant = {
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
+};
 
-export default async function BusinessInvoiceSettingsPage() {
-  const { businessContext } = await getBusinessOperationalPageContext();
-  const businessId = businessContext.business.id;
-
-  const settingsPromise = getBusinessSettingsForBusiness(businessId);
-
+export default function BusinessInvoiceSettingsPage() {
   return (
     <>
       <PageHeader
@@ -31,18 +37,17 @@ export default async function BusinessInvoiceSettingsPage() {
       />
 
       <Suspense fallback={<SettingsFormBodySkeleton />}>
-        <BusinessInvoiceSettingsBody settingsPromise={settingsPromise} />
+        <InvoiceSettingsContent />
       </Suspense>
     </>
   );
 }
 
-async function BusinessInvoiceSettingsBody({
-  settingsPromise,
-}: {
-  settingsPromise: Promise<Awaited<ReturnType<typeof getBusinessSettingsForBusiness>>>;
-}) {
-  const settings = await settingsPromise;
+async function InvoiceSettingsContent() {
+  const { businessContext } = await getBusinessOperationalPageContext();
+  const businessId = businessContext.business.id;
+
+  const settings = await getBusinessSettingsForBusiness(businessId);
 
   if (!settings) {
     return null;

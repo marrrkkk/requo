@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
+import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
 import { createQuoteAction } from "@/features/quotes/actions";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
 import { NewQuoteWithTemplatePicker } from "@/features/quotes/components/new-quote-with-template-picker";
@@ -31,11 +33,73 @@ export const metadata: Metadata = createNoIndexMetadata({
 });
 
 export const unstable_instant = {
-  prefetch: 'static',
-  unstable_disableValidation: true,
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
-export default async function NewQuotePage({
+/**
+ * New quote page — returns the structural shell synchronously.
+ *
+ * All dynamic reads (params, searchParams, getAppShellContext, settings/inquiry
+ * queries) are pushed into a `<Suspense>`-wrapped child server component so the
+ * shell paints instantly on client navigation.
+ */
+export default function NewQuotePage({
+  params,
+  searchParams,
+}: NewQuotePageProps) {
+  return (
+    <DashboardPage>
+      <RegionErrorBoundary fallback={<NewQuoteEditorSkeleton />}>
+        <Suspense fallback={<NewQuoteEditorSkeleton />}>
+          <NewQuoteContent params={params} searchParams={searchParams} />
+        </Suspense>
+      </RegionErrorBoundary>
+    </DashboardPage>
+  );
+}
+
+function NewQuoteEditorSkeleton() {
+  return (
+    <>
+      <PageHeader
+        eyebrow="New quote"
+        title="Create a new quote"
+      />
+      <div className="flex flex-col gap-6">
+        <div className="section-panel animate-pulse p-5 sm:p-6">
+          <div className="flex flex-col gap-5">
+            <div className="h-6 w-32 rounded-md bg-muted" />
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="grid gap-3">
+                <div className="h-4 w-24 rounded-md bg-muted" />
+                <div className="h-12 w-full rounded-xl bg-muted" />
+              </div>
+              <div className="grid gap-3">
+                <div className="h-4 w-24 rounded-md bg-muted" />
+                <div className="h-12 w-full rounded-xl bg-muted" />
+              </div>
+            </div>
+            <div className="grid gap-3">
+              <div className="h-4 w-24 rounded-md bg-muted" />
+              <div className="h-12 w-full rounded-xl bg-muted" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+async function NewQuoteContent({
   params,
   searchParams,
 }: NewQuotePageProps) {
@@ -124,7 +188,7 @@ export default async function NewQuotePage({
   const showTemplatePicker = !linkedInquiry && templates.length > 0;
 
   return (
-    <DashboardPage>
+    <>
       <PageHeader
         eyebrow="New quote"
         title={
@@ -182,6 +246,6 @@ export default async function NewQuotePage({
           submitPendingLabel="Creating draft..."
         />
       )}
-    </DashboardPage>
+    </>
   );
 }

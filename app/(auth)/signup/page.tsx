@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { AuthShell } from "@/components/shell/auth-shell";
 import { SignupForm } from "@/features/auth/components/signup-form";
@@ -11,6 +12,7 @@ import { dashboardPath } from "@/features/businesses/routes";
 import { getOptionalSession } from "@/lib/auth/session";
 import { isEmailConfigured } from "@/lib/env";
 import { createNoIndexMetadata } from "@/lib/seo/site";
+import { AuthFormSkeleton } from "@/features/auth/components/auth-form-skeleton";
 
 export const metadata: Metadata = createNoIndexMetadata({
   description:
@@ -19,11 +21,33 @@ export const metadata: Metadata = createNoIndexMetadata({
 });
 
 export const unstable_instant = {
-  prefetch: 'static',
-  unstable_disableValidation: true,
+  prefetch: "static",
+  samples: [
+    {
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+      searchParams: { next: null, error: null },
+    },
+  ],
 };
 
-export default async function SignupPage() {
+export default function SignupPage() {
+  return (
+    <AuthShell
+      title="Create your account"
+      description="Start managing inquiries and quotes in one place."
+      layout="signup"
+    >
+      <Suspense fallback={<AuthFormSkeleton />}>
+        <SignupContent />
+      </Suspense>
+    </AuthShell>
+  );
+}
+
+async function SignupContent() {
   // Server-side redirect for already-authenticated users — avoids client-side flash
   const session = await getOptionalSession();
   if (session) {
@@ -39,15 +63,9 @@ export default async function SignupPage() {
   const socialProviders: SocialAuthProvider[] = ["google"];
 
   return (
-    <AuthShell
-      title="Create your account"
-      description="Start managing inquiries and quotes in one place."
-      layout="signup"
-    >
-      <SignupForm
-        magicLinkEnabled={isEmailConfigured}
-        socialProviders={socialProviders}
-      />
-    </AuthShell>
+    <SignupForm
+      magicLinkEnabled={isEmailConfigured}
+      socialProviders={socialProviders}
+    />
   );
 }

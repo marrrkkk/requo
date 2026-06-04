@@ -66,11 +66,54 @@ export const metadata: Metadata = createNoIndexMetadata({
 });
 
 export const unstable_instant = {
-  prefetch: 'static',
-  unstable_disableValidation: true,
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
-export default async function QuotesPage({
+/**
+ * Quotes list page — non-blocking structural shell.
+ *
+ * Returns the DashboardPage shell and skeleton fallbacks synchronously.
+ * All dynamic reads (params, searchParams, getAppShellContext, queries)
+ * are resolved inside Suspense-wrapped child server components.
+ */
+export default function QuotesPage({
+  params,
+  searchParams,
+}: QuotesPageProps) {
+  return (
+    <DashboardPage>
+      <PageHeader
+        title="Quotes"
+        description="List, filter, and manage quotes for this business."
+      />
+
+      <FirstVisitTip {...featureTips.quotes} className="mb-4" />
+
+      <Suspense fallback={<QuoteListControlsFallback />}>
+        <QuotesControlsRegion params={params} searchParams={searchParams} />
+      </Suspense>
+
+      <Suspense fallback={<QuoteListContentFallback />}>
+        <QuotesListRegion params={params} searchParams={searchParams} />
+      </Suspense>
+    </DashboardPage>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Controls region — resolves context and passes data to controls section
+// ---------------------------------------------------------------------------
+
+async function QuotesControlsRegion({
   params,
   searchParams,
 }: QuotesPageProps) {
@@ -96,6 +139,67 @@ export default async function QuotesPage({
     status: filters.status,
     sort: filters.sort,
   };
+
+  const canExport = hasFeatureAccess(
+    businessContext.business.plan,
+    "exports",
+  );
+
+  const quoteCountPromise = getQuoteListCountForBusiness({
+    businessId: businessContext.business.id,
+    filters: baseFilters,
+  });
+  const archivedItemsPromise = getQuoteListPageForBusiness({
+    businessId: businessContext.business.id,
+    filters: { view: "archived", status: "all", sort: "newest" },
+    page: 1,
+    pageSize: 50,
+  });
+
+  return (
+    <QuoteListControlsSection
+      businessSlug={businessSlug}
+      canExport={canExport}
+      filters={filters}
+      searchParams={resolvedSearchParams}
+      totalItemsPromise={quoteCountPromise}
+      archivedItemsPromise={archivedItemsPromise}
+      restoreAction={restoreArchivedQuoteAction}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// List region — resolves context and passes page data to content section
+// ---------------------------------------------------------------------------
+
+async function QuotesListRegion({
+  params,
+  searchParams,
+}: QuotesPageProps) {
+  const [{ businessSlug }, resolvedSearchParams] = await Promise.all([
+    params,
+    searchParams,
+  ]);
+  const { businessContext } = await getAppShellContext(businessSlug);
+
+  const parsedFilters = quoteListFiltersSchema.safeParse(resolvedSearchParams);
+  const filters = parsedFilters.success
+    ? parsedFilters.data
+    : {
+        q: undefined,
+        view: "active" as const,
+        status: "all" as const,
+        sort: "newest" as const,
+        page: 1,
+      };
+  const baseFilters = {
+    q: filters.q,
+    view: filters.view,
+    status: filters.status,
+    sort: filters.sort,
+  };
+
   const quoteCountPromise = getQuoteListCountForBusiness({
     businessId: businessContext.business.id,
     filters: baseFilters,
@@ -127,16 +231,7 @@ export default async function QuotesPage({
       totalPages,
     };
   });
-  const archivedItemsPromise = getQuoteListPageForBusiness({
-    businessId: businessContext.business.id,
-    filters: { view: "archived", status: "all", sort: "newest" },
-    page: 1,
-    pageSize: 50,
-  });
-  const canExport = hasFeatureAccess(
-    businessContext.business.plan,
-    "exports",
-  );
+
   const hasNonViewFilters = Boolean(
     baseFilters.q || baseFilters.status !== "all" || baseFilters.sort !== "newest",
   );
@@ -153,37 +248,14 @@ export default async function QuotesPage({
   })();
 
   return (
-    <DashboardPage>
-      <PageHeader
-        title="Quotes"
-        description="List, filter, and manage quotes for this business."
-      />
-
-      <FirstVisitTip {...featureTips.quotes} className="mb-4" />
-
-      <Suspense fallback={<QuoteListControlsFallback />}>
-        <QuoteListControlsSection
-          businessSlug={businessSlug}
-          canExport={canExport}
-          filters={filters}
-          searchParams={resolvedSearchParams}
-          totalItemsPromise={quoteCountPromise}
-          archivedItemsPromise={archivedItemsPromise}
-          restoreAction={restoreArchivedQuoteAction}
-        />
-      </Suspense>
-
-      <Suspense fallback={<QuoteListContentFallback />}>
-        <QuoteListContentSection
-          businessSlug={businessSlug}
-          clearFiltersPath={clearFiltersPath}
-          filters={filters}
-          hasNonViewFilters={hasNonViewFilters}
-          pageDataPromise={quotePageDataPromise}
-          searchParams={resolvedSearchParams}
-          totalItemsPromise={quoteCountPromise}
-        />
-      </Suspense>
-    </DashboardPage>
+    <QuoteListContentSection
+      businessSlug={businessSlug}
+      clearFiltersPath={clearFiltersPath}
+      filters={filters}
+      hasNonViewFilters={hasNonViewFilters}
+      pageDataPromise={quotePageDataPromise}
+      searchParams={resolvedSearchParams}
+      totalItemsPromise={quoteCountPromise}
+    />
   );
 }

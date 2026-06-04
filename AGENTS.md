@@ -349,6 +349,56 @@ Do not add:
 - **Do not use `next/dynamic` for server components.** Reserve it for client-only interactive components.
 - **Upstash Redis** is used for cross-instance concerns (rate limiting, deduplication). Do not use it as a general-purpose cache layer.
 
+### Instant Navigation
+
+All authenticated dashboard pages use Next.js instant navigation via the `unstable_instant` route segment config. This makes client-side navigation between sibling routes paint the destination's structural shell immediately without a server roundtrip.
+
+**Required page structure (non-blocking structural shell):**
+
+```tsx
+// The page function MUST be synchronous — no async, no awaits above the return.
+export const unstable_instant = {
+  prefetch: "static",
+  samples: [{ params: { businessSlug: "demo" }, headers: [["rsc", "1"], ["next-action", null]] }],
+};
+
+export default function SomePage({ params, searchParams }) {
+  return (
+    <DashboardPage>
+      <PageHeader title="..." />
+      <Suspense fallback={<Skeleton />}>
+        <DataRegion params={params} />
+      </Suspense>
+    </DashboardPage>
+  );
+}
+
+// All dynamic reads live HERE, inside a Suspense-wrapped async child.
+async function DataRegion({ params }) {
+  const { businessSlug } = await params;
+  const { businessContext } = await getAppShellContext(businessSlug);
+  // ... queries and rendering
+}
+```
+
+**Key rules:**
+- Every page returns its structural shell and skeleton fallbacks **synchronously**.
+- `params`, `searchParams`, `getAppShellContext`, session checks, and all data queries go inside `<Suspense>`-wrapped async child server components.
+- Each independently-loading region gets its own `<Suspense>` boundary.
+- Independently-failing regions additionally wrap in `<RegionErrorBoundary>` (`components/shared/region-error-boundary.tsx`).
+- `unstable_instant` must include `samples` with appropriate route params for build-time validation to work.
+- Never re-add `unstable_disableValidation: true` — if a route cannot pass validation, use the escape-hatch registry (`lib/instant-navigation/escape-hatch-registry.ts`).
+- Router stale times: `experimental.staleTimes = { dynamic: 30, static: 180 }` in `next.config.ts`.
+- Source of truth for Next.js instant navigation behavior: `node_modules/next/dist/docs/` (especially `instant-navigation.md`, `instant.md`, `prefetching.md`, `staleTimes.md`).
+
+**Governance tooling** (`lib/instant-navigation/`):
+- `stale-times.ts` — bounds validator
+- `escape-hatches.ts` — escape-hatch validator and overdue detection
+- `escape-hatch-registry.ts` — tracked exemption entries
+- `migration-coverage.ts` — coverage derivation
+- `rollout.ts` — verification gate and phase ordering
+- `scripts/instant-navigation/check-coverage.ts` — CI coverage check
+
 ## Testing
 
 ### Test Structure

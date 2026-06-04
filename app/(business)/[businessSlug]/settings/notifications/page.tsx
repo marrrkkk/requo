@@ -18,14 +18,27 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Configure push and email notifications for this business.",
 });
 
-export const unstable_instant = { prefetch: "static", unstable_disableValidation: true };
+export const unstable_instant = {
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
+};
 
-export default async function BusinessNotificationSettingsPage() {
-  const { businessContext } = await getBusinessOperationalPageContext();
-  const settingsPromise = getBusinessSettingsForBusiness(
-    businessContext.business.id,
-  );
-
+/**
+ * Notifications settings page — non-blocking structural shell.
+ *
+ * Returns the page header synchronously. All dynamic reads
+ * (getBusinessOperationalPageContext, settings queries) are resolved
+ * inside a Suspense-wrapped child server component.
+ */
+export default function BusinessNotificationSettingsPage() {
   return (
     <>
       <PageHeader
@@ -34,18 +47,17 @@ export default async function BusinessNotificationSettingsPage() {
         description="Choose how you get notified — in-app or push."
       />
       <Suspense fallback={<SettingsNotificationsBodySkeleton />}>
-        <BusinessNotificationSettingsBody settingsPromise={settingsPromise} />
+        <BusinessNotificationSettingsContent />
       </Suspense>
     </>
   );
 }
 
-async function BusinessNotificationSettingsBody({
-  settingsPromise,
-}: {
-  settingsPromise: ReturnType<typeof getBusinessSettingsForBusiness>;
-}) {
-  const settings = await settingsPromise;
+async function BusinessNotificationSettingsContent() {
+  const { businessContext } = await getBusinessOperationalPageContext();
+  const settings = await getBusinessSettingsForBusiness(
+    businessContext.business.id,
+  );
 
   if (!settings) {
     notFound();

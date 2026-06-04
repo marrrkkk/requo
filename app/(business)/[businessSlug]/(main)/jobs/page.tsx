@@ -18,32 +18,29 @@ export const metadata: Metadata = createNoIndexMetadata({
 
 export const unstable_instant = {
   prefetch: "static",
-  unstable_disableValidation: true,
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
-export default async function JobsPage({
+/**
+ * Jobs page — returns the structural shell synchronously.
+ *
+ * All dynamic reads (params, getAppShellContext, board query) are pushed into
+ * a Suspense-wrapped child server component so the static shell is prefetchable
+ * and sibling navigations paint instantly.
+ */
+export default function JobsPage({
   params,
 }: {
   params: Promise<{ businessSlug: string }>;
 }) {
-  const { businessSlug } = await params;
-
-  return (
-    <Suspense fallback={<JobsPageSkeleton />}>
-      <FirstVisitTip {...featureTips.jobs} className="mb-4" />
-      <StreamedJobsBoard businessSlug={businessSlug} />
-    </Suspense>
-  );
-}
-
-async function StreamedJobsBoard({ businessSlug }: { businessSlug: string }) {
-  const { businessContext } = await getAppShellContext(businessSlug);
-  const board = await getJobsBoardForBusiness(businessContext.business.id);
-
-  return <JobsBoard board={board} businessSlug={businessSlug} />;
-}
-
-function JobsPageSkeleton() {
   return (
     <DashboardPage>
       <PageHeader
@@ -51,6 +48,38 @@ function JobsPageSkeleton() {
         description="Track accepted work from start to finish."
       />
 
+      <FirstVisitTip {...featureTips.jobs} className="mb-4" />
+
+      <Suspense fallback={<JobsBoardSkeleton />}>
+        <JobsBoardRegion params={params} />
+      </Suspense>
+    </DashboardPage>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Suspense-wrapped async child server component
+// ---------------------------------------------------------------------------
+
+async function JobsBoardRegion({
+  params,
+}: {
+  params: Promise<{ businessSlug: string }>;
+}) {
+  const { businessSlug } = await params;
+  const { businessContext } = await getAppShellContext(businessSlug);
+  const board = await getJobsBoardForBusiness(businessContext.business.id);
+
+  return <JobsBoard board={board} businessSlug={businessSlug} />;
+}
+
+// ---------------------------------------------------------------------------
+// Skeleton fallback
+// ---------------------------------------------------------------------------
+
+function JobsBoardSkeleton() {
+  return (
+    <>
       {/* Search bar placeholder */}
       <div className="relative max-w-sm">
         <Skeleton className="h-10 w-full rounded-xl" />
@@ -74,6 +103,6 @@ function JobsPageSkeleton() {
           </div>
         ))}
       </div>
-    </DashboardPage>
+    </>
   );
 }

@@ -26,11 +26,45 @@ export const metadata: Metadata = createNoIndexMetadata({
 });
 
 export const unstable_instant = {
-  prefetch: 'static',
-  unstable_disableValidation: true,
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
-export default async function BusinessMembersPage({
+/**
+ * Members page — returns the structural shell synchronously.
+ *
+ * All dynamic reads (params, getBusinessSettingsPageContext, queries) are
+ * pushed into a Suspense-wrapped child server component so the static shell
+ * is prefetchable and sibling navigations paint instantly.
+ */
+export default function BusinessMembersPage({
+  params,
+}: {
+  params: Promise<{ businessSlug: string }>;
+}) {
+  return (
+    <div className="flex flex-col gap-6 lg:gap-8">
+      <PageHeader title="Members" description="Members with access to this business." />
+      <Suspense fallback={<MemberListFallback />}>
+        <MembersRegion params={params} />
+      </Suspense>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Suspense-wrapped async child server component
+// ---------------------------------------------------------------------------
+
+async function MembersRegion({
   params,
 }: {
   params: Promise<{ businessSlug: string }>;
@@ -43,6 +77,15 @@ export default async function BusinessMembersPage({
   const billingOverview = await getBusinessBillingOverview(
     businessContext.business.id,
   ).catch(() => null);
+
+  const view = await getBusinessMembersSettingsForBusiness(
+    businessContext.business.id,
+    user.id,
+  );
+
+  if (!view) {
+    notFound();
+  }
 
   return (
     <FeatureGate
@@ -60,58 +103,22 @@ export default async function BusinessMembersPage({
           : undefined
       }
     >
-      <div className="flex flex-col gap-6 lg:gap-8">
-        <PageHeader title="Members" description="Members with access to this business." />
-        <Suspense fallback={<MemberListFallback />}>
-          <StreamedMemberList
-            userId={user.id}
-            businessContext={businessContext}
-            canManage={canManage}
-          />
-        </Suspense>
-      </div>
+      <BusinessMembersManager
+        view={view}
+        plan={businessContext.business.plan}
+        cancelInviteAction={cancelBusinessMemberInviteAction}
+        createInviteAction={createBusinessMemberInviteAction}
+        removeMemberAction={removeBusinessMemberAction}
+        updateRoleAction={updateBusinessMemberRoleAction}
+        readOnly={!canManage}
+      />
     </FeatureGate>
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Streamed sections                                                          */
-/* -------------------------------------------------------------------------- */
-
-async function StreamedMemberList({
-  userId,
-  businessContext,
-  canManage,
-}: {
-  userId: string;
-  businessContext: Awaited<ReturnType<typeof getBusinessSettingsPageContext>>["businessContext"];
-  canManage: boolean;
-}) {
-  const view = await getBusinessMembersSettingsForBusiness(
-    businessContext.business.id,
-    userId,
-  );
-
-  if (!view) {
-    notFound();
-  }
-
-  return (
-    <BusinessMembersManager
-      view={view}
-      plan={businessContext.business.plan}
-      cancelInviteAction={cancelBusinessMemberInviteAction}
-      createInviteAction={createBusinessMemberInviteAction}
-      removeMemberAction={removeBusinessMemberAction}
-      updateRoleAction={updateBusinessMemberRoleAction}
-      readOnly={!canManage}
-    />
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Fallbacks                                                                  */
-/* -------------------------------------------------------------------------- */
+// ---------------------------------------------------------------------------
+// Fallback
+// ---------------------------------------------------------------------------
 
 function MemberListFallback() {
   return <BusinessMembersManagerFallback />;
