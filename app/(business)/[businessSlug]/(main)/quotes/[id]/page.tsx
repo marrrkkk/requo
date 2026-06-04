@@ -14,6 +14,7 @@ import {
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
 import { ArchivedRecordBanner } from "@/components/shared/archived-record-banner";
+import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
 import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
 import { InfoTile } from "@/components/shared/info-tile";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
@@ -110,17 +111,35 @@ type QuoteDetailPageProps = {
 };
 
 export const unstable_instant = {
-  prefetch: 'static',
-  unstable_disableValidation: true,
+  prefetch: "static",
+  samples: [
+    {
+      params: { businessSlug: "demo", id: "sample-quote-id" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
+/**
+ * Quote detail page — returns the structural shell synchronously.
+ *
+ * All dynamic reads (params, getAppShellContext, quote queries) are pushed into
+ * a `<Suspense>`-wrapped child server component so the shell paints instantly
+ * on client navigation. The error boundary catches failures without breaking
+ * the surrounding layout.
+ */
 export default function QuoteDetailPage({
   params,
 }: QuoteDetailPageProps) {
   return (
-    <Suspense fallback={<DashboardDetailPageSkeleton variant="quote" />}>
-      <QuoteDetailContent params={params} />
-    </Suspense>
+    <RegionErrorBoundary fallback={<DashboardDetailPageSkeleton variant="quote" />}>
+      <Suspense fallback={<DashboardDetailPageSkeleton variant="quote" />}>
+        <QuoteDetailContent params={params} />
+      </Suspense>
+    </RegionErrorBoundary>
   );
 }
 

@@ -25,6 +25,11 @@ import { createNoIndexMetadata } from "@/lib/seo/site";
 import { FirstVisitTip } from "@/features/onboarding/components/first-visit-tip";
 import { featureTips } from "@/features/onboarding/feature-tips";
 
+type InvoicesPageProps = {
+  params: Promise<{ businessSlug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Invoices",
   description: "Generate, send, and track payment for completed work.",
@@ -32,7 +37,15 @@ export const metadata: Metadata = createNoIndexMetadata({
 
 export const unstable_instant = {
   prefetch: "static",
-  unstable_disableValidation: true,
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
 const ITEMS_PER_PAGE = 50;
@@ -64,15 +77,43 @@ function getCachedPageWindow(currentPage: number, totalPages: number) {
   return Array.from(pages).sort((left, right) => left - right);
 }
 
-export default async function InvoicesPage({
+/**
+ * Invoices page — returns the structural shell synchronously.
+ *
+ * All dynamic reads (params, searchParams, getAppShellContext, queries) are
+ * pushed into a Suspense-wrapped child server component so the static shell
+ * is prefetchable and sibling navigations paint instantly.
+ */
+export default function InvoicesPage({
   params,
   searchParams,
-}: {
-  params: Promise<{ businessSlug: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const { businessSlug } = await params;
-  const search = await searchParams;
+}: InvoicesPageProps) {
+  return (
+    <DashboardPage>
+      <PageHeader
+        title="Invoices"
+        description="Generate, send, and track payment for completed work."
+      />
+
+      <FirstVisitTip {...featureTips.invoices} className="mb-4" />
+
+      <Suspense fallback={<InvoicesPageSkeleton />}>
+        <InvoicesListRegion params={params} searchParams={searchParams} />
+      </Suspense>
+    </DashboardPage>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Suspense-wrapped async child server component
+// ---------------------------------------------------------------------------
+
+async function InvoicesListRegion({
+  params,
+  searchParams,
+}: InvoicesPageProps) {
+  const [{ businessSlug }, search] = await Promise.all([params, searchParams]);
+  const { businessContext } = await getAppShellContext(businessSlug);
 
   const filters = {
     q: typeof search.q === "string" ? search.q : undefined,
@@ -93,8 +134,6 @@ export default async function InvoicesPage({
     status: filters.status,
     sort: filters.sort,
   };
-
-  const { businessContext } = await getAppShellContext(businessSlug);
 
   const countPromise = getInvoiceListCount(
     businessContext.business.id,
@@ -129,26 +168,17 @@ export default async function InvoicesPage({
   });
 
   return (
-    <DashboardPage>
-      <PageHeader
-        title="Invoices"
-        description="Generate, send, and track payment for completed work."
-      />
-
-      <FirstVisitTip {...featureTips.invoices} className="mb-4" />
-
-      <Suspense
-        fallback={<InvoicesPageSkeleton />}
-      >
-        <InvoiceListResults
-          businessSlug={businessSlug}
-          pageData={pageDataPromise}
-          searchParams={search}
-        />
-      </Suspense>
-    </DashboardPage>
+    <InvoiceListResults
+      businessSlug={businessSlug}
+      pageData={pageDataPromise}
+      searchParams={search}
+    />
   );
 }
+
+// ---------------------------------------------------------------------------
+// Skeleton fallback
+// ---------------------------------------------------------------------------
 
 function InvoicesPageSkeleton() {
   return (

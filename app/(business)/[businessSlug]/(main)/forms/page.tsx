@@ -29,15 +29,29 @@ export const metadata: Metadata = createNoIndexMetadata({
 
 export const unstable_instant = {
   prefetch: "static",
-  unstable_disableValidation: true,
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
-export default async function BusinessFormsPage() {
-  const { businessContext } = await getBusinessOperationalPageContext();
-  const settingsPromise = getBusinessInquiryFormsSettingsForBusiness(
-    businessContext.business.id,
-  );
-
+/**
+ * Forms page — returns the structural shell synchronously.
+ *
+ * All dynamic reads (params, getBusinessOperationalPageContext, queries) are
+ * pushed into a Suspense-wrapped child server component so the static shell
+ * is prefetchable and sibling navigations paint instantly.
+ */
+export default function BusinessFormsPage({
+  params,
+}: {
+  params: Promise<{ businessSlug: string }>;
+}) {
   return (
     <>
       <PageHeader
@@ -45,27 +59,26 @@ export default async function BusinessFormsPage() {
         description="Manage inquiry capture, public URLs, and starting intake defaults."
       />
       <Suspense fallback={<FormsPageSkeleton />}>
-        <BusinessFormsBody
-          businessPlan={businessContext.business.plan}
-          settingsPromise={settingsPromise}
-        />
+        <FormsRegion params={params} />
       </Suspense>
     </>
   );
 }
 
-async function BusinessFormsBody({
-  businessPlan,
-  settingsPromise,
+// ---------------------------------------------------------------------------
+// Suspense-wrapped async child server component
+// ---------------------------------------------------------------------------
+
+async function FormsRegion({
+  params,
 }: {
-  businessPlan: Awaited<
-    ReturnType<typeof getBusinessOperationalPageContext>
-  >["businessContext"]["business"]["plan"];
-  settingsPromise: ReturnType<
-    typeof getBusinessInquiryFormsSettingsForBusiness
-  >;
+  params: Promise<{ businessSlug: string }>;
 }) {
-  const settings = await settingsPromise;
+  const { businessSlug } = await params;
+  const { businessContext } = await getBusinessOperationalPageContext(businessSlug);
+  const settings = await getBusinessInquiryFormsSettingsForBusiness(
+    businessContext.business.id,
+  );
 
   if (!settings) {
     notFound();
@@ -76,10 +89,14 @@ async function BusinessFormsBody({
       createAction={createBusinessInquiryFormAction}
       unarchiveAction={unarchiveBusinessInquiryFormAction}
       settings={settings}
-      plan={businessPlan}
+      plan={businessContext.business.plan}
     />
   );
 }
+
+// ---------------------------------------------------------------------------
+// Skeleton fallback
+// ---------------------------------------------------------------------------
 
 function FormsPageSkeleton() {
   return (

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
+import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { getInvoiceDetailForBusiness } from "@/features/invoices/queries";
 import { InvoiceDetail } from "@/features/invoices/components/invoice-detail";
@@ -26,18 +27,35 @@ export async function generateMetadata({
 
 export const unstable_instant = {
   prefetch: "static",
-  unstable_disableValidation: true,
+  samples: [
+    {
+      params: { businessSlug: "demo", id: "sample-invoice-id" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
 type InvoiceDetailPageProps = {
   params: Promise<{ businessSlug: string; id: string }>;
 };
 
+/**
+ * Invoice detail page — returns the structural shell synchronously.
+ *
+ * All dynamic reads (params, getAppShellContext, invoice queries) are pushed
+ * into a `<Suspense>`-wrapped child server component so the shell paints
+ * instantly on client navigation.
+ */
 export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
   return (
-    <Suspense fallback={<DashboardDetailPageSkeleton variant="invoice" />}>
-      <InvoiceDetailContent params={params} />
-    </Suspense>
+    <RegionErrorBoundary fallback={<DashboardDetailPageSkeleton variant="invoice" />}>
+      <Suspense fallback={<DashboardDetailPageSkeleton variant="invoice" />}>
+        <InvoiceDetailContent params={params} />
+      </Suspense>
+    </RegionErrorBoundary>
   );
 }
 

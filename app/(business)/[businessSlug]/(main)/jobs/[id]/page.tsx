@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
+import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { getJobDetailForBusiness } from "@/features/jobs/queries";
 import { JobDetail } from "@/features/jobs/components/job-detail";
@@ -24,18 +25,35 @@ export async function generateMetadata({
 
 export const unstable_instant = {
   prefetch: "static",
-  unstable_disableValidation: true,
+  samples: [
+    {
+      params: { businessSlug: "demo", id: "sample-job-id" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
 type JobDetailPageProps = {
   params: Promise<{ businessSlug: string; id: string }>;
 };
 
+/**
+ * Job detail page — returns the structural shell synchronously.
+ *
+ * All dynamic reads (params, getAppShellContext, job queries) are pushed into
+ * a `<Suspense>`-wrapped child server component so the shell paints instantly
+ * on client navigation.
+ */
 export default function JobDetailPage({ params }: JobDetailPageProps) {
   return (
-    <Suspense fallback={<DashboardDetailPageSkeleton variant="job" />}>
-      <JobDetailContent params={params} />
-    </Suspense>
+    <RegionErrorBoundary fallback={<DashboardDetailPageSkeleton variant="job" />}>
+      <Suspense fallback={<DashboardDetailPageSkeleton variant="job" />}>
+        <JobDetailContent params={params} />
+      </Suspense>
+    </RegionErrorBoundary>
   );
 }
 

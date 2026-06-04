@@ -37,6 +37,11 @@ import {
   followUpSortValues,
 } from "@/features/follow-ups/types";
 
+type FollowUpsPageProps = {
+  params: Promise<{ businessSlug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Follow-ups",
   description: "See who needs contact next and when.",
@@ -44,18 +49,59 @@ export const metadata: Metadata = createNoIndexMetadata({
 
 export const unstable_instant = {
   prefetch: "static",
-  unstable_disableValidation: true,
+  samples: [
+    {
+      params: { businessSlug: "demo" },
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
 };
 
-export default async function FollowUpsPage({
+/**
+ * Follow-ups page — returns the structural shell synchronously.
+ *
+ * All dynamic reads (params, searchParams, getAppShellContext, queries) are
+ * pushed into a Suspense-wrapped child server component so the static shell
+ * is prefetchable and sibling navigations paint instantly.
+ *
+ * The view mode (board vs list) depends on searchParams, so the branching
+ * lives inside the Suspense child.
+ */
+export default function FollowUpsPage({
   params,
   searchParams,
-}: {
-  params: Promise<{ businessSlug: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const { businessSlug } = await params;
-  const resolvedSearchParams = await searchParams;
+}: FollowUpsPageProps) {
+  return (
+    <DashboardPage>
+      <PageHeader
+        title="Follow-ups"
+        description="See who needs contact next and when."
+      />
+
+      <FirstVisitTip {...featureTips.followUps} className="mb-4" />
+
+      <Suspense fallback={<FollowUpsPageSkeleton />}>
+        <FollowUpsContentRegion params={params} searchParams={searchParams} />
+      </Suspense>
+    </DashboardPage>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Suspense-wrapped async child server component
+// ---------------------------------------------------------------------------
+
+async function FollowUpsContentRegion({
+  params,
+  searchParams,
+}: FollowUpsPageProps) {
+  const [{ businessSlug }, resolvedSearchParams] = await Promise.all([
+    params,
+    searchParams,
+  ]);
 
   // If a status filter is present (e.g. from "View completed & skipped"),
   // show the filterable list view instead of the board.
@@ -65,22 +111,14 @@ export default async function FollowUpsPage({
 
   if (hasStatusFilter) {
     return (
-      <Suspense fallback={<FollowUpsListPageSkeleton />}>
-        <FirstVisitTip {...featureTips.followUps} className="mb-4" />
-        <StreamedFollowUpList
-          businessSlug={businessSlug}
-          searchParams={resolvedSearchParams}
-        />
-      </Suspense>
+      <StreamedFollowUpList
+        businessSlug={businessSlug}
+        searchParams={resolvedSearchParams}
+      />
     );
   }
 
-  return (
-    <Suspense fallback={<FollowUpsPageSkeleton />}>
-      <FirstVisitTip {...featureTips.followUps} className="mb-4" />
-      <StreamedFollowUpBoard businessSlug={businessSlug} />
-    </Suspense>
-  );
+  return <StreamedFollowUpBoard businessSlug={businessSlug} />;
 }
 
 async function StreamedFollowUpBoard({ businessSlug }: { businessSlug: string }) {
@@ -159,12 +197,7 @@ async function StreamedFollowUpList({
   const totalItemsPromise = Promise.resolve(totalItems);
 
   return (
-    <DashboardPage>
-      <PageHeader
-        title="Follow-ups"
-        description="See who needs contact next and when."
-      />
-
+    <>
       <Suspense fallback={<FollowUpListControlsFallback />}>
         <FollowUpListControlsSection filters={filters} totalItemsPromise={totalItemsPromise} />
       </Suspense>
@@ -184,22 +217,23 @@ async function StreamedFollowUpList({
           currentPage={page}
         />
       </Suspense>
-    </DashboardPage>
+    </>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Skeleton fallback
+// ---------------------------------------------------------------------------
+
 function FollowUpsPageSkeleton() {
   return (
-    <DashboardPage>
-      <PageHeader
-        title="Follow-ups"
-        description="See who needs contact next and when."
-      />
-
+    <>
+      {/* Search bar placeholder */}
       <div className="relative max-w-sm">
         <Skeleton className="h-10 w-full rounded-xl" />
       </div>
 
+      {/* Board columns skeleton */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
           <div
@@ -218,19 +252,6 @@ function FollowUpsPageSkeleton() {
           </div>
         ))}
       </div>
-    </DashboardPage>
-  );
-}
-
-function FollowUpsListPageSkeleton() {
-  return (
-    <DashboardPage>
-      <PageHeader
-        title="Follow-ups"
-        description="See who needs contact next and when."
-      />
-      <FollowUpListControlsFallback />
-      <FollowUpListContentFallback />
-    </DashboardPage>
+    </>
   );
 }
