@@ -192,8 +192,8 @@ export function PricingPage({
           Simple pricing. No surprises.
         </h1>
         <p className="max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg sm:leading-8">
-          Start free with unlimited inquiries. Upgrade when you need more
-          quotes, AI, and workflow tools.
+          Start free with unlimited inquiries and quotes. Upgrade when you need
+          faster workflows, more AI credits, and automation to keep every deal moving.
         </p>
       </div>
 
@@ -315,18 +315,18 @@ export function PricingPage({
         <div className="flex flex-col gap-6 px-6 py-8 sm:px-8 sm:py-10 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex max-w-xl flex-col gap-3">
             <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
-              Ready to streamline your quotes?
+              Stop losing leads to slow follow-up.
             </h2>
             <p className="text-sm leading-relaxed text-muted-foreground sm:text-base sm:leading-7">
-              Start capturing inquiries and sending quotes today. No credit card
-              required.
+              Every inquiry gets a response. Every quote gets a follow-up. Start
+              capturing the revenue you&apos;re already generating interest for.
             </p>
           </div>
 
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
             <Button asChild className="w-full sm:w-auto" size="lg">
               <Link href="/signup">
-                Send your first quote
+                Start free
                 <ArrowRight data-icon="inline-end" />
               </Link>
             </Button>
@@ -344,7 +344,7 @@ export function PricingPage({
         <Separator className="bg-border/50" />
 
         <div className="flex flex-col gap-4 px-6 py-4 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
-          <BrandMark subtitle="Inquiry-to-quote workflow" />
+          <BrandMark subtitle="Never lose a job to a slow response" />
           <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
             <Link className="transition-colors hover:text-foreground" href="/">
               Home

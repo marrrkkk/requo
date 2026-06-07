@@ -32,17 +32,17 @@ import { Button } from "@/components/ui/button";
 const whyRequoPoints = [
   {
     hook: "They asked for a quote.\nYou replied two days late.",
-    detail: "You were on a job. By the time you sat down to write it, they'd already hired someone else.",
+    detail: "You were on a job. By the time you sat down to write it, they'd already hired someone else. That's revenue lost to response time, not price.",
     icon: FileText,
   },
   {
     hook: "You forgot to follow up.\nThe lead went cold.",
-    detail: "No reminder, no system. Just another name you meant to get back to.",
+    detail: "No reminder, no system. Just another name you meant to get back to. Every missed follow-up is a deal that chose someone more responsive.",
     icon: BellRing,
   },
   {
     hook: "Inquiries in email.\nQuotes in a spreadsheet.",
-    detail: "Nothing connects. You're copy-pasting between tabs and hoping nothing falls through.",
+    detail: "Nothing connects. Leads slip through the cracks between tools, and you don't notice until it's too late.",
     icon: Inbox,
   },
 ] as const;
@@ -97,11 +97,11 @@ export function MarketingHero() {
         <div className="relative z-10 flex flex-col gap-8 sm:gap-10 lg:gap-12">
           <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-5 text-center">
             <h1 className="font-[var(--font-inter)] text-[2.75rem] font-bold leading-[1.0] tracking-[-0.02em] text-foreground sm:text-[3.25rem] sm:leading-[1.0] lg:text-[4rem] lg:leading-[1.0]">
-              Turn inquiries into<br className="hidden sm:inline" />{" "}
-              <span className="text-primary">accepted quotes</span>.
+              Stop losing jobs to<br className="hidden sm:inline" />{" "}
+              <span className="text-primary">slow responses</span>.
             </h1>
             <p className="max-w-lg font-[var(--font-inter)] text-[0.95rem] font-normal leading-[1.5] text-muted-foreground sm:text-base sm:leading-[1.5] lg:text-lg lg:leading-[1.5]">
-              Capture requests, send polished quotes, follow up automatically, and close more deals.
+              Every inquiry gets a quote. Every quote gets a follow-up. Nothing falls through while you&rsquo;re doing the work.
             </p>
 
             <div className="flex items-center gap-3 pt-1">
@@ -149,10 +149,10 @@ export function MarketingHero() {
         <InViewReveal className="mx-auto flex max-w-3xl flex-col items-center gap-4 text-center">
           <p className="eyebrow">THE PROBLEM</p>
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
-            Slow quotes. Missed follow-ups.<br className="hidden sm:inline" /> Lost revenue.
+            You&rsquo;re not losing on price.<br className="hidden sm:inline" /> You&rsquo;re losing on speed.
           </h2>
           <p className="max-w-lg text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7">
-            You&rsquo;re busy doing the work. The admin piles up and leads slip away.
+            You&rsquo;re busy doing the work. Meanwhile, inquiries go unanswered and warm leads hire someone who responded first.
           </p>
         </InViewReveal>
 
@@ -288,12 +288,12 @@ export function MarketingHero() {
       >
         <section className="flex flex-col items-center gap-6 py-10 text-center sm:gap-8 sm:py-14">
           <h2 className="max-w-3xl font-heading text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl xl:text-6xl">
-            Your next quote is one click away.
+            Capture more from the leads you already get.
           </h2>
 
           <Button asChild size="lg" className="rounded-full px-6 text-base font-semibold">
             <Link href="/signup">
-              Get started
+              Start free
               <ArrowRight data-icon="inline-end" />
             </Link>
           </Button>

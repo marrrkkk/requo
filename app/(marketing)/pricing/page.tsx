@@ -15,7 +15,7 @@ import {
 
 export const metadata: Metadata = createPageMetadata({
   description:
-    "Transparent Requo pricing for owner-led service businesses. Start free, upgrade when you grow, and manage inquiries, quotes, and follow-up in one hub.",
+    "Transparent Requo pricing for owner-led service businesses. Start free, upgrade when you need faster responses, more AI credits, and automation to keep deals moving.",
   pathname: "/pricing",
   title: "Pricing",
 });

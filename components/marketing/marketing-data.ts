@@ -64,22 +64,22 @@ export const workflowSteps: readonly {
 }[] = [
   {
     title: "Capture",
-    description: "Keep every request in one place.",
+    description: "Every inquiry in one place, nothing lost.",
     icon: Inbox,
   },
   {
     title: "Quote",
-    description: "AI drafts, you review and send.",
+    description: "AI drafts, you review. Respond in minutes.",
     icon: FileSignature,
   },
   {
-    title: "Win",
-    description: "Track viewed, accepted, rejected.",
+    title: "Follow up",
+    description: "Automatic reminders keep deals moving.",
     icon: Search,
   },
   {
-    title: "Deliver",
-    description: "Jobs, invoices, follow-up. All connected.",
+    title: "Win",
+    description: "Track accepted, rejected, and convert to jobs.",
     icon: Send,
   },
 ] as const;
