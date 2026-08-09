@@ -28,6 +28,41 @@ export type AutomationTemplate = {
 };
 
 export const automationTemplates: AutomationTemplate[] = [
+  // —— Response speed (recommended for all businesses) ——
+  {
+    id: "respond-within-hours",
+    name: "Alert if no response in 4 hours",
+    description:
+      "Get notified if a new inquiry hasn't received any response within 4 hours. Speed wins jobs.",
+    category: "inquiry",
+    triggerType: "inquiry.received",
+    actions: [
+      {
+        type: "send_notification",
+        title: "Inquiry still unquoted",
+        body: "A new inquiry has been waiting over 4 hours without a response. Respond now to stay ahead.",
+      },
+    ],
+    delay: { unit: "hours", value: 4 },
+  },
+  {
+    id: "auto-follow-up-no-quote-24h",
+    name: "Follow up if no quote in 24 hours",
+    description:
+      "Create a follow-up task if an inquiry doesn't have a quote within 24 hours. Don't let warm leads go cold.",
+    category: "inquiry",
+    triggerType: "inquiry.received",
+    actions: [
+      {
+        type: "create_follow_up",
+        title: "Inquiry needs a quote",
+        reason: "24 hours since inquiry — send a quote before the lead goes cold",
+        channel: "email",
+        dueDateOffsetDays: 0,
+      },
+    ],
+    delay: { unit: "days", value: 1 },
+  },
   // —— Inquiries ——
   {
     id: "notify-new-inquiry",

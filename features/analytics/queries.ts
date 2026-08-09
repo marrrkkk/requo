@@ -311,6 +311,56 @@ async function getFreeAnalyticsUncached(
 }
 
 // ---------------------------------------------------------------------------
+// Dashboard response time (lightweight, free-tier compatible)
+// ---------------------------------------------------------------------------
+
+export type DashboardResponseTime = {
+  /** Average hours from inquiry submission to first business response, or null when no data. */
+  avgResponseHours: number | null;
+  /** Average hours from inquiry submission to first quote created, or null when no data. */
+  avgTimeToQuoteHours: number | null;
+};
+
+export async function getDashboardResponseTime(
+  businessId: string,
+): Promise<DashboardResponseTime> {
+  return withCircuitBreaker(
+    `dashboard:response-time:${businessId}`,
+    () => getDashboardResponseTimeCached(businessId),
+  );
+}
+
+async function getDashboardResponseTimeCached(
+  businessId: string,
+): Promise<DashboardResponseTime> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessAnalyticsCacheTags(businessId));
+
+  const since = subtractDays(new Date(), DEFAULT_SUMMARY_DAYS);
+  const firstResponse = buildFirstResponseSq(businessId);
+  const firstQuote = buildFirstQuoteSq(businessId);
+
+  const [rows] = await Promise.all([
+    db
+      .select({
+        avgFirstResponse: sql<number | null>`avg(extract(epoch from (${firstResponse.firstResponseAt} - ${inquiries.submittedAt})) / 3600) filter (where ${firstResponse.firstResponseAt} is not null)`,
+        avgToQuote: sql<number | null>`avg(extract(epoch from (${firstQuote.firstQuoteAt} - ${inquiries.submittedAt})) / 3600) filter (where ${firstQuote.firstQuoteAt} is not null)`,
+      })
+      .from(inquiries)
+      .leftJoin(firstResponse, eq(firstResponse.inquiryId, inquiries.id))
+      .leftJoin(firstQuote, eq(firstQuote.inquiryId, inquiries.id))
+      .where(and(eq(inquiries.businessId, businessId), gte(inquiries.submittedAt, since))),
+  ]);
+
+  return {
+    avgResponseHours: roundHours(rows[0]?.avgFirstResponse),
+    avgTimeToQuoteHours: roundHours(rows[0]?.avgToQuote),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Sparkline data for basic metrics
 // ---------------------------------------------------------------------------
 

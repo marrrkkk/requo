@@ -64,22 +64,22 @@ export const workflowSteps: readonly {
 }[] = [
   {
     title: "Capture",
-    description: "Keep every request in one place.",
+    description: "Every inquiry in one place, nothing lost.",
     icon: Inbox,
   },
   {
     title: "Quote",
-    description: "AI drafts, you review and send.",
+    description: "AI drafts, you review. Respond in minutes.",
     icon: FileSignature,
   },
   {
-    title: "Win",
-    description: "Track viewed, accepted, rejected.",
+    title: "Follow up",
+    description: "Automatic reminders keep deals moving.",
     icon: Search,
   },
   {
-    title: "Deliver",
-    description: "Jobs, invoices, follow-up. All connected.",
+    title: "Win",
+    description: "Track accepted, rejected, and convert to jobs.",
     icon: Send,
   },
 ] as const;
@@ -98,33 +98,33 @@ export const landingFeatureItems: readonly {
 }[] = [
   {
     id: "inquiries",
-    title: "Every request in one place.",
+    title: "Every customer request captured.",
     description:
-      "Capture inquiries from forms, calls, DMs, or referrals. Filter, qualify, and move to quote in seconds.",
+      "Forms, phone calls, text messages, referrals — log them all in seconds. Filter by status, search by name, and move the best ones to quote instantly.",
   },
   {
     id: "quotes",
-    title: "Quote faster with AI.",
+    title: "Send quotes in minutes, not days.",
     description:
-      "AI drafts line items from your pricing library. Review, adjust, and send a professional quote in minutes.",
+      "AI matches line items from your pricing library and past quotes. You review the draft, make adjustments, and send. Professional quotes done faster.",
   },
   {
     id: "ai",
-    title: "An assistant that knows your business.",
+    title: "Ask questions, get instant answers.",
     description:
-      "Ask about open inquiries, stale quotes, or weekly performance. Get answers and take action from one conversation.",
+      "\"Which quotes are stale?\" \"Show me this week's inquiries.\" Your AI assistant pulls live data, answers in seconds, and suggests next actions.",
   },
   {
     id: "automations",
-    title: "Automate the repetitive steps.",
+    title: "Follow-ups run on schedule, automatically.",
     description:
-      "Follow-ups, reminders, and status changes run on autopilot. Set triggers and let the workflow handle the rest.",
+      "Set triggers for reminders, status updates, and customer nudges. The system handles repetitive tasks so you can focus on closing deals.",
   },
   {
     id: "analytics",
-    title: "See what converts and what stalls.",
+    title: "Know exactly where deals stall.",
     description:
-      "Track your pipeline from inquiry to accepted quote. Spot bottlenecks before deals go cold.",
+      "Track your pipeline from first inquiry to accepted quote. See conversion rates, response times, and bottlenecks before opportunities go cold.",
   },
 ] as const;
 
@@ -132,51 +132,51 @@ export const faqItems = [
   {
     question: "What exactly does Requo do?",
     answer:
-      "Requo runs the full workflow from customer request to paid invoice. Capture inquiries, generate AI-drafted quotes, share a link, track who viewed and accepted, manage work items, and create invoices. All connected.",
+      "Requo manages your entire quote-to-invoice workflow. Capture customer requests, draft quotes with AI, send them out, track opens and acceptances, manage jobs, and generate invoices. Everything stays connected in one place.",
   },
   {
     question: "Do my customers need to sign up to open a quote?",
     answer:
-      "No. Every quote has a public link. Customers open it on any device, view the details, and accept or reject it in one tap.",
+      "No. Every quote gets a public link. Your customers open it on their phone or computer, review the details, and accept or reject with one tap. No account needed.",
   },
   {
     question: "Can I add inquiries that came from calls, DMs, or referrals?",
     answer:
-      "Yes. Post a public form for inbound requests, or add one manually in seconds with the customer name, the request, and any files. AI detects duplicates automatically.",
+      "Yes. Share your public form for inbound requests, or manually add inquiries in seconds. Include the customer name, request details, and any files. AI automatically flags potential duplicates.",
   },
   {
     question: "How does the AI quote generation work?",
     answer:
-      "When you start a quote from an inquiry, AI matches line items from your pricing library, past quotes, and saved business knowledge. You review the draft, adjust anything, and send. Items are labeled with confidence levels so you know what was matched vs. estimated.",
+      "When you create a quote, AI pulls line items from your pricing library, past quotes, and business knowledge. You review the draft, adjust pricing or scope, and send. Confidence labels show which items were matched versus estimated.",
   },
   {
     question: "How do I know when a quote is viewed or needs a follow-up?",
     answer:
-      "Each quote tracks viewed, accepted, rejected, expired, and voided states. Follow-ups show up as tasks with suggested timing so you can nudge customers before the job goes cold.",
+      "Every quote tracks its status: viewed, accepted, rejected, expired, or voided. Follow-up tasks appear automatically with suggested timing, so you can nudge customers before they go elsewhere.",
   },
   {
     question: "Does Requo send emails or do I share the link myself?",
     answer:
-      "Both. Send the quote through Requo with a hosted email, or copy the link and share through WhatsApp, Messenger, SMS, or any channel you already use.",
+      "Both work. Send quotes through Requo's email system, or copy the link and share via WhatsApp, text message, Messenger, or whatever channel you already use with customers.",
   },
   {
     question: "What happens after a customer accepts?",
     answer:
-      "The quote moves into post-acceptance. Track work items with a checklist, mark the job complete, and generate an invoice directly from the accepted quote. All connected without switching tools.",
+      "Accepted quotes move into job management. Add a checklist to track progress, mark milestones complete, and generate an invoice directly from the quote line items when the work is done. No re-entering numbers.",
   },
   {
     question: "Can my team work inside the same business?",
     answer:
-      "Yes on the Business plan. Invite members so everyone sees the same inquiries, quotes, jobs, and follow-ups. Owner-led businesses can stay on the solo plan.",
+      "Yes, on the Business plan. Invite team members so everyone sees the same inquiries, quotes, jobs, and follow-ups. Solo operators can stay on the free or Pro plan.",
   },
   {
     question: "Can I run more than one business from one account?",
     answer:
-      "Yes. One login, separate businesses. Each has its own inquiries, quotes, forms, pricing library, and branding, with one subscription on your account.",
+      "Yes. One login manages multiple businesses. Each business has separate inquiries, quotes, forms, pricing libraries, and branding. One subscription covers all of them.",
   },
   {
     question: "Is there a free plan?",
     answer:
-      "Yes. Start free with enough to run the full workflow end to end. Upgrade when you need higher limits, team access, or advanced AI features.",
+      "Yes. The free plan includes the full workflow with enough capacity to test everything. Upgrade to Pro or Business when you need higher limits, team access, or advanced AI features.",
   },
 ] as const;

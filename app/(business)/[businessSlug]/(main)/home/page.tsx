@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
+  Clock,
   Inbox,
   Send,
   TrendingUp,
@@ -21,7 +22,7 @@ import {
   getBusinessOverviewData,
   getBusinessDashboardSummaryData,
 } from "@/features/businesses/queries";
-import { getFreeAnalytics } from "@/features/analytics/queries";
+import { getFreeAnalytics, getDashboardResponseTime } from "@/features/analytics/queries";
 import {
   getBusinessInquiryPath,
   getBusinessQuotePath,
@@ -183,7 +184,10 @@ async function VelocityStatsRegion({
 }) {
   const { businessSlug } = await params;
   const { businessContext } = await getAppShellContext(businessSlug);
-  const analytics = await getFreeAnalytics(businessContext.business.id);
+  const [analytics, responseTime] = await Promise.all([
+    getFreeAnalytics(businessContext.business.id),
+    getDashboardResponseTime(businessContext.business.id),
+  ]);
 
   const hasActivity =
     analytics.inquirySubmissions > 0 ||
@@ -193,6 +197,9 @@ async function VelocityStatsRegion({
   if (!hasActivity) {
     return null;
   }
+
+  // Format response time for display
+  const responseTimeDisplay = formatResponseTime(responseTime.avgTimeToQuoteHours);
 
   return (
     <div className="flex flex-col gap-3">
@@ -209,7 +216,14 @@ async function VelocityStatsRegion({
           <ArrowRight className="size-3" />
         </Link>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <StatCard
+          label="Avg. time to quote"
+          value={responseTimeDisplay.value}
+          suffix={responseTimeDisplay.suffix}
+          highlight={responseTimeDisplay.isGood}
+          icon={<Clock className="size-4" />}
+        />
         <StatCard
           label="Inquiries"
           value={analytics.inquirySubmissions}
@@ -445,6 +459,31 @@ async function MilestoneRegion({
 // ---------------------------------------------------------------------------
 
 /**
+ * Formats average response time (in hours) into a human-friendly display.
+ */
+function formatResponseTime(hours: number | null): {
+  value: string;
+  suffix: string;
+  isGood: boolean;
+} {
+  if (hours === null) {
+    return { value: "—", suffix: "no data yet", isGood: false };
+  }
+
+  if (hours < 1) {
+    const minutes = Math.round(hours * 60);
+    return { value: `${minutes}m`, suffix: "avg response", isGood: true };
+  }
+
+  if (hours < 24) {
+    return { value: `${Math.round(hours)}h`, suffix: "avg response", isGood: hours <= 4 };
+  }
+
+  const days = Math.round(hours / 24 * 10) / 10;
+  return { value: `${days}d`, suffix: "avg response", isGood: false };
+}
+
+/**
  * Build up to 3 contextual suggestion chips based on what's in the queue.
  */
 function buildContextualSuggestions(
@@ -573,8 +612,8 @@ function VelocityStatsFallback() {
   return (
     <div className="flex flex-col gap-3">
       <Skeleton className="h-3 w-20 rounded-md" />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
           <div className="rounded-xl border border-border/60 bg-card px-4 py-4" key={i}>
             <div className="flex items-center justify-between">
               <Skeleton className="h-3 w-16 rounded-md" />

@@ -21,11 +21,11 @@ import {
 } from "@/lib/seo/site";
 
 const marketingDescription =
-  "Quote software for owner-led service businesses. Capture inquiries, send professional quotes, follow up automatically, and track every deal from viewed to accepted.";
+  "Stop losing jobs to slow responses. Capture every inquiry, send quotes faster with AI, follow up automatically, and close more of the work you're already generating interest for.";
 
 export const metadata: Metadata = {
   ...createPageMetadata({
-    absoluteTitle: "Requo | Quote Software for Service Businesses",
+    absoluteTitle: "Requo | Never Lose a Job to a Slow Response",
     description: marketingDescription,
     pathname: "/",
   }),

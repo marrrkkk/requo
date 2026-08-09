@@ -1,4 +1,11 @@
 import dynamic from "next/dynamic";
+import {
+  Bot,
+  ChartNoAxesCombined,
+  FileText,
+  Inbox,
+  Workflow,
+} from "lucide-react";
 
 import type { LandingFeatureId } from "@/components/marketing/marketing-data";
 import { cn } from "@/lib/utils";
@@ -7,8 +14,24 @@ const MarketingFeatureMock = dynamic(
   () =>
     import("@/components/marketing/marketing-feature-mocks").then(
       (m) => m.MarketingFeatureMock,
-    )
+    ),
 );
+
+const featureKickers: Record<LandingFeatureId, string> = {
+  inquiries: "Capture",
+  quotes: "Quote",
+  ai: "Assist",
+  automations: "Automate",
+  analytics: "Improve",
+};
+
+const featureIcons = {
+  inquiries: Inbox,
+  quotes: FileText,
+  ai: Bot,
+  automations: Workflow,
+  analytics: ChartNoAxesCombined,
+} satisfies Record<LandingFeatureId, typeof Inbox>;
 
 export function MarketingFeatureRow({
   title,
@@ -21,12 +44,14 @@ export function MarketingFeatureRow({
   featureId: LandingFeatureId;
   reverse?: boolean;
 }) {
+  const Icon = featureIcons[featureId];
+
   return (
     <article
-      className="[--page-gutter:1.25rem] overflow-x-clip py-5 sm:[--page-gutter:1.5rem] sm:py-7 lg:[--page-gutter:2rem] lg:py-8 xl:[--page-gutter:max(2rem,calc((100vw-72rem)/2))]"
+      className="[--page-gutter:1.25rem] overflow-x-clip py-6 sm:[--page-gutter:1.5rem] sm:py-8 lg:[--page-gutter:2rem] lg:py-10 xl:[--page-gutter:max(2rem,calc((100vw-72rem)/2))]"
       id={featureId}
     >
-      <div className="grid gap-10 lg:grid-cols-2 lg:items-center lg:gap-12">
+      <div className="grid gap-8 lg:grid-cols-2 lg:items-center lg:gap-14">
         <div
           className={cn(
             "px-[var(--page-gutter)]",
@@ -37,14 +62,20 @@ export function MarketingFeatureRow({
         >
           <div
             className={cn(
-              "flex w-full max-w-[28rem] flex-col gap-4",
+              "flex w-full max-w-[27rem] flex-col gap-4",
               reverse ? "lg:ml-auto" : "lg:mr-auto",
             )}
           >
+            <div className="flex items-center gap-2">
+              <span className="flex size-8 items-center justify-center rounded-lg border border-border/70 bg-card text-primary shadow-sm">
+                <Icon aria-hidden="true" className="size-4" />
+              </span>
+              <span className="meta-label">{featureKickers[featureId]}</span>
+            </div>
             <h3 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
               {title}
             </h3>
-            <p className="text-sm leading-normal sm:leading-7 text-muted-foreground sm:text-base">
+            <p className="text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7">
               {description}
             </p>
           </div>
@@ -56,7 +87,7 @@ export function MarketingFeatureRow({
             reverse && "lg:order-1",
           )}
         >
-          <MarketingFeaturePreview featureId={featureId} reverse={reverse} />
+          <MarketingFeaturePreview featureId={featureId} />
         </div>
       </div>
     </article>
@@ -65,27 +96,17 @@ export function MarketingFeatureRow({
 
 function MarketingFeaturePreview({
   featureId,
-  reverse = false,
 }: {
   featureId: LandingFeatureId;
-  reverse?: boolean;
 }) {
   return (
-    <div
-      aria-label={`Preview of ${featureId}`}
-      className={cn(
-        "relative w-full overflow-hidden rounded-xl border border-border/70 bg-background ring-1 ring-border/30 ring-offset-2 ring-offset-background shadow-[0_20px_60px_rgba(0,0,0,0.1),0_4px_16px_rgba(0,0,0,0.05)] dark:border-white/10 dark:ring-white/5 dark:shadow-[0_20px_60px_rgba(0,0,0,0.5)]",
-        reverse
-          ? "lg:rounded-l-none lg:border-l-0 lg:ring-l-0"
-          : "lg:rounded-r-none lg:border-r-0 lg:ring-r-0",
-      )}
-      role="img"
-    >
-      {/* Fixed landscape aspect ratio, content scaled to fit on mobile */}
-      <div className="aspect-[4/3] overflow-hidden p-3 sm:p-5 lg:p-6">
-        <div className="h-[28rem] w-[160%] origin-top-left scale-[0.625] sm:h-full sm:w-full sm:scale-100">
-          <MarketingFeatureMock featureId={featureId} />
-        </div>
+    <div className="relative mx-auto w-full max-w-[40rem] pb-3 pr-3 sm:pb-5 sm:pr-5">
+      <div className="absolute inset-x-3 bottom-0 top-3 rounded-2xl border border-border/50 bg-muted/50" />
+      <div
+        aria-label={`Preview of ${featureId}`}
+        className="relative overflow-hidden rounded-2xl border border-border/70 bg-card shadow-[0_24px_60px_rgba(0,0,0,0.12),0_8px_18px_rgba(0,0,0,0.06)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.5),0_8px_18px_rgba(0,0,0,0.25)]"
+      >
+        <MarketingFeatureMock featureId={featureId} />
       </div>
     </div>
   );

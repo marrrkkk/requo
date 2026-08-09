@@ -111,6 +111,19 @@ function renderReport(report: Awaited<ReturnType<typeof runAdminHealthChecks>>) 
 }
 
 async function main() {
+  // Allow skipping health checks for minimal landing page preview
+  if (getEnv("SKIP_HEALTH_CHECK") === "1") {
+    console.log("");
+    console.log(
+      `  ${c.yellow}⚠ Health check skipped${c.reset} ${c.dim}(SKIP_HEALTH_CHECK=1)${c.reset}`,
+    );
+    console.log("");
+    const appUrl = getEnv("BETTER_AUTH_URL") || "http://localhost:3000";
+    console.log(`  ${c.white}App:${c.reset}   ${c.cyan}${appUrl}${c.reset}`);
+    console.log("");
+    return;
+  }
+
   const report = await runAdminHealthChecks();
   renderReport(report);
 

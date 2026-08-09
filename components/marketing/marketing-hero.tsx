@@ -12,7 +12,7 @@ import {
   landingFeatureItems,
   navItems,
 } from "@/components/marketing/marketing-data";
-import Image from "next/image";
+import { MarketingDashboardPreview } from "@/components/marketing/marketing-dashboard-preview";
 import { InViewReveal } from "@/components/marketing/in-view-reveal";
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import {
@@ -32,17 +32,17 @@ import { Button } from "@/components/ui/button";
 const whyRequoPoints = [
   {
     hook: "They asked for a quote.\nYou replied two days late.",
-    detail: "You were on a job. By the time you sat down to write it, they'd already hired someone else.",
+    detail: "You were on a job. By the time you sat down to write it, they'd already hired someone else. That's revenue lost to response time, not price.",
     icon: FileText,
   },
   {
     hook: "You forgot to follow up.\nThe lead went cold.",
-    detail: "No reminder, no system. Just another name you meant to get back to.",
+    detail: "No reminder, no system. Just another name you meant to get back to. Every missed follow-up is a deal that chose someone more responsive.",
     icon: BellRing,
   },
   {
     hook: "Inquiries in email.\nQuotes in a spreadsheet.",
-    detail: "Nothing connects. You're copy-pasting between tabs and hoping nothing falls through.",
+    detail: "Nothing connects. Leads slip through the cracks between tools, and you don't notice until it's too late.",
     icon: Inbox,
   },
 ] as const;
@@ -97,11 +97,11 @@ export function MarketingHero() {
         <div className="relative z-10 flex flex-col gap-8 sm:gap-10 lg:gap-12">
           <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-5 text-center">
             <h1 className="font-[var(--font-inter)] text-[2.75rem] font-bold leading-[1.0] tracking-[-0.02em] text-foreground sm:text-[3.25rem] sm:leading-[1.0] lg:text-[4rem] lg:leading-[1.0]">
-              Turn inquiries into<br className="hidden sm:inline" />{" "}
-              <span className="text-primary">accepted quotes</span>.
+              Stop losing jobs to<br className="hidden sm:inline" />{" "}
+              <span className="text-primary">slow responses</span>.
             </h1>
             <p className="max-w-lg font-[var(--font-inter)] text-[0.95rem] font-normal leading-[1.5] text-muted-foreground sm:text-base sm:leading-[1.5] lg:text-lg lg:leading-[1.5]">
-              Capture requests, send polished quotes, follow up automatically, and close more deals.
+              Every inquiry gets a quote. Every quote gets a follow-up. Nothing falls through while you&rsquo;re doing the work.
             </p>
 
             <div className="flex items-center gap-3 pt-1">
@@ -124,16 +124,15 @@ export function MarketingHero() {
 
           <div className="mx-auto w-full max-w-5xl">
             {/* Device frame */}
-            <div className="rounded-lg border border-neutral-200/80 bg-neutral-100 p-0.5 shadow-[0_25px_80px_rgba(0,0,0,0.12),0_8px_24px_rgba(0,0,0,0.06)] sm:rounded-xl sm:p-1 dark:border-neutral-700/80 dark:bg-neutral-800 dark:shadow-[0_25px_80px_rgba(0,0,0,0.6),0_8px_24px_rgba(0,0,0,0.3)]">
-              <div className="overflow-hidden rounded-[5px] sm:rounded-lg">
-                <Image
-                  src="/marketing/dashboard-overview.png"
-                  alt="Requo dashboard showing inquiries, quotes, and workflow overview"
-                  width={1920}
-                  height={1080}
-                  priority
-                  className="w-full h-auto"
-                />
+            <div
+              className="rounded-lg border border-neutral-200/80 bg-neutral-100 p-0.5 shadow-[0_25px_80px_rgba(0,0,0,0.12),0_8px_24px_rgba(0,0,0,0.06)] sm:rounded-xl sm:p-1 dark:border-neutral-700/80 dark:bg-neutral-800 dark:shadow-[0_25px_80px_rgba(0,0,0,0.6),0_8px_24px_rgba(0,0,0,0.3)]"
+              role="img"
+              aria-label="Requo quote management dashboard showing inquiry inbox, quote builder, and follow-up schedule for service businesses"
+            >
+              <div className="overflow-hidden rounded-[5px] bg-background sm:rounded-lg">
+                <div className="flex aspect-[16/9] w-full">
+                  <MarketingDashboardPreview />
+                </div>
               </div>
             </div>
           </div>
@@ -142,17 +141,43 @@ export function MarketingHero() {
 
       <div className="border-b border-border/70" />
 
+      {/* Product Hunt Badge */}
+      <section className="mx-auto mt-8 flex w-full max-w-6xl justify-center px-4 sm:mt-10 sm:px-6 lg:mt-12 lg:px-8 xl:px-0">
+        <a
+          href="https://www.producthunt.com/products/requo/launches/requo?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-requo"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="transition-opacity hover:opacity-80"
+        >
+          <img
+            alt="Requo - Turn inquiries into accepted quotes. | Product Hunt"
+            width="250"
+            height="54"
+            src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1162277&theme=light&t=1785970135568"
+            className="dark:hidden"
+          />
+          <img
+            alt="Requo - Turn inquiries into accepted quotes. | Product Hunt"
+            width="250"
+            height="54"
+            src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1162277&theme=dark&t=1785970407423"
+            className="hidden dark:block"
+          />
+        </a>
+      </section>
+
+
       <section
         className="mx-auto mt-24 w-full max-w-6xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0"
         id="why-requo"
       >
         <InViewReveal className="mx-auto flex max-w-3xl flex-col items-center gap-4 text-center">
-          <p className="eyebrow">THE PROBLEM</p>
+          <p className="meta-label">WHY REQUO</p>
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
-            Slow quotes. Missed follow-ups.<br className="hidden sm:inline" /> Lost revenue.
+            You&rsquo;re not losing on price.<br className="hidden sm:inline" /> You&rsquo;re losing on speed.
           </h2>
           <p className="max-w-lg text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7">
-            You&rsquo;re busy doing the work. The admin piles up and leads slip away.
+            You&rsquo;re busy doing the work. Meanwhile, inquiries go unanswered and warm leads hire someone who responded first.
           </p>
         </InViewReveal>
 
@@ -162,10 +187,15 @@ export function MarketingHero() {
 
             return (
               <InViewReveal delay={80 + index * 60} key={point.hook}>
-                <article className="flex h-full flex-col gap-4 rounded-2xl border border-border/70 bg-background p-6 sm:p-7">
-                  <span className="flex size-10 items-center justify-center rounded-xl bg-muted">
-                    <Icon className="size-[18px] text-muted-foreground" />
-                  </span>
+                <article className="surface-card group relative flex h-full flex-col gap-5 rounded-2xl p-6 transition-shadow duration-200 hover:shadow-[var(--surface-shadow-lg)] sm:p-7">
+                  <div className="flex items-center justify-between">
+                    <span className="flex size-11 items-center justify-center rounded-xl border border-primary/15 bg-primary/8">
+                      <Icon className="size-[18px] text-primary" />
+                    </span>
+                    <span className="font-mono text-[11px] font-semibold text-muted-foreground/50">
+                      0{index + 1}
+                    </span>
+                  </div>
                   <h3 className="whitespace-pre-line text-[0.95rem] font-semibold leading-snug tracking-tight text-foreground sm:text-base">
                     {point.hook}
                   </h3>
@@ -184,12 +214,12 @@ export function MarketingHero() {
         id="workflow"
       >
         <InViewReveal className="mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
-          <p className="eyebrow">HOW IT WORKS</p>
+          <p className="meta-label">HOW IT WORKS</p>
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
-            Four steps. Every job.
+            Four steps between inquiry and payment.
           </h2>
           <p className="max-w-lg text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7">
-            Inquiry comes in, quote goes out, follow-up lands on time, payment hits your account.
+            Request lands, quote goes out, customer accepts, invoice follows. Every step connected.
           </p>
         </InViewReveal>
 
@@ -199,19 +229,22 @@ export function MarketingHero() {
       </section>
 
       <section
-        className="relative left-1/2 mt-24 w-screen -translate-x-1/2 overflow-x-clip sm:mt-32 lg:mt-40"
+        className="relative left-1/2 mt-24 w-screen -translate-x-1/2 overflow-x-clip border-y border-border/60 bg-muted/20 py-16 sm:mt-32 sm:py-20 lg:mt-40 lg:py-24"
         id="features"
       >
-        <InViewReveal className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 sm:gap-4 sm:px-6 lg:px-8 xl:px-0">
-          <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
-            Built for the full workflow.
-          </h2>
-          <p className="text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7 lg:text-lg lg:leading-8">
-            From first inquiry to paid invoice. Every step connected.
+        <InViewReveal className="mx-auto grid w-full max-w-6xl gap-4 px-4 sm:gap-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end lg:px-8 xl:px-0">
+          <div className="flex flex-col gap-3 sm:gap-4">
+            <p className="meta-label">THE REQUO WORKSPACE</p>
+            <h2 className="max-w-3xl font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
+              Everything you need from inquiry to invoice.
+            </h2>
+          </div>
+          <p className="max-w-md text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7 lg:pb-1">
+            No tool switching. No lost context. One connected workspace for the complete workflow.
           </p>
         </InViewReveal>
 
-        <div className="mt-10 flex flex-col gap-12 sm:mt-12 sm:gap-16 lg:gap-20">
+        <div className="mt-10 flex flex-col divide-y divide-border/60 sm:mt-12">
           {landingFeatureItems.map((item, index) => (
             <InViewReveal className="w-full" delay={80 + index * 45} key={item.id}>
               <MarketingFeatureRow
@@ -227,12 +260,12 @@ export function MarketingHero() {
 
       <section className="mx-auto mt-24 w-full max-w-4xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0" id="faq">
         <InViewReveal className="flex flex-col items-start gap-3 sm:gap-4">
-          <p className="eyebrow">FAQ</p>
+          <p className="meta-label">FAQ</p>
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
-            Answers before you sign up.
+            Questions you&rsquo;re probably asking.
           </h2>
           <p className="max-w-2xl text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7 lg:text-lg lg:leading-8">
-            Short, direct answers about inquiries, quotes, follow-ups, and how Requo fits your setup.
+            Direct answers about how Requo works, what your customers see, and how it fits your workflow.
           </p>
         </InViewReveal>
 
@@ -288,18 +321,18 @@ export function MarketingHero() {
       >
         <section className="flex flex-col items-center gap-6 py-10 text-center sm:gap-8 sm:py-14">
           <h2 className="max-w-3xl font-heading text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl xl:text-6xl">
-            Your next quote is one click away.
+            Capture more from the leads you already get.
           </h2>
 
           <Button asChild size="lg" className="rounded-full px-6 text-base font-semibold">
             <Link href="/signup">
-              Get started
+              Start free
               <ArrowRight data-icon="inline-end" />
             </Link>
           </Button>
 
           <p className="text-xs text-muted-foreground sm:text-sm">
-            Free plan available. No credit card required.
+            Free plan available &bull; No credit card &bull; Set up in minutes
           </p>
         </section>
       </InViewReveal>
