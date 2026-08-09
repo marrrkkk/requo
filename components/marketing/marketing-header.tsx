@@ -59,8 +59,13 @@ function DesktopActions() {
 function DesktopActionsFallback() {
   return (
     <>
-      <div className="h-9 w-16 rounded-md bg-muted/40" />
-      <div className="h-9 w-24 rounded-md bg-muted/40" />
+      <Button size="sm" variant="ghost" disabled>
+        Log in
+      </Button>
+      <Button size="sm" disabled>
+        Start free
+        <ArrowRight data-icon="inline-end" />
+      </Button>
     </>
   );
 }
@@ -107,8 +112,13 @@ function MobileActions() {
 function MobileActionsFallback() {
   return (
     <>
-      <div className="h-11 w-full rounded-md bg-muted/40" />
-      <div className="h-11 w-full rounded-md bg-muted/40" />
+      <Button className="w-full" size="lg" variant="outline" disabled>
+        Log in
+      </Button>
+      <Button className="w-full" size="lg" disabled>
+        Start free
+        <ArrowRight data-icon="inline-end" />
+      </Button>
     </>
   );
 }

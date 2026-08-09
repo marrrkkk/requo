@@ -19,30 +19,30 @@ const STEP_COUNT = 4;
 const workflowSteps = [
   {
     title: "Capture",
-    subtitle: "A request comes in",
+    subtitle: "Request comes in",
     description:
-      "Customer fills out your form or you log it from a call. Name, details, what they need — all in one place.",
+      "Customer fills out your form, or you add it from a call. Name, project details, timeline — everything captured in seconds.",
     icon: Inbox,
   },
   {
     title: "Quote",
-    subtitle: "You send a quote same day",
+    subtitle: "Quote sent same day",
     description:
-      "AI writes the first draft using your prices. You tweak it, approve it, send it. Takes minutes.",
+      "AI pulls from your pricing library and drafts line items. You review, adjust if needed, and send. Takes minutes, not hours.",
     icon: FileText,
   },
   {
     title: "Win",
-    subtitle: "They accept, you know right away",
+    subtitle: "They accept, you see it instantly",
     description:
-      "You'll see when they open it. Follow-ups go out on autopilot. The moment they say yes, it's in your dashboard.",
+      "Track when they open it. Automated follow-ups go out on schedule. The moment they accept, you're notified.",
     icon: BellRing,
   },
   {
     title: "Deliver",
-    subtitle: "Job done, invoice sent",
+    subtitle: "Work done, invoice sent",
     description:
-      "Accepted quote turns into a job. When you finish, invoice pulls from the same line items. One click.",
+      "Accepted quote becomes a job. Track progress with a checklist. When finished, generate the invoice from the same line items.",
     icon: Briefcase,
   },
 ] as const;
@@ -266,7 +266,10 @@ export function WorkflowStepper() {
               key={step.title}
               type="button"
               onClick={() => handleStepClick(index)}
-              className="group/step relative flex items-start gap-4 rounded-xl px-4 py-5 text-left transition-colors hover:bg-muted/30 sm:gap-5 sm:px-5 sm:py-6"
+              className={cn(
+                "group/step relative flex items-start gap-4 rounded-xl px-4 py-5 text-left transition-colors sm:gap-5 sm:px-5 sm:py-6",
+                isActive ? "bg-primary/[0.04]" : "hover:bg-muted/30"
+              )}
             >
               {/* Left border progress indicator — only active step shows filling bar */}
               <div className="absolute left-0 top-3 bottom-3 w-[3px] overflow-hidden rounded-full sm:top-4 sm:bottom-4">
@@ -285,10 +288,10 @@ export function WorkflowStepper() {
               {/* Icon */}
               <span
                 className={cn(
-                  "flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors",
+                  "flex size-10 shrink-0 items-center justify-center rounded-xl border transition-colors",
                   isActive
-                    ? "bg-primary/10 text-primary"
-                    : "bg-muted/40 text-muted-foreground group-hover/step:bg-muted/60"
+                    ? "border-primary/20 bg-primary/10 text-primary"
+                    : "border-transparent bg-muted/40 text-muted-foreground group-hover/step:bg-muted/60"
                 )}
               >
                 <Icon className="size-[1.125rem]" />
@@ -312,13 +315,21 @@ export function WorkflowStepper() {
                   </p>
                 )}
               </div>
+              <span
+                className={cn(
+                  "font-mono text-[11px] font-semibold leading-none sm:text-xs",
+                  isActive ? "text-primary/70" : "text-muted-foreground/40"
+                )}
+              >
+                0{index + 1}
+              </span>
             </button>
           );
         })}
       </div>
 
       {/* Right: Artifact preview */}
-      <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-card/50 p-5 sm:p-7 lg:sticky lg:top-32 lg:p-8">
+      <div className="surface-card relative overflow-hidden rounded-2xl p-5 sm:p-7 lg:sticky lg:top-32 lg:p-8">
         {/* Step label */}
         <div className="mb-6 flex items-center gap-2.5">
           <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
