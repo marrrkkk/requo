@@ -4,9 +4,8 @@ import type {
   OnboardingFieldName,
 } from "@/features/onboarding/types";
 import {
-  onboardingBusinessContextSchema,
-  onboardingOwnerProfileSchema,
-  onboardingTemplateSchema,
+  onboardingBusinessBasicsSchema,
+  onboardingStartingWorkflowSchema,
 } from "@/features/onboarding/schemas";
 
 export type OnboardingFormProps = {
@@ -22,43 +21,34 @@ export type OnboardingFormProps = {
   };
 };
 
-export type OnboardingStepId = "business" | "template" | "profile";
+export type OnboardingStepId = "business" | "workflow";
 
 export const onboardingSteps = [
   {
-    id: "profile" as const,
-    label: "Profile",
-    description: "Your avatar, name, and role.",
-    title: "Let's get started",
-    body: "Add your photo and name so your team and clients can recognize you.",
+    id: "business" as const,
+    label: "Business",
+    description: "Set up your business identity.",
+    title: "Set up your business",
+    body: "Add your business name, service category, and how customers usually reach you.",
     fields: [
       "firstName",
       "lastName",
-    ] as const satisfies readonly OnboardingFieldName[],
-  },
-  {
-    id: "business" as const,
-    label: "Business",
-    description: "Add the core details for your first business.",
-    title: "Add your first business",
-    body:
-      "Set up your business identity so clients recognize you.",
-    fields: [
       "businessName",
       "businessSlug",
+      "businessType",
+      "customerContactChannel",
       "countryCode",
       "defaultCurrency",
     ] as const satisfies readonly OnboardingFieldName[],
   },
   {
-    id: "template" as const,
-    label: "Template",
-    description: "Choose the fastest path to a usable inquiry form.",
-    title: "Configure your workflow",
-    body:
-      "Pick your business type and starting defaults. You can customize everything later.",
+    id: "workflow" as const,
+    label: "Workflow",
+    description: "Choose your starting inquiry workflow.",
+    title: "How do you usually sell the work?",
+    body: "We'll set up your inquiry form based on how you typically work. You can customize everything later.",
     fields: [
-      "starterTemplateBusinessType",
+      "starterWorkflow",
     ] as const satisfies readonly OnboardingFieldName[],
   },
 ] satisfies ReadonlyArray<{
@@ -84,26 +74,19 @@ export function getFieldValidationError(
 ) {
   switch (field) {
     case "firstName": {
-      const result = onboardingOwnerProfileSchema.shape.firstName.safeParse(
+      const result = onboardingBusinessBasicsSchema.shape.firstName.safeParse(
         draft.firstName,
       );
       return result.success ? undefined : result.error.issues[0]?.message;
     }
     case "lastName": {
-      const result = onboardingOwnerProfileSchema.shape.lastName.safeParse(
+      const result = onboardingBusinessBasicsSchema.shape.lastName.safeParse(
         draft.lastName,
       );
       return result.success ? undefined : result.error.issues[0]?.message;
     }
-    case "jobTitle": {
-      if (!draft.jobTitle) return undefined;
-      const result = onboardingOwnerProfileSchema.shape.jobTitle.safeParse(
-        draft.jobTitle,
-      );
-      return result.success ? undefined : result.error.issues[0]?.message;
-    }
     case "businessName": {
-      const result = onboardingBusinessContextSchema.shape.businessName.safeParse(
+      const result = onboardingBusinessBasicsSchema.shape.businessName.safeParse(
         draft.businessName,
       );
       return result.success ? undefined : result.error.issues[0]?.message;
@@ -117,38 +100,39 @@ export function getFieldValidationError(
       return undefined;
     }
     case "businessType": {
-      const result = onboardingBusinessContextSchema.shape.businessType.safeParse(
+      const result = onboardingBusinessBasicsSchema.shape.businessType.safeParse(
         draft.businessType,
       );
       return result.success ? undefined : result.error.issues[0]?.message;
     }
     case "countryCode": {
-      const result = onboardingBusinessContextSchema.shape.countryCode.safeParse(
+      const result = onboardingBusinessBasicsSchema.shape.countryCode.safeParse(
         draft.countryCode,
       );
       return result.success ? undefined : result.error.issues[0]?.message;
     }
     case "defaultCurrency": {
       const result =
-        onboardingBusinessContextSchema.shape.defaultCurrency.safeParse(
+        onboardingBusinessBasicsSchema.shape.defaultCurrency.safeParse(
           draft.defaultCurrency,
         );
       return result.success ? undefined : result.error.issues[0]?.message;
     }
     case "customerContactChannel": {
       const result =
-        onboardingBusinessContextSchema.shape.customerContactChannel.safeParse(
+        onboardingBusinessBasicsSchema.shape.customerContactChannel.safeParse(
           draft.customerContactChannel,
         );
       return result.success ? undefined : result.error.issues[0]?.message;
     }
-    case "starterTemplateBusinessType": {
+    case "starterWorkflow": {
       const result =
-        onboardingTemplateSchema.shape.starterTemplateBusinessType.safeParse(
-          draft.starterTemplateBusinessType,
+        onboardingStartingWorkflowSchema.shape.starterWorkflow.safeParse(
+          draft.starterWorkflow,
         );
       return result.success ? undefined : result.error.issues[0]?.message;
     }
+    case "jobTitle":
     case "companySize":
     case "referralSource":
       return undefined;
@@ -160,6 +144,22 @@ export function sanitizeDraft(
 ): Partial<OnboardingDraft> {
   if (!value) {
     return {};
+  }
+
+  // Map old starterTemplateBusinessType to new starterWorkflow if present
+  let starterWorkflow = "";
+  if (typeof value.starterWorkflow === "string") {
+    starterWorkflow = value.starterWorkflow;
+  } else if ("starterTemplateBusinessType" in value) {
+    // Legacy draft migration: map old template types to new workflows
+    const oldTemplate = (value as Record<string, unknown>).starterTemplateBusinessType;
+    if (oldTemplate === "cleaning_services") {
+      starterWorkflow = "recurring_service";
+    } else if (oldTemplate === "consulting_professional_services") {
+      starterWorkflow = "consultation_proposal";
+    } else if (oldTemplate) {
+      starterWorkflow = "project_quote";
+    }
   }
 
   return {
@@ -174,10 +174,8 @@ export function sanitizeDraft(
       typeof value.businessType === "string"
         ? (value.businessType as OnboardingDraft["businessType"])
         : "",
-    starterTemplateBusinessType:
-      typeof value.starterTemplateBusinessType === "string"
-        ? (value.starterTemplateBusinessType as OnboardingDraft["starterTemplateBusinessType"])
-        : "",
+    starterWorkflow:
+      starterWorkflow as OnboardingDraft["starterWorkflow"],
     countryCode: typeof value.countryCode === "string" ? value.countryCode : "",
     defaultCurrency:
       typeof value.defaultCurrency === "string" ? value.defaultCurrency : "",

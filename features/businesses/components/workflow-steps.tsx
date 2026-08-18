@@ -15,7 +15,6 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { InquiryStatus } from "@/features/inquiries/types";
 import type {
-  QuotePostAcceptanceStatus,
   QuoteStatus,
 } from "@/features/quotes/types";
 
@@ -75,7 +74,6 @@ function resolveInquirySteps(status: InquiryStatus): WorkflowStep[] {
 
 function resolveQuoteSteps(
   status: QuoteStatus,
-  postAcceptanceStatus: QuotePostAcceptanceStatus,
   publicViewedAt: Date | null | undefined,
 ): WorkflowStep[] {
   const steps: { label: string; icon: LucideIcon }[] = [
@@ -83,8 +81,6 @@ function resolveQuoteSteps(
     { label: "Sent", icon: Send },
     { label: "Viewed", icon: Eye },
     { label: "Accepted", icon: ThumbsUp },
-    { label: "In progress", icon: Loader },
-    { label: "Completed", icon: Check },
   ];
 
   if (status === "rejected") {
@@ -125,17 +121,7 @@ function resolveQuoteSteps(
       currentIndex = publicViewedAt ? 2 : 1;
       break;
     case "accepted":
-      if (postAcceptanceStatus === "completed") {
-        currentIndex = 5;
-      } else if (
-        postAcceptanceStatus === "in_progress" ||
-        postAcceptanceStatus === "booked" ||
-        postAcceptanceStatus === "scheduled"
-      ) {
-        currentIndex = 4;
-      } else {
-        currentIndex = 3;
-      }
+      currentIndex = 3;
       break;
     default:
       currentIndex = 0;
@@ -160,16 +146,14 @@ export function InquiryWorkflowSteps({
 
 export function QuoteWorkflowSteps({
   status,
-  postAcceptanceStatus,
   publicViewedAt,
   className,
 }: {
   status: QuoteStatus;
-  postAcceptanceStatus: QuotePostAcceptanceStatus;
   publicViewedAt?: Date | null;
   className?: string;
 }) {
-  const steps = resolveQuoteSteps(status, postAcceptanceStatus, publicViewedAt);
+  const steps = resolveQuoteSteps(status, publicViewedAt);
   return <StepsBar steps={steps} className={className} />;
 }
 

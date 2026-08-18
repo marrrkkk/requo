@@ -8,7 +8,6 @@ import type {
   InquiryStatus,
 } from "@/features/inquiries/types";
 import type {
-  QuotePostAcceptanceStatus,
   QuoteReminderKind,
   QuoteStatus,
 } from "@/features/quotes/types";
@@ -38,7 +37,6 @@ type QuoteNextActionSource = {
   id: string;
   status: QuoteStatus;
   archivedAt?: Date | null;
-  postAcceptanceStatus: QuotePostAcceptanceStatus;
   publicViewedAt?: Date | null;
   customerRespondedAt?: Date | null;
   pendingFollowUpCount?: number | null;
@@ -213,23 +211,6 @@ export function getQuoteNextAction({
       ctaLabel: "Set follow-up",
       href: `${quoteHref}#follow-ups`,
       badgeLabel: "Sent",
-      priority: "medium",
-    };
-  }
-
-  if (
-    quote.status === "accepted" &&
-    quote.postAcceptanceStatus !== "completed" &&
-    quote.postAcceptanceStatus !== "canceled"
-  ) {
-    return {
-      key: "quote-post-win",
-      label: "Track next work step",
-      description:
-        "The customer accepted this quote. Track the handoff so the job does not stall.",
-      ctaLabel: "Open post-win",
-      href: `${quoteHref}#post-acceptance`,
-      badgeLabel: "Accepted",
       priority: "medium",
     };
   }

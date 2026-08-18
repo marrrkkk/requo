@@ -127,18 +127,18 @@ export function CreateBusinessDialog({
     ? `Upgrade to ${planMeta[upgradePlan].label}`
     : "View billing";
   const freeBusinessLimit =
-    lockedPlan === "free" ? businessQuota?.limit ?? 2 : null;
+    lockedPlan === "free" ? businessQuota?.limit ?? 1 : null;
 
   const limitLabel =
     lockedPlan === "free" && freeBusinessLimit !== null
-      ? `${freeBusinessLimit} free businesses`
+      ? `${freeBusinessLimit} free business${freeBusinessLimit === 1 ? "" : "es"}`
       : businessQuota?.limit === null
         ? "more businesses"
         : `${businessQuota?.limit ?? 1} businesses`;
 
   const lockedDescription = businessQuota
     ? lockedPlan === "free"
-      ? `Your free tier supports up to ${limitLabel}. Upgrade a business to Pro or Business to free up another slot.`
+      ? `The Free plan supports ${limitLabel}. Archive a free business or upgrade to Pro to create another.`
       : `Your ${planMeta[lockedPlan].label} plan supports ${limitLabel}. Upgrade this business to add more.`
     : "Upgrade this business to add more businesses.";
   const upgradeFeatures =
@@ -146,14 +146,14 @@ export function CreateBusinessDialog({
       ? [
           "More businesses",
           "Team members and roles",
-          "Higher knowledge and upload limits",
-          "Priority support",
+          "Audit log access",
+          "Higher upload limits",
         ]
       : [
-          "Up to 10 total businesses across businesses",
-          "Unlimited inquiry forms",
+          "More businesses",
+          "More AI quote drafting",
           "Custom branding and colors",
-          "AI-powered quote drafting",
+          "Automatic follow-ups",
         ];
 
   const defaultTrigger = (

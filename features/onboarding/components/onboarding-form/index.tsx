@@ -11,7 +11,7 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   clearOnboardingDraft,
   createEmptyOnboardingDraft,
-  getRecommendedStarterTemplateForBusinessType,
+  getRecommendedStarterWorkflowForBusinessType,
   onboardingSessionStorageKey,
   resolveOnboardingCurrencyChange,
   type OnboardingDraft,
@@ -26,9 +26,8 @@ import type { BusinessType } from "@/features/inquiries/business-types";
 import { slugifyPublicName } from "@/lib/slugs";
 
 import { BusinessStep } from "./business-step";
-import { ProfileStep } from "./profile-step";
 import { SetupLoadingOverlay } from "./setup-loading-overlay";
-import { TemplateStep } from "./template-step";
+import { WorkflowStep } from "./workflow-step";
 import {
   clampStepIndex,
   getFieldValidationError,
@@ -83,8 +82,8 @@ export function OnboardingForm({ action, detectedCountryCode, initialProfile }: 
   const [isDraftHydrated, setIsDraftHydrated] = useState(false);
   const currentStepMeta = onboardingSteps[currentStep];
   const currentStepId = currentStepMeta.id;
-  const recommendedTemplate = useMemo(
-    () => getRecommendedStarterTemplateForBusinessType(draft.businessType),
+  const recommendedWorkflow = useMemo(
+    () => getRecommendedStarterWorkflowForBusinessType(draft.businessType),
     [draft.businessType],
   );
 
@@ -195,23 +194,23 @@ export function OnboardingForm({ action, detectedCountryCode, initialProfile }: 
 
   function handleBusinessTypeChange(value: string) {
     const nextBusinessType = value as BusinessType;
-    const previousRecommendation = getRecommendedStarterTemplateForBusinessType(
+    const previousRecommendation = getRecommendedStarterWorkflowForBusinessType(
       draft.businessType,
     );
     const nextRecommendation =
-      getRecommendedStarterTemplateForBusinessType(nextBusinessType);
+      getRecommendedStarterWorkflowForBusinessType(nextBusinessType);
 
     setDraft((currentDraft) => ({
       ...currentDraft,
       businessType: nextBusinessType,
-      starterTemplateBusinessType:
-        !currentDraft.starterTemplateBusinessType ||
-        currentDraft.starterTemplateBusinessType === previousRecommendation
+      starterWorkflow:
+        !currentDraft.starterWorkflow ||
+        currentDraft.starterWorkflow === previousRecommendation
           ? nextRecommendation
-          : currentDraft.starterTemplateBusinessType,
+          : currentDraft.starterWorkflow,
     }));
 
-    clearFieldErrors("businessType", "starterTemplateBusinessType");
+    clearFieldErrors("businessType", "starterWorkflow");
   }
 
   function clearFieldErrors(...fields: OnboardingFieldName[]) {
@@ -401,9 +400,9 @@ export function OnboardingForm({ action, detectedCountryCode, initialProfile }: 
           value={draft.customerContactChannel}
         />
         <input
-          name="starterTemplateBusinessType"
+          name="starterWorkflow"
           type="hidden"
-          value={draft.starterTemplateBusinessType}
+          value={draft.starterWorkflow}
         />
         <input name="jobTitle" type="hidden" value={draft.jobTitle} />
         <input name="companySize" type="hidden" value={draft.companySize} />
@@ -437,27 +436,18 @@ export function OnboardingForm({ action, detectedCountryCode, initialProfile }: 
           ) : null}
 
           <div className="min-w-0 animate-in fade-in slide-in-from-bottom-3 duration-300" key={currentStepId}>
-            {currentStepId === "profile" ? (
-              <ProfileStep
-                avatarInputRef={avatarInputRef}
-                avatarPreviewUrl={avatarPreviewUrl}
-                draft={draft}
-                fieldErrors={fieldErrors}
-                handleAvatarSelection={handleAvatarSelection}
-                isDraftHydrated={isDraftHydrated}
-                isPending={isPending}
-                updateField={updateField}
-              />
-            ) : null}
-
             {currentStepId === "business" ? (
               <BusinessStep
+                avatarInputRef={avatarInputRef}
+                avatarPreviewUrl={avatarPreviewUrl}
                 businessAvatarInputRef={businessAvatarInputRef}
                 businessAvatarPreviewUrl={businessAvatarPreviewUrl}
                 checkSlugAvailability={checkSlugAvailability}
                 draft={draft}
                 fieldErrors={fieldErrors}
+                handleAvatarSelection={handleAvatarSelection}
                 handleBusinessAvatarSelection={handleBusinessAvatarSelection}
+                handleBusinessTypeChange={handleBusinessTypeChange}
                 handleCountryChange={handleCountryChange}
                 isDraftHydrated={isDraftHydrated}
                 isPending={isPending}
@@ -469,13 +459,12 @@ export function OnboardingForm({ action, detectedCountryCode, initialProfile }: 
               />
             ) : null}
 
-            {currentStepId === "template" ? (
-              <TemplateStep
+            {currentStepId === "workflow" ? (
+              <WorkflowStep
                 draft={draft}
                 fieldErrors={fieldErrors}
-                handleBusinessTypeChange={handleBusinessTypeChange}
                 isPending={isPending}
-                recommendedTemplate={recommendedTemplate}
+                recommendedWorkflow={recommendedWorkflow}
                 updateField={updateField}
               />
             ) : null}

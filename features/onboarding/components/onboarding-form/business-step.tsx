@@ -13,7 +13,14 @@ import { Input } from "@/components/ui/input";
 import {
   businessCurrencyOptions,
 } from "@/features/businesses/locale";
+import type { BusinessType } from "@/features/inquiries/business-types";
+import {
+  businessTypeOptions,
+} from "@/features/inquiries/business-types";
 import type { OnboardingDraft } from "@/features/onboarding/helpers";
+import {
+  customerContactChannelOptions,
+} from "@/features/onboarding/schemas";
 import type { OnboardingFieldName } from "@/features/onboarding/types";
 import { cn } from "@/lib/utils";
 
@@ -32,12 +39,16 @@ type BusinessStepProps = {
   slugManuallyEdited: boolean;
   businessAvatarPreviewUrl: string | null;
   businessAvatarInputRef: React.RefObject<HTMLInputElement | null>;
+  avatarPreviewUrl: string | null;
+  avatarInputRef: React.RefObject<HTMLInputElement | null>;
   updateField: <FieldName extends OnboardingFieldName>(
     field: FieldName,
     value: OnboardingDraft[FieldName],
   ) => void;
   handleCountryChange: (countryCode: string) => void;
+  handleBusinessTypeChange: (value: string) => void;
   handleBusinessAvatarSelection: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  handleAvatarSelection: (event: React.ChangeEvent<HTMLInputElement>) => void;
   setSlugManuallyEdited: (value: boolean) => void;
   checkSlugAvailability: (slug: string) => void;
   slugifyPublicName: (name: string) => string;
@@ -52,16 +63,143 @@ export function BusinessStep({
   slugManuallyEdited,
   businessAvatarPreviewUrl,
   businessAvatarInputRef,
+  avatarPreviewUrl,
+  avatarInputRef,
   updateField,
   handleCountryChange,
+  handleBusinessTypeChange,
   handleBusinessAvatarSelection,
+  handleAvatarSelection,
   setSlugManuallyEdited,
   checkSlugAvailability,
   slugifyPublicName,
 }: BusinessStepProps) {
+  const showNameFields = !draft.firstName || !draft.lastName;
+
   return (
     <div className="mx-auto w-full max-w-md py-4">
       <FieldGroup>
+        {showNameFields ? (
+          <>
+            <Field>
+              <FieldLabel>Profile photo</FieldLabel>
+              <FieldContent>
+                <div className="flex items-center gap-5">
+                  <div className="group relative">
+                    <input
+                      ref={avatarInputRef}
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      disabled={isPending}
+                      id="onboarding-avatar"
+                      name="avatar"
+                      onChange={handleAvatarSelection}
+                      type="file"
+                    />
+                    <Avatar className="size-20 border border-border/75 shadow-sm">
+                      <AvatarImage
+                        alt="Profile photo preview"
+                        src={avatarPreviewUrl ?? undefined}
+                      />
+                      <AvatarFallback className="text-lg">
+                        {getInitials(
+                          draft.firstName || draft.lastName
+                            ? `${draft.firstName} ${draft.lastName}`
+                            : "?",
+                        )}
+                      </AvatarFallback>
+                    </Avatar>
+                    <label
+                      className={cn(
+                        "absolute inset-0 flex cursor-pointer items-end justify-end rounded-full focus-within:outline-none",
+                        isPending &&
+                          "pointer-events-none cursor-default opacity-60",
+                      )}
+                      htmlFor="onboarding-avatar"
+                      role="button"
+                      tabIndex={isPending ? -1 : 0}
+                    >
+                      <span className="absolute inset-0 rounded-full bg-foreground/0 transition-colors duration-150 sm:group-hover:bg-foreground/10" />
+                      <span className="relative mr-0.5 mb-0.5 inline-flex size-8 items-center justify-center rounded-full border border-border/80 bg-background/94 text-foreground shadow-sm">
+                        <Camera className="size-3.5" />
+                        <span className="sr-only">Upload photo</span>
+                      </span>
+                    </label>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    <p>Upload a profile photo.</p>
+                    <p>JPG, PNG, or WEBP. Max 2 MB.</p>
+                  </div>
+                </div>
+              </FieldContent>
+            </Field>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field
+                data-invalid={
+                  Boolean(fieldErrors.firstName) || undefined
+                }
+              >
+                <FieldLabel htmlFor="onboarding-first-name">
+                  First name
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    aria-invalid={
+                      Boolean(fieldErrors.firstName) || undefined
+                    }
+                    autoFocus={isDraftHydrated && !draft.firstName}
+                    className={onboardingInputClassName}
+                    disabled={isPending}
+                    id="onboarding-first-name"
+                    maxLength={60}
+                    minLength={1}
+                    onChange={(event) =>
+                      updateField(
+                        "firstName",
+                        event.currentTarget.value,
+                      )
+                    }
+                    placeholder="Alicia"
+                    required
+                    value={draft.firstName}
+                  />
+                </FieldContent>
+              </Field>
+
+              <Field
+                data-invalid={
+                  Boolean(fieldErrors.lastName) || undefined
+                }
+              >
+                <FieldLabel htmlFor="onboarding-last-name">
+                  Last name
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    aria-invalid={
+                      Boolean(fieldErrors.lastName) || undefined
+                    }
+                    className={onboardingInputClassName}
+                    disabled={isPending}
+                    id="onboarding-last-name"
+                    maxLength={60}
+                    minLength={1}
+                    onChange={(event) =>
+                      updateField(
+                        "lastName",
+                        event.currentTarget.value,
+                      )
+                    }
+                    placeholder="Cruz"
+                    required
+                    value={draft.lastName}
+                  />
+                </FieldContent>
+              </Field>
+            </div>
+          </>
+        ) : null}
         <Field>
           <FieldLabel>Business logo</FieldLabel>
           <FieldContent>
@@ -195,6 +333,54 @@ export function BusinessStep({
                 Available
               </p>
             ) : null}
+          </FieldContent>
+        </Field>
+
+        <Field
+          data-invalid={Boolean(fieldErrors.businessType) || undefined}
+        >
+          <FieldLabel htmlFor="onboarding-business-type">
+            Business type
+          </FieldLabel>
+          <FieldContent>
+            <Combobox
+              aria-invalid={
+                Boolean(fieldErrors.businessType) || undefined
+              }
+              buttonClassName={onboardingComboboxButtonClassName}
+              disabled={isPending}
+              id="onboarding-business-type"
+              onValueChange={handleBusinessTypeChange}
+              options={businessTypeOptions}
+              placeholder="Choose a type"
+              searchPlaceholder="Search types"
+              searchable
+              value={draft.businessType}
+            />
+          </FieldContent>
+        </Field>
+
+        <Field
+          data-invalid={Boolean(fieldErrors.customerContactChannel) || undefined}
+        >
+          <FieldLabel htmlFor="onboarding-customer-contact">
+            Customer contact channel
+          </FieldLabel>
+          <FieldContent>
+            <Combobox
+              aria-invalid={
+                Boolean(fieldErrors.customerContactChannel) || undefined
+              }
+              buttonClassName={onboardingComboboxButtonClassName}
+              disabled={isPending}
+              id="onboarding-customer-contact"
+              onValueChange={(value) =>
+                updateField("customerContactChannel", value)
+              }
+              options={customerContactChannelOptions}
+              placeholder="Choose a channel"
+              value={draft.customerContactChannel}
+            />
           </FieldContent>
         </Field>
 

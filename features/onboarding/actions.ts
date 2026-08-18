@@ -87,8 +87,8 @@ export async function completeOnboardingAction(
     businessType: formData.get("businessType"),
     countryCode: formData.get("countryCode"),
     defaultCurrency: formData.get("defaultCurrency"),
-    customerContactChannel: formData.get("customerContactChannel") || undefined,
-    starterTemplateBusinessType: formData.get("starterTemplateBusinessType"),
+    customerContactChannel: formData.get("customerContactChannel"),
+    starterWorkflow: formData.get("starterWorkflow"),
     jobTitle: formData.get("jobTitle") || undefined,
     companySize: formData.get("companySize") || undefined,
     referralSource: formData.get("referralSource") || undefined,
@@ -161,8 +161,7 @@ export async function completeOnboardingAction(
       countryCode: validationResult.data.countryCode,
       defaultCurrency: validationResult.data.defaultCurrency,
       customerContactChannel: validationResult.data.customerContactChannel,
-      starterTemplateBusinessType:
-        validationResult.data.starterTemplateBusinessType,
+      starterWorkflow: validationResult.data.starterWorkflow,
       inquiryFormConfigOverride,
       avatarUpload,
     });
@@ -172,7 +171,7 @@ export async function completeOnboardingAction(
       businessSlug: business.slug,
     });
     revalidatePath(dashboardPath);
-    redirectPath = getBusinessDashboardPath(business.slug);
+    redirectPath = `${getBusinessDashboardPath(business.slug)}?welcome=1`;
   } catch (error) {
     if (isBusinessQuotaExceededError(error)) {
       return {
