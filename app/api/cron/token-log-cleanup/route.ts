@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { cleanupTokenLogs } from "@/features/ai/inngest/token-log-cleanup";
+import { cleanupTokenLogs } from "@/lib/ai/token-log-cleanup";
 
 export const maxDuration = 30;
 
