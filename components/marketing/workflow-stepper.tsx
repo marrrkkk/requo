@@ -222,7 +222,9 @@ export function WorkflowStepper() {
     };
   }, [activeStep, advanceStep]);
 
-  const handleStepClick = (index: number) => {
+  const handleStepClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const index = Number(event.currentTarget.dataset.step);
+
     // Always restart progress from 0, even if clicking the current step
     elapsedRef.current = 0;
     lastTickRef.current = performance.now();
@@ -265,7 +267,8 @@ export function WorkflowStepper() {
             <button
               key={step.title}
               type="button"
-              onClick={() => handleStepClick(index)}
+              data-step={index}
+              onClick={handleStepClick}
               className={cn(
                 "group/step relative flex items-start gap-4 rounded-xl px-4 py-5 text-left transition-colors sm:gap-5 sm:px-5 sm:py-6",
                 isActive ? "bg-primary/[0.04]" : "hover:bg-muted/30"

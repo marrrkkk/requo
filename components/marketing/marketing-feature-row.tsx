@@ -1,10 +1,10 @@
 import dynamic from "next/dynamic";
 import {
+  BellRing,
   Bot,
   ChartNoAxesCombined,
   FileText,
   Inbox,
-  Workflow,
 } from "lucide-react";
 
 import type { LandingFeatureId } from "@/components/marketing/marketing-data";
@@ -21,7 +21,7 @@ const featureKickers: Record<LandingFeatureId, string> = {
   inquiries: "Capture",
   quotes: "Quote",
   ai: "Assist",
-  automations: "Automate",
+  followUps: "Follow up",
   analytics: "Improve",
 };
 
@@ -29,7 +29,7 @@ const featureIcons = {
   inquiries: Inbox,
   quotes: FileText,
   ai: Bot,
-  automations: Workflow,
+  followUps: BellRing,
   analytics: ChartNoAxesCombined,
 } satisfies Record<LandingFeatureId, typeof Inbox>;
 

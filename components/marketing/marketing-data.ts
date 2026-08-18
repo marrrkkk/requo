@@ -88,7 +88,7 @@ export type LandingFeatureId =
   | "inquiries"
   | "quotes"
   | "ai"
-  | "automations"
+  | "followUps"
   | "analytics";
 
 export const landingFeatureItems: readonly {
@@ -115,10 +115,10 @@ export const landingFeatureItems: readonly {
       "\"Which quotes are stale?\" \"Show me this week's inquiries.\" Your AI assistant pulls live data, answers in seconds, and suggests next actions.",
   },
   {
-    id: "automations",
+    id: "followUps",
     title: "Follow-ups run on schedule, automatically.",
     description:
-      "Set triggers for reminders, status updates, and customer nudges. The system handles repetitive tasks so you can focus on closing deals.",
+      "Requo creates follow-ups when quotes go quiet and reminds you before they expire. The system handles repetitive tasks so you can focus on closing deals.",
   },
   {
     id: "analytics",
@@ -132,7 +132,7 @@ export const faqItems = [
   {
     question: "What exactly does Requo do?",
     answer:
-      "Requo manages your entire quote-to-invoice workflow. Capture customer requests, draft quotes with AI, send them out, track opens and acceptances, manage jobs, and generate invoices. Everything stays connected in one place.",
+      "Requo helps owner-led service businesses turn inquiries into quotes without losing the next step. Capture customer requests, draft quotes with AI, send them through Requo or share a public link, track responses, and follow up automatically before opportunities go cold.",
   },
   {
     question: "Do my customers need to sign up to open a quote?",
@@ -173,6 +173,11 @@ export const faqItems = [
     question: "Can I run more than one business from one account?",
     answer:
       "Yes. One login manages multiple businesses. Each business has separate inquiries, quotes, forms, pricing libraries, and branding. One subscription covers all of them.",
+  },
+  {
+    question: "Who is Requo for?",
+    answer:
+      "Requo is built for owner-led service businesses that receive custom inquiries and prepare custom-scope quotes. If customers reach out to ask for pricing before committing, and you write up a quote specific to their request, Requo helps you respond faster and follow up before they choose someone else. Appointment-first businesses with fixed services aren't the primary fit.",
   },
   {
     question: "Is there a free plan?",

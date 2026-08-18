@@ -19,6 +19,11 @@ import {
   MarketingFeatureRow,
 } from "@/components/marketing/marketing-feature-row";
 import { WorkflowStepper } from "@/components/marketing/workflow-stepper";
+import {
+  ChecklistGraphic,
+  IntegrationsGraphic,
+  WorkflowGraphic,
+} from "@/components/marketing/why-requo-graphics";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { PublicPageShell } from "@/components/shared/public-page-shell";
 import {
@@ -34,25 +39,34 @@ const whyRequoPoints = [
     hook: "They asked for a quote.\nYou replied two days late.",
     detail: "You were on a job. By the time you sat down to write it, they'd already hired someone else. That's revenue lost to response time, not price.",
     icon: FileText,
+    graphic: "checklist",
   },
   {
     hook: "You forgot to follow up.\nThe lead went cold.",
     detail: "No reminder, no system. Just another name you meant to get back to. Every missed follow-up is a deal that chose someone more responsive.",
     icon: BellRing,
+    graphic: "workflow",
   },
   {
     hook: "Inquiries in email.\nQuotes in a spreadsheet.",
     detail: "Nothing connects. Leads slip through the cracks between tools, and you don't notice until it's too late.",
     icon: Inbox,
+    graphic: "integrations",
   },
 ] as const;
+
+const whyRequoGraphics = {
+  checklist: ChecklistGraphic,
+  workflow: WorkflowGraphic,
+  integrations: IntegrationsGraphic,
+} as const;
 
 // Indexes map into `faqItems` in `components/marketing/marketing-data.ts`.
 // Keep these ranges in sync if the list changes.
 const faqGroups = [
-  { label: "The basics", indexes: [0, 8, 9] },
+  { label: "The basics", indexes: [0, 9, 10] },
   { label: "Your workflow", indexes: [3, 4, 5, 6] },
-  { label: "Customers & team", indexes: [1, 2, 7] },
+  { label: "Customers & team", indexes: [1, 2, 7, 8] },
 ] as const;
 
 export function MarketingHero() {
@@ -93,18 +107,18 @@ export function MarketingHero() {
         className="pb-28 lg:pb-40"
         header={<MarketingHeader />}
       >
-      <section className="relative overflow-hidden px-4 pb-12 pt-8 sm:px-6 sm:pb-16 sm:pt-10 lg:px-8 lg:pb-20 lg:pt-12 xl:px-0">
-        <div className="relative z-10 flex flex-col gap-8 sm:gap-10 lg:gap-12">
-          <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-5 text-center">
-            <h1 className="font-[var(--font-inter)] text-[2.75rem] font-bold leading-[1.0] tracking-[-0.02em] text-foreground sm:text-[3.25rem] sm:leading-[1.0] lg:text-[4rem] lg:leading-[1.0]">
+      <section className="relative overflow-hidden px-4 pb-24 pt-20 sm:px-6 sm:pb-32 sm:pt-28 lg:px-8 lg:pb-40 lg:pt-36 xl:px-0">
+        <div className="relative z-10 flex flex-col gap-12 sm:gap-16 lg:gap-20">
+          <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-6 text-center">
+            <h1 className="font-[var(--font-inter)] text-[3.5rem] font-bold leading-[1.0] tracking-[-0.02em] text-foreground sm:text-[4.5rem] sm:leading-[1.0] lg:text-[5.5rem] lg:leading-[1.0]">
               Stop losing jobs to<br className="hidden sm:inline" />{" "}
               <span className="text-primary">slow responses</span>.
             </h1>
-            <p className="max-w-lg font-[var(--font-inter)] text-[0.95rem] font-normal leading-[1.5] text-muted-foreground sm:text-base sm:leading-[1.5] lg:text-lg lg:leading-[1.5]">
-              Every inquiry gets a quote. Every quote gets a follow-up. Nothing falls through while you&rsquo;re doing the work.
+            <p className="max-w-lg font-[var(--font-inter)] text-[1.05rem] font-normal leading-[1.5] text-muted-foreground sm:text-lg sm:leading-[1.5] lg:text-xl lg:leading-[1.5]">
+              Built for owner-led service businesses. Capture inquiries, send quotes, follow up automatically. Never lose the next step.
             </p>
 
-            <div className="flex items-center gap-3 pt-1">
+            <div className="flex items-center gap-3 pt-2">
               <Button asChild size="lg" className="rounded-md bg-primary px-5 font-[var(--font-inter)] text-sm font-medium text-primary-foreground hover:bg-primary/90">
                 <Link href="/signup">
                   Start free
@@ -171,37 +185,47 @@ export function MarketingHero() {
         className="mx-auto mt-24 w-full max-w-6xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0"
         id="why-requo"
       >
-        <InViewReveal className="mx-auto flex max-w-3xl flex-col items-center gap-4 text-center">
-          <p className="meta-label">WHY REQUO</p>
-          <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
-            You&rsquo;re not losing on price.<br className="hidden sm:inline" /> You&rsquo;re losing on speed.
-          </h2>
-          <p className="max-w-lg text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7">
-            You&rsquo;re busy doing the work. Meanwhile, inquiries go unanswered and warm leads hire someone who responded first.
-          </p>
+        <InViewReveal className="grid gap-6 lg:grid-cols-2 lg:gap-12 xl:gap-16">
+          <div className="flex flex-col gap-4">
+            <p className="meta-label">WHY REQUO</p>
+            <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
+              You&rsquo;re not losing on price.<br className="hidden sm:inline" /> You&rsquo;re losing on <span className="text-primary italic">speed</span>.
+            </h2>
+          </div>
+          <div className="flex items-center">
+            <p className="text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7 lg:text-lg lg:leading-8">
+              You&rsquo;re busy doing the work. Meanwhile, inquiries go unanswered and warm leads hire someone who responded first.
+            </p>
+          </div>
         </InViewReveal>
 
         <div className="mt-14 grid gap-4 sm:mt-16 sm:grid-cols-2 lg:mt-20 lg:grid-cols-3 lg:gap-5">
           {whyRequoPoints.map((point, index) => {
             const Icon = point.icon;
+            const GraphicComponent = whyRequoGraphics[point.graphic];
 
             return (
               <InViewReveal delay={80 + index * 60} key={point.hook}>
-                <article className="surface-card group relative flex h-full flex-col gap-5 rounded-2xl p-6 transition-shadow duration-200 hover:shadow-[var(--surface-shadow-lg)] sm:p-7">
-                  <div className="flex items-center justify-between">
-                    <span className="flex size-11 items-center justify-center rounded-xl border border-primary/15 bg-primary/8">
-                      <Icon className="size-[18px] text-primary" />
-                    </span>
-                    <span className="font-mono text-[11px] font-semibold text-muted-foreground/50">
-                      0{index + 1}
-                    </span>
+                <article className="surface-card group relative flex h-full flex-col overflow-hidden rounded-2xl transition-shadow duration-200 hover:shadow-[var(--surface-shadow-lg)]">
+                  <GraphicComponent />
+                  
+                  {/* Content */}
+                  <div className="flex flex-col gap-5 p-6 sm:p-7">
+                    <div className="flex items-center justify-between">
+                      <span className="flex size-11 items-center justify-center rounded-xl border border-primary/15 bg-primary/8">
+                        <Icon className="size-[18px] text-primary" />
+                      </span>
+                      <span className="font-mono text-[11px] font-semibold text-muted-foreground/50">
+                        0{index + 1}
+                      </span>
+                    </div>
+                    <h3 className="whitespace-pre-line text-[0.95rem] font-semibold leading-snug tracking-tight text-foreground sm:text-base">
+                      {point.hook}
+                    </h3>
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {point.detail}
+                    </p>
                   </div>
-                  <h3 className="whitespace-pre-line text-[0.95rem] font-semibold leading-snug tracking-tight text-foreground sm:text-base">
-                    {point.hook}
-                  </h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {point.detail}
-                  </p>
                 </article>
               </InViewReveal>
             );
