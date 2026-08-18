@@ -300,6 +300,338 @@ Do not add:
 - Feature gating uses `lib/billing/feature-gate.ts` and `lib/plans/entitlements.ts`. UI gating uses `features/paywall/`.
 - Do not bypass the subscription service or write directly to `business_subscriptions`.
 
+### Entitlement-Visibility Architecture
+
+**Core Principle:** All features remain visible to all plans for discoverability. Paid features are visibly locked/paywalled when the current plan lacks access. Navigation is never hidden by plan — only by role.
+
+#### Plan-Based Visibility Rules
+
+1. **Navigation is NEVER hidden by plan**
+   - Dashboard navigation, settings navigation, command menu, and mobile navigation show all items regardless of plan
+   - Navigation filtering is role-based only (business member permissions)
+   - Users can navigate to any feature page they have role permission to access
+
+2. **Features are visible but locked/paywalled**
+   - Free users see all pro/business features as locked with upgrade CTAs
+   - Pro users see business-tier features as locked with upgrade CTAs
+   - Business users see all features unlocked
+
+3. **Server-side enforcement is mandatory**
+   - All server actions and route handlers check plan entitlements
+   - Users cannot bypass UI restrictions by calling endpoints directly
+   - Plan checks happen before expensive operations (embeddings, AI, etc.)
+   - Authorization failures return structured errors with upgrade messaging
+
+#### Paywall Component System
+
+**Location:** `features/paywall/`
+
+Use the existing paywall components — do not create parallel patterns:
+
+##### LockedAction
+
+For buttons, links, and interactive controls that require a paid feature:
+
+```tsx
+import { LockedAction } from "@/features/paywall";
+
+<LockedAction
+  feature="members"
+  plan={plan}
+  upgradeAction={{
+    userId: user.id,
+    businessId,
+    businessSlug,
+    currentPlan: plan,
+  }}
+>
+  <Button>Invite team member</Button>
+</LockedAction>
+```
+
+**Behavior:**
+- When unlocked: passes through children normally (transparent wrapper)
+- When locked: shows disabled control with 50% opacity, tooltip on hover, opens upgrade popover on click
+- Always visible and keyboard accessible
+
+##### FeatureGate
+
+Multi-variant component for different gating scenarios:
+
+```tsx
+import { FeatureGate } from "@/features/paywall";
+
+// Action variant (for buttons/controls)
+<FeatureGate feature="exports" plan={plan} variant="action" upgradeAction={props}>
+  <Button>Export data</Button>
+</FeatureGate>
+
+// Block variant (for content sections)
+<FeatureGate feature="analyticsConversion" plan={plan} variant="block" upgradeAction={props}>
+  <AnalyticsChart data={data} />
+</FeatureGate>
+
+// Page variant (for full pages/features)
+<FeatureGate 
+  feature="members" 
+  plan={plan} 
+  variant="page" 
+  upgradeAction={props}
+  previewContent={<DemoMembersList />}  // optional
+>
+  <RealMembersList />
+</FeatureGate>
+```
+
+**Variants:**
+- `action`: Same as `LockedAction` (disabled control + popover)
+- `block`: Shows upgrade card instead of content
+- `page`: Shows preview + banner (if `previewContent` provided) OR empty-state upgrade card
+
+##### PremiumContentBlur
+
+For content blocks that should show an upgrade card when locked:
+
+```tsx
+import { PremiumContentBlur } from "@/features/paywall";
+
+<PremiumContentBlur
+  feature="analyticsConversion"
+  plan={plan}
+  upgradeAction={props}
+>
+  <AdvancedAnalyticsChart />
+</PremiumContentBlur>
+```
+
+**Behavior:**
+- When unlocked: renders children normally
+- When locked: shows upgrade card with lock icon, feature label, plan badge, and CTA
+- Children are NOT rendered in DOM when locked (secure)
+
+##### FeaturePreviewPaywall
+
+For full pages with optional preview content:
+
+```tsx
+import { FeaturePreviewPaywall } from "@/features/paywall";
+
+<FeaturePreviewPaywall
+  feature="analyticsConversion"
+  plan={plan}
+  previewContent={<DemoAnalyticsChart />}
+  upgradeAction={props}
+>
+  <RealAnalyticsContent />
+</FeaturePreviewPaywall>
+```
+
+**Behavior:**
+- When unlocked: renders children normally
+- When locked with preview: shows preview + "Demo data" badge + upgrade banner
+- When locked without preview: shows empty-state upgrade card
+- Real content is NOT rendered when locked (secure)
+
+#### Server-Side Enforcement
+
+**Location:** Server actions, route handlers, API routes
+
+Every plan-gated feature MUST check entitlements server-side:
+
+```tsx
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
+
+export async function createKnowledgeEntryAction(/* ... */) {
+  // Get business context (includes plan)
+  const { businessContext } = await getBusinessActionContext({ /* ... */ });
+  
+  // Check plan entitlement BEFORE any expensive operations
+  if (!hasFeatureAccess(businessContext.business.plan, "knowledgeBase")) {
+    return {
+      error: "Your plan does not include a knowledge base. Upgrade to Pro to access this feature.",
+    };
+  }
+  
+  // Continue with authorized operation...
+}
+```
+
+**Requirements:**
+- Use `hasFeatureAccess(plan, feature)` from `lib/plans/entitlements.ts`
+- Check entitlements before expensive operations (DB writes, AI calls, file processing)
+- Return structured errors with upgrade messaging
+- Never leak business data in authorization failures
+- Plan checks are immediate — no caching or delayed evaluation
+
+#### Entitlement Definitions
+
+**Location:** `lib/plans/entitlements.ts`
+
+This is the single source of truth for feature-to-plan mappings:
+
+```typescript
+export const planFeatures = [
+  "analyticsConversion",
+  "analyticsWorkflow",
+  "multipleForms",
+  // ... all features
+] as const;
+
+export type PlanFeature = (typeof planFeatures)[number];
+
+const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
+  free: new Set<PlanFeature>([
+    "followUps",
+    "aiQuoteDrafting",
+    // ... free features
+  ]),
+  pro: new Set<PlanFeature>([
+    // ... all free features + pro features
+  ]),
+  business: new Set<PlanFeature>([
+    // ... all features
+  ]),
+};
+
+export function hasFeatureAccess(plan: BusinessPlan, feature: PlanFeature): boolean {
+  return planEntitlements[plan].has(feature);
+}
+
+export function getRequiredPlan(feature: PlanFeature): BusinessPlan | null {
+  // Returns minimum plan required, or null if available on all plans
+}
+```
+
+**Feature metadata:**
+- `planFeatureLabels`: Human-readable feature names for UI
+- `planFeatureDescriptions`: Value descriptions for upgrade prompts
+
+#### Anti-Patterns (Do NOT Use)
+
+❌ **Hiding navigation by plan:**
+```tsx
+// WRONG: Don't filter navigation items by plan
+{hasFeatureAccess(plan, "members") && <NavItem href="/members">Members</NavItem>}
+```
+
+✅ **Correct: Always show navigation, lock destination:**
+```tsx
+// RIGHT: Show navigation item, lock page content if needed
+<NavItem href="/members">Members</NavItem>  {/* Always visible */}
+
+// On members page:
+<FeatureGate feature="members" plan={plan} variant="page">
+  <MembersList />
+</FeatureGate>
+```
+
+❌ **Inline upgrade text without components:**
+```tsx
+// WRONG: Don't use raw divs with upgrade text
+{!hasFeatureAccess(plan, "analytics") ? (
+  <div>Upgrade to unlock analytics.</div>
+) : (
+  <AnalyticsContent />
+)}
+```
+
+✅ **Correct: Use paywall components:**
+```tsx
+// RIGHT: Use proper paywall component
+<PremiumContentBlur feature="analyticsConversion" plan={plan} upgradeAction={props}>
+  <AnalyticsContent />
+</PremiumContentBlur>
+```
+
+❌ **Route-level hiding:**
+```tsx
+// WRONG: Don't redirect or return not-found based on plan alone
+if (!hasFeatureAccess(plan, "members")) {
+  redirect(dashboardPath);  // Don't do this!
+}
+```
+
+✅ **Correct: Show page with paywall:**
+```tsx
+// RIGHT: Render page structure, gate content
+<DashboardPage>
+  <PageHeader title="Team Members" />
+  <FeatureGate feature="members" plan={plan} variant="page">
+    <MembersList />
+  </FeatureGate>
+</DashboardPage>
+```
+
+#### Mixed-Access Pages
+
+For pages with both free and paid content, render accessible sections normally and gate paid sections:
+
+```tsx
+<DashboardPage>
+  <PageHeader title="Analytics" />
+  
+  {/* Free tier content - accessible to all */}
+  <BasicAnalyticsSection data={basicData} />
+  
+  {/* Pro tier content - locked for free users */}
+  <PremiumContentBlur feature="analyticsConversion" plan={plan} upgradeAction={props}>
+    <AdvancedAnalyticsSection data={advancedData} />
+  </PremiumContentBlur>
+  
+  {/* Business tier content - locked for free/pro users */}
+  <FeatureGate feature="analyticsWorkflow" plan={plan} variant="block" upgradeAction={props}>
+    <OperationsAnalyticsSection data={opsData} />
+  </FeatureGate>
+</DashboardPage>
+```
+
+#### Testing Requirements
+
+When adding plan-gated features, ensure:
+
+1. **Component tests** (`tests/components/`):
+   - Free plan sees feature locked with upgrade CTA
+   - Pro plan sees business-tier features locked
+   - Business plan sees all features unlocked
+   - Locked states are keyboard accessible
+   - ARIA attributes are correct
+
+2. **Integration tests** (`tests/integration/`):
+   - Server actions reject unauthorized plan operations
+   - Error messages include upgrade guidance
+   - Plan checks happen before expensive operations
+   - Plan transitions (upgrade/downgrade) take effect immediately
+   - Business plan bypasses all restrictions
+
+3. **E2E tests** (`tests/e2e/`) for critical discovery flows:
+   - Free user can navigate to paid feature pages
+   - Locked features show upgrade prompts
+   - Clicking upgrade CTA initiates checkout
+
+#### Role vs Plan Distinction
+
+**Role permissions** (business member permissions) are separate from **plan entitlements**:
+
+- **Role restrictions** may hide features (e.g., non-admins can't see billing)
+- **Plan restrictions** must NOT hide features (show as locked/paywalled instead)
+
+A staff member on the free plan should see paid features as locked/paywalled, not hidden. Role permissions are enforced through `canManageBusinessAdministration()`, `canManageOperationalBusinessSettings()`, etc., not through plan checks.
+
+#### Summary Checklist
+
+When implementing plan-gated features:
+
+- [ ] Use `hasFeatureAccess()` in server actions/route handlers
+- [ ] Use paywall components (`LockedAction`, `FeatureGate`, `PremiumContentBlur`, `FeaturePreviewPaywall`) for UI
+- [ ] Do NOT hide navigation items by plan
+- [ ] Do NOT redirect routes based on plan alone
+- [ ] Do NOT use inline upgrade text without proper components
+- [ ] Add feature to `lib/plans/entitlements.ts` with correct plan access
+- [ ] Add `planFeatureLabels` and `planFeatureDescriptions` entries
+- [ ] Write component tests for visibility at each plan tier
+- [ ] Write integration tests for server-side enforcement
+- [ ] Verify plan transitions work immediately
+
 ### Workflow Automation
 
 - Automations are event-driven, business-scoped rules: a trigger event fires an action automatically.
