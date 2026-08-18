@@ -83,7 +83,6 @@ const privacySections: LegalDocumentSection[] = [
           items={[
             "Contact details such as name, email address, phone number, and company name when requested by the form.",
             "Inquiry details such as requested services, project scope, timing, budget, free-form descriptions, and answers to custom fields configured by the business.",
-            "Conversational messages exchanged with an AI-powered intake assistant, when the business has enabled conversational mode for its inquiry form.",
             "Attachments and supporting files submitted with the inquiry.",
           ]}
         />
@@ -101,7 +100,6 @@ const privacySections: LegalDocumentSection[] = [
         <LegalList
           items={[
             "Inquiry attachments uploaded through public inquiry forms.",
-            "Knowledge files and related extracted text stored to support business features.",
             "Business logos, profile avatars, and other files you upload to the Service.",
           ]}
         />
@@ -131,18 +129,9 @@ const privacySections: LegalDocumentSection[] = [
           uploads, depending on how the business configures the form.
         </LegalParagraph>
         <LegalParagraph>
-          Some businesses may enable an AI-powered conversational intake mode
-          for their inquiry form. In that mode, an AI assistant guides the
-          visitor through the inquiry by asking follow-up questions in a chat
-          interface. The messages exchanged in the conversation are processed
-          through an AI provider to generate responses, and the extracted
-          inquiry details are stored alongside the submission.
-        </LegalParagraph>
-        <LegalParagraph>
-          Information submitted through a public inquiry form, including any
-          conversational messages, is made available to the receiving business
-          and to authorized users within that business so they can review,
-          qualify, and respond to the inquiry.
+          Information submitted through a public inquiry form is made available
+          to the receiving business and to authorized users within that business
+          so they can review, qualify, and respond to the inquiry.
         </LegalParagraph>
       </>
     ),
@@ -204,13 +193,9 @@ const privacySections: LegalDocumentSection[] = [
         </LegalSectionHeading>
         <LegalParagraph>
           The Service supports file uploads and customer-submitted content,
-          including inquiry attachments, knowledge files, business logos, profile
+          including inquiry attachments, business logos, profile
           avatars, public quote responses, notes, FAQs, pricing entries, and
           other business content that users or customers provide.
-        </LegalParagraph>
-        <LegalParagraph>
-          Some uploaded knowledge files may be processed to extract text needed
-          for knowledge and AI drafting features.
         </LegalParagraph>
       </>
     ),
@@ -226,7 +211,7 @@ const privacySections: LegalDocumentSection[] = [
             "Provide, maintain, and secure the Service, including account access, businesses, public inquiry pages, public quote pages, and related workflows.",
             "Authenticate users, manage sessions, administer business membership and invites, and support business switching for authorized users.",
             "Receive, store, display, route, and deliver inquiries, quotes, follow-up tasks, notifications, and transactional emails.",
-            "Support knowledge features, file handling, internal analytics features, AI drafting features, and AI-powered conversational inquiry intake.",
+            "Support file handling, internal analytics features, and AI drafting features.",
             "Maintain audit logs of sensitive business actions for security and accountability.",
             "Monitor usage, troubleshoot issues, investigate suspected abuse, respond to support requests, and comply with legal obligations.",
           ]}
@@ -249,19 +234,10 @@ const privacySections: LegalDocumentSection[] = [
         </LegalParagraph>
         <LegalParagraph>
           Based on the current Service, those inputs may include inquiry details,
-          submitted custom field responses, internal notes, FAQ content, excerpts
-          from uploaded knowledge files, and the prompt or drafting request
-          entered by an authorized business user.
+          submitted custom field responses, internal notes, FAQ content, and the
+          prompt or drafting request entered by an authorized business user.
         </LegalParagraph>
-        <LegalSubheading>B. AI-powered conversational inquiry intake</LegalSubheading>
-        <LegalParagraph>
-          When a business enables conversational mode for its public inquiry
-          form, visitors interact with an AI assistant that guides them through
-          the inquiry. Messages sent by the visitor and the AI responses are
-          processed through an AI provider. The AI extracts structured inquiry
-          details from the conversation, which are stored alongside the
-          submission and made available to the receiving business.
-        </LegalParagraph>
+        <LegalSubheading>B. Sensitive information</LegalSubheading>
         <LegalParagraph>
           You should avoid submitting highly sensitive personal information to
           AI-powered features unless necessary and appropriate for your use
@@ -470,14 +446,6 @@ const privacySections: LegalDocumentSection[] = [
                 </td>
                 <td className="py-3 text-muted-foreground">
                   Legitimate interest
-                </td>
-              </tr>
-              <tr className="border-b border-border/40">
-                <td className="py-3 pr-4 font-medium text-foreground">
-                  Conversational AI intake
-                </td>
-                <td className="py-3 text-muted-foreground">
-                  Legitimate interest (with notice)
                 </td>
               </tr>
               <tr className="border-b border-border/40">
@@ -964,17 +932,16 @@ const privacySections: LegalDocumentSection[] = [
       <>
         <LegalSectionHeading>19. Automated Decision-Making</LegalSectionHeading>
         <LegalParagraph>
-          Requo includes AI-powered features that assist with drafting quotes,
-          generating suggestions, and guiding conversational inquiry intake.
-          These features are designed as assistive tools only.
+          Requo includes AI-powered features that assist with drafting quotes
+          and generating suggestions. These features are designed as assistive
+          tools only.
         </LegalParagraph>
         <LegalParagraph>
           No automated decisions with legal or similarly significant effects are
           made about you through the Service. All AI-generated outputs, including
-          draft text, suggestions, and extracted inquiry details, require human
-          review before use. A business user must review, edit, and approve any
-          AI-assisted content before it is sent to a customer or used to make a
-          business decision.
+          draft text and suggestions, require human review before use. A business
+          user must review, edit, and approve any AI-assisted content before it
+          is sent to a customer or used to make a business decision.
         </LegalParagraph>
         <LegalParagraph>
           If you have questions about how AI features are used in the context of

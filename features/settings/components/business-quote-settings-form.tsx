@@ -29,7 +29,6 @@ type BusinessQuoteSettingsFormProps = {
     state: BusinessQuoteSettingsActionState,
     formData: FormData,
   ) => Promise<BusinessQuoteSettingsActionState>;
-  autoCreateJobOnAcceptance: boolean;
   settings: BusinessSettingsView;
 };
 
@@ -37,7 +36,6 @@ const initialState: BusinessQuoteSettingsActionState = {};
 
 export function BusinessQuoteSettingsForm({
   action,
-  autoCreateJobOnAcceptance,
   settings,
 }: BusinessQuoteSettingsFormProps) {
   const { scheduleRefresh } = useDeferredRefresh();
@@ -54,12 +52,34 @@ export function BusinessQuoteSettingsForm({
   const [defaultQuoteTerms, setDefaultQuoteTerms] = useState(
     settings.defaultQuoteTerms ?? "",
   );
-  const [autoCreateJob, setAutoCreateJob] = useState(autoCreateJobOnAcceptance);
+  const [sendInquiryAckEmail, setSendInquiryAckEmail] = useState(
+    settings.sendInquiryAckEmail,
+  );
+  const [autoDraftQuoteOnQualify, setAutoDraftQuoteOnQualify] = useState(
+    settings.autoDraftQuoteOnQualify,
+  );
+  const [autoArchiveStaleInquiries, setAutoArchiveStaleInquiries] = useState(
+    settings.autoArchiveStaleInquiries,
+  );
+  const [autoArchiveStaleInquiryDays, setAutoArchiveStaleInquiryDays] =
+    useState(String(settings.autoArchiveStaleInquiryDays));
+  const [autoFollowUpOnQuoteViewed, setAutoFollowUpOnQuoteViewed] = useState(
+    settings.autoFollowUpOnQuoteViewed,
+  );
+  const [quoteViewedFollowUpDelayDays, setQuoteViewedFollowUpDelayDays] =
+    useState(String(settings.quoteViewedFollowUpDelayDays));
   const hasUnsavedChanges =
     defaultQuoteValidityDays !== String(settings.defaultQuoteValidityDays) ||
     defaultQuoteNotes !== (settings.defaultQuoteNotes ?? "") ||
     defaultQuoteTerms !== (settings.defaultQuoteTerms ?? "") ||
-    autoCreateJob !== autoCreateJobOnAcceptance;
+    sendInquiryAckEmail !== settings.sendInquiryAckEmail ||
+    autoDraftQuoteOnQualify !== settings.autoDraftQuoteOnQualify ||
+    autoArchiveStaleInquiries !== settings.autoArchiveStaleInquiries ||
+    autoArchiveStaleInquiryDays !==
+      String(settings.autoArchiveStaleInquiryDays) ||
+    autoFollowUpOnQuoteViewed !== settings.autoFollowUpOnQuoteViewed ||
+    quoteViewedFollowUpDelayDays !==
+      String(settings.quoteViewedFollowUpDelayDays);
   const { shouldRenderFloatingActions, floatingActionsState } =
     useFloatingUnsavedChanges(hasUnsavedChanges);
 
@@ -75,7 +95,14 @@ export function BusinessQuoteSettingsForm({
     setDefaultQuoteValidityDays(String(settings.defaultQuoteValidityDays));
     setDefaultQuoteNotes(settings.defaultQuoteNotes ?? "");
     setDefaultQuoteTerms(settings.defaultQuoteTerms ?? "");
-    setAutoCreateJob(autoCreateJobOnAcceptance);
+    setSendInquiryAckEmail(settings.sendInquiryAckEmail);
+    setAutoDraftQuoteOnQualify(settings.autoDraftQuoteOnQualify);
+    setAutoArchiveStaleInquiries(settings.autoArchiveStaleInquiries);
+    setAutoArchiveStaleInquiryDays(String(settings.autoArchiveStaleInquiryDays));
+    setAutoFollowUpOnQuoteViewed(settings.autoFollowUpOnQuoteViewed);
+    setQuoteViewedFollowUpDelayDays(
+      String(settings.quoteViewedFollowUpDelayDays),
+    );
   }
 
   return (
@@ -198,32 +225,207 @@ export function BusinessQuoteSettingsForm({
           </div>
         </section>
 
-        {/* Automation settings */}
+        {/* Workflow defaults */}
         <section className="section-panel p-5 sm:p-6">
           <div className="flex flex-col gap-6">
             <Field>
               <div className="flex items-center justify-between gap-4">
                 <div className="flex flex-col gap-1">
-                  <FieldLabel htmlFor="quote-settings-auto-create-job">
-                    Auto-create job on acceptance
+                  <FieldLabel htmlFor="quote-settings-ack-email">
+                    Inquiry acknowledgment email
                   </FieldLabel>
                   <FieldDescription>
-                    Automatically create a job when a customer accepts a quote.
-                    When off, use the &ldquo;Create job&rdquo; button manually.
+                    Send customers a confirmation email when they submit an
+                    inquiry.
                   </FieldDescription>
                 </div>
                 <Switch
-                  checked={autoCreateJob}
+                  checked={sendInquiryAckEmail}
                   disabled={isPending}
-                  id="quote-settings-auto-create-job"
-                  onCheckedChange={setAutoCreateJob}
+                  id="quote-settings-ack-email"
+                  onCheckedChange={setSendInquiryAckEmail}
                 />
               </div>
               <input
-                name="autoCreateJobOnAcceptance"
+                name="sendInquiryAckEmail"
                 type="hidden"
-                value={autoCreateJob ? "true" : "false"}
+                value={sendInquiryAckEmail ? "true" : "false"}
               />
+            </Field>
+
+            <div className="border-t border-border" />
+
+            <Field>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-1">
+                  <FieldLabel htmlFor="quote-settings-ai-draft">
+                    AI draft quote on qualified inquiries
+                  </FieldLabel>
+                  <FieldDescription>
+                    Generate a draft quote automatically when an inquiry is
+                    qualified. Subject to the plan&rsquo;s AI usage limits.
+                  </FieldDescription>
+                </div>
+                <Switch
+                  checked={autoDraftQuoteOnQualify}
+                  disabled={isPending}
+                  id="quote-settings-ai-draft"
+                  onCheckedChange={setAutoDraftQuoteOnQualify}
+                />
+              </div>
+              <input
+                name="autoDraftQuoteOnQualify"
+                type="hidden"
+                value={autoDraftQuoteOnQualify ? "true" : "false"}
+              />
+            </Field>
+
+            <div className="border-t border-border" />
+
+            <Field>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-1">
+                  <FieldLabel htmlFor="quote-settings-auto-archive">
+                    Auto-archive stale inquiries
+                  </FieldLabel>
+                  <FieldDescription>
+                    Archive open inquiries with no activity after the idle
+                    window below.
+                  </FieldDescription>
+                </div>
+                <Switch
+                  checked={autoArchiveStaleInquiries}
+                  disabled={isPending}
+                  id="quote-settings-auto-archive"
+                  onCheckedChange={setAutoArchiveStaleInquiries}
+                />
+              </div>
+              <input
+                name="autoArchiveStaleInquiries"
+                type="hidden"
+                value={autoArchiveStaleInquiries ? "true" : "false"}
+              />
+            </Field>
+            <Field
+              data-invalid={
+                Boolean(state.fieldErrors?.autoArchiveStaleInquiryDays) ||
+                undefined
+              }
+            >
+              <FieldLabel htmlFor="quote-settings-auto-archive-days">
+                Stale inquiry idle window
+              </FieldLabel>
+              <FieldContent>
+                <div className="flex items-center gap-3">
+                  <Input
+                    className="w-24"
+                    disabled={isPending || !autoArchiveStaleInquiries}
+                    id="quote-settings-auto-archive-days"
+                    inputMode="numeric"
+                    max="365"
+                    min="1"
+                    name="autoArchiveStaleInquiryDays"
+                    onChange={(event) =>
+                      setAutoArchiveStaleInquiryDays(event.currentTarget.value)
+                    }
+                    required
+                    step="1"
+                    type="number"
+                    value={autoArchiveStaleInquiryDays}
+                  />
+                  <span className="text-sm text-muted-foreground">days</span>
+                </div>
+                <FieldDescription>
+                  Inquiries are archived when they receive no activity for this
+                  many days (1&ndash;365).
+                </FieldDescription>
+                <FieldError
+                  errors={
+                    state.fieldErrors?.autoArchiveStaleInquiryDays?.[0]
+                      ? [
+                          {
+                            message:
+                              state.fieldErrors.autoArchiveStaleInquiryDays[0],
+                          },
+                        ]
+                      : undefined
+                  }
+                />
+              </FieldContent>
+            </Field>
+
+            <div className="border-t border-border" />
+
+            <Field>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-1">
+                  <FieldLabel htmlFor="quote-settings-viewed-follow-up">
+                    Follow up on viewed quotes
+                  </FieldLabel>
+                  <FieldDescription>
+                    Create a follow-up task when a customer views a quote but
+                    hasn&rsquo;t responded after the delay below.
+                  </FieldDescription>
+                </div>
+                <Switch
+                  checked={autoFollowUpOnQuoteViewed}
+                  disabled={isPending}
+                  id="quote-settings-viewed-follow-up"
+                  onCheckedChange={setAutoFollowUpOnQuoteViewed}
+                />
+              </div>
+              <input
+                name="autoFollowUpOnQuoteViewed"
+                type="hidden"
+                value={autoFollowUpOnQuoteViewed ? "true" : "false"}
+              />
+            </Field>
+            <Field
+              data-invalid={
+                Boolean(state.fieldErrors?.quoteViewedFollowUpDelayDays) ||
+                undefined
+              }
+            >
+              <FieldLabel htmlFor="quote-settings-viewed-follow-up-days">
+                Follow-up delay after view
+              </FieldLabel>
+              <FieldContent>
+                <div className="flex items-center gap-3">
+                  <Input
+                    className="w-24"
+                    disabled={isPending || !autoFollowUpOnQuoteViewed}
+                    id="quote-settings-viewed-follow-up-days"
+                    inputMode="numeric"
+                    max="90"
+                    min="1"
+                    name="quoteViewedFollowUpDelayDays"
+                    onChange={(event) =>
+                      setQuoteViewedFollowUpDelayDays(event.currentTarget.value)
+                    }
+                    required
+                    step="1"
+                    type="number"
+                    value={quoteViewedFollowUpDelayDays}
+                  />
+                  <span className="text-sm text-muted-foreground">days</span>
+                </div>
+                <FieldDescription>
+                  How long to wait after a quote is viewed before creating the
+                  follow-up task (1&ndash;90).
+                </FieldDescription>
+                <FieldError
+                  errors={
+                    state.fieldErrors?.quoteViewedFollowUpDelayDays?.[0]
+                      ? [
+                          {
+                            message:
+                              state.fieldErrors.quoteViewedFollowUpDelayDays[0],
+                          },
+                        ]
+                      : undefined
+                  }
+                />
+              </FieldContent>
             </Field>
           </div>
         </section>

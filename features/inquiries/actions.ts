@@ -15,7 +15,6 @@ import {
   getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
 import { getplanByBusinessId } from "@/lib/plans/queries";
-import { checkUsageAllowance } from "@/lib/plans/usage";
 import { assertPublicActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 import {
   addInquiryNoteForBusiness,
@@ -131,18 +130,7 @@ export async function submitPublicInquiryAction(
     };
   }
 
-  const { plan: plan, businessId } = await getplanByBusinessId(business.id);
-  const inquiryAllowance = await checkUsageAllowance(
-    businessId,
-    plan,
-    "inquiriesPerMonth",
-  );
-
-  if (!inquiryAllowance.allowed) {
-    return {
-      error: "This business has reached its monthly inquiry limit. The owner has been notified.",
-    };
-  }
+  const { plan } = await getplanByBusinessId(business.id);
 
   const effectiveFormConfig = resolveInquiryFormConfigForPlan(
     business.inquiryFormConfig,
@@ -227,18 +215,6 @@ export async function createManualInquiryAction(
       fieldErrors: {
         formSlug: ["Choose an active inquiry form."],
       },
-    };
-  }
-
-  const inquiryAllowance = await checkUsageAllowance(
-    businessContext.business.id,
-    businessContext.business.plan,
-    "inquiriesPerMonth",
-  );
-
-  if (!inquiryAllowance.allowed) {
-    return {
-      error: `You've reached your plan's limit of ${inquiryAllowance.limit} inquiries this month. Upgrade your plan for unlimited usage.`,
     };
   }
 

@@ -4,7 +4,6 @@ import Link from "next/link";
 import {
   ArrowRight,
   Clock,
-  Inbox,
   Send,
   TrendingUp,
   Target,
@@ -21,8 +20,10 @@ import {
 import {
   getBusinessOverviewData,
   getBusinessDashboardSummaryData,
+  getBusinessMoneySnapshot,
 } from "@/features/businesses/queries";
 import { getFreeAnalytics, getDashboardResponseTime } from "@/features/analytics/queries";
+import { formatMoney } from "@/features/analytics/utils";
 import {
   getBusinessInquiryPath,
   getBusinessQuotePath,
@@ -31,23 +32,18 @@ import {
   getBusinessAnalyticsPath,
 } from "@/features/businesses/routes";
 import { getFollowUpOverviewForBusiness } from "@/features/follow-ups/queries";
-import {
-  DashboardChatInput,
-  type SuggestionChip,
-} from "@/features/ai/chat-ui/dashboard-chat-input";
 import { DashboardTour } from "@/features/onboarding/components/dashboard-tour";
 import { getCachedDashboardTourCompleted } from "@/features/onboarding/queries";
-import { NextStepSection } from "@/features/onboarding/components/next-step-section";
+import { ActivationLaunchpad } from "@/features/onboarding/components/activation-launchpad";
 import { MilestoneCelebrator } from "@/features/onboarding/components/milestone-celebrator";
 import type { MilestoneKey } from "@/features/onboarding/milestones";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { formatQuoteDate } from "@/features/quotes/utils";
-import type { BusinessOverviewData } from "@/features/businesses/types";
-import type { FollowUpOverviewData } from "@/features/follow-ups/types";
 
 type DashboardOverviewPageProps = {
   params: Promise<{ businessSlug: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -77,6 +73,7 @@ export const unstable_instant = {
  */
 export default function DashboardOverviewPage({
   params,
+  searchParams,
 }: DashboardOverviewPageProps) {
   return (
     <div className="home-page-container home-entrance">
@@ -87,17 +84,17 @@ export default function DashboardOverviewPage({
         </Suspense>
       </section>
 
-      {/* Next step suggestion */}
+      {/* Activation launchpad (shows when welcome=1 or until activation complete) */}
       <section className="home-entrance-section w-full max-w-5xl mx-auto mt-4">
         <Suspense fallback={null}>
-          <NextStepRegion params={params} />
+          <ActivationLaunchpadRegion params={params} searchParams={searchParams} />
         </Suspense>
       </section>
 
-      {/* 30-day velocity stats */}
+      {/* KPI row */}
       <section className="home-entrance-section w-full max-w-5xl mx-auto mt-5">
-        <Suspense fallback={<VelocityStatsFallback />}>
-          <VelocityStatsRegion params={params} />
+        <Suspense fallback={<KpiFallback />}>
+          <KpiRegion params={params} />
         </Suspense>
       </section>
 
@@ -108,14 +105,6 @@ export default function DashboardOverviewPage({
         </Suspense>
       </section>
 
-      {/* AI chat input — fixed floating bottom center */}
-      <div className="fixed bottom-5 left-0 right-0 z-40 pointer-events-none lg:left-[17.5rem]">
-        <div className="pointer-events-auto">
-          <Suspense fallback={<ChatInputFallbackShell />}>
-            <ChatInputRegion params={params} />
-          </Suspense>
-        </div>
-      </div>
 
       {/* Dashboard tour */}
       <Suspense fallback={null}>
@@ -159,34 +148,43 @@ async function GreetingRegion({
   );
 }
 
-async function NextStepRegion({
+async function ActivationLaunchpadRegion({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessSlug: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { businessSlug } = await params;
   const { businessContext } = await getAppShellContext(businessSlug);
+  const resolvedSearchParams = await searchParams;
+  const isWelcome = resolvedSearchParams.welcome === "1";
 
+  // Only show launchpad if welcome=1 or activation is incomplete
+  // The component itself will hide when activation is complete
   return (
-    <NextStepSection
-      businessId={businessContext.business.id}
+    <ActivationLaunchpad
+      businessName={businessContext.business.name}
       businessSlug={businessSlug}
-      businessType={businessContext.business.businessType}
+      businessId={businessContext.business.id}
       publicInquiryEnabled={businessContext.business.publicInquiryEnabled}
     />
   );
 }
 
-async function VelocityStatsRegion({
+async function KpiRegion({
   params,
 }: {
   params: Promise<{ businessSlug: string }>;
 }) {
   const { businessSlug } = await params;
   const { businessContext } = await getAppShellContext(businessSlug);
-  const [analytics, responseTime] = await Promise.all([
-    getFreeAnalytics(businessContext.business.id),
-    getDashboardResponseTime(businessContext.business.id),
+  const businessId = businessContext.business.id;
+
+  const [money, analytics, responseTime] = await Promise.all([
+    getBusinessMoneySnapshot(businessId),
+    getFreeAnalytics(businessId),
+    getDashboardResponseTime(businessId),
   ]);
 
   const hasActivity =
@@ -216,24 +214,18 @@ async function VelocityStatsRegion({
           <ArrowRight className="size-3" />
         </Link>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard
-          label="Avg. time to quote"
-          value={responseTimeDisplay.value}
-          suffix={responseTimeDisplay.suffix}
-          highlight={responseTimeDisplay.isGood}
-          icon={<Clock className="size-4" />}
+          label="Won"
+          value={formatMoney(money.wonInCents, money.currency)}
+          suffix="last 30 days"
+          highlight={money.wonInCents > 0}
+          icon={<TrendingUp className="size-4" />}
         />
         <StatCard
-          label="Inquiries"
-          value={analytics.inquirySubmissions}
-          suffix="received"
-          icon={<Inbox className="size-4" />}
-        />
-        <StatCard
-          label="Quotes sent"
-          value={analytics.quotesSent}
-          suffix="total"
+          label="In-play"
+          value={formatMoney(money.inPlayInCents, money.currency)}
+          suffix={`${money.inPlayCount} open`}
           icon={<Send className="size-4" />}
         />
         <StatCard
@@ -241,14 +233,14 @@ async function VelocityStatsRegion({
           value={`${Math.round(analytics.quoteAcceptanceRate * 100)}%`}
           suffix="win rate"
           highlight={analytics.quoteAcceptanceRate >= 0.5}
-          icon={<TrendingUp className="size-4" />}
+          icon={<Target className="size-4" />}
         />
         <StatCard
-          label="Coverage"
-          value={`${Math.round(analytics.inquiryToQuoteRate * 100)}%`}
-          suffix="quoted"
-          highlight={analytics.inquiryToQuoteRate >= 0.7}
-          icon={<Target className="size-4" />}
+          label="Avg. time to quote"
+          value={responseTimeDisplay.value}
+          suffix={responseTimeDisplay.suffix}
+          highlight={responseTimeDisplay.isGood}
+          icon={<Clock className="size-4" />}
         />
       </div>
     </div>
@@ -310,14 +302,26 @@ async function NeedsAttentionRegion({
       iconName: "file-text" as NeedsAttentionIconName,
       category: "Quote" as const,
     })),
+    ...overview.awaitingResponseQuotes.map((quote) => ({
+      href: getBusinessQuotePath(businessSlug, quote.id),
+      key: `awaiting-response-quote:${quote.id}`,
+      label: "Awaiting response",
+      title: quote.title,
+      description: quote.customerName,
+      meta: `Sent ${formatQuoteDate(quote.sentAt ?? quote.updatedAt)}`,
+      actionLabel: "Follow up",
+      tone: "normal" as const,
+      iconName: "file-text" as NeedsAttentionIconName,
+      category: "Quote" as const,
+    })),
     ...overview.recentAcceptedQuotes.map((quote) => ({
       href: getBusinessQuotePath(businessSlug, quote.id),
       key: `accepted-quote:${quote.id}`,
-      label: "Accepted",
+      label: "Won",
       title: quote.title,
       description: quote.customerName,
       meta: `Accepted ${formatQuoteDate(quote.acceptedAt ?? quote.updatedAt)}`,
-      actionLabel: "Create job or invoice",
+      actionLabel: "View quote",
       tone: "positive" as const,
       iconName: "check-circle" as NeedsAttentionIconName,
       category: "Quote" as const,
@@ -346,6 +350,18 @@ async function NeedsAttentionRegion({
       iconName: "inbox" as NeedsAttentionIconName,
       category: "Inquiry" as const,
     })),
+    ...overview.draftQuotes.map((quote) => ({
+      href: getBusinessQuotePath(businessSlug, quote.id),
+      key: `draft-quote:${quote.id}`,
+      label: "Draft quote",
+      title: quote.title,
+      description: quote.title || quote.customerName,
+      meta: `Updated ${formatQuoteDate(quote.updatedAt)}`,
+      actionLabel: "Finish & send",
+      tone: "normal" as const,
+      iconName: "file-text" as NeedsAttentionIconName,
+      category: "Quote" as const,
+    })),
   ];
 
   return (
@@ -357,7 +373,7 @@ async function NeedsAttentionRegion({
             Priority queue
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Follow up, win work, then move accepted quotes into jobs or invoices.
+            Follow up, finish drafts, and confirm wins.
           </p>
         </div>
         {items.length > 0 && (
@@ -374,32 +390,6 @@ async function NeedsAttentionRegion({
         <EmptyQueueState businessSlug={businessSlug} />
       )}
     </div>
-  );
-}
-
-async function ChatInputRegion({
-  params,
-}: {
-  params: Promise<{ businessSlug: string }>;
-}) {
-  const { businessSlug } = await params;
-  const { user, businessContext } = await getAppShellContext(businessSlug);
-  const businessId = businessContext.business.id;
-
-  const [overview, followUpOverview] = await Promise.all([
-    getBusinessOverviewData(businessId),
-    getFollowUpOverviewForBusiness(businessId),
-  ]);
-
-  const suggestions = buildContextualSuggestions(overview, followUpOverview);
-
-  return (
-    <DashboardChatInput
-      businessSlug={businessSlug}
-      userId={user.id}
-      businessId={businessId}
-      suggestions={suggestions}
-    />
   );
 }
 
@@ -446,8 +436,6 @@ async function MilestoneRegion({
   if (summary.totalInquiries > 0) achieved.push("first-inquiry");
   if (summary.totalQuotes > 0) achieved.push("first-quote-sent");
   if (summary.wonCount > 0) achieved.push("first-quote-accepted");
-  if (progress.hasJob) achieved.push("first-job");
-  if (progress.hasInvoice) achieved.push("first-invoice");
 
   if (achieved.length === 0) return null;
 
@@ -486,45 +474,6 @@ function formatResponseTime(hours: number | null): {
 /**
  * Build up to 3 contextual suggestion chips based on what's in the queue.
  */
-function buildContextualSuggestions(
-  overview: BusinessOverviewData,
-  followUpOverview: FollowUpOverviewData,
-): SuggestionChip[] {
-  const chips: SuggestionChip[] = [];
-
-  if (followUpOverview.overdue.length > 0) {
-    const first = followUpOverview.overdue[0];
-    chips.push({
-      label: `Follow up with ${first.customerName}`,
-      prompt: `Help me follow up with ${first.customerName} about "${first.title}"`,
-    });
-  }
-
-  if (overview.newInquiries.length > 0) {
-    const first = overview.newInquiries[0];
-    chips.push({
-      label: `Draft quote for ${first.customerName}`,
-      prompt: `Draft a quote for ${first.customerName}'s ${first.serviceCategory} inquiry`,
-    });
-  }
-
-  if (overview.recentAcceptedQuotes.length > 0) {
-    chips.push({
-      label: "Summarize accepted quotes",
-      prompt: "Summarize my recently accepted quotes and suggest next steps",
-    });
-  }
-
-  if (chips.length === 0) {
-    chips.push(
-      { label: "Summarize this week", prompt: "Summarize my business activity this week" },
-      { label: "Draft a quote", prompt: "Help me draft a new quote" },
-    );
-  }
-
-  return chips.slice(0, 3);
-}
-
 // ---------------------------------------------------------------------------
 // Static UI components (rendered synchronously in the shell)
 // ---------------------------------------------------------------------------
@@ -608,12 +557,12 @@ function GreetingFallback() {
   );
 }
 
-function VelocityStatsFallback() {
+function KpiFallback() {
   return (
     <div className="flex flex-col gap-3">
       <Skeleton className="h-3 w-20 rounded-md" />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, i) => (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
           <div className="rounded-xl border border-border/60 bg-card px-4 py-4" key={i}>
             <div className="flex items-center justify-between">
               <Skeleton className="h-3 w-16 rounded-md" />
@@ -648,10 +597,4 @@ function NeedsAttentionFallback() {
   );
 }
 
-function ChatInputFallbackShell() {
-  return (
-    <div className="flex flex-col items-center px-4">
-      <Skeleton className="h-[44px] w-full max-w-lg rounded-full" />
-    </div>
-  );
-}
+

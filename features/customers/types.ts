@@ -1,6 +1,5 @@
 import type { InquiryStatus } from "@/features/inquiries/types";
 import type {
-  QuotePostAcceptanceStatus,
   QuoteStatus,
 } from "@/features/quotes/types";
 
@@ -24,7 +23,6 @@ export type CustomerHistoryQuoteItem = {
   quoteNumber: string;
   title: string;
   status: QuoteStatus;
-  postAcceptanceStatus: QuotePostAcceptanceStatus;
   totalInCents: number;
   currency: string;
   createdAt: Date;
@@ -38,7 +36,6 @@ export type CustomerHistoryLatestOutcome =
   | {
       kind: "quote";
       status: QuoteStatus;
-      postAcceptanceStatus: QuotePostAcceptanceStatus;
     };
 
 export type CustomerHistoryData = {

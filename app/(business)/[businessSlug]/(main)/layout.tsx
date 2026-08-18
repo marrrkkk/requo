@@ -7,6 +7,10 @@ import {
   BusinessSwitcherSkeleton,
   DashboardUserMenu,
   UserMenuSkeleton,
+  MobileBusinessSwitcher,
+  MobileBusinessSwitcherSkeleton,
+  MobileUserMenu,
+  MobileUserMenuSkeleton,
 } from "@/components/shell/dashboard-shell-slots";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
@@ -23,8 +27,6 @@ import { getBusinessBillingShellOverview } from "@/features/billing/queries";
 import { getBusinessNotificationBellView } from "@/features/notifications/queries";
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
 import { SidebarChecklistSection } from "@/features/onboarding/components/sidebar-checklist-section";
-import { PendingMessageProvider } from "@/features/ai/chat-ui/pending-message-context";
-import { AiSidePanel } from "@/features/ai/chat-ui/ai-side-panel";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
@@ -53,58 +55,61 @@ export default async function BusinessMainLayout({
   return (
     <>
       <UpgradeSuccessModal />
-      <PendingMessageProvider>
-        <DashboardShellFrame
-          businessSlug={businessSlug}
-          businessSwitcherSlot={
-            <Suspense fallback={<BusinessSwitcherSkeleton />}>
-              <BusinessSwitcherSlot businessSlug={businessSlug} />
-            </Suspense>
-          }
-          userMenuSlot={
-            <Suspense fallback={<UserMenuSkeleton />}>
-              <UserMenuSlot businessSlug={businessSlug} />
-            </Suspense>
-          }
-          notificationSlot={
-            <Suspense fallback={<Skeleton className="size-9 rounded-lg" />}>
-              <NotificationBellSlot businessSlug={businessSlug} />
-            </Suspense>
-          }
-          upgradeSlot={
-            <Suspense fallback={null}>
-              <UpgradeSlot businessSlug={businessSlug} />
-            </Suspense>
-          }
-          checklistSlot={
-            <Suspense fallback={null}>
-              <ChecklistSlot businessSlug={businessSlug} />
-            </Suspense>
-          }
-          themeSyncSlot={
-            <Suspense fallback={null}>
-              <ThemeSyncSlot businessSlug={businessSlug} />
-            </Suspense>
-          }
-          bannerSlot={
-            <Suspense fallback={null}>
-              <BannerSlot businessSlug={businessSlug} />
-            </Suspense>
-          }
-          aiPanelSlot={
-            <Suspense fallback={null}>
-              <AiPanelPropsSlot businessSlug={businessSlug} />
-            </Suspense>
-          }
-        >
-          <Suspense fallback={null}>
-            <RecentBusinessTrackerSlot businessSlug={businessSlug} />
+      <DashboardShellFrame
+        businessSlug={businessSlug}
+        businessSwitcherSlot={
+          <Suspense fallback={<BusinessSwitcherSkeleton />}>
+            <BusinessSwitcherSlot businessSlug={businessSlug} />
           </Suspense>
-          <BillingBoundary businessSlug={businessSlug}>
-            {children}
-          </BillingBoundary>
-        </DashboardShellFrame>
-      </PendingMessageProvider>
+        }
+        mobileBusinessSwitcherSlot={
+          <Suspense fallback={<MobileBusinessSwitcherSkeleton />}>
+            <MobileBusinessSwitcherSlot businessSlug={businessSlug} />
+          </Suspense>
+        }
+        userMenuSlot={
+          <Suspense fallback={<UserMenuSkeleton />}>
+            <UserMenuSlot businessSlug={businessSlug} />
+          </Suspense>
+        }
+        mobileUserMenuSlot={
+          <Suspense fallback={<MobileUserMenuSkeleton />}>
+            <MobileUserMenuSlot businessSlug={businessSlug} />
+          </Suspense>
+        }
+        notificationSlot={
+          <Suspense fallback={<Skeleton className="size-9 rounded-lg" />}>
+            <NotificationBellSlot businessSlug={businessSlug} />
+          </Suspense>
+        }
+        upgradeSlot={
+          <Suspense fallback={null}>
+            <UpgradeSlot businessSlug={businessSlug} />
+          </Suspense>
+        }
+        checklistSlot={
+          <Suspense fallback={null}>
+            <ChecklistSlot businessSlug={businessSlug} />
+          </Suspense>
+        }
+        themeSyncSlot={
+          <Suspense fallback={null}>
+            <ThemeSyncSlot businessSlug={businessSlug} />
+          </Suspense>
+        }
+        bannerSlot={
+          <Suspense fallback={null}>
+            <BannerSlot businessSlug={businessSlug} />
+          </Suspense>
+        }
+      >
+        <Suspense fallback={null}>
+          <RecentBusinessTrackerSlot businessSlug={businessSlug} />
+        </Suspense>
+        <BillingBoundary businessSlug={businessSlug}>
+          {children}
+        </BillingBoundary>
+      </DashboardShellFrame>
     </>
   );
 }
@@ -133,6 +138,26 @@ async function BusinessSwitcherSlot({ businessSlug }: { businessSlug: string }) 
   );
 }
 
+async function MobileBusinessSwitcherSlot({ businessSlug }: { businessSlug: string }) {
+  const { businessContext } = await getAppShellContext(businessSlug);
+  const session = await requireSession();
+  const allMemberships = await getBusinessMembershipsForUser(session.user.id, "all");
+  const memberships = allMemberships.filter(
+    (m) => m.business.recordState !== "trash",
+  );
+  
+  const { getBusinessQuotaForUser } = await import("@/features/businesses/quota");
+  const businessQuota = await getBusinessQuotaForUser({ ownerUserId: session.user.id });
+
+  return (
+    <MobileBusinessSwitcher
+      currentBusiness={businessContext}
+      memberships={memberships}
+      businessQuota={businessQuota}
+    />
+  );
+}
+
 async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
   const { user, businessContext } = await getAppShellContext(businessSlug);
   const profile = await getAccountProfileForUser(user.id);
@@ -145,6 +170,32 @@ async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
 
   return (
     <DashboardUserMenu
+      user={{
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatarSrc,
+      }}
+      businessRole={businessContext.role}
+      businessSlug={businessContext.business.slug}
+      businessId={businessContext.business.id}
+      plan={businessContext.business.plan}
+    />
+  );
+}
+
+async function MobileUserMenuSlot({ businessSlug }: { businessSlug: string }) {
+  const { user, businessContext } = await getAppShellContext(businessSlug);
+  const profile = await getAccountProfileForUser(user.id);
+
+  const avatarSrc = resolveUserAvatarSrc({
+    avatarStoragePath: profile?.avatarStoragePath,
+    profileUpdatedAt: profile?.updatedAt,
+    oauthImage: user.image ?? null,
+  });
+
+  return (
+    <MobileUserMenu
       user={{
         id: user.id,
         email: user.email,
@@ -311,15 +362,4 @@ async function BillingBoundaryContent({
   return body;
 }
 
-async function AiPanelPropsSlot({ businessSlug }: { businessSlug: string }) {
-  const { user, businessContext } = await getAppShellContext(businessSlug);
 
-  return (
-    <AiSidePanel
-      businessSlug={businessSlug}
-      userId={user.id}
-      businessId={businessContext.business.id}
-      userName={user.name || "You"}
-    />
-  );
-}

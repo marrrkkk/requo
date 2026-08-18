@@ -23,7 +23,6 @@ import {
   activityLogs,
   followUps,
   inquiries,
-  postWinChecklistItems,
   quoteItems,
   quotes,
   user,
@@ -240,7 +239,6 @@ async function getCachedQuoteListPageForBusiness({
           validUntil: quotes.validUntil,
           status: getEffectiveQuoteStatus,
           archivedAt: quotes.archivedAt,
-          postAcceptanceStatus: quotes.postAcceptanceStatus,
           sentAt: quotes.sentAt,
           publicViewedAt: quotes.publicViewedAt,
           customerRespondedAt: quotes.customerRespondedAt,
@@ -277,7 +275,6 @@ async function getCachedQuoteListPageForBusiness({
       id: row.id,
       nextFollowUpDueAt: row.nextFollowUpDueAt,
       pendingFollowUpCount: row.pendingFollowUpCount,
-      postAcceptanceStatus: row.postAcceptanceStatus,
       publicViewedAt: row.publicViewedAt,
       quoteNumber: row.quoteNumber,
       reminders: getQuoteReminderKinds({
@@ -311,7 +308,6 @@ type QuoteExportRow = {
   status: string;
   archivedAt: Date | null;
   voidedAt: Date | null;
-  postAcceptanceStatus: string;
   createdAt: Date;
   sentAt: Date | null;
   customerRespondedAt: Date | null;
@@ -356,7 +352,6 @@ export async function getQuoteExportRowsForBusiness({
       status: getEffectiveQuoteStatus,
       archivedAt: quotes.archivedAt,
       voidedAt: quotes.voidedAt,
-      postAcceptanceStatus: quotes.postAcceptanceStatus,
       createdAt: quotes.createdAt,
       sentAt: quotes.sentAt,
       customerRespondedAt: quotes.customerRespondedAt,
@@ -495,7 +490,6 @@ async function getCachedQuoteDetailForBusiness({
       status: getEffectiveQuoteStatus,
       archivedAt: quotes.archivedAt,
       voidedAt: quotes.voidedAt,
-      postAcceptanceStatus: quotes.postAcceptanceStatus,
       sentAt: quotes.sentAt,
       acceptedAt: quotes.acceptedAt,
       completedAt: quotes.completedAt,
@@ -513,6 +507,8 @@ async function getCachedQuoteDetailForBusiness({
       autoFollowUpStoppedAt: quotes.autoFollowUpStoppedAt,
       createdAt: quotes.createdAt,
       updatedAt: quotes.updatedAt,
+      aiReadiness: quotes.aiReadiness,
+      aiAcknowledgedAt: quotes.aiAcknowledgedAt,
       linkedInquiryId: inquiries.id,
       linkedInquiryCustomerName: inquiries.customerName,
       linkedInquiryCustomerEmail: inquiries.customerEmail,
@@ -540,7 +536,7 @@ async function getCachedQuoteDetailForBusiness({
     return null;
   }
 
-  const [items, activities, checklistItems] = await Promise.all([
+  const [items, activities] = await Promise.all([
     db
       .select({
         id: quoteItems.id,
@@ -575,21 +571,6 @@ async function getCachedQuoteDetailForBusiness({
         ),
       )
       .orderBy(desc(activityLogs.createdAt)),
-    db
-      .select({
-        id: postWinChecklistItems.id,
-        label: postWinChecklistItems.label,
-        completedAt: postWinChecklistItems.completedAt,
-        position: postWinChecklistItems.position,
-      })
-      .from(postWinChecklistItems)
-      .where(
-        and(
-          eq(postWinChecklistItems.businessId, businessId),
-          eq(postWinChecklistItems.quoteId, quoteId),
-        ),
-      )
-      .orderBy(asc(postWinChecklistItems.position)),
   ]);
 
   return {
@@ -616,7 +597,6 @@ async function getCachedQuoteDetailForBusiness({
     status: quote.status,
     archivedAt: quote.archivedAt,
     voidedAt: quote.voidedAt,
-    postAcceptanceStatus: quote.postAcceptanceStatus,
     sentAt: quote.sentAt,
     acceptedAt: quote.acceptedAt,
     completedAt: quote.completedAt,
@@ -634,6 +614,8 @@ async function getCachedQuoteDetailForBusiness({
     autoFollowUpStoppedAt: quote.autoFollowUpStoppedAt,
     createdAt: quote.createdAt,
     updatedAt: quote.updatedAt,
+    aiReadiness: quote.aiReadiness,
+    aiAcknowledgedAt: quote.aiAcknowledgedAt,
     items,
     activities,
     linkedInquiry: quote.linkedInquiryId
@@ -657,7 +639,6 @@ async function getCachedQuoteDetailForBusiness({
       customerRespondedAt: quote.customerRespondedAt,
       validUntil: quote.validUntil,
     }),
-    checklistItems,
   };
 }
 
@@ -704,6 +685,9 @@ async function getCachedQuoteSendPayloadForBusiness({
       validUntil: quotes.validUntil,
       status: getEffectiveQuoteStatus,
       updatedAt: quotes.updatedAt,
+      aiReadiness: quotes.aiReadiness,
+      aiAcknowledgedAt: quotes.aiAcknowledgedAt,
+      aiMissingInfo: quotes.aiMissingInfo,
     })
     .from(quotes)
     .where(
@@ -758,6 +742,9 @@ async function getCachedQuoteSendPayloadForBusiness({
     totalInCents: quote.totalInCents,
     updatedAt: quote.updatedAt,
     validUntil: quote.validUntil,
+    aiReadiness: quote.aiReadiness,
+    aiAcknowledgedAt: quote.aiAcknowledgedAt,
+    aiMissingInfo: quote.aiMissingInfo,
     items,
   };
 }

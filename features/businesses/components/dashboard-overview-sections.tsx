@@ -40,7 +40,6 @@ import type {
 import { formatFollowUpDate } from "@/features/follow-ups/utils";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import type { InquiryStatus } from "@/features/inquiries/types";
-import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
 import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import type { QuoteReminderKind, QuoteStatus } from "@/features/quotes/types";
@@ -796,16 +795,11 @@ function OverviewQuoteRow({
               <p className="mt-1 truncate text-sm text-muted-foreground">
                 {quote.customerName}
               </p>
-              {reminders.length || quote.postAcceptanceStatus !== "none" ? (
+              {reminders.length ? (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {reminders.map((reminder) => (
                     <QuoteReminderBadge key={reminder} kind={reminder} />
                   ))}
-                  {quote.postAcceptanceStatus !== "none" ? (
-                    <QuotePostAcceptanceStatusBadge
-                      status={quote.postAcceptanceStatus}
-                    />
-                  ) : null}
                 </div>
               ) : null}
             </div>

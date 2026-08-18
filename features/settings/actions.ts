@@ -4,8 +4,6 @@ import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
-import { eq } from "drizzle-orm";
-
 import { getValidationActionState } from "@/lib/action-state";
 import {
   getBusinessInquiryFormCacheTags,
@@ -22,7 +20,6 @@ import {
   businessInquiryFormSettingsSchema,
   businessInquiryFormTargetSchema,
   businessInquiryPageSettingsSchema,
-  businessInvoiceSettingsSchema,
   businessNotificationSettingsSchema,
   businessQuoteSettingsSchema,
 } from "@/features/settings/schemas";
@@ -32,7 +29,6 @@ import type {
   BusinessInquiryFormDangerActionState,
   BusinessInquiryFormsActionState,
   BusinessInquiryPageActionState,
-  BusinessInvoiceSettingsActionState,
   BusinessNotificationSettingsActionState,
   BusinessQuoteSettingsActionState,
   BusinessSettingsActionState,
@@ -43,15 +39,12 @@ import {
   createBusinessInquiryForm,
   deleteBusinessInquiryForm,
   duplicateBusinessInquiryForm,
-  setBusinessInquiryFormConversationalMode,
   setBusinessInquiryFormPublicState,
-  updateBusinessInquiryFormChatbotSettings,
   applyBusinessInquiryFormPreset,
   setDefaultBusinessInquiryForm,
   updateBusinessEmailTemplateSettings,
   updateBusinessInquiryFormSettings,
   updateBusinessInquiryPageSettings,
-  updateBusinessInvoiceSettings,
   updateBusinessNotificationSettings,
   updateBusinessQuoteSettings,
   updateBusinessSettings,
@@ -71,23 +64,21 @@ import {
 } from "@/features/businesses/routes";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
-import { db } from "@/lib/db/client";
-import { businesses } from "@/lib/db/schema/businesses";
+import type { BusinessPlan } from "@/lib/plans/plans";
+import { getUsageLimit } from "@/lib/plans/usage-limits";
+
+function getLiveFormLimitMessage(plan: BusinessPlan): string {
+  const limit = getUsageLimit(plan, "liveFormsPerBusiness");
+
+  return `This plan supports ${limit ?? "no"} live inquiry form${
+    limit === 1 ? "" : "s"
+  }. Archive a form or upgrade to publish another.`;
+}
 
 function updateCacheTags(tags: string[]) {
   for (const tag of uniqueCacheTags(tags)) {
     updateTag(tag);
   }
-}
-
-async function setAutoCreateJobAutomation(
-  businessId: string,
-  enabled: boolean,
-): Promise<void> {
-  await db
-    .update(businesses)
-    .set({ autoCreateJobsOnAcceptance: enabled, updatedAt: new Date() })
-    .where(eq(businesses.id, businessId));
 }
 
 function revalidateBusinessInquiryFormPaths(
@@ -339,6 +330,12 @@ export async function updateBusinessQuoteSettingsAction(
     defaultQuoteNotes: formData.get("defaultQuoteNotes"),
     defaultQuoteTerms: formData.get("defaultQuoteTerms"),
     defaultQuoteValidityDays: formData.get("defaultQuoteValidityDays"),
+    sendInquiryAckEmail: formData.get("sendInquiryAckEmail"),
+    autoDraftQuoteOnQualify: formData.get("autoDraftQuoteOnQualify"),
+    autoArchiveStaleInquiries: formData.get("autoArchiveStaleInquiries"),
+    autoArchiveStaleInquiryDays: formData.get("autoArchiveStaleInquiryDays"),
+    autoFollowUpOnQuoteViewed: formData.get("autoFollowUpOnQuoteViewed"),
+    quoteViewedFollowUpDelayDays: formData.get("quoteViewedFollowUpDelayDays"),
   });
 
   if (!validationResult.success) {
@@ -347,9 +344,6 @@ export async function updateBusinessQuoteSettingsAction(
       "Check the quote settings and try again.",
     );
   }
-
-  const autoCreateJobOnAcceptance =
-    formData.get("autoCreateJobOnAcceptance") === "true";
 
   try {
     const result = await updateBusinessQuoteSettings({
@@ -364,11 +358,6 @@ export async function updateBusinessQuoteSettingsAction(
       };
     }
 
-    await setAutoCreateJobAutomation(
-      businessContext.business.id,
-      autoCreateJobOnAcceptance,
-    );
-
     updateCacheTags(getBusinessSettingsCacheTags(businessContext.business.id));
 
     return {
@@ -379,57 +368,6 @@ export async function updateBusinessQuoteSettingsAction(
 
     return {
       error: "We couldn't save the quote settings right now.",
-    };
-  }
-}
-
-export async function updateBusinessInvoiceSettingsAction(
-  _prevState: BusinessInvoiceSettingsActionState,
-  formData: FormData,
-): Promise<BusinessInvoiceSettingsActionState> {
-  const ownerAccess = await getOperationalBusinessActionContext();
-
-  if (!ownerAccess.ok) {
-    return {
-      error: ownerAccess.error,
-    };
-  }
-
-  const { user, businessContext } = ownerAccess;
-  const validationResult = businessInvoiceSettingsSchema.safeParse({
-    defaultInvoiceDueDays: formData.get("defaultInvoiceDueDays"),
-  });
-
-  if (!validationResult.success) {
-    return getValidationActionState(
-      validationResult.error,
-      "Check the invoice settings and try again.",
-    );
-  }
-
-  try {
-    const result = await updateBusinessInvoiceSettings({
-      businessId: businessContext.business.id,
-      actorUserId: user.id,
-      values: validationResult.data,
-    });
-
-    if (!result.ok) {
-      return {
-        error: "That business could not be found.",
-      };
-    }
-
-    updateCacheTags(getBusinessSettingsCacheTags(businessContext.business.id));
-
-    return {
-      success: "Invoice settings saved.",
-    };
-  } catch (error) {
-    console.error("Failed to update business invoice settings.", error);
-
-    return {
-      error: "We couldn't save the invoice settings right now.",
     };
   }
 }
@@ -557,6 +495,12 @@ export async function updateBusinessInquiryPageAction(
           fieldErrors: {
             slug: ["This form slug is already in use in this business."],
           },
+        };
+      }
+
+      if (result.reason === "live-form-limit") {
+        return {
+          error: getLiveFormLimitMessage(businessContext.business.plan),
         };
       }
 
@@ -792,6 +736,12 @@ export async function createBusinessInquiryFormAction(
     });
 
     if (!result.ok) {
+      if (result.reason === "live-form-limit") {
+        return {
+          error: getLiveFormLimitMessage(businessContext.business.plan),
+        };
+      }
+
       return {
         error: "That business could not be found.",
       };
@@ -864,6 +814,12 @@ export async function duplicateBusinessInquiryFormAction(
       if (result.reason === "invalid-target") {
         return {
           error: "Default forms must stay published.",
+        };
+      }
+
+      if (result.reason === "live-form-limit") {
+        return {
+          error: getLiveFormLimitMessage(businessContext.business.plan),
         };
       }
 
@@ -1214,6 +1170,12 @@ export async function toggleBusinessInquiryFormPublicAction(
     });
 
     if (!result.ok) {
+      if (result.reason === "live-form-limit") {
+        return {
+          error: getLiveFormLimitMessage(businessContext.business.plan),
+        };
+      }
+
       return {
         error: "That inquiry form could not be found.",
       };
@@ -1247,141 +1209,6 @@ export async function toggleBusinessInquiryFormPublicAction(
   }
 }
 
-export async function toggleBusinessInquiryFormConversationalAction(
-  _prevState: BusinessInquiryFormsActionState,
-  formData: FormData,
-): Promise<BusinessInquiryFormsActionState> {
-  const ownerAccess = await getOperationalBusinessActionContext();
-
-  if (!ownerAccess.ok) {
-    return {
-      error: ownerAccess.error,
-    };
-  }
-
-  const { user, businessContext } = ownerAccess;
-  const validationResult = businessInquiryFormTargetSchema.safeParse({
-    targetFormId: formData.get("targetFormId"),
-  });
-
-  if (!validationResult.success) {
-    return getValidationActionState(validationResult.error, "Choose a form and try again.");
-  }
-
-  const conversationalModeEnabled =
-    formData.get("conversationalModeEnabled") === "true";
-
-  try {
-    const result = await setBusinessInquiryFormConversationalMode({
-      businessId: businessContext.business.id,
-      actorUserId: user.id,
-      targetFormId: validationResult.data.targetFormId,
-      conversationalModeEnabled,
-    });
-
-    if (!result.ok) {
-      return {
-        error: "That inquiry form could not be found.",
-      };
-    }
-
-    updateCacheTags(
-      uniqueCacheTags([
-        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
-        ...getBusinessInquiryFormCacheTags(
-          businessContext.business.id,
-          result.formSlug,
-        ),
-      ]),
-    );
-    after(() => {
-      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
-      revalidateBusinessDefaultInquiryPaths(result.businessSlug);
-    });
-
-    return {
-      success: conversationalModeEnabled
-        ? "AI conversational intake enabled."
-        : "AI conversational intake disabled.",
-    };
-  } catch (error) {
-    console.error("Failed to toggle conversational mode.", error);
-
-    return {
-      error: "We couldn't update the conversational mode right now.",
-    };
-  }
-}
-
-export async function updateBusinessInquiryFormChatbotSettingsAction(
-  _formSlug: string,
-  _prevState: BusinessInquiryFormsActionState,
-  formData: FormData,
-): Promise<BusinessInquiryFormsActionState> {
-  const ownerAccess = await getOperationalBusinessActionContext();
-
-  if (!ownerAccess.ok) {
-    return {
-      error: ownerAccess.error,
-    };
-  }
-
-  const { user, businessContext } = ownerAccess;
-  const validationResult = businessInquiryFormTargetSchema.safeParse({
-    targetFormId: formData.get("targetFormId"),
-  });
-
-  if (!validationResult.success) {
-    return getValidationActionState(validationResult.error, "Choose a form and try again.");
-  }
-
-  const assistantName = String(formData.get("assistantName") ?? "").trim();
-  const avatarStyle =
-    formData.get("avatarStyle") === "initials" ? "initials" as const : "brand" as const;
-  const openingMessage = String(formData.get("openingMessage") ?? "").trim();
-
-  try {
-    const result = await updateBusinessInquiryFormChatbotSettings({
-      businessId: businessContext.business.id,
-      actorUserId: user.id,
-      targetFormId: validationResult.data.targetFormId,
-      assistantName,
-      avatarStyle,
-      openingMessage,
-    });
-
-    if (!result.ok) {
-      return {
-        error: "That inquiry form could not be found.",
-      };
-    }
-
-    updateCacheTags(
-      uniqueCacheTags([
-        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
-        ...getBusinessInquiryFormCacheTags(
-          businessContext.business.id,
-          result.formSlug,
-        ),
-      ]),
-    );
-    after(() => {
-      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
-      revalidateBusinessDefaultInquiryPaths(result.businessSlug);
-    });
-
-    return {
-      success: "Chatbot settings saved.",
-    };
-  } catch (error) {
-    console.error("Failed to update chatbot settings.", error);
-
-    return {
-      error: "We couldn't save the chatbot settings right now.",
-    };
-  }
-}
-
 export async function unarchiveBusinessInquiryFormAction(
   _prevState: BusinessInquiryFormDangerActionState,
   formData: FormData,
@@ -1411,6 +1238,12 @@ export async function unarchiveBusinessInquiryFormAction(
     });
 
     if (!result.ok) {
+      if (result.reason === "live-form-limit") {
+        return {
+          error: getLiveFormLimitMessage(businessContext.business.plan),
+        };
+      }
+
       return {
         error: "That inquiry form could not be found.",
       };

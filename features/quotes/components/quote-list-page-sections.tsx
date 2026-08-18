@@ -65,8 +65,8 @@ export async function QuoteListControlsSection({
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div />
 
-        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:w-auto">
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-2 [&>*]:w-full sm:[&>*]:w-auto">
+        <div className="flex w-full flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:w-auto">
+          <div className="flex items-center gap-2 [&>*]:flex-1 sm:[&>*]:flex-initial">
             <QuoteExportCsvDropdown
               businessSlug={businessSlug}
               canExport={canExport}

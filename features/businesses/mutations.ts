@@ -4,6 +4,7 @@ import { and, count, eq, isNull } from "drizzle-orm";
 
 import { writeAuditLog } from "@/features/audit/mutations";
 import type { BusinessRecordState } from "@/features/businesses/lifecycle";
+import type { StarterWorkflowKey } from "@/features/businesses/starter-workflows";
 import { getStarterTemplateDefinition } from "@/features/businesses/starter-templates";
 import { assertBusinessQuotaAvailableForUser } from "@/features/businesses/quota";
 import type { BusinessType } from "@/features/inquiries/business-types";
@@ -36,7 +37,7 @@ type CreateBusinessForUserInput = {
   name: string;
   preferredSlug?: string;
   businessType: BusinessType;
-  starterTemplateBusinessType?: BusinessType;
+  starterWorkflow?: StarterWorkflowKey;
   countryCode?: string | null;
   shortDescription?: string | null;
   customerContactChannel?: string | null;
@@ -88,7 +89,7 @@ export async function createBusinessRecordForUser({
   name,
   preferredSlug,
   businessType,
-  starterTemplateBusinessType = businessType,
+  starterWorkflow,
   countryCode = null,
   shortDescription,
   customerContactChannel = null,
@@ -108,9 +109,10 @@ export async function createBusinessRecordForUser({
   const normalizedShortDescription = shortDescription?.trim() || null;
   const normalizedCustomerContactChannel =
     customerContactChannel?.trim() || null;
-  const starterTemplate = getStarterTemplateDefinition(
-    starterTemplateBusinessType,
-  );
+
+  // For backward compatibility: derive template from business type when workflow not provided
+  const starterTemplate = getStarterTemplateDefinition(businessType);
+
   const baseSlug = preferredSlug?.trim() || slugifyPublicName(trimmedName, {
     fallback: "business",
   });
@@ -122,13 +124,13 @@ export async function createBusinessRecordForUser({
 
   const slug = await getAvailableBusinessSlug(tx, baseSlug);
   const defaultInquiryForm = createInquiryFormPreset({
-    businessType: starterTemplateBusinessType,
+    businessType,
     businessName: trimmedName,
     plan: plan,
   });
   const resolvedFormConfig =
     inquiryFormConfigOverride ??
-    createInquiryFormConfigDefaults({ businessType: starterTemplateBusinessType });
+    createInquiryFormConfigDefaults({ businessType, starterWorkflow });
 
   await tx.insert(businesses).values({
     id: businessId,
@@ -143,7 +145,7 @@ export async function createBusinessRecordForUser({
     inquiryFormConfig: resolvedFormConfig,
     inquiryPageConfig: createInquiryPageConfigDefaults({
       businessName: trimmedName,
-      businessType: starterTemplateBusinessType,
+      businessType,
       plan: plan,
     }),
     defaultQuoteNotes: starterTemplate.defaultQuoteNotes,
@@ -218,7 +220,7 @@ export async function createBusinessForUser({
   user,
   name,
   businessType,
-  starterTemplateBusinessType,
+  starterWorkflow,
   countryCode,
   shortDescription,
   activitySource,
@@ -236,7 +238,7 @@ export async function createBusinessForUser({
       user,
       name,
       businessType,
-      starterTemplateBusinessType,
+      starterWorkflow,
       countryCode,
       shortDescription,
       activitySource,

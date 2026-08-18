@@ -25,8 +25,8 @@ export function LockedBusinessSurface({
           </p>
           <p className="text-sm">
             You can still view historical records and export data. Upgrade to
-            unlock inquiry, quote, follow-up, forms, automation, member, and
-            settings actions.
+            unlock inquiry, quote, follow-up, forms, member, and settings
+            actions.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

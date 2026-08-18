@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import {
-  quotePostAcceptanceStatuses,
   quoteRecordViews,
   quoteStatusFilterValues,
 } from "@/features/quotes/types";
@@ -102,6 +101,60 @@ function isValidDateInput(value: string) {
   );
 }
 
+const aiQuotePricingStatusValues = [
+  "verified",
+  "suggested",
+  "unpriced",
+  "owner_set",
+] as const;
+
+const aiQuoteReadinessValues = [
+  "ready",
+  "needs_confirmation",
+  "scope_only",
+] as const;
+
+/**
+ * AI review metadata attached by the quote editor to a line item. The server
+ * only trusts `pricingSource === "owner_brief"` (owner override); everything
+ * else is informational and never used for send authorization.
+ */
+const quoteFormAiReviewSchema = z
+  .object({
+    name: z.string().trim().max(120).optional(),
+    pricingSource: z
+      .enum([
+        "pricing_library_block",
+        "pricing_library_package",
+        "past_quote",
+        "business_memory",
+        "owner_brief",
+        "none",
+      ])
+      .optional(),
+    pricingSourceLabel: z.string().trim().max(200).nullable().optional(),
+    confidence: z.enum(["high", "medium", "low"]).optional(),
+    reviewStatus: z
+      .enum(["matched", "calculated", "needs_review", "no_pricing_found"])
+      .optional(),
+    reason: z.string().trim().max(600).optional(),
+  })
+  .optional();
+
+/**
+ * Grounded pricing evidence behind a generated line item. Set by server-side
+ * hydration/verification, carried through the editor so saves persist it.
+ */
+const quoteFormAiEvidenceSchema = z
+  .object({
+    entryId: z.string().trim().max(128).nullable().optional(),
+    itemId: z.string().trim().max(128).nullable().optional(),
+    sourceLabel: z.string().trim().max(200).nullable().optional(),
+    matchType: z.enum(["exact", "suggested", "none"]).optional(),
+    reason: z.string().trim().max(600).optional(),
+  })
+  .optional();
+
 const quoteFormLineItemSchema = z.object({
   id: z.string().trim().min(1).max(128),
   description: z
@@ -118,6 +171,11 @@ const quoteFormLineItemSchema = z.object({
       .min(0, "Unit price cannot be negative.")
       .max(100_000_000, "Unit price is too large."),
   ),
+  aiReview: quoteFormAiReviewSchema,
+  aiPricingStatus: z.enum(aiQuotePricingStatusValues).optional(),
+  aiPricingLibraryEntryId: z.string().trim().max(128).optional(),
+  aiPricingLibraryItemId: z.string().trim().max(128).optional(),
+  aiEvidence: quoteFormAiEvidenceSchema,
 });
 
 const quoteItemsFieldSchema = z.preprocess((value) => {
@@ -131,6 +189,24 @@ const quoteItemsFieldSchema = z.preprocess((value) => {
     return value;
   }
 }, z.array(quoteFormLineItemSchema).min(1, "Add at least one line item.").max(50, "Quotes can include up to 50 line items."));
+
+const quoteMissingInfoItemSchema = z.object({
+  label: z.string().trim().min(1).max(120),
+  question: z.string().trim().max(400),
+  critical: z.boolean().optional(),
+});
+
+const quoteAiMissingInfoFieldSchema = z.preprocess((value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}, z.array(quoteMissingInfoItemSchema).max(50).optional());
 
 export const quoteIdSchema = z
   .string()
@@ -248,6 +324,9 @@ export const quoteEditorSchema = z
       z.string().trim().max(40, "Tax label must be 40 characters or fewer.").optional(),
     ),
     items: quoteItemsFieldSchema,
+    aiReadiness: z.enum(aiQuoteReadinessValues).optional(),
+    aiGenerationId: z.string().trim().max(64).optional(),
+    aiMissingInfo: quoteAiMissingInfoFieldSchema,
   })
       .superRefine((value, ctx) => {
     const subtotalInCents = value.items.reduce(
@@ -274,12 +353,6 @@ export const quoteEditorSchema = z
       }
     }
   });
-
-export const quotePostAcceptanceStatusChangeSchema = z.object({
-  postAcceptanceStatus: z.enum(quotePostAcceptanceStatuses, {
-    error: () => "Choose a valid post-acceptance status.",
-  }),
-});
 
 export const quoteCancellationReasons = [
   "customer_changed_mind",

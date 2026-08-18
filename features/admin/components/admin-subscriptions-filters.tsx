@@ -83,11 +83,18 @@ export function AdminSubscriptionsFilters({
     [pathname, router, searchParams],
   );
 
-  useEffect(() => {
+  // Sync filter state when the URL (or filters prop) changes without an effect.
+  const [prevFilters, setPrevFilters] = useState(filters);
+  if (
+    filters.search !== prevFilters.search ||
+    filters.status !== prevFilters.status ||
+    filters.provider !== prevFilters.provider
+  ) {
+    setPrevFilters(filters);
     setQuery(filters.search ?? "");
     setStatus(filters.status ?? STATUS_ALL);
     setProvider(filters.provider ?? PROVIDER_ALL);
-  }, [filters.search, filters.status, filters.provider]);
+  }
 
   useEffect(() => {
     if (!hasMountedRef.current) {

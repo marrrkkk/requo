@@ -61,13 +61,6 @@ export default function BusinessDashboardLoading() {
           ))}
         </div>
       </section>
-
-      {/* Floating chat input placeholder */}
-      <div className="fixed bottom-5 left-0 right-0 z-40 pointer-events-none lg:left-[17.5rem]">
-        <div className="flex flex-col items-center px-4">
-          <Skeleton className="h-[44px] w-full max-w-lg rounded-full" />
-        </div>
-      </div>
     </div>
   );
 }

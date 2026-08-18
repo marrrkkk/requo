@@ -4,6 +4,7 @@ import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { businesses, userRecentBusinesses } from "@/lib/db/schema";
+import { businessSubscriptions } from "@/lib/db/schema/subscriptions";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 
@@ -12,7 +13,6 @@ type DatabaseClient =
   | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const planEnforcementLockNamespace = 712_445_913;
-const planDowngradeLockReason = "plan_downgrade";
 
 type ActiveBusinessSummary = {
   id: string;
@@ -23,8 +23,12 @@ type ActiveBusinessSummary = {
   lastOpenedAt: Date | null;
 };
 
+/**
+ * The only business-count limit is the one-Free-business-per-owner rule.
+ * Paid plans never cap the number of businesses an owner can operate.
+ */
 function getActiveBusinessLimit(plan: BusinessPlan) {
-  return getUsageLimit(plan, "businessesPerPlan");
+  return getUsageLimit(plan, "freeBusinessesPerOwner");
 }
 
 function getActiveBusinessCondition(ownerUserId: string) {
@@ -106,13 +110,49 @@ export async function listActiveBusinessesForOwner(
     });
 }
 
-export async function chooseDefaultBusinessToKeepActive(
+/**
+ * Lists the owner's active businesses that are operating without a paid
+ * subscription (free businesses). Used by the downgrade preview to identify
+ * the free businesses that must be archived before another business can
+ * downgrade to Free.
+ */
+export async function listActiveFreeBusinessesForOwner(
   ownerUserId: string,
   client: DatabaseClient = db,
-): Promise<string | null> {
-  const businessesForOwner = await listActiveBusinessesForOwner(ownerUserId, client);
+): Promise<ActiveBusinessSummary[]> {
+  const activeBusinesses = await listActiveBusinessesForOwner(ownerUserId, client);
 
-  return businessesForOwner[0]?.id ?? null;
+  if (activeBusinesses.length === 0) {
+    return [];
+  }
+
+  const paidRows = await client
+    .select({ id: businesses.id })
+    .from(businesses)
+    .leftJoin(
+      businessSubscriptions,
+      eq(businessSubscriptions.businessId, businesses.id),
+    )
+    .where(
+      and(
+        eq(businesses.ownerUserId, ownerUserId),
+        inArray(
+          businesses.id,
+          activeBusinesses.map((business) => business.id),
+        ),
+        sql`(
+          ${businessSubscriptions.status} in ('active','past_due')
+          or (
+            ${businessSubscriptions.status} = 'canceled'
+            and ${businessSubscriptions.currentPeriodEnd} > now()
+          )
+        )`,
+      ),
+    );
+
+  const paidIds = new Set(paidRows.map((row) => row.id));
+
+  return activeBusinesses.filter((business) => !paidIds.has(business.id));
 }
 
 export async function listLockCandidatesForDowngrade({
@@ -124,82 +164,72 @@ export async function listLockCandidatesForDowngrade({
   targetPlan: BusinessPlan;
   client?: DatabaseClient;
 }) {
-  const activeBusinesses = await listActiveBusinessesForOwner(ownerUserId, client);
   const activeBusinessLimit = getActiveBusinessLimit(targetPlan);
+
+  if (targetPlan !== "free" || activeBusinessLimit === null) {
+    return {
+      activeBusinessLimit,
+      activeBusinesses: [] as ActiveBusinessSummary[],
+      requiresSelection: false,
+    };
+  }
+
+  // Downgrading to Free is allowed only when the owner has no other active
+  // Free business. The preview lists those businesses so the user can choose
+  // to archive them (from the businesses hub) or not downgrade.
+  // Legacy owners with multiple Free businesses keep access; the rule only
+  // applies to new downgrades and new Free business creation.
+  const freeBusinesses = await listActiveFreeBusinessesForOwner(
+    ownerUserId,
+    client,
+  );
 
   return {
     activeBusinessLimit,
-    activeBusinesses,
-    requiresSelection:
-      activeBusinessLimit !== null &&
-      activeBusinessLimit > 0 &&
-      activeBusinesses.length > activeBusinessLimit,
+    activeBusinesses: freeBusinesses,
+    requiresSelection: freeBusinesses.length >= activeBusinessLimit,
   };
-}
-
-export async function lockBusinessForPlan({
-  businessId,
-  ownerUserId,
-  actorUserId = null,
-  reason = planDowngradeLockReason,
-  client = db,
-}: {
-  businessId: string;
-  ownerUserId: string;
-  actorUserId?: string | null;
-  reason?: string;
-  client?: DatabaseClient;
-}) {
-  const now = new Date();
-
-  const [updatedBusiness] = await client
-    .update(businesses)
-    .set({
-      lockedAt: now,
-      lockedBy: actorUserId,
-      lockedReason: reason,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(businesses.id, businessId),
-        eq(businesses.ownerUserId, ownerUserId),
-        isNull(businesses.deletedAt),
-        isNull(businesses.archivedAt),
-        isNull(businesses.lockedAt),
-      ),
-    )
-    .returning({
-      id: businesses.id,
-    });
-
-  return updatedBusiness ?? null;
 }
 
 export async function unlockBusinessIfAllowed({
   businessId,
   ownerUserId,
   actorUserId = null,
-  targetPlan,
   client = db,
 }: {
   businessId: string;
   ownerUserId: string;
   actorUserId?: string | null;
-  targetPlan: BusinessPlan;
   client?: DatabaseClient;
 }) {
-  const activeBusinessLimit = getActiveBusinessLimit(targetPlan);
+  // A business with its own paid subscription can always be unlocked.
+  const [paidRow] = await client
+    .select({ id: businessSubscriptions.businessId })
+    .from(businessSubscriptions)
+    .where(
+      and(
+        eq(businessSubscriptions.businessId, businessId),
+        sql`(
+          ${businessSubscriptions.status} in ('active','past_due')
+          or (
+            ${businessSubscriptions.status} = 'canceled'
+            and ${businessSubscriptions.currentPeriodEnd} > now()
+          )
+        )`,
+      ),
+    )
+    .limit(1);
 
-  if (activeBusinessLimit !== null) {
-    const [activeCountRow] = await client
-      .select({ value: sql<number>`count(*)::int` })
-      .from(businesses)
-      .where(getActiveBusinessCondition(ownerUserId));
+  if (!paidRow) {
+    // Free business: unlocking it consumes the owner's one Free slot.
+    // The locked business is not active, so any other active Free business
+    // already occupies the slot.
+    const freeBusinesses = await listActiveFreeBusinessesForOwner(
+      ownerUserId,
+      client,
+    );
 
-    const activeCount = Number(activeCountRow?.value ?? 0);
-
-    if (activeCount >= activeBusinessLimit) {
+    if (freeBusinesses.length >= 1) {
       return {
         ok: false as const,
         reason: "active_business_limit_reached" as const,
@@ -242,10 +272,20 @@ export async function unlockBusinessIfAllowed({
   };
 }
 
+/**
+ * Enforces the one-Free-business-per-owner rule on a plan change.
+ *
+ * A downgrade to Free is allowed only when the owner has no other active
+ * Free business. Nothing is locked automatically — the downgrade flow must
+ * guide the owner to archive a Free business first (from the businesses hub)
+ * or keep the paid plan. Paid target plans are never restricted.
+ *
+ * Returns the ids of the active Free businesses blocking the downgrade.
+ */
 export async function enforceActiveBusinessLimitOnPlanChange({
   ownerUserId,
   newPlan,
-  keepBusinessId,
+  keepBusinessId = null,
   actorUserId = null,
   client,
 }: {
@@ -255,64 +295,35 @@ export async function enforceActiveBusinessLimitOnPlanChange({
   actorUserId?: string | null;
   client?: DatabaseClient;
 }) {
+  void actorUserId;
+
   const runEnforcement = async (tx: DatabaseClient) => {
     await lockPlanEnforcementForUser(tx, ownerUserId);
 
-    const activeBusinesses = await listActiveBusinessesForOwner(ownerUserId, tx);
     const activeBusinessLimit = getActiveBusinessLimit(newPlan);
 
-    if (
-      activeBusinessLimit === null ||
-      activeBusinesses.length <= activeBusinessLimit
-    ) {
+    if (newPlan !== "free" || activeBusinessLimit === null) {
       return {
         activeBusinessLimit,
         keptBusinessId: keepBusinessId ?? null,
         lockedBusinessIds: [] as string[],
+        blockingFreeBusinessIds: [] as string[],
       };
     }
 
-    const resolvedKeepBusinessId =
-      keepBusinessId && activeBusinesses.some((business) => business.id === keepBusinessId)
-        ? keepBusinessId
-        : (await chooseDefaultBusinessToKeepActive(ownerUserId, tx));
-
-    const keepSlots = Math.max(0, activeBusinessLimit);
-    const preservedActiveIds = new Set<string>();
-
-    if (resolvedKeepBusinessId) {
-      preservedActiveIds.add(resolvedKeepBusinessId);
-    }
-
-    for (const business of activeBusinesses) {
-      if (preservedActiveIds.size >= keepSlots) {
-        break;
-      }
-      preservedActiveIds.add(business.id);
-    }
-
-    const lockTargets = activeBusinesses.filter(
-      (business) => !preservedActiveIds.has(business.id),
+    const freeBusinesses = await listActiveFreeBusinessesForOwner(
+      ownerUserId,
+      tx,
     );
-
-    const lockedBusinessIds: string[] = [];
-    for (const target of lockTargets) {
-      const locked = await lockBusinessForPlan({
-        businessId: target.id,
-        ownerUserId,
-        actorUserId,
-        client: tx,
-      });
-
-      if (locked) {
-        lockedBusinessIds.push(target.id);
-      }
-    }
+    const blockers = freeBusinesses.filter(
+      (business) => business.id !== keepBusinessId,
+    );
 
     return {
       activeBusinessLimit,
-      keptBusinessId: Array.from(preservedActiveIds)[0] ?? null,
-      lockedBusinessIds,
+      keptBusinessId: keepBusinessId ?? null,
+      lockedBusinessIds: [] as string[],
+      blockingFreeBusinessIds: blockers.map((business) => business.id),
     };
   };
 

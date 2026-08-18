@@ -2,20 +2,13 @@
 
 import { updateTag } from "next/cache";
 
-import {
-  getBusinessMemoryCacheTags,
-  getBusinessPricingCacheTags,
-  uniqueCacheTags,
-} from "@/lib/cache/business-tags";
+import { getBusinessPricingCacheTags, uniqueCacheTags } from "@/lib/cache/business-tags";
 import { getOperationalBusinessActionContext } from "@/lib/db/business-access";
 import { getUsageLimit, hasFeatureAccess } from "@/lib/plans";
 import { assertPublicActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 import { aiExtractFromFile } from "@/features/importer/ai-extractor";
 import { extractFile } from "@/features/importer/extractors";
-import {
-  importerCommitKnowledgeSchema,
-  importerCommitPricingSchema,
-} from "@/features/importer/schemas";
+import { importerCommitPricingSchema } from "@/features/importer/schemas";
 import type {
   ImporterAnalyzeResult,
   ImporterCommitResult,
@@ -26,7 +19,6 @@ import {
   importerAcceptedMimeTypes,
   importerMaxFileBytes,
 } from "@/features/importer/types";
-import { createMemoryForBusiness, getMemoryCountForBusiness } from "@/features/memory/mutations";
 import { getQuoteLibrarySummaryForBusiness } from "@/features/quotes/quote-library-queries";
 import { createQuoteLibraryEntryForBusiness } from "@/features/quotes/quote-library-mutations";
 
@@ -68,7 +60,6 @@ function isAcceptedFile(file: File): boolean {
  * structured candidates for the client to review. Nothing is saved here.
  */
 export async function analyzeImportAction(
-  destination: "knowledge" | "pricing",
   formData: FormData,
 ): Promise<ImporterAnalyzeResult> {
   const ownerAccess = await getOperationalBusinessActionContext();
@@ -80,22 +71,17 @@ export async function analyzeImportAction(
   const { user, businessContext } = ownerAccess;
   const plan = businessContext.business.plan;
 
-  if (!hasFeatureAccess(plan, "aiAssistant")) {
+  if (!hasFeatureAccess(plan, "aiQuoteDrafting")) {
     return {
       ok: false,
       error: "Upgrade to Pro to analyze files with AI.",
     };
   }
 
-  const gateFeature = destination === "knowledge" ? "knowledgeBase" : "quoteLibrary";
-
-  if (!hasFeatureAccess(plan, gateFeature)) {
+  if (!hasFeatureAccess(plan, "quoteLibrary")) {
     return {
       ok: false,
-      error:
-        destination === "knowledge"
-          ? "Upgrade to Pro to import knowledge from files."
-          : "Upgrade to Pro to import pricing from files.",
+      error: "Upgrade to Pro to import pricing from files.",
     };
   }
 
@@ -154,7 +140,7 @@ export async function analyzeImportAction(
     };
   }
 
-  const aiResult = await aiExtractFromFile({ destination, payload });
+  const aiResult = await aiExtractFromFile({ destination: "pricing", payload });
 
   if (!aiResult.ok) {
     return { ok: false, error: aiResult.error };
@@ -168,25 +154,11 @@ export async function analyzeImportAction(
   }
 
   // Fetch existing count + plan limit so the review UI can show what fits.
-  const limitKey =
-    destination === "knowledge" ? "memoriesPerBusiness" : "pricingEntriesPerBusiness";
-  const limit = getUsageLimit(plan, limitKey);
-  const existingCount =
-    destination === "knowledge"
-      ? await getMemoryCountForBusiness(businessContext.business.id)
-      : (await getQuoteLibrarySummaryForBusiness(businessContext.business.id)).entryCount;
+  const limit = getUsageLimit(plan, "pricingEntriesPerBusiness");
+  const existingCount = (
+    await getQuoteLibrarySummaryForBusiness(businessContext.business.id)
+  ).entryCount;
   const planContext = buildPlanContext({ existingCount, limit });
-
-  if (aiResult.destination === "knowledge") {
-    return {
-      ok: true,
-      destination: "knowledge",
-      sourceName: file.name,
-      items: aiResult.items,
-      warnings: aiResult.warnings,
-      planContext,
-    };
-  }
 
   return {
     ok: true,
@@ -196,86 +168,6 @@ export async function analyzeImportAction(
     warnings: aiResult.warnings,
     planContext,
   };
-}
-
-/**
- * Commits selected knowledge items from a reviewed import. The input is the
- * user's edited/confirmed list, not the raw AI output. Each item is created
- * through the same mutation as manual knowledge creation so plan limits,
- * activity logging, and caching stay consistent.
- */
-export async function commitKnowledgeImportAction(
-  payload: unknown,
-): Promise<ImporterCommitResult> {
-  const ownerAccess = await getOperationalBusinessActionContext();
-
-  if (!ownerAccess.ok) {
-    return { created: 0, skipped: 0, error: ownerAccess.error };
-  }
-
-  const { user, businessContext } = ownerAccess;
-  const plan = businessContext.business.plan;
-
-  if (!hasFeatureAccess(plan, "knowledgeBase")) {
-    return {
-      created: 0,
-      skipped: 0,
-      error: "Upgrade to Pro to save imported knowledge.",
-    };
-  }
-
-  const parsed = importerCommitKnowledgeSchema.safeParse(payload);
-
-  if (!parsed.success) {
-    const firstMessage = parsed.error.issues[0]?.message;
-
-    return {
-      created: 0,
-      skipped: 0,
-      error: firstMessage ?? "Some items were invalid. Please review and try again.",
-    };
-  }
-
-  const limit = getUsageLimit(plan, "memoriesPerBusiness");
-  const existingCount = await getMemoryCountForBusiness(businessContext.business.id);
-  const totalAfterImport = existingCount + parsed.data.items.length;
-
-  if (limit !== null && totalAfterImport > limit) {
-    const overBy = totalAfterImport - limit;
-
-    return {
-      created: 0,
-      skipped: parsed.data.items.length,
-      error: `This import would put you ${overBy} over your plan limit of ${limit} knowledge items (you currently have ${existingCount}). Remove ${overBy} item${overBy === 1 ? "" : "s"} from the review and try again, or upgrade your plan.`,
-    };
-  }
-
-  let created = 0;
-
-  for (const item of parsed.data.items) {
-    try {
-      await createMemoryForBusiness({
-        businessId: businessContext.business.id,
-        actorUserId: user.id,
-        memory: { title: item.title, content: item.content },
-      });
-      created += 1;
-    } catch (error) {
-      console.warn("[importer] createMemory failed", error);
-    }
-  }
-
-  updateCacheTags(getBusinessMemoryCacheTags(businessContext.business.id));
-
-  if (created === 0) {
-    return {
-      created,
-      skipped: 0,
-      error: "We couldn't save any items. Please try again.",
-    };
-  }
-
-  return { created, skipped: 0 };
 }
 
 /**
@@ -324,12 +216,10 @@ export async function commitPricingImportAction(
   const totalAfterImport = existingCount + parsed.data.entries.length;
 
   if (limit !== null && totalAfterImport > limit) {
-    const overBy = totalAfterImport - limit;
-
     return {
       created: 0,
       skipped: parsed.data.entries.length,
-      error: `This import would put you ${overBy} over your plan limit of ${limit} pricing entries (you currently have ${existingCount}). Remove ${overBy} entr${overBy === 1 ? "y" : "ies"} from the review and try again, or upgrade your plan.`,
+      error: `This plan supports ${limit} saved pricing entries. Remove an entry or upgrade to save another.`,
     };
   }
 

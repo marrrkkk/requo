@@ -53,18 +53,8 @@ export function getUnifiedSettingsNavigation(
           label: "Quotes",
           icon: "file-text",
         },
-        {
-          href: `/${slug}/settings/invoices`,
-          label: "Invoices",
-          icon: "receipt-text",
-        },
         { href: `/${slug}/settings/email`, label: "Email", icon: "mail" },
         { href: `/${slug}/settings/pricing`, label: "Pricing", icon: "tag" },
-        {
-          href: `/${slug}/settings/knowledge`,
-          label: "Knowledge",
-          icon: "book",
-        },
         {
           href: `/${slug}/settings/support`,
           label: "Support",
@@ -84,9 +74,7 @@ export type BusinessSettingsNavigationIcon =
   | "general"
   | "members"
   | "notifications"
-  | "knowledge"
   | "quote"
-  | "invoices"
   | "email"
   | "pricing"
   | "billing"
@@ -150,29 +138,12 @@ export function getBusinessSettingsNavigation(
       : null,
     canManageOperationalBusinessSettings(role)
       ? {
-          label: "Responses",
-          items: [
-            {
-              href: getBusinessSettingsPath(slug, "knowledge"),
-              label: "Knowledge",
-              icon: "knowledge" as const,
-            },
-          ],
-        }
-      : null,
-    canManageOperationalBusinessSettings(role)
-      ? {
           label: "Quotes",
           items: [
             {
               href: getBusinessSettingsPath(slug, "quote"),
               label: "Quotes",
               icon: "quote" as const,
-            },
-            {
-              href: getBusinessSettingsPath(slug, "invoices"),
-              label: "Invoices",
-              icon: "invoices" as const,
             },
             {
               href: getBusinessSettingsPath(slug, "email"),

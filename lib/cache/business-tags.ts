@@ -187,78 +187,6 @@ export function getPublicBusinessProfileCacheTags(slug: string) {
   ]);
 }
 
-export function getBusinessJobListCacheTags(businessId: string) {
-  const scopeTag = getBusinessScopeTag(businessId);
-
-  return uniqueCacheTags([
-    scopeTag,
-    `${scopeTag}:dashboard`,
-    `${scopeTag}:jobs`,
-  ]);
-}
-
-export function getBusinessJobDetailCacheTags(
-  businessId: string,
-  jobId: string,
-) {
-  const scopeTag = getBusinessScopeTag(businessId);
-
-  return uniqueCacheTags([
-    scopeTag,
-    `${scopeTag}:dashboard`,
-    `${scopeTag}:jobs`,
-    `${scopeTag}:job:${jobId}`,
-  ]);
-}
-
-export function getBusinessInvoiceListCacheTags(businessId: string) {
-  const scopeTag = getBusinessScopeTag(businessId);
-
-  return uniqueCacheTags([
-    scopeTag,
-    `${scopeTag}:dashboard`,
-    `${scopeTag}:invoices`,
-  ]);
-}
-
-export function getBusinessInvoiceDetailCacheTags(
-  businessId: string,
-  invoiceId: string,
-) {
-  const scopeTag = getBusinessScopeTag(businessId);
-
-  return uniqueCacheTags([
-    scopeTag,
-    `${scopeTag}:dashboard`,
-    `${scopeTag}:invoices`,
-    `${scopeTag}:invoice:${invoiceId}`,
-  ]);
-}
-
-export function getBusinessAutomationListCacheTags(businessId: string) {
-  const scopeTag = getBusinessScopeTag(businessId);
-
-  return uniqueCacheTags([
-    scopeTag,
-    `${scopeTag}:settings`,
-    `${scopeTag}:automations`,
-  ]);
-}
-
-export function getBusinessAutomationDetailCacheTags(
-  businessId: string,
-  automationId: string,
-) {
-  const scopeTag = getBusinessScopeTag(businessId);
-
-  return uniqueCacheTags([
-    scopeTag,
-    `${scopeTag}:settings`,
-    `${scopeTag}:automations`,
-    `${scopeTag}:automation:${automationId}`,
-  ]);
-}
-
 export function getBusinessChecklistCacheTags(businessId: string) {
   const scopeTag = getBusinessScopeTag(businessId);
 
@@ -267,7 +195,5 @@ export function getBusinessChecklistCacheTags(businessId: string) {
     `${scopeTag}:dashboard`,
     `${scopeTag}:checklist`,
     `${scopeTag}:inquiries`,
-    `${scopeTag}:jobs`,
-    `${scopeTag}:invoices`,
   ]);
 }

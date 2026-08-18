@@ -41,4 +41,5 @@ async function SettingsRedirect({
 }) {
   const { businessSlug } = await params;
   redirect(`/${businessSlug}/settings/profile`);
+  return null as never;
 }

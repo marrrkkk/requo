@@ -6,6 +6,7 @@ import {
   desc,
   eq,
   gte,
+  gt,
   isNotNull,
   isNull,
   lte,
@@ -16,6 +17,7 @@ import { cache } from "react";
 
 import type {
   BusinessDashboardSummaryData,
+  BusinessMoneySnapshot,
   BusinessOverviewData,
   PublicBusinessProfile,
   PublicBusinessSitemapEntry,
@@ -50,6 +52,7 @@ function createEmptyBusinessOverviewData(): BusinessOverviewData {
     recentAcceptedQuotes: [],
     declinedQuotes: [],
     draftQuotes: [],
+    awaitingResponseQuotes: [],
     counts: {
       overdueInquiries: 0,
       expiringSoonQuotes: 0,
@@ -57,6 +60,7 @@ function createEmptyBusinessOverviewData(): BusinessOverviewData {
       recentAcceptedQuotes: 0,
       declinedQuotes: 0,
       draftQuotes: 0,
+      awaitingResponseQuotes: 0,
     },
   };
 }
@@ -118,6 +122,7 @@ async function getCachedBusinessOverviewData(
     recentAcceptedQuotes,
     declinedQuotes,
     draftQuotes,
+    awaitingResponseQuotes,
   ] = await Promise.all([
     db
       .select({
@@ -158,7 +163,6 @@ async function getCachedBusinessOverviewData(
         currency: quotes.currency,
         totalInCents: quotes.totalInCents,
         status: getEffectiveQuoteStatus,
-        postAcceptanceStatus: quotes.postAcceptanceStatus,
         validUntil: quotes.validUntil,
         sentAt: quotes.sentAt,
         acceptedAt: quotes.acceptedAt,
@@ -214,7 +218,6 @@ async function getCachedBusinessOverviewData(
         currency: quotes.currency,
         totalInCents: quotes.totalInCents,
         status: getEffectiveQuoteStatus,
-        postAcceptanceStatus: quotes.postAcceptanceStatus,
         validUntil: quotes.validUntil,
         sentAt: quotes.sentAt,
         acceptedAt: quotes.acceptedAt,
@@ -229,7 +232,6 @@ async function getCachedBusinessOverviewData(
           getOperationalQuoteCondition(),
           eq(quotes.status, "accepted"),
           isNotNull(quotes.acceptedAt),
-          sql`${quotes.postAcceptanceStatus} not in ('completed', 'canceled')`,
         ),
       )
       .orderBy(desc(quotes.acceptedAt), desc(quotes.createdAt))
@@ -247,7 +249,6 @@ async function getCachedBusinessOverviewData(
         currency: quotes.currency,
         totalInCents: quotes.totalInCents,
         status: getEffectiveQuoteStatus,
-        postAcceptanceStatus: quotes.postAcceptanceStatus,
         validUntil: quotes.validUntil,
         sentAt: quotes.sentAt,
         acceptedAt: quotes.acceptedAt,
@@ -279,7 +280,6 @@ async function getCachedBusinessOverviewData(
         currency: quotes.currency,
         totalInCents: quotes.totalInCents,
         status: getEffectiveQuoteStatus,
-        postAcceptanceStatus: quotes.postAcceptanceStatus,
         validUntil: quotes.validUntil,
         sentAt: quotes.sentAt,
         acceptedAt: quotes.acceptedAt,
@@ -296,6 +296,38 @@ async function getCachedBusinessOverviewData(
         ),
       )
       .orderBy(desc(quotes.updatedAt), desc(quotes.createdAt))
+      .limit(overviewQueueItemLimit),
+    db
+      .select({
+        id: quotes.id,
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+        title: quotes.title,
+        customerName: quotes.customerName,
+        customerEmail: quotes.customerEmail,
+        customerContactMethod: quotes.customerContactMethod,
+        customerContactHandle: quotes.customerContactHandle,
+        currency: quotes.currency,
+        totalInCents: quotes.totalInCents,
+        status: getEffectiveQuoteStatus,
+        validUntil: quotes.validUntil,
+        sentAt: quotes.sentAt,
+        acceptedAt: quotes.acceptedAt,
+        customerRespondedAt: quotes.customerRespondedAt,
+        updatedAt: quotes.updatedAt,
+        totalCount,
+      })
+      .from(quotes)
+      .where(
+        and(
+          eq(quotes.businessId, businessId),
+          getOperationalQuoteCondition(),
+          sql`${getEffectiveQuoteStatus} = 'sent'::quote_status`,
+          isNull(quotes.customerRespondedAt),
+          gt(quotes.validUntil, expiringSoonCutoff),
+        ),
+      )
+      .orderBy(asc(quotes.sentAt), asc(quotes.createdAt))
       .limit(overviewQueueItemLimit),
   ]);
 
@@ -338,6 +370,7 @@ async function getCachedBusinessOverviewData(
     recentAcceptedQuotes: recentAcceptedQuotes.map(withQuoteReminders),
     declinedQuotes: declinedQuotes.map(withQuoteReminders),
     draftQuotes: draftQuotes.map(withQuoteReminders),
+    awaitingResponseQuotes: awaitingResponseQuotes.map(withQuoteReminders),
     counts: {
       overdueInquiries: Number(overdueInquiries[0]?.totalCount ?? 0),
       expiringSoonQuotes: Number(expiringSoonQuotes[0]?.totalCount ?? 0),
@@ -345,6 +378,7 @@ async function getCachedBusinessOverviewData(
       recentAcceptedQuotes: Number(recentAcceptedQuotes[0]?.totalCount ?? 0),
       declinedQuotes: Number(declinedQuotes[0]?.totalCount ?? 0),
       draftQuotes: Number(draftQuotes[0]?.totalCount ?? 0),
+      awaitingResponseQuotes: Number(awaitingResponseQuotes[0]?.totalCount ?? 0),
     },
   };
 }
@@ -422,6 +456,97 @@ async function getCachedBusinessDashboardSummaryData(
     inquiryCoverageRate: totalInquiries ? linkedInquiryCount / totalInquiries : 0,
     wonCount: Number(inquirySummaryRows[0]?.wonCount ?? 0),
     lostCount: Number(inquirySummaryRows[0]?.lostCount ?? 0),
+  };
+}
+
+function createEmptyBusinessMoneySnapshot(): BusinessMoneySnapshot {
+  return {
+    currency: "USD",
+    wonInCents: 0,
+    wonCount: 0,
+    inPlayInCents: 0,
+    inPlayCount: 0,
+  };
+}
+
+/**
+ * Lightweight money snapshot for the dashboard KPI row. Available to all
+ * plans — deliberately NOT gated behind the analytics entitlement. Both
+ * figures are quote-derived sums in the business's default currency.
+ */
+export async function getBusinessMoneySnapshot(
+  businessId: string,
+): Promise<BusinessMoneySnapshot> {
+  try {
+    return await withCircuitBreaker(
+      `dashboard:money:${businessId}`,
+      () => getCachedBusinessMoneySnapshot(businessId),
+    );
+  } catch (error) {
+    console.error(
+      "Failed to load business money snapshot.",
+      { businessId },
+      error,
+    );
+
+    return createEmptyBusinessMoneySnapshot();
+  }
+}
+
+async function getCachedBusinessMoneySnapshot(
+  businessId: string,
+): Promise<BusinessMoneySnapshot> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessOverviewCacheTags(businessId));
+
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [currencyRow, wonRows, inPlayRows] = await Promise.all([
+    db
+      .select({ defaultCurrency: businesses.defaultCurrency })
+      .from(businesses)
+      .where(eq(businesses.id, businessId))
+      .limit(1),
+    db
+      .select({
+        totalInCents: sql<number>`coalesce(sum(${quotes.totalInCents}), 0)`,
+        count: sql<number>`count(*)`,
+      })
+      .from(quotes)
+      .where(
+        and(
+          eq(quotes.businessId, businessId),
+          getOperationalQuoteCondition(),
+          eq(quotes.status, "accepted"),
+          gte(quotes.acceptedAt, thirtyDaysAgo),
+        ),
+      ),
+    db
+      .select({
+        totalInCents: sql<number>`coalesce(sum(${quotes.totalInCents}), 0)`,
+        count: sql<number>`count(*)`,
+      })
+      .from(quotes)
+      .where(
+        and(
+          eq(quotes.businessId, businessId),
+          getOperationalQuoteCondition(),
+          sql`${getEffectiveQuoteStatus} = 'sent'::quote_status`,
+          isNull(quotes.customerRespondedAt),
+          gte(quotes.validUntil, today),
+        ),
+      ),
+  ]);
+
+  return {
+    currency: currencyRow[0]?.defaultCurrency ?? "USD",
+    wonInCents: Number(wonRows[0]?.totalInCents ?? 0),
+    wonCount: Number(wonRows[0]?.count ?? 0),
+    inPlayInCents: Number(inPlayRows[0]?.totalInCents ?? 0),
+    inPlayCount: Number(inPlayRows[0]?.count ?? 0),
   };
 }
 

@@ -185,24 +185,18 @@ async function InquiryDetailRegion({
   const customFields = getCustomSubmittedFields(
     inquiry.submittedFieldSnapshot,
   );
-  const canViewCustomerHistory = hasFeatureAccess(
-    businessContext.business.plan,
-    "customerHistory",
-  );
   const canExportData = hasFeatureAccess(
     businessContext.business.plan,
     "exports",
   );
   // Customer history + follow-ups stream via Suspense — don't block page render.
-  const customerHistoryPromise = canViewCustomerHistory
-    ? getCustomerHistoryForBusiness({
-        businessId: businessContext.business.id,
-        customerEmail: inquiry.customerEmail,
-        customerContactHandle: inquiry.customerContactHandle,
-        excludeInquiryId: inquiry.id,
-        excludeQuoteId: inquiry.relatedQuotes?.latest.id ?? null,
-      })
-    : Promise.resolve(null);
+  const customerHistoryPromise = getCustomerHistoryForBusiness({
+    businessId: businessContext.business.id,
+    customerEmail: inquiry.customerEmail,
+    customerContactHandle: inquiry.customerContactHandle,
+    excludeInquiryId: inquiry.id,
+    excludeQuoteId: inquiry.relatedQuotes?.latest.id ?? null,
+  });
 
   const canGenerateQuote = inquiry.recordState !== "archived";
   const workflowStatus: InquiryWorkflowStatus =
@@ -467,12 +461,12 @@ async function InquiryDetailRegion({
               noteAction={noteAction}
             />
 
-            <RegionErrorBoundary fallback={<CustomerHistoryFallback locked={!canViewCustomerHistory} />}>
-              <Suspense fallback={<CustomerHistoryFallback locked={!canViewCustomerHistory} />}>
+            <RegionErrorBoundary fallback={<CustomerHistoryFallback locked={false} />}>
+              <Suspense fallback={<CustomerHistoryFallback locked={false} />}>
                 <StreamedCustomerHistory
                   businessSlug={businessSlug}
                   historyPromise={customerHistoryPromise}
-                  locked={!canViewCustomerHistory}
+                  locked={false}
                 />
               </Suspense>
             </RegionErrorBoundary>

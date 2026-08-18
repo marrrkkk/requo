@@ -10,7 +10,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { CustomerHistoryData } from "@/features/customers/types";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { formatInquiryDate } from "@/features/inquiries/utils";
-import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import { formatQuoteMoney } from "@/features/quotes/utils";
 import {
@@ -36,7 +35,6 @@ type CustomerHistoryTimelineItem =
       id: string;
       label: string;
       status: CustomerHistoryData["quotes"][number]["status"];
-      postAcceptanceStatus: CustomerHistoryData["quotes"][number]["postAcceptanceStatus"];
       amount: number;
       currency: string;
       date: Date;
@@ -75,10 +73,6 @@ export function CustomerHistoryPanel({
           <div className="ml-auto">
             {history.latestOutcome.kind === "inquiry" ? (
               <InquiryStatusBadge status={history.latestOutcome.status} />
-            ) : history.latestOutcome.postAcceptanceStatus !== "none" ? (
-              <QuotePostAcceptanceStatusBadge
-                status={history.latestOutcome.postAcceptanceStatus}
-              />
             ) : (
               <QuoteStatusBadge status={history.latestOutcome.status} />
             )}
@@ -156,14 +150,7 @@ export function CustomerHistoryPanel({
                 <DashboardDetailFeedItem
                   key={quote.id}
                   action={
-                    <div className="flex flex-wrap items-center gap-2">
-                      <QuoteStatusBadge status={quote.status} />
-                      {quote.postAcceptanceStatus !== "none" ? (
-                        <QuotePostAcceptanceStatusBadge
-                          status={quote.postAcceptanceStatus}
-                        />
-                      ) : null}
-                    </div>
+                    <QuoteStatusBadge status={quote.status} />
                   }
                   meta={`${formatQuoteMoney(quote.totalInCents, quote.currency)} · Created ${formatInquiryDate(quote.createdAt)}`}
                   title={
@@ -222,14 +209,7 @@ function TimelineItem({
   return (
     <DashboardDetailFeedItem
       action={
-        <div className="flex flex-wrap items-center gap-2">
-          <QuoteStatusBadge status={item.status} />
-          {item.postAcceptanceStatus !== "none" ? (
-            <QuotePostAcceptanceStatusBadge
-              status={item.postAcceptanceStatus}
-            />
-          ) : null}
-        </div>
+        <QuoteStatusBadge status={item.status} />
       }
       meta={`${formatQuoteMoney(item.amount, item.currency)} · Quote · Created ${formatInquiryDate(item.date)}`}
       title={
@@ -272,7 +252,6 @@ function getCustomerHistoryTimeline(history: CustomerHistoryData): CustomerHisto
       id: quote.id,
       label: quote.title,
       status: quote.status,
-      postAcceptanceStatus: quote.postAcceptanceStatus,
       amount: quote.totalInCents,
       currency: quote.currency,
       date: quote.createdAt,

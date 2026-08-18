@@ -31,6 +31,8 @@ import type { BusinessMemberInviteActionState } from "@/features/business-member
 import { businessMemberInviteDurationDays } from "@/lib/business-members";
 import { sendBusinessMemberInviteEmail } from "@/lib/resend/client";
 import { env } from "@/lib/env";
+import { getUsageLimit } from "@/lib/plans/usage-limits";
+import { getBusinessMemberCount } from "@/lib/plans/usage";
 
 const initialInviteState: BusinessMemberInviteActionState = {};
 
@@ -62,6 +64,25 @@ export async function createBusinessMemberInviteAction(
       validationResult.error,
       "Check the invite details and try again.",
     );
+  }
+
+  const memberLimit = getUsageLimit(
+    businessContext.business.plan,
+    "membersPerBusiness",
+  );
+
+  if (memberLimit !== null) {
+    const currentMemberCount = await getBusinessMemberCount(
+      businessContext.business.id,
+    );
+
+    if (currentMemberCount >= memberLimit) {
+      return {
+        error: `Business supports up to ${memberLimit} member${
+          memberLimit === 1 ? "" : "s"
+        }, including the owner.`,
+      };
+    }
   }
 
   const inviteToken = randomUUID();

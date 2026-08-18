@@ -7,12 +7,10 @@ import { env, isGeminiConfigured } from "@/lib/env";
 import type { ExtractedPayload } from "@/features/importer/extractors";
 import type {
   ImporterDestination,
-  ImporterKnowledgeItem,
   ImporterPricingEntry,
   ImporterPricingLineItem,
 } from "@/features/importer/types";
 import {
-  importerMaxKnowledgeItems,
   importerMaxPricingEntries,
   importerMaxPricingItemsPerEntry,
 } from "@/features/importer/types";
@@ -38,13 +36,6 @@ const GEMINI_TIMEOUT_MS = 30_000;
 // "flash-lite" if the first attempt fails.
 const EXTRACTION_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] as const;
 
-const KNOWLEDGE_JSON_SHAPE = `{
-  "items": [
-    { "title": "Short title", "content": "Knowledge content" }
-  ],
-  "warnings": ["Optional short warning strings"]
-}`;
-
 const PRICING_JSON_SHAPE = `{
   "entries": [
     {
@@ -58,19 +49,6 @@ const PRICING_JSON_SHAPE = `{
   ],
   "warnings": ["Optional short warning strings"]
 }`;
-
-const KNOWLEDGE_INSTRUCTIONS = [
-  "You extract saved business knowledge from an uploaded document.",
-  "Return ONLY a JSON object matching this exact shape (no markdown fences, no prose):",
-  KNOWLEDGE_JSON_SHAPE,
-  "Each item has `title` (short, 3-8 words) and `content` (1-4 short paragraphs, under 800 chars).",
-  "Split the document into logically distinct topics. One item per topic.",
-  "Do not invent facts. If a section is ambiguous, skip it or note it in warnings.",
-  "Ignore marketing boilerplate, page numbers, legal footers, and cover pages.",
-  "Prefer owner-useful context: services, policies, pricing rules, scheduling, terms, FAQ answers.",
-  "If the document contains no usable knowledge, return items: [] with a warning.",
-  `Return at most ${importerMaxKnowledgeItems} items.`,
-].join("\n");
 
 const PRICING_INSTRUCTIONS = [
   "You extract pricing from an uploaded document into reusable library entries.",
@@ -95,11 +73,6 @@ type ExtractionInput = {
   payload: ExtractedPayload;
 };
 
-type KnowledgeResponse = {
-  items?: Array<{ title?: unknown; content?: unknown }>;
-  warnings?: unknown[];
-};
-
 type PricingResponse = {
   entries?: Array<{
     kind?: unknown;
@@ -115,12 +88,6 @@ type PricingResponse = {
 };
 
 export type AiExtractionResult =
-  | {
-      ok: true;
-      destination: "knowledge";
-      items: ImporterKnowledgeItem[];
-      warnings: string[];
-    }
   | {
       ok: true;
       destination: "pricing";
@@ -175,10 +142,7 @@ export async function aiExtractFromFile(
     };
   }
 
-  const systemInstruction =
-    input.destination === "knowledge"
-      ? KNOWLEDGE_INSTRUCTIONS
-      : PRICING_INSTRUCTIONS;
+  const systemInstruction = PRICING_INSTRUCTIONS;
   const userContent = buildUserContent(input.payload);
 
   let lastError: unknown = null;
@@ -210,10 +174,6 @@ export async function aiExtractFromFile(
       if (!parsed) {
         lastError = new Error("AI extractor returned non-JSON output.");
         continue;
-      }
-
-      if (input.destination === "knowledge") {
-        return normaliseKnowledge(parsed as KnowledgeResponse);
       }
 
       return normalisePricing(parsed as PricingResponse);
@@ -255,48 +215,6 @@ function tryParseJson(text: string): unknown {
 
 function toDraftId(prefix: string, index: number): string {
   return `${prefix}_${index}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function normaliseKnowledge(
-  parsed: KnowledgeResponse,
-): AiExtractionResult {
-  const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
-  const items: ImporterKnowledgeItem[] = [];
-  let droppedForCap = 0;
-
-  for (let i = 0; i < rawItems.length; i += 1) {
-    const raw = rawItems[i];
-    const title = typeof raw.title === "string" ? raw.title.trim() : "";
-    const content = typeof raw.content === "string" ? raw.content.trim() : "";
-
-    if (!title || !content) continue;
-
-    if (items.length >= importerMaxKnowledgeItems) {
-      droppedForCap += 1;
-      continue;
-    }
-
-    items.push({
-      draftId: toDraftId("k", i),
-      title: title.slice(0, 200),
-      content: content.slice(0, 4000),
-    });
-  }
-
-  const warnings = extractWarnings(parsed.warnings);
-
-  if (droppedForCap > 0) {
-    warnings.unshift(
-      `The file contained more content than we can import at once. ${droppedForCap} additional knowledge ${droppedForCap === 1 ? "item was" : "items were"} dropped. You can re-upload the remaining sections or add them manually.`,
-    );
-  }
-
-  return {
-    ok: true,
-    destination: "knowledge",
-    items,
-    warnings,
-  };
 }
 
 function normalisePricing(parsed: PricingResponse): AiExtractionResult {

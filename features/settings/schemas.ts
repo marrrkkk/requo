@@ -277,14 +277,10 @@ export const businessQuoteSettingsSchema = z.object({
       .min(1, "Use at least 1 day.")
       .max(365, "Use 365 days or fewer."),
   ),
-});
-
-export type BusinessQuoteSettingsInput = z.infer<
-  typeof businessQuoteSettingsSchema
->;
-
-export const businessInvoiceSettingsSchema = z.object({
-  defaultInvoiceDueDays: z.preprocess(
+  sendInquiryAckEmail: formBoolean().default(true),
+  autoDraftQuoteOnQualify: formBoolean().default(true),
+  autoArchiveStaleInquiries: formBoolean().default(true),
+  autoArchiveStaleInquiryDays: z.preprocess(
     (value) => {
       if (typeof value === "number") {
         return value;
@@ -308,10 +304,35 @@ export const businessInvoiceSettingsSchema = z.object({
       .min(1, "Use at least 1 day.")
       .max(365, "Use 365 days or fewer."),
   ),
+  autoFollowUpOnQuoteViewed: formBoolean().default(true),
+  quoteViewedFollowUpDelayDays: z.preprocess(
+    (value) => {
+      if (typeof value === "number") {
+        return value;
+      }
+
+      if (typeof value !== "string") {
+        return value;
+      }
+
+      const normalized = value.trim();
+
+      if (!normalized) {
+        return Number.NaN;
+      }
+
+      return Number(normalized);
+    },
+    z
+      .number()
+      .int("Enter a whole number of days.")
+      .min(1, "Use at least 1 day.")
+      .max(90, "Use 90 days or fewer."),
+  ),
 });
 
-export type BusinessInvoiceSettingsInput = z.infer<
-  typeof businessInvoiceSettingsSchema
+export type BusinessQuoteSettingsInput = z.infer<
+  typeof businessQuoteSettingsSchema
 >;
 
 export const businessEmailTemplateSettingsSchema = z.object({

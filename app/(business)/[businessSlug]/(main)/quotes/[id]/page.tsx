@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/sheet";
 
 import {
+  acknowledgeQuoteUncertaintyAction,
   archiveQuoteAction,
   cancelAcceptedQuoteAction,
   completeAcceptedQuoteAction,
@@ -60,10 +61,6 @@ import { QuoteManageDropdown } from "@/features/quotes/components/quote-manage-d
 import { QuotePreviewButton } from "@/features/quotes/components/quote-preview-button";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { saveQuoteAsTemplateAction } from "@/features/quotes/quote-library-actions";
-import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
-import { QuotePostWinCard } from "@/features/quotes/components/quote-post-win-card";
-import { QuotePostAcceptanceActions } from "@/features/quotes/components/quote-post-acceptance-actions";
-import { QuoteGenerateInvoiceButton } from "@/features/quotes/components/quote-generate-invoice-button";
 import { QuotePreview } from "@/features/quotes/components/quote-preview";
 import { QuoteRecordStateBadge } from "@/features/quotes/components/quote-record-state-badge";
 import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
@@ -76,8 +73,6 @@ import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badg
 import { getFollowUpsForQuote } from "@/features/follow-ups/queries";
 import { getQuoteLibraryForBusiness } from "@/features/quotes/quote-library-queries";
 import { getBusinessContactEmailForPreview, getQuoteDetailForBusiness, getRevisionRequestsForQuote } from "@/features/quotes/queries";
-import { getJobForQuote } from "@/features/jobs/queries-light";
-import { getInvoiceIdForQuote } from "@/features/invoices/queries-light";
 import { quoteRouteParamsSchema } from "@/features/quotes/schemas";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import type { DashboardQuoteActivity } from "@/features/quotes/types";
@@ -178,11 +173,6 @@ async function QuoteDetailContent({
     ? await getRevisionRequestsForQuote(businessContext.business.id, quote.id)
     : [];
 
-  // For accepted quotes, check if a job/invoice already exists
-  const [quoteJob, quoteInvoiceId] = quote.status === "accepted"
-    ? await Promise.all([getJobForQuote(quote.id), getInvoiceIdForQuote(quote.id)])
-    : [null, null];
-
   const updateAction = updateQuoteAction.bind(null, quote.id);
   const archiveAction = archiveQuoteAction.bind(null, quote.id);
   const deleteDraftAction = deleteDraftQuoteAction.bind(null, quote.id);
@@ -270,6 +260,14 @@ async function QuoteDetailContent({
     (item) => item.unitPriceInCents <= 0,
   ).length;
 
+  const needsAiConfirmation =
+    quote.status === "draft" &&
+    quote.aiReadiness === "needs_confirmation" &&
+    !quote.aiAcknowledgedAt;
+  const acknowledgeAction = quote.status === "draft"
+    ? acknowledgeQuoteUncertaintyAction.bind(null, quote.id)
+    : undefined;
+
   const linkedInquirySection = (
     <DashboardSection
       description="Original inquiry context."
@@ -349,9 +347,6 @@ async function QuoteDetailContent({
           <>
             <QuoteStatusBadge status={quote.status} />
             {isArchived ? <QuoteRecordStateBadge state="archived" /> : null}
-            {quote.postAcceptanceStatus !== "none" ? (
-              <QuotePostAcceptanceStatusBadge status={quote.postAcceptanceStatus} />
-            ) : null}
           </>
         }
         actions={
@@ -433,6 +428,8 @@ async function QuoteDetailContent({
                 pdfExportLocked={!canExportData}
                 canAutoFollowUp={hasFeatureAccess(businessContext.business.plan, "autoFollowUps")}
                 unpricedItemCount={unpricedItemCount}
+                needsAiConfirmation={needsAiConfirmation}
+                acknowledgeAction={acknowledgeAction}
                 previewHref={getBusinessQuotePreviewPath(businessSlug, quote.id)}
                 previewData={{
                   businessName: businessContext.business.name,
@@ -463,7 +460,6 @@ async function QuoteDetailContent({
 
       <QuoteWorkflowSteps
         status={quote.status}
-        postAcceptanceStatus={quote.postAcceptanceStatus}
         publicViewedAt={quote.publicViewedAt}
       />
 
@@ -489,7 +485,7 @@ async function QuoteDetailContent({
             businessSlug={businessSlug}
             canUseAiGenerator={hasFeatureAccess(
               businessContext.business.plan,
-              "aiAssistant",
+              "aiQuoteDrafting",
             )}
             canUseQuoteLibrary={hasFeatureAccess(
               businessContext.business.plan,
@@ -541,6 +537,8 @@ async function QuoteDetailContent({
                     pdfExportLocked={!canExportData}
                     canAutoFollowUp={hasFeatureAccess(businessContext.business.plan, "autoFollowUps")}
                     unpricedItemCount={unpricedItemCount}
+                    needsAiConfirmation={needsAiConfirmation}
+                    acknowledgeAction={acknowledgeAction}
                     previewHref={getBusinessQuotePreviewPath(businessSlug, quote.id)}
                     previewData={{
                       businessName: businessContext.business.name,
@@ -638,41 +636,6 @@ async function QuoteDetailContent({
                   <ReviseQuoteButton quoteId={quote.id} />
                 </div>
               </DashboardSection>
-            ) : null}
-
-            {quote.status === "accepted" ? (
-              <div id="post-acceptance">
-                {(quote.postAcceptanceStatus === "completed" || quote.postAcceptanceStatus === "canceled") ? (
-                  <QuotePostWinCard
-                    key={quote.postAcceptanceStatus}
-                    quoteNumber={quote.quoteNumber}
-                    postAcceptanceStatus={quote.postAcceptanceStatus}
-                    completedAt={quote.completedAt}
-                    canceledAt={quote.canceledAt}
-                    cancellationReason={quote.cancellationReason}
-                    cancellationNote={quote.cancellationNote}
-                    completeAction={completeAction}
-                    cancelAction={cancelAction}
-                    completedActions={
-                      <QuoteGenerateInvoiceButton
-                        quoteId={quote.id}
-                        businessSlug={businessSlug}
-                        existingInvoiceId={quoteInvoiceId}
-                      />
-                    }
-                  />
-                ) : (
-                  <QuotePostAcceptanceActions
-                    quoteId={quote.id}
-                    businessSlug={businessSlug}
-                    existingJobId={quoteJob?.id ?? null}
-                    existingJobStatus={quoteJob?.status ?? null}
-                    existingInvoiceId={quoteInvoiceId}
-                    postAcceptanceStatus={quote.postAcceptanceStatus}
-                    completeAction={completeAction}
-                  />
-                )}
-              </div>
             ) : null}
 
             <DashboardSection

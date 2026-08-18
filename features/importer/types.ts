@@ -1,11 +1,4 @@
-export type ImporterDestination = "knowledge" | "pricing";
-
-export type ImporterKnowledgeItem = {
-  // Client-side stable id so users can reorder/toggle in review.
-  draftId: string;
-  title: string;
-  content: string;
-};
+export type ImporterDestination = "pricing";
 
 export type ImporterPricingLineItem = {
   draftId: string;
@@ -38,14 +31,6 @@ export type ImporterPlanContext = {
 export type ImporterAnalyzeResult =
   | {
       ok: true;
-      destination: "knowledge";
-      sourceName: string;
-      items: ImporterKnowledgeItem[];
-      warnings: string[];
-      planContext: ImporterPlanContext;
-    }
-  | {
-      ok: true;
       destination: "pricing";
       sourceName: string;
       entries: ImporterPricingEntry[];
@@ -65,7 +50,6 @@ export type ImporterCommitResult = {
 
 export const importerMaxFileBytes = 5 * 1024 * 1024; // 5 MB
 export const importerMaxExtractedChars = 20_000;
-export const importerMaxKnowledgeItems = 30;
 export const importerMaxPricingEntries = 30;
 export const importerMaxPricingItemsPerEntry = 25;
 

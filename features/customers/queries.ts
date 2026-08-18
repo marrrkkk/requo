@@ -126,7 +126,6 @@ async function getCachedCustomerHistoryForBusiness(input: {
           quoteNumber: quotes.quoteNumber,
           title: quotes.title,
           status: getEffectiveQuoteStatus,
-          postAcceptanceStatus: quotes.postAcceptanceStatus,
           totalInCents: quotes.totalInCents,
           currency: quotes.currency,
           createdAt: quotes.createdAt,
@@ -156,13 +155,11 @@ async function getCachedCustomerHistoryForBusiness(input: {
         : {
             kind: "quote" as const,
             status: latestQuote.status,
-            postAcceptanceStatus: latestQuote.postAcceptanceStatus,
           }
       : latestQuote
         ? {
             kind: "quote" as const,
             status: latestQuote.status,
-            postAcceptanceStatus: latestQuote.postAcceptanceStatus,
           }
         : latestInquiry
           ? {

@@ -68,7 +68,7 @@ import { AiMissingInfoPanel } from "@/features/quotes/components/ai-missing-info
 import { AiPricingReviewPanel } from "@/features/quotes/components/ai-pricing-review-panel";
 import { ApplyTemplateConfirmDialog } from "@/features/quotes/components/apply-template-confirm-dialog";
 import { generateQuoteDraftAction } from "@/features/ai/actions";
-import type { AiQuoteDraft } from "@/features/ai/types";
+import type { AiQuoteDraft, AiQuoteReadiness } from "@/features/ai/types";
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { cn } from "@/lib/utils";
 
@@ -135,6 +135,8 @@ export function QuoteEditor({
   const [aiMissingInfo, setAiMissingInfo] = useState<
     AiQuoteDraft["missingInfo"]
   >([]);
+  const [aiReadiness, setAiReadiness] = useState<AiQuoteReadiness | null>(null);
+  const [aiGenerationId, setAiGenerationId] = useState<string | null>(null);
   const [aiClarificationMessage, setAiClarificationMessage] = useState<
     string | null
   >(null);
@@ -162,6 +164,11 @@ export function QuoteEditor({
         description: item.description,
         quantity: item.quantity,
         unitPriceInCents: item.unitPrice,
+        aiReview: item.aiReview ?? undefined,
+        aiPricingStatus: item.aiPricingStatus ?? undefined,
+        aiPricingLibraryEntryId: item.aiPricingLibraryEntryId ?? undefined,
+        aiPricingLibraryItemId: item.aiPricingLibraryItemId ?? undefined,
+        aiEvidence: item.aiEvidence ?? undefined,
       })),
     [visibleItems],
   );
@@ -285,6 +292,8 @@ export function QuoteEditor({
     setTaxLabel(values.taxLabel);
     setItems(values.items.map((item) => ({ ...item })));
     setAiMissingInfo([]);
+    setAiReadiness(null);
+    setAiGenerationId(null);
     setAiClarificationMessage(null);
   }
 
@@ -345,15 +354,17 @@ export function QuoteEditor({
 
         const nextItem: EditorLineItem = { ...item, ...patch };
 
-        // If the owner gives a needs-review item a non-zero price, treat that
-        // line as resolved by the owner so the send guard stops blocking.
-        if (nextItem.aiReview && patch.unitPrice !== undefined) {
+        // If the owner edits a generated line item (description or price),
+        // the AI provenance is no longer valid: downgrade to owner_set and
+        // clear stale library references so the server never re-attributes
+        // the price to a source the owner changed.
+        if (nextItem.aiReview && (patch.description !== undefined || patch.unitPrice !== undefined)) {
           const needsReview =
             nextItem.aiReview.reviewStatus === "needs_review" ||
             nextItem.aiReview.reviewStatus === "no_pricing_found";
           const priceCents = parseCurrencyInputToCents(nextItem.unitPrice);
 
-          if (needsReview && priceCents > 0) {
+          if (patch.unitPrice !== undefined && needsReview && priceCents > 0) {
             nextItem.aiReview = {
               ...nextItem.aiReview,
               reviewStatus: "matched",
@@ -361,6 +372,11 @@ export function QuoteEditor({
               pricingSourceLabel: "Owner-set price",
             };
           }
+
+          nextItem.aiPricingStatus = "owner_set";
+          nextItem.aiPricingLibraryEntryId = null;
+          nextItem.aiPricingLibraryItemId = null;
+          nextItem.aiEvidence = null;
         }
 
         return nextItem;
@@ -524,11 +540,17 @@ export function QuoteEditor({
               reviewStatus: item.reviewStatus,
               reason: item.reason,
             },
+            aiPricingStatus: item.aiPricingStatus ?? undefined,
+            aiPricingLibraryEntryId: item.aiEvidence?.entryId ?? null,
+            aiPricingLibraryItemId: item.aiEvidence?.itemId ?? null,
+            aiEvidence: item.aiEvidence,
           }),
         )
       : [createQuoteEditorLineItem()];
 
     setItems(draftItems.map((item) => ({ ...item, isAiGenerated: true })));
+    setAiReadiness(draft.readiness);
+    setAiGenerationId(draft.aiGenerationId);
     // Preserve previously-surfaced missing info on regeneration: if the model
     // returns nothing this round, the older list is still relevant for the
     // owner. Only replace when the new draft brings its own list.
@@ -651,6 +673,9 @@ export function QuoteEditor({
       }}
     >
       <input name="items" type="hidden" value={JSON.stringify(serializedItems)} />
+      <input name="aiReadiness" type="hidden" value={aiReadiness ?? ""} />
+      <input name="aiGenerationId" type="hidden" value={aiGenerationId ?? ""} />
+      <input name="aiMissingInfo" type="hidden" value={JSON.stringify(aiMissingInfo)} />
       <input name="customerEmail" type="hidden" value={effectiveCustomerEmail ?? ""} />
       <input name="notes" type="hidden" value={notes} />
 

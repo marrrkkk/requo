@@ -37,7 +37,7 @@ export type EscapeHatchValidationResult =
  * root to a `page.tsx` file.
  *
  * Includes all authenticated dashboard pages under:
- * - app/(business)/[businessSlug]/(main)/ (home, inquiries, quotes, jobs, invoices, follow-ups, members, knowledge, forms)
+ * - app/(business)/[businessSlug]/(main)/ (home, inquiries, quotes, jobs, follow-ups, members, knowledge, forms)
  * - app/(business)/[businessSlug]/settings/
  * - app/admin/(console)/
  * - app/onboarding/
@@ -56,11 +56,8 @@ export const IN_SCOPE_ROUTES: ReadonlySet<string> = new Set([
   "app/(business)/[businessSlug]/(main)/quotes/new/page.tsx",
   "app/(business)/[businessSlug]/(main)/jobs/page.tsx",
   "app/(business)/[businessSlug]/(main)/jobs/[id]/page.tsx",
-  "app/(business)/[businessSlug]/(main)/invoices/page.tsx",
-  "app/(business)/[businessSlug]/(main)/invoices/[id]/page.tsx",
   "app/(business)/[businessSlug]/(main)/follow-ups/page.tsx",
   "app/(business)/[businessSlug]/(main)/members/page.tsx",
-  "app/(business)/[businessSlug]/(main)/knowledge/page.tsx",
   "app/(business)/[businessSlug]/(main)/forms/page.tsx",
   "app/(business)/[businessSlug]/(main)/forms/[formSlug]/page.tsx",
 
@@ -75,8 +72,6 @@ export const IN_SCOPE_ROUTES: ReadonlySet<string> = new Set([
   "app/(business)/[businessSlug]/settings/pricing/page.tsx",
   "app/(business)/[businessSlug]/settings/pricing-library/page.tsx",
   "app/(business)/[businessSlug]/settings/members/page.tsx",
-  "app/(business)/[businessSlug]/settings/invoices/page.tsx",
-  "app/(business)/[businessSlug]/settings/knowledge/page.tsx",
   "app/(business)/[businessSlug]/settings/billing/page.tsx",
   "app/(business)/[businessSlug]/settings/audit-log/page.tsx",
   "app/(business)/[businessSlug]/settings/forms/page.tsx",

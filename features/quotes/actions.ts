@@ -4,7 +4,6 @@ import { revalidateTag, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { emitEvent } from "@/features/automations/dispatcher";
 import {
   getValidationActionState,
 } from "@/lib/action-state";
@@ -35,20 +34,18 @@ import {
 } from "@/lib/resend/client";
 import {
   archiveQuoteForBusiness,
+  acknowledgeQuoteUncertaintyForBusiness,
   bulkArchiveQuotesForBusiness,
   bulkDeleteDraftQuotesForBusiness,
   bulkVoidQuotesForBusiness,
   cancelAcceptedQuoteForBusiness,
   completeAcceptedQuoteForBusiness,
-  createPostWinChecklistItem,
   createQuoteForBusiness,
   deleteDraftQuoteForBusiness,
   logQuoteSendEvent,
   markQuoteSentForBusiness,
   respondToPublicQuoteByToken,
   restoreArchivedQuoteForBusiness,
-  togglePostWinChecklistItem,
-  updateQuotePostAcceptanceStatusForBusiness,
   updateQuoteForBusiness,
   voidQuoteForBusiness,
 } from "@/features/quotes/mutations";
@@ -57,8 +54,7 @@ import {
   publicQuoteResponseSchema,
   quoteCancellationSchema,
   quoteEditorSchema,
-  quotePostAcceptanceStatusChangeSchema,
-} from "@/features/quotes/schemas";
+  } from "@/features/quotes/schemas";
 import {
   getBusinessQuotePath,
 } from "@/features/businesses/routes";
@@ -69,24 +65,16 @@ import type {
   QuoteCompletionActionState,
   QuoteDeliveryMethod,
   QuoteEditorActionState,
-  QuotePostAcceptanceActionState,
-  PostWinChecklistActionState,
   QuoteRecordActionState,
   QuoteSendActionState,
 } from "@/features/quotes/types";
 import {
   getPublicQuoteUrl,
-  getQuotePostAcceptanceStatusLabel,
-} from "@/features/quotes/utils";
+  } from "@/features/quotes/utils";
 
 const initialEditorState: QuoteEditorActionState = {};
-const initialPostAcceptanceState: QuotePostAcceptanceActionState = {};
 const initialSendState: QuoteSendActionState = {};
 const initialPublicQuoteResponseState: PublicQuoteResponseActionState = {};
-const freePlanRequoQuoteSendsPerDay =
-  getUsageLimit("free", "requoQuoteEmailsPerDay") ?? 3;
-const freePlanRequoQuoteSendsPerMonth =
-  getUsageLimit("free", "requoQuoteEmailsPerMonth") ?? 30;
 
 function updateCacheTags(tags: string[]) {
   for (const tag of uniqueCacheTags(tags)) {
@@ -146,18 +134,6 @@ export async function createQuoteAction(
   }
 
   const { user, businessContext } = ownerAccess;
-
-  const quoteAllowance = await checkUsageAllowance(
-    businessContext.business.id,
-    businessContext.business.plan,
-    "quotesPerMonth",
-  );
-
-  if (!quoteAllowance.allowed) {
-    return {
-      error: `You've reached your plan's limit of ${quoteAllowance.limit} quotes this month. Upgrade your plan for unlimited quotes.`,
-    };
-  }
 
   const validationResult = quoteEditorSchema.safeParse({
     title: formData.get("title"),
@@ -513,9 +489,16 @@ export async function sendQuoteAction(
     }
 
     if (
-      deliveryMethod === "requo" &&
-      businessContext.business.plan === "free"
+      quote.aiReadiness === "needs_confirmation" &&
+      !quote.aiAcknowledgedAt
     ) {
+      return {
+        error:
+          "Some line items use suggested prices that need your confirmation. Review the pricing and confirm it before sending this quote.",
+      };
+    }
+
+    if (deliveryMethod === "requo") {
       const [dailyAllowance, monthlyAllowance] = await Promise.all([
         checkUsageAllowance(
           businessContext.business.id,
@@ -529,15 +512,10 @@ export async function sendQuoteAction(
         ),
       ]);
 
-      if (!dailyAllowance.allowed) {
+      if (!dailyAllowance.allowed || !monthlyAllowance.allowed) {
         return {
-          error: `Free plan includes ${freePlanRequoQuoteSendsPerDay} Requo sends per day and ${freePlanRequoQuoteSendsPerMonth} per month. You've hit today's send limit. Send this quote manually or upgrade to keep using Requo delivery.`,
-        };
-      }
-
-      if (!monthlyAllowance.allowed) {
-        return {
-          error: `Free plan includes ${freePlanRequoQuoteSendsPerDay} Requo sends per day and ${freePlanRequoQuoteSendsPerMonth} per month. You've hit this month's send limit. Send this quote manually or upgrade to keep using Requo delivery.`,
+          error:
+            "You've reached this month's Requo email limit. You can still copy and share the public quote link.",
         };
       }
     }
@@ -625,13 +603,6 @@ export async function sendQuoteAction(
       };
     }
 
-    // Emit quote.sent automation event
-    emitEvent(businessContext.business.id, "quote.sent", {
-      quoteId,
-      sentAt: new Date().toISOString(),
-      recipientEmail: quote.customerEmail ?? "",
-    });
-
     // Enable auto follow-up if requested and sent via Requo email
     if (
       deliveryMethod === "requo" &&
@@ -683,6 +654,69 @@ export async function sendQuoteAction(
       error:
         getResendSendFailureMessage(error) ??
         "We couldn't send that quote right now.",
+    };
+  }
+}
+
+/**
+ * Records the owner's explicit acknowledgement that AI-suggested pricing was
+ * reviewed and accepted. Unlocks sending for `needs_confirmation` quotes.
+ */
+export async function acknowledgeQuoteUncertaintyAction(
+  quoteId: string,
+  _prevState: QuoteSendActionState = initialSendState,
+  _formData: FormData,
+): Promise<QuoteSendActionState> {
+  void _prevState;
+  void _formData;
+
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+
+  try {
+    const result = await acknowledgeQuoteUncertaintyForBusiness({
+      businessId: businessContext.business.id,
+      quoteId,
+      actorUserId: user.id,
+    });
+
+    if (!result) {
+      return {
+        error: "That quote could not be found.",
+      };
+    }
+
+    if (result.locked) {
+      return {
+        error: "Only draft quotes can be confirmed for sending.",
+      };
+    }
+
+    if (!result.updated) {
+      return {
+        error: "This quote has no suggested pricing waiting for confirmation.",
+      };
+    }
+
+    updateCacheTags(
+      getQuoteMutationCacheTags(businessContext.business.id, quoteId),
+    );
+
+    return {
+      success: "Pricing reviewed and confirmed. You can send the quote now.",
+    };
+  } catch (error) {
+    console.error("Failed to acknowledge quote pricing.", error);
+
+    return {
+      error: "We couldn't confirm the pricing right now. Try again.",
     };
   }
 }
@@ -750,85 +784,6 @@ export async function stopAutoFollowUpAction(
   }
 }
 
-export async function updateQuotePostAcceptanceStatusAction(
-  quoteId: string,
-  prevState: QuotePostAcceptanceActionState = initialPostAcceptanceState,
-  formData: FormData,
-): Promise<QuotePostAcceptanceActionState> {
-  void prevState;
-
-  const ownerAccess = await getWorkspaceBusinessActionContext();
-
-  if (!ownerAccess.ok) {
-    return {
-      error: ownerAccess.error,
-    };
-  }
-
-  const { user, businessContext } = ownerAccess;
-  const validationResult = quotePostAcceptanceStatusChangeSchema.safeParse({
-    postAcceptanceStatus: formData.get("postAcceptanceStatus"),
-  });
-
-  if (!validationResult.success) {
-    return getValidationActionState(
-      validationResult.error,
-      "Choose a valid post-acceptance status.",
-    );
-  }
-
-  try {
-    const result = await updateQuotePostAcceptanceStatusForBusiness({
-      businessId: businessContext.business.id,
-      quoteId,
-      actorUserId: user.id,
-      postAcceptanceStatus: validationResult.data.postAcceptanceStatus,
-    });
-
-    if (!result) {
-      return {
-        error: "That quote could not be found.",
-      };
-    }
-
-    if (result.locked) {
-      return {
-        error: "Only accepted quotes can be marked as booked or scheduled.",
-      };
-    }
-
-    updateCacheTags(
-      getQuoteMutationCacheTags(
-        businessContext.business.id,
-        quoteId,
-        result.inquiryId,
-      ),
-    );
-
-    if (!result.updated) {
-      return {
-        success: `Quote is already marked ${getQuotePostAcceptanceStatusLabel(
-          result.postAcceptanceStatus,
-        ).toLowerCase()}.`,
-      };
-    }
-
-    return {
-      success:
-        result.postAcceptanceStatus === "none"
-          ? "Post-acceptance status cleared."
-          : `Quote marked ${getQuotePostAcceptanceStatusLabel(
-              result.postAcceptanceStatus,
-            ).toLowerCase()}.`,
-    };
-  } catch (error) {
-    console.error("Failed to update quote post-acceptance status.", error);
-
-    return {
-      error: "We couldn't update the post-acceptance status right now.",
-    };
-  }
-}
 
 export async function respondToPublicQuoteAction(
   token: string,
@@ -910,20 +865,8 @@ export async function respondToPublicQuoteAction(
       };
     }
 
-    // Emit quote.accepted or quote.rejected automation event
-    if (result.status === "accepted") {
-      emitEvent(result.businessId, "quote.accepted", {
-        quoteId: result.quoteId,
-        acceptedAt: new Date().toISOString(),
-        amount: result.totalInCents ?? 0,
-      });
-    } else if (result.status === "rejected") {
-      emitEvent(result.businessId, "quote.rejected", {
-        quoteId: result.quoteId,
-        rejectedAt: new Date().toISOString(),
-        reason: result.customerResponseMessage ?? undefined,
-      });
-    }
+    // Owner notifications for accepted/rejected quotes are handled natively in
+    // respondToPublicQuoteByToken (in-app) and sendPushQuoteResponseEvent (push).
 
     if (result.notifyPushOnQuoteResponse) {
       const responseLabel =
@@ -1100,103 +1043,6 @@ export async function completeAcceptedQuoteAction(
 
     return {
       error: "We couldn't mark that work as completed right now.",
-    };
-  }
-}
-
-export async function togglePostWinChecklistItemAction(
-  quoteId: string,
-  checklistItemId: string,
-): Promise<PostWinChecklistActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
-
-  if (!ownerAccess.ok) {
-    return {
-      error: ownerAccess.error,
-    };
-  }
-
-  const { user, businessContext } = ownerAccess;
-
-  try {
-    const result = await togglePostWinChecklistItem({
-      businessId: businessContext.business.id,
-      quoteId,
-      checklistItemId,
-      actorUserId: user.id,
-    });
-
-    if (!result) {
-      return {
-        error: "That checklist item could not be found.",
-      };
-    }
-
-    updateCacheTags(
-      getQuoteMutationCacheTags(businessContext.business.id, quoteId),
-    );
-
-    return {
-      success: result.isCompleted
-        ? `"${result.label}" checked off.`
-        : `"${result.label}" unchecked.`,
-    };
-  } catch (error) {
-    console.error("Failed to toggle checklist item.", error);
-
-    return {
-      error: "We couldn't update that checklist item right now.",
-    };
-  }
-}
-
-export async function createPostWinChecklistItemAction(
-  quoteId: string,
-  label: string,
-): Promise<PostWinChecklistActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
-
-  if (!ownerAccess.ok) {
-    return {
-      error: ownerAccess.error,
-    };
-  }
-
-  const { user, businessContext } = ownerAccess;
-  const trimmedLabel = label?.trim();
-
-  if (!trimmedLabel || trimmedLabel.length > 200) {
-    return {
-      error: "Checklist item must be between 1 and 200 characters.",
-    };
-  }
-
-  try {
-    const result = await createPostWinChecklistItem({
-      businessId: businessContext.business.id,
-      quoteId,
-      actorUserId: user.id,
-      label: trimmedLabel,
-    });
-
-    if (!result) {
-      return {
-        error: "Items can only be added to accepted quotes.",
-      };
-    }
-
-    updateCacheTags(
-      getQuoteMutationCacheTags(businessContext.business.id, quoteId),
-    );
-
-    return {
-      success: `"${result.label}" added to checklist.`,
-    };
-  } catch (error) {
-    console.error("Failed to create checklist item.", error);
-
-    return {
-      error: "We couldn't add that checklist item right now.",
     };
   }
 }

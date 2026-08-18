@@ -1,19 +1,8 @@
-import Link from "next/link";
 import { Bot, Copy, FileText, PenLine } from "lucide-react";
 import type { MotionState } from "@/hooks/use-animated-list";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
+import { MobileRecordRow } from "@/components/shared/mobile-record-row";
 import type { DashboardInquiryListItem } from "@/features/inquiries/types";
-import {
-  formatInquiryDate,
-} from "@/features/inquiries/utils";
+import { formatInquiryDate } from "@/features/inquiries/utils";
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
@@ -46,92 +35,61 @@ export function InquiryListCards({
   getMotionState,
 }: InquiryListCardsProps) {
   return (
-    <div className="data-list-mobile-grid">
+    <div className="flex flex-col gap-2.5 xl:hidden">
       {inquiries.map((inquiry) => {
         const checked = isSelected?.(inquiry.id) ?? false;
         const disabled = !checked && (isAtLimit ?? false);
+        const channel = getInquiryChannelDisplay(inquiry);
+        const ChannelIcon = channel.icon;
 
         return (
-          <div className="motion-list-item relative" data-motion-state={getMotionState?.(inquiry.id)} key={inquiry.id}>
-            <div className="absolute left-3 top-4 z-10">
-              <Checkbox
-                aria-label={`Select inquiry from ${inquiry.customerName}`}
-                checked={checked}
-                disabled={disabled}
-                onCheckedChange={() => onToggle?.(inquiry.id)}
-              />
-            </div>
-            <Link
-              className="block"
-              href={getBusinessInquiryPath(businessSlug, inquiry.id)}
-              prefetch={true}
-            >
-            <Card className="data-list-card transition-colors hover:bg-accent/20">
-              <CardHeader className="data-list-card-header">
-                <div className="flex min-w-0 items-start justify-between gap-3">
-                  <div className="min-w-0 flex flex-1 flex-col gap-1">
-                    <CardTitle className="min-w-0 text-lg leading-tight">
-                      <span className="flex items-center gap-1.5">
-                        <span className="block truncate">{inquiry.customerName}</span>
-                        {inquiry.hasDuplicateFlag ? (
-                          <Copy
-                            aria-label="Potential duplicate"
-                            className="size-3.5 shrink-0 text-amber-500"
-                          />
-                        ) : null}
-                      </span>
-                    </CardTitle>
-                    <CardDescription className="truncate text-sm">
-                      {inquiry.customerEmail ?? ""}
-                    </CardDescription>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <InquiryStatusBadge status={inquiry.status} />
-                      {inquiry.recordState !== "active" ? (
-                        <InquiryRecordStateBadge state={inquiry.recordState} />
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="data-list-card-meta pt-0">
-                <div className="info-tile min-w-0 h-full px-3 py-2.5 shadow-none sm:px-3.5 sm:py-3">
-                  <span className="meta-label">
-                    Channel
-                  </span>
-                  {(() => {
-                    const channel = getInquiryChannelDisplay(inquiry);
-                    const Icon = channel.icon;
-                    return (
-                      <span className="mt-1.5 flex items-center gap-1.5 text-sm text-foreground sm:mt-2">
-                        <Icon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
-                        <span className="truncate">{channel.label}</span>
-                      </span>
-                    );
-                  })()}
-                </div>
-                <div className="info-tile min-w-0 h-full px-3 py-2.5 shadow-none sm:px-3.5 sm:py-3">
-                  <span className="meta-label">
-                    Category
-                  </span>
-                  <TruncatedTextWithTooltip
-                    text={inquiry.serviceCategory}
-                    className="mt-1.5 text-sm text-foreground sm:mt-2"
+          <MobileRecordRow
+            key={inquiry.id}
+            id={inquiry.id}
+            href={getBusinessInquiryPath(businessSlug, inquiry.id)}
+            isSelected={checked}
+            isSelectionDisabled={disabled}
+            onToggleSelect={onToggle}
+            motionState={getMotionState?.(inquiry.id)}
+            title={
+              <span className="flex items-center gap-1.5 min-w-0">
+                <span className="truncate">{inquiry.customerName}</span>
+                {inquiry.hasDuplicateFlag ? (
+                  <Copy
+                    aria-label="Potential duplicate"
+                    className="size-3.5 shrink-0 text-amber-500"
                   />
-                </div>
-                <div className="info-tile col-span-2 min-w-0 h-full px-3 py-2.5 shadow-none sm:col-span-1 sm:px-3.5 sm:py-3">
-                  <span className="meta-label">
-                    Created
-                  </span>
-                  <p className="mt-1.5 truncate text-sm text-foreground sm:mt-2">
-                    {formatInquiryDate(inquiry.submittedAt)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-          </div>
+                ) : null}
+              </span>
+            }
+            subtitle={
+              inquiry.customerEmail ? (
+                <span className="truncate">{inquiry.customerEmail}</span>
+              ) : null
+            }
+            statusBadge={<InquiryStatusBadge status={inquiry.status} />}
+            stateBadge={
+              inquiry.recordState !== "active" ? (
+                <InquiryRecordStateBadge state={inquiry.recordState} />
+              ) : null
+            }
+            metadata={
+              <>
+                <span className="inline-flex items-center gap-1">
+                  <ChannelIcon className="size-3 shrink-0 text-muted-foreground" />
+                  <span className="truncate max-w-[120px]">{channel.label}</span>
+                </span>
+                {inquiry.serviceCategory ? (
+                  <>
+                    <span aria-hidden="true" className="text-muted-foreground/40">·</span>
+                    <span className="truncate max-w-[130px]">{inquiry.serviceCategory}</span>
+                  </>
+                ) : null}
+                <span aria-hidden="true" className="text-muted-foreground/40">·</span>
+                <span>{formatInquiryDate(inquiry.submittedAt)}</span>
+              </>
+            }
+          />
         );
       })}
     </div>

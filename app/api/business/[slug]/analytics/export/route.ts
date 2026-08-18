@@ -37,7 +37,7 @@ export async function POST(
   if (
     !hasFeatureAccess(
       requestContext.businessContext.business.plan,
-      "exports",
+      "analyticsConversion",
     )
   ) {
     return Response.json(

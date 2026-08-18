@@ -127,8 +127,7 @@ const termsSections: LegalDocumentSection[] = [
         <LegalParagraph>
           The Service is designed for owner-led service businesses and related
           workflows such as inquiry intake, lead qualification, quote delivery,
-          follow-up scheduling, knowledge-file management, and internal drafting
-          support.
+          follow-up scheduling, and internal drafting support.
         </LegalParagraph>
       </>
     ),
@@ -165,7 +164,7 @@ const termsSections: LegalDocumentSection[] = [
         <LegalParagraph>
           &quot;User Content&quot; includes business information, inquiry forms,
           inquiry submissions, quotes, messages, uploaded files, notes, pricing
-          entries, knowledge files, public quote responses, and other content
+          entries, public quote responses, and other content
           you or your customers submit through the Service.
         </LegalParagraph>
         <LegalSubheading>B. Ownership</LegalSubheading>
@@ -207,17 +206,7 @@ const termsSections: LegalDocumentSection[] = [
           for the content, configuration, and collection practices of the public
           inquiry pages and forms you publish through the Service.
         </LegalParagraph>
-        <LegalSubheading>B. AI-powered conversational intake</LegalSubheading>
-        <LegalParagraph>
-          Businesses may enable an AI-powered conversational intake mode for
-          their inquiry form. In that mode, an AI assistant guides the visitor
-          through the inquiry in a chat interface. Messages exchanged in the
-          conversation are processed through an AI provider and the extracted
-          details are stored as part of the inquiry. You are responsible for
-          configuring conversational intake in a way that is appropriate for your
-          business and for reviewing the information collected.
-        </LegalParagraph>
-        <LegalSubheading>C. Public quote links</LegalSubheading>
+        <LegalSubheading>B. Public quote links</LegalSubheading>
         <LegalParagraph>
           Public quote links are designed to let a recipient view and respond to
           a quote without a separate customer login. Anyone who has the link may
@@ -281,14 +270,7 @@ const termsSections: LegalDocumentSection[] = [
           depending on configuration, to the model provider used
           to generate drafts, summaries, and suggestions.
         </LegalParagraph>
-        <LegalSubheading>B. AI-powered conversational intake</LegalSubheading>
-        <LegalParagraph>
-          When conversational mode is enabled on an inquiry form, the public
-          intake chat is powered by an AI model. Visitor messages and AI
-          responses are processed through an AI provider. The AI extracts
-          structured inquiry details from the conversation for storage and
-          review by the business.
-        </LegalParagraph>
+        <LegalSubheading>B. AI outputs are for review</LegalSubheading>
         <LegalParagraph>
           AI outputs are provided for convenience only. They can be incomplete,
           inaccurate, or unsuitable for your use case, and you are responsible

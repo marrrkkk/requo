@@ -1,19 +1,9 @@
-import Link from "next/link";
 import type { MotionState } from "@/hooks/use-animated-list";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
+import { MobileRecordRow } from "@/components/shared/mobile-record-row";
 import { QuoteRecordStateBadge } from "@/features/quotes/components/quote-record-state-badge";
 import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
-import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import {
   formatQuoteDate,
   formatQuoteMoney,
@@ -39,94 +29,64 @@ export function QuoteListCards({
   getMotionState,
 }: QuoteListCardsProps) {
   return (
-    <div className="data-list-mobile-grid">
+    <div className="flex flex-col gap-2.5 xl:hidden">
       {quotes.map((quote) => {
         const reminders = quote.reminders.filter(
           (reminder) => reminder !== "follow_up_due",
         );
         const checked = isSelected?.(quote.id) ?? false;
         const disabled = !checked && (isAtLimit ?? false);
+        const viewedNoResponse = isViewedWithoutResponse(quote);
 
         return (
-          <div className="motion-list-item relative" data-motion-state={getMotionState?.(quote.id)} key={quote.id}>
-            <div className="absolute left-3 top-3 z-10">
-              <Checkbox
-                aria-label={`Select quote ${quote.quoteNumber}`}
-                checked={checked}
-                disabled={disabled}
-                onCheckedChange={() => onToggle?.(quote.id)}
-              />
-            </div>
-            <Link
-              className="block"
-              href={getBusinessQuotePath(businessSlug, quote.id)}
-              prefetch={true}
-            >
-            <Card className="data-list-card transition-colors hover:bg-accent/20">
-              <CardHeader className="data-list-card-header">
-                <div className="flex min-w-0 items-start justify-between gap-3">
-                  <div className="min-w-0 flex flex-1 flex-col gap-1">
-                    <CardTitle className="min-w-0 text-lg leading-tight">
-                      <span className="block truncate">{quote.quoteNumber}</span>
-                    </CardTitle>
-                    <CardDescription className="truncate text-sm">
-                      {quote.title}
-                    </CardDescription>
-                    {reminders.length ||
-                    quote.postAcceptanceStatus !== "none" ||
-                    isViewedWithoutResponse(quote) ? (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {reminders.map((reminder) => (
-                          <QuoteReminderBadge key={reminder} kind={reminder} />
-                        ))}
-                        {quote.postAcceptanceStatus !== "none" ? (
-                          <QuotePostAcceptanceStatusBadge
-                            status={quote.postAcceptanceStatus}
-                          />
-                        ) : null}
-                        {isViewedWithoutResponse(quote) ? (
-                          <Badge variant="secondary">Viewed, no response</Badge>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="flex shrink-0 flex-col gap-2">
-                    <QuoteStatusBadge status={quote.status} />
-                    {quote.archivedAt ? (
-                      <QuoteRecordStateBadge state="archived" />
-                    ) : null}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-2.5 pt-0 sm:grid-cols-2 sm:gap-3">
-                <div className="info-tile col-span-2 min-w-0 h-full px-3 py-2.5 shadow-none sm:px-3.5 sm:py-3">
-                  <span className="meta-label">Customer</span>
-                  <div className="mt-1.5 min-w-0 flex flex-col gap-0.5 sm:mt-2 sm:gap-1">
-                    <TruncatedTextWithTooltip
-                      text={quote.customerName}
-                      className="text-sm font-medium text-foreground"
-                    />
-                    <p className="truncate text-sm text-muted-foreground">
-                      {quote.customerEmail}
-                    </p>
-                  </div>
-                </div>
-                <div className="info-tile min-w-0 h-full px-3 py-2.5 shadow-none sm:px-3.5 sm:py-3">
-                  <span className="meta-label">Valid until</span>
-                  <p className="mt-1.5 truncate text-sm text-foreground sm:mt-2">
-                    {formatQuoteDate(quote.validUntil)}
-                  </p>
-                </div>
-                <div className="info-tile min-w-0 h-full px-3 py-2.5 shadow-none sm:px-3.5 sm:py-3">
-                  <span className="meta-label">Total</span>
-                  <p className="mt-1.5 truncate text-sm font-semibold text-foreground sm:mt-2">
-                    {formatQuoteMoney(quote.totalInCents, quote.currency)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-          </div>
+          <MobileRecordRow
+            key={quote.id}
+            id={quote.id}
+            href={getBusinessQuotePath(businessSlug, quote.id)}
+            isSelected={checked}
+            isSelectionDisabled={disabled}
+            onToggleSelect={onToggle}
+            motionState={getMotionState?.(quote.id)}
+            title={
+              <span className="truncate">
+                {quote.quoteNumber} <span className="text-muted-foreground font-normal">· {quote.title}</span>
+              </span>
+            }
+            subtitle={
+              <span className="truncate">
+                {quote.customerName}
+                {quote.customerEmail ? ` (${quote.customerEmail})` : ""}
+              </span>
+            }
+            statusBadge={<QuoteStatusBadge status={quote.status} />}
+            stateBadge={
+              quote.archivedAt ? (
+                <QuoteRecordStateBadge state="archived" />
+              ) : null
+            }
+            metadata={
+              <>
+                <span className="font-semibold text-foreground">
+                  {formatQuoteMoney(quote.totalInCents, quote.currency)}
+                </span>
+                <span aria-hidden="true" className="text-muted-foreground/40">·</span>
+                <span>Valid until {formatQuoteDate(quote.validUntil)}</span>
+                {reminders.length > 0 ? (
+                  <>
+                    <span aria-hidden="true" className="text-muted-foreground/40">·</span>
+                    <QuoteReminderBadge kind={reminders[0]} />
+                  </>
+                ) : viewedNoResponse ? (
+                  <>
+                    <span aria-hidden="true" className="text-muted-foreground/40">·</span>
+                    <Badge variant="secondary" className="px-1.5 py-0 text-[0.65rem]">
+                      Viewed
+                    </Badge>
+                  </>
+                ) : null}
+              </>
+            }
+          />
         );
       })}
     </div>

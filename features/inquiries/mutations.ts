@@ -29,7 +29,10 @@ import { getInquiryStatusLabel } from "@/features/inquiries/utils";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { qualifyInquiry } from "./qualification/qualify-inquiry";
-import { emitEvent } from "@/features/automations/dispatcher";
+import {
+  enqueueAiDraftQuoteOnQualify,
+  maybeSendInquiryAckEmail,
+} from "@/features/inquiries/defaults";
 
 type InquirySubmissionBusinessRef = Pick<
   PublicInquiryBusiness,
@@ -222,12 +225,16 @@ async function createInquirySubmission({
     throw error;
   }
 
-  // Emit inquiry.received event after successful creation
-  emitEvent(business.id, "inquiry.received", {
+  // Notify the customer via email (in-app owner notification is handled above).
+  void maybeSendInquiryAckEmail({
+    businessId: business.id,
     inquiryId,
+    customerEmail: submission.customerEmail,
     customerName: submission.customerName,
-    source,
-    formId: business.form?.id ?? null,
+    serviceCategory: submission.serviceCategory,
+    details: submission.details,
+  }).catch((error) => {
+    console.error("[inquiry.received] Failed to send acknowledgment email.", error);
   });
 
   // Run qualification after the transaction commits.
@@ -248,10 +255,13 @@ async function createInquirySubmission({
       },
     });
 
-    // Emit inquiry.qualified after successful qualification
-    emitEvent(business.id, "inquiry.qualified", {
+    // Queue the AI draft-quote default after successful qualification
+    void enqueueAiDraftQuoteOnQualify({
+      businessId: business.id,
       inquiryId,
       qualifiedAt: now.toISOString(),
+    }).catch((error) => {
+      console.error("[inquiry.qualified] Failed to queue AI draft quote.", error);
     });
   } catch (error) {
     console.error("Inquiry qualification failed:", error);
@@ -644,13 +654,6 @@ export async function archiveInquiryForBusiness({
       locked: false,
     };
   });
-
-  if (result && result.changed) {
-    emitEvent(businessId, "inquiry.archived", {
-      inquiryId,
-      reason: "manual",
-    });
-  }
 
   return result;
 }

@@ -3,19 +3,19 @@ import "server-only";
 import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 
 import { writeAuditLog } from "@/features/audit/mutations";
-import { emitEvent } from "@/features/automations/dispatcher";
 import { autoCloseFollowUpsForQuote } from "@/features/follow-ups/mutations";
+import { notifyOwnerQuoteViewed } from "@/features/quotes/defaults";
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
   followUps,
   inquiries,
-  postWinChecklistItems,
   quoteItems,
   quotes,
   businesses,
   } from "@/lib/db/schema";
 import type { QuoteEditorInput } from "@/features/quotes/schemas";
+import type { AiQuoteMissingInfoItem } from "@/lib/db/schema/quotes";
 import type { QuoteDeliveryMethod, QuoteStatus } from "@/features/quotes/types";
 import {
   getTodayUtcDateString,
@@ -40,6 +40,58 @@ function getNextQuoteNumberFromSequence(sequence: number | null | undefined) {
   return `Q-${String(safeSequence + 1).padStart(4, "0")}`;
 }
 
+/**
+ * Resolves the persisted provenance for a line item. When the owner edited a
+ * generated item (the editor marks it with `owner_brief`), the item is
+ * downgraded to `owner_set` and its library references are cleared — the
+ * server never accepts stale AI provenance for a line the owner changed.
+ */
+function resolveItemAiPricingStatus(
+  item: QuoteEditorInput["items"][number],
+) {
+  const ownerEdited = item.aiReview?.pricingSource === "owner_brief";
+
+  if (ownerEdited) {
+    return {
+      aiPricingStatus: "owner_set" as const,
+      aiPricingLibraryEntryId: null,
+      aiPricingLibraryItemId: null,
+      aiEvidence: null,
+    };
+  }
+
+  const evidence = item.aiEvidence;
+
+  return {
+    aiPricingStatus: item.aiPricingStatus ?? null,
+    aiPricingLibraryEntryId: item.aiPricingLibraryEntryId ?? null,
+    aiPricingLibraryItemId: item.aiPricingLibraryItemId ?? null,
+    aiEvidence: evidence
+      ? {
+          entryId: evidence.entryId ?? null,
+          itemId: evidence.itemId ?? null,
+          sourceLabel: evidence.sourceLabel ?? null,
+          matchType: evidence.matchType ?? "none",
+          reason: evidence.reason ?? "",
+        }
+      : null,
+  };
+}
+
+function resolveQuoteAiMissingInfo(
+  quote: QuoteEditorInput,
+): AiQuoteMissingInfoItem[] | null {
+  if (!quote.aiMissingInfo?.length) {
+    return null;
+  }
+
+  return quote.aiMissingInfo.map((item) => ({
+    label: item.label,
+    question: item.question,
+    critical: item.critical ?? false,
+  }));
+}
+
 function calculateQuoteTotals(input: QuoteEditorInput) {
   const items = input.items.map((item, index) => ({
     id: createId("qit"),
@@ -48,6 +100,7 @@ function calculateQuoteTotals(input: QuoteEditorInput) {
     unitPriceInCents: item.unitPriceInCents,
     lineTotalInCents: item.quantity * item.unitPriceInCents,
     position: index,
+    ...resolveItemAiPricingStatus(item),
   }));
   const subtotalInCents = items.reduce(
     (sum, item) => sum + item.lineTotalInCents,
@@ -270,23 +323,15 @@ export async function syncExpiredQuotesForBusiness(businessId: string) {
 
   const count = await db.transaction((tx) => expireQuoteRows(tx, rows));
 
-  // Emit quote.expired events after successful transaction
-  for (const row of rows) {
-    emitEvent(row.businessId, "quote.expired", {
-      quoteId: row.id,
-      expiredAt: new Date().toISOString(),
-    });
-  }
-
   return count;
 }
 
 /**
  * Sweep all sent quotes whose validity date has passed across every business.
  *
- * Called from the daily cron to keep automation triggers (`quote.expired`)
- * firing on time even when nobody opens the quote list. The per-business
- * helper still runs on read paths as a fast secondary reconciliation.
+ * Called from the daily cron to keep expired quotes reconciled even when
+ * nobody opens the quote list. The per-business helper still runs on read
+ * paths as a fast secondary reconciliation.
  *
  * Processed in batches to keep transactions bounded; iterates until no rows
  * remain so a one-off backlog after a cron outage still drains.
@@ -326,14 +371,6 @@ export async function syncExpiredQuotesGlobal({
 
     await db.transaction((tx) => expireQuoteRows(tx, rows));
 
-    const expiredAt = new Date().toISOString();
-    for (const row of rows) {
-      emitEvent(row.businessId, "quote.expired", {
-        quoteId: row.id,
-        expiredAt,
-      });
-    }
-
     totalExpired += rows.length;
     batches += 1;
 
@@ -370,14 +407,6 @@ export async function syncExpiredQuoteForPublicToken(token: string) {
   }
 
   const count = await db.transaction((tx) => expireQuoteRows(tx, rows));
-
-  // Emit quote.expired event after successful transaction
-  for (const row of rows) {
-    emitEvent(row.businessId, "quote.expired", {
-      quoteId: row.id,
-      expiredAt: new Date().toISOString(),
-    });
-  }
 
   return count;
 }
@@ -467,6 +496,9 @@ export async function createQuoteForBusiness({
           taxLabel: quote.taxLabel?.trim() || null,
           totalInCents: totals.totalInCents,
           validUntil: quote.validUntil,
+          aiReadiness: quote.aiReadiness ?? null,
+          aiMissingInfo: resolveQuoteAiMissingInfo(quote),
+          aiGenerationId: quote.aiGenerationId?.trim() || null,
           createdAt: now,
           updatedAt: now,
         });
@@ -481,6 +513,10 @@ export async function createQuoteForBusiness({
             unitPriceInCents: item.unitPriceInCents,
             lineTotalInCents: item.lineTotalInCents,
             position: item.position,
+            aiPricingStatus: item.aiPricingStatus,
+            aiPricingLibraryEntryId: item.aiPricingLibraryEntryId,
+            aiPricingLibraryItemId: item.aiPricingLibraryItemId,
+            aiEvidence: item.aiEvidence,
             createdAt: now,
             updatedAt: now,
           })),
@@ -520,16 +556,14 @@ export async function createQuoteForBusiness({
       });
 
       if (created) {
-        // Emit automation event after the transaction commits so subscribers
-        // see consistent state. emitEvent itself is non-blocking via after().
-        emitEvent(businessId, "quote.created", {
-          quoteId: created.id,
-          inquiryId: inquiryId ?? "",
-          amount: totals.totalInCents,
-        });
+        // No automation event on quote creation; workflow defaults are
+        // evaluated at send time (auto follow-ups) and qualification time.
+        return created;
       }
 
-      return created;
+      // Transaction returned null when the business or linked inquiry was
+      // not found (or belongs to a different business). No point retrying.
+      return null;
     } catch (error) {
       if (attempt < 4 && isRetryableUniqueConflict(error)) {
         continue;
@@ -566,7 +600,6 @@ export async function updateQuoteForBusiness({
         status: quotes.status,
         quoteNumber: quotes.quoteNumber,
         currency: quotes.currency,
-        postAcceptanceStatus: quotes.postAcceptanceStatus,
         archivedAt: quotes.archivedAt,
         deletedAt: quotes.deletedAt,
         businessId: businesses.id,
@@ -610,6 +643,9 @@ export async function updateQuoteForBusiness({
         taxLabel: quote.taxLabel?.trim() || null,
         totalInCents: totals.totalInCents,
         validUntil: quote.validUntil,
+        aiReadiness: quote.aiReadiness ?? null,
+        aiMissingInfo: resolveQuoteAiMissingInfo(quote),
+        aiGenerationId: quote.aiGenerationId?.trim() || null,
         updatedAt: now,
       })
       .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)));
@@ -628,6 +664,10 @@ export async function updateQuoteForBusiness({
         unitPriceInCents: item.unitPriceInCents,
         lineTotalInCents: item.lineTotalInCents,
         position: item.position,
+        aiPricingStatus: item.aiPricingStatus,
+        aiPricingLibraryEntryId: item.aiPricingLibraryEntryId,
+        aiPricingLibraryItemId: item.aiPricingLibraryItemId,
+        aiEvidence: item.aiEvidence,
         createdAt: now,
         updatedAt: now,
       })),
@@ -996,7 +1036,6 @@ export async function voidQuoteForBusiness({
         voidedAt: now,
         voidedBy: actorUserId,
         acceptedAt: null,
-        postAcceptanceStatus: "none",
         updatedAt: now,
       })
       .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)));
@@ -1061,7 +1100,6 @@ export async function markQuoteSentForBusiness({
         quoteNumber: quotes.quoteNumber,
         publicToken: quotes.publicToken,
         status: quotes.status,
-        postAcceptanceStatus: quotes.postAcceptanceStatus,
         archivedAt: quotes.archivedAt,
         deletedAt: quotes.deletedAt,
         businessId: businesses.id,
@@ -1096,7 +1134,6 @@ export async function markQuoteSentForBusiness({
         publicViewedAt: null,
         customerRespondedAt: null,
         customerResponseMessage: null,
-        postAcceptanceStatus: "none",
         updatedAt: now,
       })
       .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)));
@@ -1142,6 +1179,115 @@ export async function markQuoteSentForBusiness({
       inquiryId: existingQuote.inquiryId,
       publicToken: tryResolveStoredQuotePublicToken(existingQuote),
     };
+  });
+}
+
+type AcknowledgeQuoteUncertaintyForBusinessInput = {
+  businessId: string;
+  quoteId: string;
+  actorUserId: string;
+};
+
+/**
+ * Records the owner's explicit acknowledgement that AI-suggested pricing was
+ * reviewed and accepted. Required before a `needs_confirmation` quote can be
+ * sent. Idempotent; auditing the acknowledgement is part of the write.
+ */
+export async function acknowledgeQuoteUncertaintyForBusiness({
+  businessId,
+  quoteId,
+  actorUserId,
+}: AcknowledgeQuoteUncertaintyForBusinessInput) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingQuote] = await tx
+      .select({
+        id: quotes.id,
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+        status: quotes.status,
+        aiReadiness: quotes.aiReadiness,
+        aiAcknowledgedAt: quotes.aiAcknowledgedAt,
+        deletedAt: quotes.deletedAt,
+        businessId: businesses.id,
+        title: quotes.title,
+        customerName: quotes.customerName,
+      })
+      .from(quotes)
+      .innerJoin(businesses, eq(quotes.businessId, businesses.id))
+      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
+      .limit(1);
+
+    if (!existingQuote || existingQuote.deletedAt) {
+      return null;
+    }
+
+    if (existingQuote.status !== "draft") {
+      return {
+        updated: false,
+        locked: true,
+        status: existingQuote.status,
+      } as const;
+    }
+
+    if (existingQuote.aiReadiness !== "needs_confirmation") {
+      return {
+        updated: false,
+        locked: false,
+        status: existingQuote.status,
+      } as const;
+    }
+
+    if (existingQuote.aiAcknowledgedAt) {
+      return {
+        updated: false,
+        locked: false,
+        status: existingQuote.status,
+      } as const;
+    }
+
+    await tx
+      .update(quotes)
+      .set({
+        aiAcknowledgedAt: now,
+        aiAcknowledgedBy: actorUserId,
+        updatedAt: now,
+      })
+      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)));
+
+    await insertQuoteActivity(tx, {
+      businessId,
+      inquiryId: existingQuote.inquiryId,
+      quoteId,
+      actorUserId,
+      type: "quote.ai_pricing_acknowledged",
+      summary: `AI-generated pricing for quote ${existingQuote.quoteNumber} reviewed and confirmed by owner.`,
+      metadata: {
+        quoteNumber: existingQuote.quoteNumber,
+      },
+      now,
+    });
+
+    await writeAuditLog(tx, {
+      businessId: existingQuote.businessId,
+      actorUserId,
+      entityType: "quote",
+      entityId: quoteId,
+      action: "quote.ai_pricing_acknowledged",
+      metadata: {
+        quoteNumber: existingQuote.quoteNumber,
+        title: existingQuote.title,
+        customerName: existingQuote.customerName,
+      },
+      createdAt: now,
+    });
+
+    return {
+      updated: true,
+      locked: false,
+      status: existingQuote.status,
+    } as const;
   });
 }
 
@@ -1209,11 +1355,10 @@ export async function recordQuotePublicViewAt(quoteId: string, businessId?: stri
       ),
     );
 
-  // Emit quote.viewed event if businessId is available
+  // Notify the owner that the quote was viewed (always-on workflow default)
   if (businessId) {
-    emitEvent(businessId, "quote.viewed", {
-      quoteId,
-      viewedAt: now.toISOString(),
+    void notifyOwnerQuoteViewed(quoteId, businessId, now).catch((error) => {
+      console.error("[quote.viewed] Failed to notify owner.", error);
     });
   }
 
@@ -1235,7 +1380,7 @@ export async function respondToPublicQuoteByToken({
   const now = new Date();
   const nextStatus = response;
 
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const [existingQuote] = await tx
       .select({
         id: quotes.id,
@@ -1252,7 +1397,6 @@ export async function respondToPublicQuoteByToken({
         status: quotes.status,
         validUntil: quotes.validUntil,
         sentAt: quotes.sentAt,
-        postAcceptanceStatus: quotes.postAcceptanceStatus,
         totalInCents: quotes.totalInCents,
         notifyOnQuoteResponse: businesses.notifyOnQuoteResponse,
         notifyInAppOnQuoteResponse: businesses.notifyInAppOnQuoteResponse,
@@ -1321,10 +1465,6 @@ export async function respondToPublicQuoteByToken({
         acceptedAt: nextStatus === "accepted" ? now : null,
         customerRespondedAt: now,
         customerResponseMessage: message?.trim() || null,
-        postAcceptanceStatus:
-          nextStatus === "accepted"
-            ? existingQuote.postAcceptanceStatus
-            : "none",
         autoFollowUpStoppedAt: now,
         updatedAt: now,
       })
@@ -1395,20 +1535,6 @@ export async function respondToPublicQuoteByToken({
       });
     }
 
-    // Auto-close pending follow-ups for this quote when customer responds
-    // Note: This is called inside the transaction but uses its own nested transaction (savepoint).
-    // This is intentional — if auto-close fails, the quote response should still succeed.
-    try {
-      await autoCloseFollowUpsForQuote({
-        businessId: existingQuote.businessId,
-        quoteId: existingQuote.id,
-        reason: nextStatus === "accepted" ? "quote_accepted" : "quote_rejected",
-      });
-    } catch (error) {
-      // Non-critical: log but don't fail the quote response
-      console.error("[respondToPublicQuoteByToken] Failed to auto-close follow-ups", error);
-    }
-
     return {
       updated: true,
       businessId: existingQuote.businessId,
@@ -1430,45 +1556,28 @@ export async function respondToPublicQuoteByToken({
       updatedAt: now,
     };
   });
-}
 
-const defaultPostWinChecklistLabels = [
-  "Contact customer",
-  "Confirm schedule",
-  "Request deposit/payment",
-  "Prepare work details",
-  "Mark work completed",
-];
-
-async function maybeCreatePostWinChecklist(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-  businessId: string,
-  quoteId: string,
-  now: Date,
-) {
-  const [existing] = await tx
-    .select({ id: postWinChecklistItems.id })
-    .from(postWinChecklistItems)
-    .where(eq(postWinChecklistItems.quoteId, quoteId))
-    .limit(1);
-
-  if (existing) {
-    return false;
+  // Auto-close pending follow-ups for this quote when the customer responds.
+  // Runs AFTER the response transaction commits, in its own transaction: if
+  // auto-close fails, the quote response should still succeed. Running it
+  // inside the outer transaction deadlocks — its follow-up row locks
+  // conflict with the outer transaction's pending follow-up updates.
+  if (result?.updated) {
+    try {
+      await autoCloseFollowUpsForQuote({
+        businessId: result.businessId,
+        quoteId: result.quoteId,
+        reason: result.status === "accepted" ? "quote_accepted" : "quote_rejected",
+      });
+    } catch (error) {
+      console.error(
+        "[respondToPublicQuoteByToken] Failed to auto-close follow-ups",
+        error,
+      );
+    }
   }
 
-  await tx.insert(postWinChecklistItems).values(
-    defaultPostWinChecklistLabels.map((label, index) => ({
-      id: createId("pwc"),
-      businessId,
-      quoteId,
-      label,
-      position: index,
-      createdAt: now,
-      updatedAt: now,
-    })),
-  );
-
-  return true;
+  return result;
 }
 
 async function maybeSkipSalesFollowUps(
@@ -1520,42 +1629,6 @@ export async function onQuoteAccepted(
   quoteNumber: string,
   now: Date,
 ) {
-  // Auto-create job if the business has it enabled
-  const [business] = await tx
-    .select({ autoCreateJobsOnAcceptance: businesses.autoCreateJobsOnAcceptance })
-    .from(businesses)
-    .where(eq(businesses.id, businessId))
-    .limit(1);
-
-  if (business?.autoCreateJobsOnAcceptance) {
-    const { createJobFromQuoteForBusiness } = await import("@/features/jobs/mutations");
-    await createJobFromQuoteForBusiness({
-      businessId,
-      quoteId,
-      userId: null,
-      tx,
-    });
-  }
-
-  const checklistCreated = await maybeCreatePostWinChecklist(
-    tx,
-    businessId,
-    quoteId,
-    now,
-  );
-
-  if (checklistCreated) {
-    await insertQuoteActivity(tx, {
-      businessId,
-      inquiryId,
-      quoteId,
-      type: "quote.post_win_checklist_created",
-      summary: `Post-win checklist created for quote ${quoteNumber}.`,
-      metadata: { quoteNumber },
-      now,
-    });
-  }
-
   const skippedCount = await maybeSkipSalesFollowUps(
     tx,
     businessId,
@@ -1574,95 +1647,6 @@ export async function onQuoteAccepted(
       now,
     });
   }
-}
-
-type UpdateQuotePostAcceptanceStatusForBusinessInput = {
-  businessId: string;
-  quoteId: string;
-  actorUserId: string;
-  postAcceptanceStatus: import("@/features/quotes/types").QuotePostAcceptanceStatus;
-};
-
-export async function updateQuotePostAcceptanceStatusForBusiness({
-  businessId,
-  quoteId,
-  actorUserId,
-  postAcceptanceStatus,
-}: UpdateQuotePostAcceptanceStatusForBusinessInput) {
-  const now = new Date();
-
-  return db.transaction(async (tx) => {
-    const [existingQuote] = await tx
-      .select({
-        id: quotes.id,
-        inquiryId: quotes.inquiryId,
-        quoteNumber: quotes.quoteNumber,
-        status: quotes.status,
-        postAcceptanceStatus: quotes.postAcceptanceStatus,
-        deletedAt: quotes.deletedAt,
-      })
-      .from(quotes)
-      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
-      .limit(1);
-
-    if (!existingQuote || existingQuote.deletedAt) {
-      return null;
-    }
-
-    if (existingQuote.status !== "accepted") {
-      return {
-        updated: false,
-        locked: true,
-        inquiryId: existingQuote.inquiryId,
-        quoteNumber: existingQuote.quoteNumber,
-        postAcceptanceStatus: existingQuote.postAcceptanceStatus,
-      } as const;
-    }
-
-    if (existingQuote.postAcceptanceStatus === postAcceptanceStatus) {
-      return {
-        updated: false,
-        locked: false,
-        inquiryId: existingQuote.inquiryId,
-        quoteNumber: existingQuote.quoteNumber,
-        postAcceptanceStatus,
-      } as const;
-    }
-
-    await tx
-      .update(quotes)
-      .set({
-        postAcceptanceStatus,
-        updatedAt: now,
-      })
-      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)));
-
-    await insertQuoteActivity(tx, {
-      businessId,
-      inquiryId: existingQuote.inquiryId,
-      quoteId,
-      actorUserId,
-      type: "quote.post_acceptance_updated",
-      summary:
-        postAcceptanceStatus === "none"
-          ? `Post-acceptance status cleared for quote ${existingQuote.quoteNumber}.`
-          : `Quote ${existingQuote.quoteNumber} marked ${postAcceptanceStatus}.`,
-      metadata: {
-        previousPostAcceptanceStatus: existingQuote.postAcceptanceStatus,
-        postAcceptanceStatus,
-        quoteNumber: existingQuote.quoteNumber,
-      },
-      now,
-    });
-
-    return {
-      updated: true,
-      locked: false,
-      inquiryId: existingQuote.inquiryId,
-      quoteNumber: existingQuote.quoteNumber,
-      postAcceptanceStatus,
-    } as const;
-  });
 }
 
 type CancelAcceptedQuoteForBusinessInput = {
@@ -1689,13 +1673,14 @@ export async function cancelAcceptedQuoteForBusiness({
         inquiryId: quotes.inquiryId,
         quoteNumber: quotes.quoteNumber,
         status: quotes.status,
-        postAcceptanceStatus: quotes.postAcceptanceStatus,
         deletedAt: quotes.deletedAt,
         businessId: businesses.id,
         title: quotes.title,
         customerName: quotes.customerName,
         totalInCents: quotes.totalInCents,
         currency: quotes.currency,
+        completedAt: quotes.completedAt,
+        canceledAt: quotes.canceledAt,
       })
       .from(quotes)
       .innerJoin(businesses, eq(quotes.businessId, businesses.id))
@@ -1715,7 +1700,7 @@ export async function cancelAcceptedQuoteForBusiness({
       } as const;
     }
 
-    if (existingQuote.postAcceptanceStatus === "completed") {
+    if (existingQuote.completedAt) {
       return {
         updated: false,
         locked: true,
@@ -1724,7 +1709,7 @@ export async function cancelAcceptedQuoteForBusiness({
       } as const;
     }
 
-    if (existingQuote.postAcceptanceStatus === "canceled") {
+    if (existingQuote.canceledAt) {
       return {
         updated: false,
         locked: false,
@@ -1737,7 +1722,6 @@ export async function cancelAcceptedQuoteForBusiness({
     await tx
       .update(quotes)
       .set({
-        postAcceptanceStatus: "canceled",
         canceledAt: now,
         canceledBy: actorUserId,
         cancellationReason,
@@ -1815,7 +1799,6 @@ export async function cancelAcceptedQuoteForBusiness({
       locked: false,
       inquiryId: existingQuote.inquiryId,
       quoteNumber: existingQuote.quoteNumber,
-      postAcceptanceStatus: "canceled" as const,
     };
   });
 }
@@ -1840,13 +1823,14 @@ export async function completeAcceptedQuoteForBusiness({
         inquiryId: quotes.inquiryId,
         quoteNumber: quotes.quoteNumber,
         status: quotes.status,
-        postAcceptanceStatus: quotes.postAcceptanceStatus,
         deletedAt: quotes.deletedAt,
         businessId: businesses.id,
         title: quotes.title,
         customerName: quotes.customerName,
         totalInCents: quotes.totalInCents,
         currency: quotes.currency,
+        completedAt: quotes.completedAt,
+        canceledAt: quotes.canceledAt,
       })
       .from(quotes)
       .innerJoin(businesses, eq(quotes.businessId, businesses.id))
@@ -1866,7 +1850,7 @@ export async function completeAcceptedQuoteForBusiness({
       } as const;
     }
 
-    if (existingQuote.postAcceptanceStatus === "canceled") {
+    if (existingQuote.canceledAt) {
       return {
         updated: false,
         locked: true,
@@ -1875,7 +1859,7 @@ export async function completeAcceptedQuoteForBusiness({
       } as const;
     }
 
-    if (existingQuote.postAcceptanceStatus === "completed") {
+    if (existingQuote.completedAt) {
       return {
         updated: false,
         locked: false,
@@ -1887,7 +1871,6 @@ export async function completeAcceptedQuoteForBusiness({
     await tx
       .update(quotes)
       .set({
-        postAcceptanceStatus: "completed",
         completedAt: now,
         completedBy: actorUserId,
         updatedAt: now,
@@ -1943,154 +1926,6 @@ export async function completeAcceptedQuoteForBusiness({
       locked: false,
       inquiryId: existingQuote.inquiryId,
       quoteNumber: existingQuote.quoteNumber,
-      postAcceptanceStatus: "completed" as const,
-    };
-  });
-}
-
-type TogglePostWinChecklistItemInput = {
-  businessId: string;
-  quoteId: string;
-  checklistItemId: string;
-  actorUserId: string;
-};
-
-export async function togglePostWinChecklistItem({
-  businessId,
-  quoteId,
-  checklistItemId,
-  actorUserId,
-}: TogglePostWinChecklistItemInput) {
-  const now = new Date();
-
-  return db.transaction(async (tx) => {
-    const [item] = await tx
-      .select({
-        id: postWinChecklistItems.id,
-        label: postWinChecklistItems.label,
-        completedAt: postWinChecklistItems.completedAt,
-      })
-      .from(postWinChecklistItems)
-      .where(
-        and(
-          eq(postWinChecklistItems.id, checklistItemId),
-          eq(postWinChecklistItems.quoteId, quoteId),
-          eq(postWinChecklistItems.businessId, businessId),
-        ),
-      )
-      .limit(1);
-
-    if (!item) {
-      return null;
-    }
-
-    const isCompleting = !item.completedAt;
-
-    await tx
-      .update(postWinChecklistItems)
-      .set({
-        completedAt: isCompleting ? now : null,
-        updatedAt: now,
-      })
-      .where(eq(postWinChecklistItems.id, checklistItemId));
-
-    const [quote] = await tx
-      .select({
-        inquiryId: quotes.inquiryId,
-        quoteNumber: quotes.quoteNumber,
-      })
-      .from(quotes)
-      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
-      .limit(1);
-
-    if (quote) {
-      await insertQuoteActivity(tx, {
-        businessId,
-        inquiryId: quote.inquiryId,
-        quoteId,
-        actorUserId,
-        type: isCompleting
-          ? "quote.post_win_checklist_item_completed"
-          : "quote.post_win_checklist_item_unchecked",
-        summary: isCompleting
-          ? `Checklist item completed: ${item.label}.`
-          : `Checklist item unchecked: ${item.label}.`,
-        metadata: {
-          checklistItemId,
-          label: item.label,
-          quoteNumber: quote.quoteNumber,
-        },
-        now,
-      });
-    }
-
-    return {
-      toggled: true,
-      isCompleted: isCompleting,
-      checklistItemId,
-      label: item.label,
-    };
-  });
-}
-
-type CreatePostWinChecklistItemInput = {
-  businessId: string;
-  quoteId: string;
-  actorUserId: string;
-  label: string;
-};
-
-export async function createPostWinChecklistItem({
-  businessId,
-  quoteId,
-  actorUserId: _actorUserId,
-  label,
-}: CreatePostWinChecklistItemInput) {
-  const now = new Date();
-  const itemId = createId("pwc");
-
-  return db.transaction(async (tx) => {
-    const [quote] = await tx
-      .select({
-        id: quotes.id,
-        inquiryId: quotes.inquiryId,
-        quoteNumber: quotes.quoteNumber,
-        status: quotes.status,
-        deletedAt: quotes.deletedAt,
-      })
-      .from(quotes)
-      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
-      .limit(1);
-
-    if (!quote || quote.deletedAt || quote.status !== "accepted") {
-      return null;
-    }
-
-    /* Find the next available position. */
-    const [maxPos] = await tx
-      .select({
-        maxPosition: sql<number>`coalesce(max(${postWinChecklistItems.position}), -1)`,
-      })
-      .from(postWinChecklistItems)
-      .where(eq(postWinChecklistItems.quoteId, quoteId));
-
-    const nextPosition = (maxPos?.maxPosition ?? -1) + 1;
-
-    await tx.insert(postWinChecklistItems).values({
-      id: itemId,
-      businessId,
-      quoteId,
-      label: label.trim(),
-      position: nextPosition,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    return {
-      created: true,
-      checklistItemId: itemId,
-      label: label.trim(),
-      position: nextPosition,
     };
   });
 }

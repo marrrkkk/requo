@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, isNull, ne } from "drizzle-orm";
+import { and, count, eq, isNull, ne } from "drizzle-orm";
 
 import {
   normalizeBusinessType,
@@ -24,7 +24,6 @@ import type {
   BusinessInquiryFormPresetInput,
   BusinessInquiryFormSettingsInput,
   BusinessInquiryPageSettingsInput,
-  BusinessInvoiceSettingsInput,
   BusinessNotificationSettingsInput,
   BusinessQuoteSettingsInput,
 } from "@/features/settings/schemas";
@@ -43,6 +42,8 @@ import {
 } from "@/lib/db/schema";
 import { appendRandomSlugSuffix } from "@/lib/slugs";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import type { BusinessPlan } from "@/lib/plans/plans";
+import { getUsageLimit } from "@/lib/plans/usage-limits";
 
 type UpdateBusinessGeneralSettingsInput = {
   businessId: string;
@@ -54,12 +55,6 @@ type UpdateBusinessQuoteSettingsInput = {
   businessId: string;
   actorUserId: string;
   values: BusinessQuoteSettingsInput;
-};
-
-type UpdateBusinessInvoiceSettingsInput = {
-  businessId: string;
-  actorUserId: string;
-  values: BusinessInvoiceSettingsInput;
 };
 
 type UpdateBusinessNotificationSettingsInput = {
@@ -112,14 +107,6 @@ type TargetBusinessInquiryFormInput = {
 type SetBusinessInquiryFormPublicStateInput = TargetBusinessInquiryFormInput & {
   publicInquiryEnabled: boolean;
 };
-type SetBusinessInquiryFormConversationalModeInput = TargetBusinessInquiryFormInput & {
-  conversationalModeEnabled: boolean;
-};
-type UpdateBusinessInquiryFormChatbotSettingsInput = TargetBusinessInquiryFormInput & {
-  assistantName: string;
-  avatarStyle: "brand" | "initials";
-  openingMessage: string;
-};
 
 type UpdateBusinessSettingsResult =
   | { ok: true; previousSlug: string; nextSlug: string }
@@ -147,7 +134,7 @@ type UpdateBusinessInquiryPageSettingsResult =
       previousFormSlug: string;
       nextFormSlug: string;
     }
-  | { ok: false; reason: "not-found" | "slug-taken" };
+  | { ok: false; reason: "not-found" | "slug-taken" | "live-form-limit" };
 
 type BusinessInquiryFormMutationResult =
   | { ok: true; businessSlug: string; formSlug: string }
@@ -157,11 +144,57 @@ type BusinessInquiryFormMutationResult =
         | "not-found"
         | "invalid-target"
         | "last-active"
-        | "has-inquiries";
+        | "has-inquiries"
+        | "live-form-limit";
     };
 
 function createId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
+}
+
+/**
+ * Returns the number of live (non-archived, public-enabled) inquiry forms,
+ * optionally excluding one form (the one being published/edited).
+ */
+async function getLiveFormCount(
+  businessId: string,
+  excludeFormId?: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(businessInquiryForms)
+    .where(
+      and(
+        eq(businessInquiryForms.businessId, businessId),
+        eq(businessInquiryForms.publicInquiryEnabled, true),
+        isNull(businessInquiryForms.archivedAt),
+        excludeFormId
+          ? ne(businessInquiryForms.id, excludeFormId)
+          : undefined,
+      ),
+    );
+
+  return Number(row?.value ?? 0);
+}
+
+/**
+ * Returns `true` when the business still has a free live-form slot for the
+ * given plan, accounting for the form that is being published/edited.
+ */
+async function hasLiveFormSlot(
+  businessId: string,
+  plan: BusinessPlan,
+  excludeFormId?: string,
+): Promise<boolean> {
+  const limit = getUsageLimit(plan, "liveFormsPerBusiness");
+
+  if (limit === null) {
+    return true;
+  }
+
+  const current = await getLiveFormCount(businessId, excludeFormId);
+
+  return current < limit;
 }
 
 async function getAvailableBusinessInquiryFormSlug({
@@ -454,6 +487,12 @@ export async function updateBusinessQuoteSettings({
         defaultQuoteNotes: values.defaultQuoteNotes ?? null,
         defaultQuoteTerms: values.defaultQuoteTerms ?? null,
         defaultQuoteValidityDays: values.defaultQuoteValidityDays,
+        sendInquiryAckEmail: values.sendInquiryAckEmail,
+        autoDraftQuoteOnQualify: values.autoDraftQuoteOnQualify,
+        autoArchiveStaleInquiries: values.autoArchiveStaleInquiries,
+        autoArchiveStaleInquiryDays: values.autoArchiveStaleInquiryDays,
+        autoFollowUpOnQuoteViewed: values.autoFollowUpOnQuoteViewed,
+        quoteViewedFollowUpDelayDays: values.quoteViewedFollowUpDelayDays,
         updatedAt: now,
       })
       .where(eq(businesses.id, businessId));
@@ -468,59 +507,12 @@ export async function updateBusinessQuoteSettings({
         defaultQuoteValidityDays: values.defaultQuoteValidityDays,
         hasDefaultQuoteNotes: Boolean(values.defaultQuoteNotes?.trim()),
         hasDefaultQuoteTerms: Boolean(values.defaultQuoteTerms?.trim()),
-      },
-      createdAt: now,
-      updatedAt: now,
-    });
-  });
-
-  return {
-    ok: true,
-    previousSlug: business.slug,
-    nextSlug: business.slug,
-  };
-}
-
-export async function updateBusinessInvoiceSettings({
-  businessId,
-  actorUserId,
-  values,
-}: UpdateBusinessInvoiceSettingsInput): Promise<UpdateBusinessSettingsResult> {
-  const [business] = await db
-    .select({
-      id: businesses.id,
-      slug: businesses.slug,
-    })
-    .from(businesses)
-    .where(eq(businesses.id, businessId))
-    .limit(1);
-
-  if (!business) {
-    return {
-      ok: false,
-      reason: "not-found",
-    };
-  }
-
-  const now = new Date();
-
-  await db.transaction(async (tx) => {
-    await tx
-      .update(businesses)
-      .set({
-        defaultInvoiceDueDays: values.defaultInvoiceDueDays,
-        updatedAt: now,
-      })
-      .where(eq(businesses.id, businessId));
-
-    await tx.insert(activityLogs).values({
-      id: createId("act"),
-      businessId,
-      actorUserId,
-      type: "business.invoice_settings_updated",
-      summary: "Invoice settings updated.",
-      metadata: {
-        defaultInvoiceDueDays: values.defaultInvoiceDueDays,
+        sendInquiryAckEmail: values.sendInquiryAckEmail,
+        autoDraftQuoteOnQualify: values.autoDraftQuoteOnQualify,
+        autoArchiveStaleInquiries: values.autoArchiveStaleInquiries,
+        autoArchiveStaleInquiryDays: values.autoArchiveStaleInquiryDays,
+        autoFollowUpOnQuoteViewed: values.autoFollowUpOnQuoteViewed,
+        quoteViewedFollowUpDelayDays: values.quoteViewedFollowUpDelayDays,
       },
       createdAt: now,
       updatedAt: now,
@@ -696,6 +688,7 @@ export async function updateBusinessInquiryPageSettings({
         slug: businesses.slug,
         name: businesses.name,
         shortDescription: businesses.shortDescription,
+        plan: businesses.plan,
       })
       .from(businesses)
       .where(eq(businesses.id, businessId))
@@ -725,6 +718,16 @@ export async function updateBusinessInquiryPageSettings({
     return {
       ok: false,
       reason: "not-found",
+    };
+  }
+
+  if (
+    values.publicInquiryEnabled &&
+    !(await hasLiveFormSlot(businessId, business.plan, values.formId))
+  ) {
+    return {
+      ok: false,
+      reason: "live-form-limit",
     };
   }
 
@@ -1050,6 +1053,7 @@ export async function createBusinessInquiryForm({
       slug: businesses.slug,
       name: businesses.name,
       shortDescription: businesses.shortDescription,
+      plan: businesses.plan,
     })
     .from(businesses)
     .where(eq(businesses.id, businessId))
@@ -1059,6 +1063,13 @@ export async function createBusinessInquiryForm({
     return {
       ok: false,
       reason: "not-found",
+    };
+  }
+
+  if (!(await hasLiveFormSlot(businessId, business.plan))) {
+    return {
+      ok: false,
+      reason: "live-form-limit",
     };
   }
 
@@ -1123,6 +1134,7 @@ export async function duplicateBusinessInquiryForm({
       .select({
         id: businesses.id,
         slug: businesses.slug,
+        plan: businesses.plan,
       })
       .from(businesses)
       .where(eq(businesses.id, businessId))
@@ -1154,6 +1166,16 @@ export async function duplicateBusinessInquiryForm({
     return {
       ok: false,
       reason: "not-found",
+    };
+  }
+
+  if (
+    sourceForm.publicInquiryEnabled &&
+    !(await hasLiveFormSlot(businessId, business.plan, targetFormId))
+  ) {
+    return {
+      ok: false,
+      reason: "live-form-limit",
     };
   }
 
@@ -1526,6 +1548,7 @@ export async function setBusinessInquiryFormPublicState({
       .select({
         id: businesses.id,
         slug: businesses.slug,
+        plan: businesses.plan,
       })
       .from(businesses)
       .where(eq(businesses.id, businessId))
@@ -1561,6 +1584,16 @@ export async function setBusinessInquiryFormPublicState({
     return {
       ok: false,
       reason: "invalid-target",
+    };
+  }
+
+  if (
+    publicInquiryEnabled &&
+    !(await hasLiveFormSlot(businessId, business.plan, targetFormId))
+  ) {
+    return {
+      ok: false,
+      reason: "live-form-limit",
     };
   }
 
@@ -1615,6 +1648,7 @@ export async function unarchiveBusinessInquiryForm({
       .select({
         id: businesses.id,
         slug: businesses.slug,
+        plan: businesses.plan,
       })
       .from(businesses)
       .where(eq(businesses.id, businessId))
@@ -1623,6 +1657,7 @@ export async function unarchiveBusinessInquiryForm({
       .select({
         id: businessInquiryForms.id,
         slug: businessInquiryForms.slug,
+        publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
       })
       .from(businessInquiryForms)
       .where(
@@ -1641,6 +1676,16 @@ export async function unarchiveBusinessInquiryForm({
     return {
       ok: false,
       reason: "not-found",
+    };
+  }
+
+  if (
+    targetForm.publicInquiryEnabled &&
+    !(await hasLiveFormSlot(businessId, business.plan))
+  ) {
+    return {
+      ok: false,
+      reason: "live-form-limit",
     };
   }
 
@@ -1669,195 +1714,6 @@ export async function unarchiveBusinessInquiryForm({
       metadata: {
         inquiryFormId: targetFormId,
         inquiryFormSlug: targetForm.slug,
-      },
-      createdAt: now,
-      updatedAt: now,
-    });
-  });
-
-  return {
-    ok: true,
-    businessSlug: business.slug,
-    formSlug: targetForm.slug,
-  };
-}
-
-export async function setBusinessInquiryFormConversationalMode({
-  businessId,
-  actorUserId,
-  targetFormId,
-  conversationalModeEnabled,
-}: SetBusinessInquiryFormConversationalModeInput): Promise<BusinessInquiryFormMutationResult> {
-  const [businessRows, targetFormRows] = await Promise.all([
-    db
-      .select({
-        id: businesses.id,
-        slug: businesses.slug,
-      })
-      .from(businesses)
-      .where(eq(businesses.id, businessId))
-      .limit(1),
-    db
-      .select({
-        id: businessInquiryForms.id,
-        slug: businessInquiryForms.slug,
-        inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
-      })
-      .from(businessInquiryForms)
-      .where(
-        and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, targetFormId),
-          isNull(businessInquiryForms.archivedAt),
-        ),
-      )
-      .limit(1),
-  ]);
-
-  const business = businessRows[0];
-  const targetForm = targetFormRows[0];
-
-  if (!business || !targetForm) {
-    return {
-      ok: false,
-      reason: "not-found",
-    };
-  }
-
-  const now = new Date();
-  const updatedFormConfig = {
-    ...targetForm.inquiryFormConfig,
-    conversationalMode: conversationalModeEnabled
-      ? {
-          enabled: true,
-          openingMessage:
-            targetForm.inquiryFormConfig.conversationalMode?.openingMessage,
-        }
-      : { enabled: false },
-  };
-
-  await db.transaction(async (tx) => {
-    await tx
-      .update(businessInquiryForms)
-      .set({
-        inquiryFormConfig: updatedFormConfig,
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, targetFormId),
-        ),
-      );
-
-    await tx.insert(activityLogs).values({
-      id: createId("act"),
-      businessId,
-      actorUserId,
-      type: "business.inquiry_form_updated",
-      summary: conversationalModeEnabled
-        ? `Conversational intake enabled for ${targetForm.slug}.`
-        : `Conversational intake disabled for ${targetForm.slug}.`,
-      metadata: {
-        inquiryFormId: targetFormId,
-        inquiryFormSlug: targetForm.slug,
-        conversationalModeEnabled,
-      },
-      createdAt: now,
-      updatedAt: now,
-    });
-  });
-
-  return {
-    ok: true,
-    businessSlug: business.slug,
-    formSlug: targetForm.slug,
-  };
-}
-
-export async function updateBusinessInquiryFormChatbotSettings({
-  businessId,
-  actorUserId,
-  targetFormId,
-  assistantName,
-  avatarStyle,
-  openingMessage,
-}: UpdateBusinessInquiryFormChatbotSettingsInput): Promise<BusinessInquiryFormMutationResult> {
-  const [businessRows, targetFormRows] = await Promise.all([
-    db
-      .select({
-        id: businesses.id,
-        slug: businesses.slug,
-      })
-      .from(businesses)
-      .where(eq(businesses.id, businessId))
-      .limit(1),
-    db
-      .select({
-        id: businessInquiryForms.id,
-        slug: businessInquiryForms.slug,
-        inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
-      })
-      .from(businessInquiryForms)
-      .where(
-        and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, targetFormId),
-          isNull(businessInquiryForms.archivedAt),
-        ),
-      )
-      .limit(1),
-  ]);
-
-  const business = businessRows[0];
-  const targetForm = targetFormRows[0];
-
-  if (!business || !targetForm) {
-    return {
-      ok: false,
-      reason: "not-found",
-    };
-  }
-
-  const now = new Date();
-  const trimmedName = assistantName.trim() || undefined;
-  const trimmedMessage = openingMessage.trim() || undefined;
-  const updatedFormConfig = {
-    ...targetForm.inquiryFormConfig,
-    conversationalMode: {
-      ...targetForm.inquiryFormConfig.conversationalMode,
-      enabled: targetForm.inquiryFormConfig.conversationalMode?.enabled ?? false,
-      assistantName: trimmedName,
-      avatarStyle,
-      openingMessage: trimmedMessage,
-    },
-  };
-
-  await db.transaction(async (tx) => {
-    await tx
-      .update(businessInquiryForms)
-      .set({
-        inquiryFormConfig: updatedFormConfig,
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, targetFormId),
-        ),
-      );
-
-    await tx.insert(activityLogs).values({
-      id: createId("act"),
-      businessId,
-      actorUserId,
-      type: "business.inquiry_form_updated",
-      summary: `Chatbot settings updated for ${targetForm.slug}.`,
-      metadata: {
-        inquiryFormId: targetFormId,
-        inquiryFormSlug: targetForm.slug,
-        hasCustomAssistantName: Boolean(trimmedName),
-        avatarStyle,
       },
       createdAt: now,
       updatedAt: now,

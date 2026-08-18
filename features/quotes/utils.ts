@@ -11,7 +11,6 @@ import {
 import type {
   DashboardQuoteLibraryItem,
   DashboardQuoteDetail,
-  QuotePostAcceptanceStatus,
   QuoteEditorLineItemValue,
   QuoteInquiryPrefill,
   QuoteLibraryEntryKind,
@@ -74,38 +73,6 @@ export const quoteLibraryEntryKindLabels: Record<QuoteLibraryEntryKind, string> 
   template: "Quote template",
 };
 
-export const quotePostAcceptanceStatusLabels: Record<
-  QuotePostAcceptanceStatus,
-  string
-> = {
-  none: "None yet",
-  booked: "Booked",
-  scheduled: "Scheduled",
-  in_progress: "In progress",
-  completed: "Completed",
-  no_job_tracking: "No job tracking",
-  canceled: "Canceled",
-};
-
-export const quotePostAcceptanceStatusClassNames: Record<
-  QuotePostAcceptanceStatus,
-  string
-> = {
-  none: "!border-slate-500/25 !bg-slate-500/12 !text-slate-800 dark:!border-slate-500/25 dark:!bg-slate-500/12 dark:!text-slate-200",
-  booked:
-    "!border-emerald-500/30 !bg-emerald-500/15 !text-emerald-800 dark:!border-emerald-500/25 dark:!bg-emerald-500/12 dark:!text-emerald-200",
-  scheduled:
-    "!border-amber-500/30 !bg-amber-500/15 !text-amber-800 dark:!border-amber-500/25 dark:!bg-amber-500/12 dark:!text-amber-200",
-  in_progress:
-    "!border-blue-500/30 !bg-blue-500/15 !text-blue-800 dark:!border-blue-500/25 dark:!bg-blue-500/12 dark:!text-blue-200",
-  completed:
-    "!border-emerald-500/30 !bg-emerald-500/15 !text-emerald-800 dark:!border-emerald-500/25 dark:!bg-emerald-500/12 dark:!text-emerald-200",
-  no_job_tracking:
-    "!border-slate-500/25 !bg-slate-500/12 !text-slate-800 dark:!border-slate-500/25 dark:!bg-slate-500/12 dark:!text-slate-200",
-  canceled:
-    "!border-red-500/30 !bg-red-500/15 !text-red-800 dark:!border-red-500/25 dark:!bg-red-500/12 dark:!text-red-200",
-};
-
 export const quoteReminderLabels: Record<QuoteReminderKind, string> = {
   follow_up_due: "Follow up due",
   expiring_soon: "Expiring soon",
@@ -123,12 +90,6 @@ export const quoteExpiringSoonReminderDays = 7;
 
 export function getQuoteStatusLabel(status: QuoteStatus) {
   return quoteStatusLabels[status];
-}
-
-export function getQuotePostAcceptanceStatusLabel(
-  status: QuotePostAcceptanceStatus,
-) {
-  return quotePostAcceptanceStatusLabels[status];
 }
 
 export function getQuoteLibraryEntryKindLabel(kind: QuoteLibraryEntryKind) {
@@ -198,6 +159,10 @@ export function createQuoteEditorLineItemValue(
     quantity: string;
     unitPrice: string;
     aiReview: QuoteEditorLineItemValue["aiReview"];
+    aiPricingStatus: QuoteEditorLineItemValue["aiPricingStatus"];
+    aiPricingLibraryEntryId: QuoteEditorLineItemValue["aiPricingLibraryEntryId"];
+    aiPricingLibraryItemId: QuoteEditorLineItemValue["aiPricingLibraryItemId"];
+    aiEvidence: QuoteEditorLineItemValue["aiEvidence"];
   }>,
 ): QuoteEditorLineItemValue {
   return {
@@ -206,6 +171,10 @@ export function createQuoteEditorLineItemValue(
     quantity: value?.quantity ?? "1",
     unitPrice: value?.unitPrice ?? "",
     aiReview: value?.aiReview,
+    aiPricingStatus: value?.aiPricingStatus,
+    aiPricingLibraryEntryId: value?.aiPricingLibraryEntryId,
+    aiPricingLibraryItemId: value?.aiPricingLibraryItemId,
+    aiEvidence: value?.aiEvidence,
   };
 }
 

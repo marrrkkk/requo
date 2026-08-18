@@ -116,10 +116,6 @@ export async function GET(
         render: (row) => row.voidedAt?.toISOString(),
       },
       {
-        header: "post_acceptance_status",
-        render: (row) => row.postAcceptanceStatus,
-      },
-      {
         header: "linked_inquiry_id",
         render: (row) => row.inquiryId,
       },
