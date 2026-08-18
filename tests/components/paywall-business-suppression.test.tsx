@@ -50,7 +50,7 @@ const testFeatures: PlanFeature[] = [
   "members",
   "exports",
   "removeWatermark",
-  "workflowBuilder",
+  "autoFollowUps",
 ];
 
 describe("Business plan suppression", () => {
@@ -257,7 +257,7 @@ describe("Business plan suppression", () => {
 
           {/* PremiumContentBlur should show children */}
           <PremiumContentBlur
-            feature="aiAssistant"
+            feature="aiQuoteDrafting"
             plan={BUSINESS_PLAN}
           >
             <div data-testid="ai-content">AI-generated suggestions</div>

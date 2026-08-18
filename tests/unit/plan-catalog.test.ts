@@ -1,0 +1,81 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  aiDraftAllowanceLabels,
+  aiDraftingClarification,
+  annualBillingPromoCopy,
+  planCatalog,
+  pricingComparison,
+} from "@/lib/plans/catalog";
+import { businessPlans } from "@/lib/plans/plans";
+import { getUsageLimit } from "@/lib/plans/usage-limits";
+
+describe("plan catalog", () => {
+  it("exposes an entry for every plan", () => {
+    for (const plan of businessPlans) {
+      expect(planCatalog[plan]).toBeDefined();
+      expect(planCatalog[plan].id).toBe(plan);
+      expect(planCatalog[plan].highlights.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("uses the approved description copy", () => {
+    expect(planCatalog.free.description).toBe(
+      "Run your inquiry and quote workflow for one business.",
+    );
+    expect(planCatalog.pro.description).toContain("automatic follow-ups");
+    expect(planCatalog.business.description).toContain("small team");
+  });
+
+  it("uses the approved AI drafting allowance labels", () => {
+    expect(aiDraftAllowanceLabels.free).toBe(
+      "About 10 AI quote drafts per month",
+    );
+    expect(aiDraftAllowanceLabels.pro).toBe(
+      "About 50 AI quote drafts per month",
+    );
+    expect(aiDraftAllowanceLabels.business).toBe(
+      "About 165 AI quote drafts per month",
+    );
+    expect(aiDraftingClarification).toContain("varies by the action");
+    expect(annualBillingPromoCopy).toBe("Two months free");
+  });
+
+  it("keeps the pricing comparison to the approved four sections", () => {
+    expect(pricingComparison.map((section) => section.category)).toEqual([
+      "Core workflow",
+      "Time savings",
+      "Presentation and insights",
+      "Team",
+    ]);
+  });
+
+  it("derives numeric cells from the canonical usage limits", () => {
+    const core = pricingComparison[0].features;
+    const time = pricingComparison[1].features;
+    const team = pricingComparison[3].features;
+
+    const liveForms = core.find((row) => row.label === "Live inquiry forms");
+    expect(liveForms?.free).toBe(getUsageLimit("free", "liveFormsPerBusiness"));
+    expect(liveForms?.business).toBe(10);
+
+    const sends = time.find(
+      (row) => row.label === "Requo email sends per month",
+    );
+    expect(sends?.free).toBe(15);
+    expect(sends?.business).toBe(500);
+
+    const members = team.find((row) => row.label === "Members");
+    expect(members?.business).toBe("Up to 5");
+  });
+
+  it("does not advertise removed or sold-separately capabilities", () => {
+    const allLabels = pricingComparison.flatMap((section) =>
+      section.features.map((row) => row.label),
+    );
+    expect(allLabels.join(" ").toLowerCase()).not.toContain("chat");
+    expect(allLabels.join(" ").toLowerCase()).not.toContain("job");
+    expect(allLabels.join(" ").toLowerCase()).not.toContain("invoice");
+    expect(allLabels.join(" ").toLowerCase()).not.toContain("support");
+  });
+});

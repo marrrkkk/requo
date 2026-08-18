@@ -13,9 +13,21 @@ export default defineConfig({
     globals: true,
     include: ['tests/integration/**/*.test.ts'],
     reporters: [['default'], ['json', { outputFile: 'reports/vitest-integration.json' }]],
-    alias: {
-      '@': path.resolve(__dirname, './'),
-      'server-only': path.resolve(__dirname, 'node_modules/server-only/empty.js'),
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, './') },
+      {
+        find: 'server-only',
+        replacement: path.resolve(__dirname, 'node_modules/server-only/empty.js'),
+      },
+      {
+        find: /^next\/server$/,
+        replacement: path.resolve(__dirname, 'node_modules/next/server.js'),
+      },
+    ],
+    server: {
+      deps: {
+        inline: ['@polar-sh/nextjs'],
+      },
     },
     coverage: {
       provider: 'v8',
@@ -29,6 +41,12 @@ export default defineConfig({
         process.env.TEST_DATABASE_URL ??
         process.env.DATABASE_URL ??
         'postgresql://postgres:postgres@127.0.0.1:5432/requo',
+      EMAIL_DOMAIN: 'example.com',
+      EMAIL_FROM_DEFAULT: 'Requo <noreply@example.com>',
+      EMAIL_FROM_NOTIFICATIONS: 'Requo Notifications <notifications@example.com>',
+      EMAIL_FROM_SYSTEM: 'Requo System <system@example.com>',
+      EMAIL_FROM_QUOTES: 'Requo Quotes <quotes@example.com>',
+      EMAIL_FROM_SUPPORT: 'Requo Support <support@example.com>',
       NEXT_PUBLIC_SUPABASE_URL:
         process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321',
       NEXT_PUBLIC_SUPABASE_ANON_KEY:

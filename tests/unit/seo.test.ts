@@ -7,6 +7,7 @@ import fc from "fast-check";
 vi.mock("next/font/google", () => ({
   Geist: () => ({ variable: "--font-geist-sans" }),
   Geist_Mono: () => ({ variable: "--font-geist-mono" }),
+  Inter: () => ({ variable: "--font-inter" }),
 }));
 
 vi.mock("next/font/local", () => ({

@@ -97,7 +97,7 @@ const PREFIX = "test_polar_webhook";
 const SECRET = "polar-test-secret";
 const NOW = new Date("2026-04-20T00:00:00.000Z");
 const PERIOD_START = new Date("2026-04-01T00:00:00.000Z");
-const PERIOD_END_FUTURE = new Date("2026-05-20T00:00:00.000Z");
+const PERIOD_END_FUTURE = new Date("2099-05-20T00:00:00.000Z");
 
 /* ── Test helpers ─────────────────────────────────────────────────────────── */
 
@@ -471,9 +471,10 @@ describe("polar webhook integration", () => {
    * Validates: Requirements 5.3, 6.1, 6.2, 6.3, 6.4, 6.5
    */
   it("dedupes duplicate webhook deliveries to a single billing_events row", async () => {
-    const { userId } = await seedUserAndBusinesses("dup");
+    const { userId, businessIds } = await seedUserAndBusinesses("dup");
+    const businessId = businessIds[0];
 
-    const payload = polarDuplicateDeliveryPayload({ externalId: userId });
+    const payload = polarDuplicateDeliveryPayload({ externalId: businessId });
 
     // Two deliveries of the exact same logical event. The signing
     // helper picks fresh webhook-id/timestamp/signature each call so
@@ -505,7 +506,7 @@ describe("polar webhook integration", () => {
     const subscriptions = await testDb
       .select()
       .from(businessSubscriptions)
-      .where(eq(businessSubscriptions.businessId, userId));
+      .where(eq(businessSubscriptions.businessId, businessId));
     expect(subscriptions).toHaveLength(1);
     expect(subscriptions[0]?.status).toBe("active");
 

@@ -66,27 +66,30 @@ test.describe("Paywall & Free Plan Gating", () => {
     ).toBeVisible();
   });
 
-  test("owner sees paywall on knowledge settings", async ({ page }) => {
+  test("owner sees paywall on email template settings", async ({ page }) => {
     await openDemoBusiness(page);
-    await page.goto(`/${demoBusinessSlug}/settings/knowledge`);
+    await page.goto(`/${demoBusinessSlug}/settings/email`);
 
     // PageHeader title remains visible at the top of every settings page.
     await expect(
-      page.getByRole("heading", { name: "Knowledge", level: 1 }).or(
-        page.getByText("Knowledge", { exact: true }).first(),
+      page.getByRole("heading", { name: "Email templates", level: 1 }).or(
+        page.getByText("Email templates", { exact: true }).first(),
       ),
     ).toBeVisible();
 
-    // Page passes a description override to LockedFeaturePage.
+    // Locked-state title comes from planFeatureLabels.emailTemplates.
+    await expect(page.getByText("Email templates")).toBeVisible();
+
+    // Default planFeatureDescriptions.emailTemplates text.
     await expect(
       page.getByText(
-        "Upgrade to save reusable context and train better AI drafts.",
+        "Customize the email message used when sending quotes through Requo.",
       ),
     ).toBeVisible();
 
-    // Upgrade button uses the page-level ctaLabel.
+    // The email templates feature requires the Pro plan, so the CTA targets it.
     await expect(
-      page.getByRole("button", { name: /Upgrade for Knowledge/ }),
+      page.getByRole("button", { name: /Upgrade to Pro/ }),
     ).toBeVisible();
   });
 

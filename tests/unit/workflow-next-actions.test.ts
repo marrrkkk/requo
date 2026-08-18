@@ -85,7 +85,6 @@ describe("features/businesses/workflow-next-actions", () => {
         quote: {
           id: "quote_1",
           status: "draft",
-          postAcceptanceStatus: "none",
         },
       });
 
@@ -100,7 +99,6 @@ describe("features/businesses/workflow-next-actions", () => {
         quote: {
           id: "quote_1",
           status: "sent",
-          postAcceptanceStatus: "none",
           publicViewedAt: new Date("2026-05-09T12:00:00Z"),
           customerRespondedAt: null,
         },
@@ -111,24 +109,7 @@ describe("features/businesses/workflow-next-actions", () => {
       expect(action?.priority).toBe("high");
     });
 
-    it("keeps accepted quotes in post-win tracking until completed or canceled", () => {
-      const action = getQuoteNextAction({
-        businessSlug,
-        now,
-        quote: {
-          id: "quote_1",
-          status: "accepted",
-          postAcceptanceStatus: "scheduled",
-        },
-      });
-
-      expect(action?.key).toBe("quote-post-win");
-      expect(action?.href).toBe(
-        "/acme/quotes/quote_1#post-acceptance",
-      );
-    });
-
-    it("does not suggest next actions for closed quote outcomes", () => {
+    it("does not suggest next actions for terminal quote outcomes", () => {
       expect(
         getQuoteNextAction({
           businessSlug,
@@ -136,7 +117,6 @@ describe("features/businesses/workflow-next-actions", () => {
           quote: {
             id: "quote_1",
             status: "accepted",
-            postAcceptanceStatus: "completed",
           },
         }),
       ).toBeNull();
@@ -148,7 +128,6 @@ describe("features/businesses/workflow-next-actions", () => {
           quote: {
             id: "quote_1",
             status: "rejected",
-            postAcceptanceStatus: "none",
           },
         }),
       ).toBeNull();

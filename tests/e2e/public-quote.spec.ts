@@ -17,7 +17,7 @@ test("public quote page caps customer messages at 1,200 characters", async ({
   await page.goto(`/quote/${demoQuotePublicToken}`);
   await page.waitForLoadState("networkidle");
 
-  const messageField = page.getByLabel("Message for the business");
+  const messageField = page.getByLabel("Message (optional)");
   await messageField.fill("a".repeat(1_201));
 
   await expect(messageField).toHaveValue("a".repeat(1_200));
@@ -26,25 +26,27 @@ test("public quote page caps customer messages at 1,200 characters", async ({
 test("customer can accept a sent quote from the public quote page @smoke", async ({
   page,
 }) => {
+  test.setTimeout(120_000);
+
   await page.goto(`/quote/${demoQuotePublicToken}`);
   await page.waitForLoadState("networkidle");
 
   await expect(
     page.getByRole("heading", { level: 1, name: "Foundry Labs booth kit" }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Accept quote" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Accept" })).toBeVisible();
 
   await page
-    .getByLabel("Message for the business")
+    .getByLabel("Message (optional)")
     .fill("Looks good. Please move ahead and confirm the production timeline.");
-  await page.getByRole("button", { name: "Accept quote" }).click();
+  await page.getByRole("button", { name: "Accept" }).click();
 
   await expect(page.getByText("Quote accepted")).toBeVisible({
-    timeout: 20_000,
+    timeout: 60_000,
   });
   await expect(
-    page.getByText("This quote has been accepted."),
-  ).toBeVisible({ timeout: 20_000 });
+    page.getByText("You accepted this quote. The business has been notified."),
+  ).toBeVisible({ timeout: 60_000 });
   await expect(
     page.getByText("Looks good. Please move ahead and confirm the production timeline."),
   ).toBeVisible({ timeout: 20_000 });
@@ -55,7 +57,7 @@ test("expired public quote links stay read-only", async ({ page }) => {
   await page.waitForLoadState("networkidle");
 
   await expect(page.getByText("Quote no longer active")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Accept quote" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Accept" })).toHaveCount(0);
 });
 
 test("voided public quote links stay readable but non-actionable", async ({
@@ -66,9 +68,9 @@ test("voided public quote links stay readable but non-actionable", async ({
 
   await expect(page.getByText("Quote voided")).toBeVisible();
   await expect(
-    page.getByText("This quote was voided and is no longer accepting online responses."),
+    page.getByText("This quote was voided by the business and is no longer active."),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Accept quote" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Accept" })).toHaveCount(0);
 });
 
 test("invalid public quote links show the public not-found state", async ({

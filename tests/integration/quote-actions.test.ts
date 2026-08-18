@@ -38,6 +38,7 @@ vi.mock("@/lib/rate-limit/redis-rate-limiter", () => ({
 }));
 
 vi.mock("@/features/quotes/mutations", () => ({
+  acknowledgeQuoteUncertaintyForBusiness: vi.fn(),
   archiveQuoteForBusiness: vi.fn(),
   createQuoteForBusiness: vi.fn(),
   deleteDraftQuoteForBusiness: vi.fn(),
@@ -45,7 +46,6 @@ vi.mock("@/features/quotes/mutations", () => ({
   respondToPublicQuoteByToken: respondToPublicQuoteByTokenMock,
   restoreArchivedQuoteForBusiness: vi.fn(),
   updateQuoteForBusiness: vi.fn(),
-  updateQuotePostAcceptanceStatusForBusiness: vi.fn(),
   voidQuoteForBusiness: vi.fn(),
 }));
 
@@ -80,11 +80,13 @@ vi.mock("@/lib/env", async () => {
 });
 
 import { respondToPublicQuoteAction } from "@/features/quotes/actions";
+import { acknowledgeQuoteUncertaintyAction } from "@/features/quotes/actions";
 import { sendQuoteAction } from "@/features/quotes/actions";
 import {
   getBusinessMessagingSettings,
   getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
+import { acknowledgeQuoteUncertaintyForBusiness } from "@/features/quotes/mutations";
 import { markQuoteSentForBusiness } from "@/features/quotes/mutations";
 import { getQuoteSendPayloadForBusiness } from "@/features/quotes/queries";
 import { checkUsageAllowance } from "@/lib/plans/usage";
@@ -93,6 +95,49 @@ import {
   sendQuoteEmail,
   sendQuoteSentOwnerNotificationEmail,
 } from "@/lib/resend/client";
+
+function makeSendPayload(
+  overrides: Partial<
+    NonNullable<Awaited<ReturnType<typeof getQuoteSendPayloadForBusiness>>>
+  > = {},
+): NonNullable<Awaited<ReturnType<typeof getQuoteSendPayloadForBusiness>>> {
+  return {
+    id: "quote_123",
+    inquiryId: "inquiry_123",
+    quoteNumber: "Q-1002",
+    publicToken: "quote_token_123",
+    title: "Foundry Labs booth kit",
+    customerName: "Taylor Nguyen",
+    customerEmail: "taylor@example.com",
+    customerContactMethod: "email",
+    customerContactHandle: "taylor@example.com",
+    currency: "USD",
+    notes: "Please review the attached scope.",
+    terms: null,
+    subtotalInCents: 20000,
+    discountInCents: 0,
+    taxInCents: 0,
+    taxLabel: null,
+    totalInCents: 20000,
+    validUntil: "2099-12-31",
+    status: "draft",
+    updatedAt: new Date("2026-04-18T08:00:00.000Z"),
+    aiReadiness: null,
+    aiAcknowledgedAt: null,
+    aiMissingInfo: null,
+    items: [
+      {
+        id: "qit_123",
+        description: "Booth kit",
+        quantity: 1,
+        unitPriceInCents: 20000,
+        lineTotalInCents: 20000,
+        position: 0,
+      },
+    ],
+    ...overrides,
+  };
+}
 
 describe("quote actions", () => {
   beforeEach(() => {
@@ -119,33 +164,9 @@ describe("quote actions", () => {
       contactEmail: "hello@brightside.test",
       notifyOnQuoteSent: true,
     } as Awaited<ReturnType<typeof getBusinessMessagingSettings>>);
-    vi.mocked(getQuoteSendPayloadForBusiness).mockResolvedValue({
-      id: "quote_123",
-      inquiryId: "inquiry_123",
-      quoteNumber: "Q-1002",
-      publicToken: "quote_token_123",
-      title: "Foundry Labs booth kit",
-      customerName: "Taylor Nguyen",
-      customerEmail: "taylor@example.com",
-      currency: "USD",
-      notes: "Please review the attached scope.",
-      subtotalInCents: 20000,
-      discountInCents: 0,
-      totalInCents: 20000,
-      validUntil: "2026-04-30",
-      status: "draft",
-      updatedAt: new Date("2026-04-18T08:00:00.000Z"),
-      items: [
-        {
-          id: "qit_123",
-          description: "Booth kit",
-          quantity: 1,
-          unitPriceInCents: 20000,
-          lineTotalInCents: 20000,
-          position: 0,
-        },
-      ],
-    } as Awaited<ReturnType<typeof getQuoteSendPayloadForBusiness>>);
+    vi.mocked(getQuoteSendPayloadForBusiness).mockResolvedValue(
+      makeSendPayload(),
+    );
     vi.mocked(checkUsageAllowance).mockResolvedValue({
       allowed: true,
       current: 0,
@@ -160,6 +181,11 @@ describe("quote actions", () => {
       inquiryId: "inquiry_123",
       publicToken: "quote_token_123",
     } as Awaited<ReturnType<typeof markQuoteSentForBusiness>>);
+    vi.mocked(acknowledgeQuoteUncertaintyForBusiness).mockResolvedValue({
+      updated: true,
+      locked: false,
+      status: "draft",
+    } as Awaited<ReturnType<typeof acknowledgeQuoteUncertaintyForBusiness>>);
     vi.mocked(sendQuoteSentOwnerNotificationEmail).mockResolvedValue(undefined);
     respondToPublicQuoteByTokenMock.mockResolvedValue({
       updated: true,
@@ -225,7 +251,7 @@ describe("quote actions", () => {
     expect(markQuoteSentForBusiness).not.toHaveBeenCalled();
     expect(result).toEqual({
       error:
-        "Free plan includes 3 Requo sends per day and 30 per month. You've hit today's send limit. Send this quote manually or upgrade to keep using Requo delivery.",
+        "Free plan includes 3 Requo sends per day and 15 per month. You've hit today's send limit. Send this quote manually or upgrade to keep using Requo delivery.",
     });
   });
 
@@ -248,6 +274,40 @@ describe("quote actions", () => {
     });
   });
 
+  it("blocks sending when AI readiness needs confirmation and pricing was not acknowledged", async () => {
+    vi.mocked(getQuoteSendPayloadForBusiness).mockResolvedValue(
+      makeSendPayload({
+        aiReadiness: "needs_confirmation",
+        aiAcknowledgedAt: null,
+      }),
+    );
+
+    const result = await sendQuoteAction("quote_123", {}, new FormData());
+
+    expect(markQuoteSentForBusiness).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      error:
+        "Some line items use suggested prices that need your confirmation. Review the pricing and confirm it before sending this quote.",
+    });
+  });
+
+  it("sends a draft quote when suggested pricing was acknowledged by the owner", async () => {
+    vi.mocked(getQuoteSendPayloadForBusiness).mockResolvedValue(
+      makeSendPayload({
+        aiReadiness: "needs_confirmation",
+        aiAcknowledgedAt: new Date("2026-04-18T09:00:00.000Z"),
+      }),
+    );
+
+    const formData = new FormData();
+    formData.set("deliveryMethod", "manual");
+
+    const result = await sendQuoteAction("quote_123", {}, formData);
+
+    expect(markQuoteSentForBusiness).toHaveBeenCalled();
+    expect(result.success).toContain("marked as sent");
+  });
+
   it("returns a clear error when the customer quote link cannot be recovered", async () => {
     vi.mocked(getQuoteSendPayloadForBusiness).mockResolvedValue({
       id: "quote_123",
@@ -262,7 +322,7 @@ describe("quote actions", () => {
       subtotalInCents: 20000,
       discountInCents: 0,
       totalInCents: 20000,
-      validUntil: "2026-04-30",
+      validUntil: "2099-12-31",
       status: "draft",
       updatedAt: new Date("2026-04-18T08:00:00.000Z"),
       items: [
@@ -330,7 +390,7 @@ describe("quote actions", () => {
     expect(sendQuoteResponseOwnerNotificationEmailMock).not.toHaveBeenCalled();
   });
 
-  it("sends the owner notification after a saved response when notifications are enabled", async () => {
+  it("records a rejected public quote response; owner email notifications are owned by the mutation", async () => {
     respondToPublicQuoteByTokenMock.mockResolvedValue({
       updated: true,
       status: "rejected",
@@ -363,22 +423,8 @@ describe("quote actions", () => {
         }),
       }),
     );
-    expect(getBusinessOwnerEmailsMock).toHaveBeenCalledWith("business_123");
-    expect(sendQuoteResponseOwnerNotificationEmailMock).toHaveBeenCalledWith({
-      quoteId: "quote_123",
-      updatedAt: new Date("2026-04-18T08:00:00.000Z"),
-      recipients: ["owner@example.com"],
-      businessName: "BrightSide Print Studio",
-      customerName: "Taylor Nguyen",
-      customerEmail: "taylor@example.com",
-      customerMessage: "We need to pause this for now.",
-      quoteNumber: "Q-1002",
-      title: "Foundry Labs booth kit",
-      response: "rejected",
-      dashboardUrl:
-        "https://requo.test/businesses/brightside-print-studio/quotes/quote_123",
-      businessId: "business_123",
-    });
+    expect(getBusinessOwnerEmailsMock).not.toHaveBeenCalled();
+    expect(sendQuoteResponseOwnerNotificationEmailMock).not.toHaveBeenCalled();
   });
 
   it("returns a clear message when a public quote has been voided", async () => {
@@ -407,6 +453,55 @@ describe("quote actions", () => {
 
     expect(result).toEqual({
       error: "This quote has been voided and can no longer be accepted online.",
+    });
+  });
+
+  it("records the owner's pricing acknowledgement for a needs-confirmation quote", async () => {
+    const result = await acknowledgeQuoteUncertaintyAction(
+      "quote_123",
+      {},
+      new FormData(),
+    );
+
+    expect(acknowledgeQuoteUncertaintyForBusiness).toHaveBeenCalledWith({
+      actorUserId: "user_123",
+      businessId: "business_123",
+      quoteId: "quote_123",
+    });
+    expect(result).toEqual({
+      success: "Pricing reviewed and confirmed. You can send the quote now.",
+    });
+  });
+
+  it("returns a clear error when the quote cannot be found during acknowledgement", async () => {
+    vi.mocked(acknowledgeQuoteUncertaintyForBusiness).mockResolvedValue(null);
+
+    const result = await acknowledgeQuoteUncertaintyAction(
+      "quote_123",
+      {},
+      new FormData(),
+    );
+
+    expect(result).toEqual({
+      error: "That quote could not be found.",
+    });
+  });
+
+  it("refuses to acknowledge a quote that is no longer a draft", async () => {
+    vi.mocked(acknowledgeQuoteUncertaintyForBusiness).mockResolvedValue({
+      updated: false,
+      locked: true,
+      status: "sent",
+    } as Awaited<ReturnType<typeof acknowledgeQuoteUncertaintyForBusiness>>);
+
+    const result = await acknowledgeQuoteUncertaintyAction(
+      "quote_123",
+      {},
+      new FormData(),
+    );
+
+    expect(result).toEqual({
+      error: "Only draft quotes can be confirmed for sending.",
     });
   });
 });

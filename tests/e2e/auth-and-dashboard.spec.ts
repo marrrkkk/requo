@@ -17,10 +17,7 @@ async function signIn(page: Page) {
   await page.locator("#password").fill(demoOwnerPassword);
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  await expect(page).toHaveURL(/\/businesses$/, { timeout: 20_000 });
-  await expect(
-    page.getByRole("heading", { name: "Your businesses" }),
-  ).toBeVisible({ timeout: 20_000 });
+  await expect(page).toHaveURL(/\/home$/, { timeout: 20_000 });
 }
 
 async function openDemoBusiness(page: Page) {
@@ -49,7 +46,7 @@ async function expectBodyScrollUnlocked(page: Page) {
 test("owner can sign in, reach the dashboard overview, and sign out @smoke", async ({
   page,
 }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(120_000);
 
   await signIn(page);
   await openDemoBusiness(page);

@@ -6,8 +6,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const getOperationalBusinessActionContextMock = vi.fn();
-const getMemoryCountForBusinessMock = vi.fn();
-const createMemoryForBusinessMock = vi.fn();
 const getQuoteLibrarySummaryForBusinessMock = vi.fn();
 const createQuoteLibraryEntryForBusinessMock = vi.fn();
 const updateTagMock = vi.fn();
@@ -21,13 +19,6 @@ vi.mock("@/lib/db/business-access", () => ({
     getOperationalBusinessActionContextMock(),
 }));
 
-vi.mock("@/features/memory/mutations", () => ({
-  getMemoryCountForBusiness: (...args: unknown[]) =>
-    getMemoryCountForBusinessMock(...args),
-  createMemoryForBusiness: (...args: unknown[]) =>
-    createMemoryForBusinessMock(...args),
-}));
-
 vi.mock("@/features/quotes/quote-library-queries", () => ({
   getQuoteLibrarySummaryForBusiness: (...args: unknown[]) =>
     getQuoteLibrarySummaryForBusinessMock(...args),
@@ -39,7 +30,6 @@ vi.mock("@/features/quotes/quote-library-mutations", () => ({
 }));
 
 vi.mock("@/lib/cache/business-tags", () => ({
-  getBusinessMemoryCacheTags: () => ["mem-tag"],
   getBusinessPricingCacheTags: () => ["pricing-tag"],
   uniqueCacheTags: (tags: string[]) => tags,
 }));
@@ -49,10 +39,7 @@ vi.mock("@/lib/rate-limit/redis-rate-limiter", () => ({
 }));
 
 // Import after mocking
-import {
-  commitKnowledgeImportAction,
-  commitPricingImportAction,
-} from "@/features/importer/actions";
+import { commitPricingImportAction } from "@/features/importer/actions";
 
 const businessContext = {
   business: {
@@ -61,67 +48,6 @@ const businessContext = {
     defaultCurrency: "USD",
   },
 };
-
-describe("commitKnowledgeImportAction — plan limit enforcement", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    getOperationalBusinessActionContextMock.mockResolvedValue({
-      ok: true,
-      user: { id: "user_1" },
-      businessContext,
-    });
-  });
-
-  it("rejects when importing would exceed the plan limit", async () => {
-    // Pro plan: memoriesPerBusiness = 10. User already has 8.
-    getMemoryCountForBusinessMock.mockResolvedValue(8);
-
-    const result = await commitKnowledgeImportAction({
-      sourceName: "test.pdf",
-      items: [
-        { title: "Item 1", content: "Content 1" },
-        { title: "Item 2", content: "Content 2" },
-        { title: "Item 3", content: "Content 3" },
-      ],
-    });
-
-    expect(result.created).toBe(0);
-    expect(result.skipped).toBe(3);
-    expect(result.error).toContain("over your plan limit");
-    expect(result.error).toContain("10");
-    expect(createMemoryForBusinessMock).not.toHaveBeenCalled();
-  });
-
-  it("allows import when within the plan limit", async () => {
-    getMemoryCountForBusinessMock.mockResolvedValue(8);
-    createMemoryForBusinessMock.mockResolvedValue({ id: "mem_1" });
-
-    const result = await commitKnowledgeImportAction({
-      sourceName: "test.pdf",
-      items: [
-        { title: "Item 1", content: "Content 1" },
-        { title: "Item 2", content: "Content 2" },
-      ],
-    });
-
-    expect(result.created).toBe(2);
-    expect(result.skipped).toBe(0);
-    expect(result.error).toBeUndefined();
-    expect(createMemoryForBusinessMock).toHaveBeenCalledTimes(2);
-  });
-
-  it("rejects when exactly at the limit (no room for even 1 item)", async () => {
-    getMemoryCountForBusinessMock.mockResolvedValue(10);
-
-    const result = await commitKnowledgeImportAction({
-      sourceName: "test.pdf",
-      items: [{ title: "Item 1", content: "Content 1" }],
-    });
-
-    expect(result.created).toBe(0);
-    expect(result.error).toContain("over your plan limit");
-  });
-});
 
 describe("commitPricingImportAction — plan limit enforcement", () => {
   beforeEach(() => {
@@ -134,11 +60,11 @@ describe("commitPricingImportAction — plan limit enforcement", () => {
   });
 
   it("rejects when importing would exceed the plan limit", async () => {
-    // Pro plan: pricingEntriesPerBusiness = 20. User already has 19.
+    // Pro plan: pricingEntriesPerBusiness = 50. User already has 49.
     getQuoteLibrarySummaryForBusinessMock.mockResolvedValue({
-      entryCount: 19,
-      blockCount: 10,
-      packageCount: 9,
+      entryCount: 49,
+      blockCount: 25,
+      packageCount: 24,
     });
 
     const result = await commitPricingImportAction({
@@ -159,8 +85,8 @@ describe("commitPricingImportAction — plan limit enforcement", () => {
 
     expect(result.created).toBe(0);
     expect(result.skipped).toBe(2);
-    expect(result.error).toContain("over your plan limit");
-    expect(result.error).toContain("20");
+    expect(result.error).toContain("This plan supports");
+    expect(result.error).toContain("50");
     expect(createQuoteLibraryEntryForBusinessMock).not.toHaveBeenCalled();
   });
 

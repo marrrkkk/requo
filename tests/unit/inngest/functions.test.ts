@@ -7,13 +7,13 @@ import { eventFunctions } from "@/lib/inngest/functions/events";
 
 describe("inngest wiring", () => {
   it("registers all cron and event functions", () => {
-    expect(cronFunctions).toHaveLength(8);
+    expect(cronFunctions).toHaveLength(9);
     expect(eventFunctions).toHaveLength(5);
-    expect(inngestFunctions).toHaveLength(13);
+    expect(inngestFunctions).toHaveLength(14);
   });
 
   it("uses stable requo event names", () => {
-    expect(inngestEvents.automationDispatch).toBe("requo/automation.dispatch");
+    expect(inngestEvents.inquiryQualified).toBe("requo/inquiry.qualified");
     expect(inngestEvents.pushInquiryReceived).toBe("requo/push.inquiry-received");
     expect(inngestEvents.enableQuoteAutoFollowUp).toBe(
       "requo/quotes.enable-auto-follow-up",

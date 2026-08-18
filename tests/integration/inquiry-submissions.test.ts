@@ -49,6 +49,7 @@ function expectValidSubmission(result: InquiryValidationResult) {
 function inquiryFormData(email = "new-customer@example.com") {
   const formData = new FormData();
   formData.set("customerName", "New Customer");
+  formData.set("customerEmail", email);
   formData.set("customerContactMethod", "email");
   formData.set("customerContactHandle", email);
   formData.set("serviceCategory", "Storefront refresh");
