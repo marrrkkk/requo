@@ -1,185 +1,498 @@
 "use server";
 
+import { and, eq } from "drizzle-orm";
+import { z } from "zod";
+
+import {
+  KNOWLEDGE_FILE_ACCEPT_EXTENSIONS,
+  KNOWLEDGE_FILE_MAX_BYTES,
+} from "@/features/memory/types";
+import {
+  knowledgeFileUploadSchema,
+  memoryEntryInputSchema,
+  memoryEntryUpdateSchema,
+} from "@/features/memory/schemas";
+import {
+  createBusinessMemory,
+  deleteBusinessMemory,
+  updateBusinessMemory,
+} from "@/features/memory/mutations";
+import { processKnowledgeFile, deleteKnowledgeFileForBusiness, KNOWLEDGE_FILES_BUCKET } from "@/features/memory/processing";
+import { countBusinessKnowledgeSources } from "@/features/memory/queries";
+import { getBusinessActionContext } from "@/lib/db/business-access";
+import { hasFeatureAccess } from "@/lib/plans";
+import { getUsageLimit } from "@/lib/plans/usage-limits";
+import { sanitizeMemoryContent } from "@/lib/ai/input-sanitizer";
+import { logAiSecurityEvent } from "@/lib/ai/security-events";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { db } from "@/lib/db/client";
+import { businessKnowledgeFiles } from "@/lib/db/schema";
+import { getBusinessMemoryCacheTags } from "@/lib/cache/business-tags";
+import { inngest } from "@/lib/inngest/client";
+import { inngestEvents } from "@/lib/inngest/events";
 import { updateTag } from "next/cache";
 
-import { getUserSafeErrorMessage, getValidationActionState } from "@/lib/action-state";
-import { getBusinessMemoryCacheTags, uniqueCacheTags } from "@/lib/cache/business-tags";
-import { getOperationalBusinessActionContext } from "@/lib/db/business-access";
-import { getUsageLimit, hasFeatureAccess } from "@/lib/plans";
-import {
-  createMemoryForBusiness,
-  deleteMemoryForBusiness,
-  getMemoryCountForBusiness,
-  updateMemoryForBusiness,
-} from "@/features/memory/mutations";
-import { memoryIdSchema, memorySchema } from "@/features/memory/schemas";
-import type {
-  MemoryActionState,
-  MemoryDeleteActionState,
-} from "@/features/memory/types";
+// ---------------------------------------------------------------------------
+// Action state types
+// ---------------------------------------------------------------------------
 
-const initialMemoryState: MemoryActionState = {};
-const initialMemoryDeleteState: MemoryDeleteActionState = {};
+export type MemoryEntryActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: {
+    title?: string[];
+    content?: string[];
+    category?: string[];
+  };
+};
 
-function updateCacheTags(tags: string[]) {
-  for (const tag of uniqueCacheTags(tags)) {
+export type KnowledgeFileActionState = {
+  error?: string;
+  success?: string;
+  fileId?: string;
+  status?: string;
+};
+
+export type KnowledgeFileDeleteActionState = {
+  error?: string;
+  success?: boolean;
+};
+
+function createId(prefix: string) {
+  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
+}
+
+function invalidateKnowledgeCache(businessId: string) {
+  for (const tag of getBusinessMemoryCacheTags(businessId)) {
     updateTag(tag);
   }
 }
 
-export async function createMemoryAction(
-  prevState: MemoryActionState = initialMemoryState,
+function firstString(value: unknown) {
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+
+  return value;
+}
+
+// ---------------------------------------------------------------------------
+// Manual memory entries
+// ---------------------------------------------------------------------------
+
+export async function createMemoryEntryAction(
+  businessSlug: string,
+  prevState: MemoryEntryActionState,
   formData: FormData,
-): Promise<MemoryActionState> {
+): Promise<MemoryEntryActionState> {
   void prevState;
 
-  const ownerAccess = await getOperationalBusinessActionContext();
+  const actionContext = await getBusinessActionContext({
+    businessSlug,
+    minimumRole: "staff",
+    requireActiveBusiness: true,
+    unauthorizedMessage: "You do not have access to that business action.",
+  });
 
-  if (!ownerAccess.ok) {
-    return { error: ownerAccess.error };
+  if (!actionContext.ok) {
+    return { error: actionContext.error };
   }
 
-  const { user, businessContext } = ownerAccess;
-  const plan = businessContext.business.plan;
-
-  if (!hasFeatureAccess(plan, "knowledgeBase")) {
-    return { error: "Upgrade to Pro to save knowledge for the AI assistant." };
+  if (
+    !hasFeatureAccess(
+      actionContext.businessContext.business.plan,
+      "knowledgeBase",
+    )
+  ) {
+    return { error: "Your plan does not include a knowledge base." };
   }
 
-  const memoryLimit = getUsageLimit(plan, "memoriesPerBusiness");
+  const parsed = memoryEntryInputSchema.safeParse({
+    title: firstString(formData.get("title")),
+    content: firstString(formData.get("content")),
+    category: firstString(formData.get("category")) ?? undefined,
+  });
 
-  if (memoryLimit !== null) {
-    const currentCount = await getMemoryCountForBusiness(businessContext.business.id);
-    if (currentCount >= memoryLimit) {
+  if (!parsed.success) {
+    return {
+      error: "Check the highlighted fields and try again.",
+      fieldErrors: z.flattenError(parsed.error).fieldErrors as MemoryEntryActionState["fieldErrors"],
+    };
+  }
+
+  // Sanitize memory content against prompt-injection before persistence.
+  const sanitization = sanitizeMemoryContent(
+    parsed.data.title,
+    parsed.data.content,
+  );
+
+  if (sanitization.status === "rejected") {
+    logAiSecurityEvent({
+      eventType: "injection_rejected",
+      patternMatched: sanitization.patterns.join(", "),
+      userId: actionContext.user.id,
+      businessId: actionContext.businessContext.business.id,
+      rawInput: `${parsed.data.title}\n${parsed.data.content}`.slice(0, 200),
+    });
+
+    return {
+      error: "That content could not be saved. Remove instruction-style text and try again.",
+    };
+  }
+
+  const businessId = actionContext.businessContext.business.id;
+  const plan = actionContext.businessContext.business.plan;
+  const limit = getUsageLimit(plan, "knowledgeSourcesPerBusiness");
+
+  if (limit !== null) {
+    const current = await countBusinessKnowledgeSources(businessId);
+    if (current >= limit) {
       return {
-        error: `You have reached your knowledge limit (${memoryLimit}). Delete some knowledge items first.`,
+        error: `This plan supports ${limit} knowledge sources. Remove a source or upgrade to add another.`,
       };
     }
   }
 
-  const validationResult = memorySchema.safeParse({
-    title: formData.get("title"),
-    content: formData.get("content"),
-  });
-
-  if (!validationResult.success) {
-    return getValidationActionState(validationResult.error, "Check the highlighted fields and try again.");
-  }
-
   try {
-    await createMemoryForBusiness({
-      businessId: businessContext.business.id,
-      actorUserId: user.id,
-      memory: validationResult.data,
+    await createBusinessMemory({
+      businessId,
+      entry: {
+        title: sanitization.output || parsed.data.title,
+        content: sanitization.output || parsed.data.content,
+        category: parsed.data.category,
+      },
     });
 
-    updateCacheTags(getBusinessMemoryCacheTags(businessContext.business.id));
-    return { success: "Memory saved." };
+    return { success: "Knowledge entry saved." };
   } catch (error) {
-    console.error("Failed to create memory.", error);
-    return {
-      error: getUserSafeErrorMessage(error, "We couldn't save that memory right now."),
-    };
+    console.error("Failed to create memory entry.", error);
+    return { error: "We couldn't save that entry right now." };
   }
 }
 
-export async function updateMemoryAction(
+export async function updateMemoryEntryAction(
+  businessSlug: string,
   memoryId: string,
-  prevState: MemoryActionState = initialMemoryState,
+  prevState: MemoryEntryActionState,
   formData: FormData,
-): Promise<MemoryActionState> {
+): Promise<MemoryEntryActionState> {
   void prevState;
 
-  const parsedId = memoryIdSchema.safeParse(memoryId);
-
-  if (!parsedId.success) {
-    return { error: "That memory could not be found." };
-  }
-
-  const ownerAccess = await getOperationalBusinessActionContext();
-
-  if (!ownerAccess.ok) {
-    return { error: ownerAccess.error };
-  }
-
-  const { user, businessContext } = ownerAccess;
-
-  if (!hasFeatureAccess(businessContext.business.plan, "knowledgeBase")) {
-    return { error: "Upgrade to Pro to update knowledge." };
-  }
-
-  const validationResult = memorySchema.safeParse({
-    title: formData.get("title"),
-    content: formData.get("content"),
+  const actionContext = await getBusinessActionContext({
+    businessSlug,
+    minimumRole: "staff",
+    requireActiveBusiness: true,
+    unauthorizedMessage: "You do not have access to that business action.",
   });
 
-  if (!validationResult.success) {
-    return getValidationActionState(validationResult.error, "Check the highlighted fields and try again.");
+  if (!actionContext.ok) {
+    return { error: actionContext.error };
+  }
+
+  if (
+    !hasFeatureAccess(
+      actionContext.businessContext.business.plan,
+      "knowledgeBase",
+    )
+  ) {
+    return { error: "Your plan does not include a knowledge base." };
+  }
+
+  const parsed = memoryEntryInputSchema.safeParse({
+    title: firstString(formData.get("title")),
+    content: firstString(formData.get("content")),
+    category: firstString(formData.get("category")) ?? undefined,
+  });
+
+  if (!parsed.success) {
+    return {
+      error: "Check the highlighted fields and try again.",
+      fieldErrors: z.flattenError(parsed.error).fieldErrors as MemoryEntryActionState["fieldErrors"],
+    };
+  }
+
+  const sanitization = sanitizeMemoryContent(
+    parsed.data.title,
+    parsed.data.content,
+  );
+
+  if (sanitization.status === "rejected") {
+    logAiSecurityEvent({
+      eventType: "injection_rejected",
+      patternMatched: sanitization.patterns.join(", "),
+      userId: actionContext.user.id,
+      businessId: actionContext.businessContext.business.id,
+      rawInput: `${parsed.data.title}\n${parsed.data.content}`.slice(0, 200),
+    });
+
+    return {
+      error: "That content could not be saved. Remove instruction-style text and try again.",
+    };
   }
 
   try {
-    const result = await updateMemoryForBusiness({
-      businessId: businessContext.business.id,
-      actorUserId: user.id,
-      memoryId: parsedId.data,
-      memory: validationResult.data,
+    const result = await updateBusinessMemory({
+      businessId: actionContext.businessContext.business.id,
+      memoryId,
+      update: {
+        title: sanitization.output || parsed.data.title,
+        content: sanitization.output || parsed.data.content,
+        category: parsed.data.category,
+      },
     });
 
     if (!result) {
-      return { error: "That memory could not be found." };
+      return { error: "That knowledge entry could not be found." };
     }
 
-    updateCacheTags(getBusinessMemoryCacheTags(businessContext.business.id));
-    return { success: "Memory updated." };
+    return { success: "Knowledge entry updated." };
   } catch (error) {
-    console.error("Failed to update memory.", error);
-    return {
-      error: getUserSafeErrorMessage(error, "We couldn't update that memory right now."),
-    };
+    console.error("Failed to update memory entry.", error);
+    return { error: "We couldn't save that entry right now." };
   }
 }
 
-export async function deleteMemoryAction(
+export async function deleteMemoryEntryAction(
+  businessSlug: string,
   memoryId: string,
-  prevState: MemoryDeleteActionState = initialMemoryDeleteState,
-  formData: FormData,
-): Promise<MemoryDeleteActionState> {
-  void prevState;
-  void formData;
+): Promise<MemoryEntryActionState> {
+  const actionContext = await getBusinessActionContext({
+    businessSlug,
+    minimumRole: "staff",
+    requireActiveBusiness: true,
+    unauthorizedMessage: "You do not have access to that business action.",
+  });
 
-  const parsedId = memoryIdSchema.safeParse(memoryId);
-
-  if (!parsedId.success) {
-    return { error: "That memory could not be found." };
-  }
-
-  const ownerAccess = await getOperationalBusinessActionContext();
-
-  if (!ownerAccess.ok) {
-    return { error: ownerAccess.error };
-  }
-
-  const { user, businessContext } = ownerAccess;
-
-  if (!hasFeatureAccess(businessContext.business.plan, "knowledgeBase")) {
-    return { error: "Upgrade to Pro to delete knowledge." };
+  if (!actionContext.ok) {
+    return { error: actionContext.error };
   }
 
   try {
-    const result = await deleteMemoryForBusiness({
-      businessId: businessContext.business.id,
-      actorUserId: user.id,
-      memoryId: parsedId.data,
+    const result = await deleteBusinessMemory({
+      businessId: actionContext.businessContext.business.id,
+      memoryId,
     });
 
     if (!result) {
-      return { error: "That memory could not be found." };
+      return { error: "That knowledge entry could not be found." };
     }
 
-    updateCacheTags(getBusinessMemoryCacheTags(businessContext.business.id));
-    return {};
+    return { success: "Knowledge entry deleted." };
   } catch (error) {
-    console.error("Failed to delete memory.", error);
-    return { error: "We couldn't delete that memory right now." };
+    console.error("Failed to delete memory entry.", error);
+    return { error: "We couldn't delete that entry right now." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Knowledge files
+// ---------------------------------------------------------------------------
+
+const supportedExtensionPattern = new RegExp(
+  `${KNOWLEDGE_FILE_ACCEPT_EXTENSIONS.map((ext) => ext.replace(".", "\\.")).join("|")}$`,
+  "i",
+);
+
+export async function uploadKnowledgeFileAction(
+  businessSlug: string,
+  prevState: KnowledgeFileActionState,
+  formData: FormData,
+): Promise<KnowledgeFileActionState> {
+  void prevState;
+
+  const actionContext = await getBusinessActionContext({
+    businessSlug,
+    minimumRole: "staff",
+    requireActiveBusiness: true,
+    unauthorizedMessage: "You do not have access to that business action.",
+  });
+
+  if (!actionContext.ok) {
+    return { error: actionContext.error };
+  }
+
+  if (
+    !hasFeatureAccess(
+      actionContext.businessContext.business.plan,
+      "knowledgeBase",
+    )
+  ) {
+    return { error: "Your plan does not include a knowledge base." };
+  }
+
+  const file = firstString(formData.get("file"));
+
+  if (!(file instanceof File)) {
+    return { error: "Choose a file to upload." };
+  }
+
+  if (file.size > KNOWLEDGE_FILE_MAX_BYTES) {
+    return { error: "Files must be 5 MB or smaller." };
+  }
+
+  const parsed = knowledgeFileUploadSchema.safeParse({
+    fileName: file.name,
+    mimeType: file.type,
+    byteSize: file.size,
+    content: await file.arrayBuffer(),
+  });
+
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    return { error: firstIssue?.message ?? "Check the file and try again." };
+  }
+
+  if (!supportedExtensionPattern.test(parsed.data.fileName)) {
+    return {
+      error: "This file type is not supported. Use PDF, CSV, TXT, or Markdown.",
+    };
+  }
+
+  const businessId = actionContext.businessContext.business.id;
+  const plan = actionContext.businessContext.business.plan;
+  const limit = getUsageLimit(plan, "knowledgeSourcesPerBusiness");
+
+  if (limit !== null) {
+    const current = await countBusinessKnowledgeSources(businessId);
+    if (current >= limit) {
+      return {
+        error: `This plan supports ${limit} knowledge sources. Remove a source or upgrade to add another.`,
+      };
+    }
+  }
+
+  const fileId = createId("knf");
+  const extension = parsed.data.fileName.match(/\.[^.]+$/)?.[0] ?? "";
+  const storagePath = `${businessId}/${fileId}${extension.toLowerCase()}`;
+
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { error } = await supabase.storage
+      .from(KNOWLEDGE_FILES_BUCKET)
+      .upload(storagePath, parsed.data.content, {
+        contentType: parsed.data.mimeType,
+        upsert: false,
+      });
+
+    if (error) {
+      console.error("Failed to upload knowledge file to storage.", error);
+      return { error: "We couldn't upload that file right now." };
+    }
+
+    await db.insert(businessKnowledgeFiles).values({
+      id: fileId,
+      businessId,
+      originalFileName: parsed.data.fileName,
+      storagePath,
+      mimeType: parsed.data.mimeType,
+      byteSize: parsed.data.byteSize,
+      status: "pending",
+    });
+
+    invalidateKnowledgeCache(businessId);
+
+    // Fire-and-forget processing; failures surface as file status.
+    await inngest.send({
+      name: inngestEvents.knowledgeFileUploaded,
+      data: { businessId, fileId },
+    });
+  } catch (error) {
+    console.error("Failed to create knowledge file row.", error);
+
+    // Best-effort cleanup of the uploaded object.
+    try {
+      const supabase = createSupabaseAdminClient();
+      await supabase.storage.from(KNOWLEDGE_FILES_BUCKET).remove([storagePath]);
+    } catch {
+      // Ignore cleanup failures.
+    }
+
+    return { error: "We couldn't upload that file right now." };
+  }
+
+  return {
+    success: "File uploaded and processing will start shortly.",
+    fileId,
+    status: "pending",
+  };
+}
+
+export async function deleteKnowledgeFileAction(
+  businessSlug: string,
+  fileId: string,
+): Promise<KnowledgeFileDeleteActionState> {
+  const actionContext = await getBusinessActionContext({
+    businessSlug,
+    minimumRole: "staff",
+    requireActiveBusiness: true,
+    unauthorizedMessage: "You do not have access to that business action.",
+  });
+
+  if (!actionContext.ok) {
+    return { error: actionContext.error };
+  }
+
+  try {
+    const result = await deleteKnowledgeFileForBusiness({
+      businessId: actionContext.businessContext.business.id,
+      fileId,
+    });
+
+    if (!result) {
+      return { error: "That file could not be found." };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to delete knowledge file.", error);
+    return { error: "We couldn't delete that file right now." };
+  }
+}
+
+export async function retryKnowledgeFileAction(
+  businessSlug: string,
+  fileId: string,
+): Promise<KnowledgeFileActionState> {
+  const actionContext = await getBusinessActionContext({
+    businessSlug,
+    minimumRole: "staff",
+    requireActiveBusiness: true,
+    unauthorizedMessage: "You do not have access to that business action.",
+  });
+
+  if (!actionContext.ok) {
+    return { error: actionContext.error };
+  }
+
+  const businessId = actionContext.businessContext.business.id;
+
+  const [fileRow] = await db
+    .select({ id: businessKnowledgeFiles.id })
+    .from(businessKnowledgeFiles)
+    .where(
+      and(
+        eq(businessKnowledgeFiles.id, fileId),
+        eq(businessKnowledgeFiles.businessId, businessId),
+      ),
+    )
+    .limit(1);
+
+  if (!fileRow) {
+    return { error: "That file could not be found." };
+  }
+
+  try {
+    const result = await processKnowledgeFile({ businessId, fileId });
+
+    if (!result.ok) {
+      return { error: result.failureReason };
+    }
+
+    invalidateKnowledgeCache(businessId);
+
+    return { success: "File processed successfully.", fileId, status: "ready" };
+  } catch (error) {
+    console.error("Failed to retry knowledge file processing.", error);
+    return { error: "We couldn't process that file right now." };
   }
 }

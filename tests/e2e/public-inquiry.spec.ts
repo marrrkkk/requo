@@ -46,7 +46,7 @@ test("public inquiry page accepts a new submission @smoke", async ({ page }) => 
 
   await page.locator("#inquiry-customerName:visible").fill("Taylor Nguyen");
   await page
-    .locator("#inquiry-contactHandle:visible")
+    .locator("#inquiry-customerEmail:visible")
     .fill(`taylor+${Date.now()}@example.com`);
   await page.locator("#inquiry-serviceCategory:visible").fill("Window graphics");
   await page.locator("#inquiry-budgetText:visible").fill("1500");
@@ -58,12 +58,12 @@ test("public inquiry page accepts a new submission @smoke", async ({ page }) => 
 
   await page.getByRole("button", { name: "Send inquiry" }).click();
 
-  await expect(page.getByText("Inquiry received.")).toBeVisible({
-    timeout: 20_000,
-  });
+  await expect(
+    page.getByRole("heading", { name: "Inquiry received." }),
+  ).toBeVisible({ timeout: 20_000 });
   await expect(page).toHaveURL(/submitted=1/);
   await expect(
-    page.getByRole("button", { name: "Submit another inquiry" }),
+    page.getByRole("link", { name: "Submit another inquiry" }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Send inquiry" }),

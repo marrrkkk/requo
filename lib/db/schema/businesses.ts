@@ -149,16 +149,32 @@ export const businesses = pgTable(
     notifyInAppOnQuoteExpiring: boolean("notify_in_app_on_quote_expiring")
       .notNull()
       .default(true),
-    defaultInvoiceDueDays: integer("default_invoice_due_days")
-      .notNull()
-      .default(14),
     defaultCurrency: text("default_currency").notNull().default("USD"),
     analyticsDigestEnabled: boolean("analytics_digest_enabled")
       .notNull()
       .default(true),
-    autoCreateJobsOnAcceptance: boolean("auto_create_jobs_on_acceptance")
+    /** Send the customer an acknowledgment email when an inquiry is received. */
+    sendInquiryAckEmail: boolean("send_inquiry_ack_email")
       .notNull()
       .default(true),
+    /** Auto-generate an AI quote draft when an inquiry is qualified. */
+    autoDraftQuoteOnQualify: boolean("auto_draft_quote_on_qualify")
+      .notNull()
+      .default(true),
+    /** Auto-archive stale open inquiries after the idle window below. */
+    autoArchiveStaleInquiries: boolean("auto_archive_stale_inquiries")
+      .notNull()
+      .default(true),
+    autoArchiveStaleInquiryDays: integer("auto_archive_stale_inquiry_days")
+      .notNull()
+      .default(14),
+    /** Create a follow-up task when a quote is viewed but unanswered. */
+    autoFollowUpOnQuoteViewed: boolean("auto_follow_up_on_quote_viewed")
+      .notNull()
+      .default(true),
+    quoteViewedFollowUpDelayDays: integer("quote_viewed_follow_up_delay_days")
+      .notNull()
+      .default(3),
     industryCategory: text("industry_category"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     archivedBy: text("archived_by").references(() => user.id, {
@@ -206,8 +222,12 @@ export const businesses = pgTable(
       sql`${table.defaultQuoteValidityDays} between 1 and 365`,
     ),
     check(
-      "businesses_default_invoice_due_days_range",
-      sql`${table.defaultInvoiceDueDays} between 1 and 365`,
+      "businesses_auto_archive_stale_inquiry_days_range",
+      sql`${table.autoArchiveStaleInquiryDays} between 1 and 365`,
+    ),
+    check(
+      "businesses_quote_viewed_follow_up_delay_days_range",
+      sql`${table.quoteViewedFollowUpDelayDays} between 1 and 90`,
     ),
     check(
       "businesses_plan_valid",

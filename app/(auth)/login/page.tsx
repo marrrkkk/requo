@@ -43,8 +43,8 @@ export default function LoginPage({
   return (
     <AuthShell
       title="Welcome back"
-      description="Sign in to your account to continue"
-      layout="centered"
+      description="Sign in to your account to continue."
+      layout="signup"
     >
       <Suspense fallback={<AuthFormSkeleton />}>
         <LoginContent searchParams={searchParams} />

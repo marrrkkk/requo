@@ -1,38 +1,9 @@
 import { z } from "zod";
 
 import {
-  importerMaxKnowledgeItems,
   importerMaxPricingEntries,
   importerMaxPricingItemsPerEntry,
 } from "@/features/importer/types";
-
-export const importerCommitKnowledgeItemSchema = z.object({
-  title: z
-    .string()
-    .trim()
-    .min(1, "Every knowledge item needs a title.")
-    .max(200, "Titles must be 200 characters or fewer."),
-  content: z
-    .string()
-    .trim()
-    .min(1, "Every knowledge item needs content.")
-    .max(4000, "Content must be 4000 characters or fewer."),
-});
-
-export const importerCommitKnowledgeSchema = z.object({
-  sourceName: z.string().trim().min(1).max(200),
-  items: z
-    .array(importerCommitKnowledgeItemSchema)
-    .min(1, "Select at least one knowledge item to import.")
-    .max(
-      importerMaxKnowledgeItems,
-      `You can import at most ${importerMaxKnowledgeItems} knowledge items at once.`,
-    ),
-});
-
-export type ImporterCommitKnowledgeInput = z.infer<
-  typeof importerCommitKnowledgeSchema
->;
 
 export const importerCommitPricingLineItemSchema = z.object({
   description: z

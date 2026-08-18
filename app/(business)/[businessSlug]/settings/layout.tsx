@@ -9,6 +9,13 @@ import { ThemePreferenceSync } from "@/features/theme/components/theme-preferenc
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { getUnifiedSettingsNavigation } from "@/features/settings/navigation";
 import { SettingsShellFrame, SettingsUserMenu } from "@/features/settings/components/settings-shell-frame";
+import {
+  MobileBusinessSwitcher,
+  MobileBusinessSwitcherSkeleton,
+  MobileUserMenu,
+  MobileUserMenuSkeleton,
+} from "@/components/shell/dashboard-shell-slots";
+import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { BusinessCheckoutProvider } from "@/features/billing/components/business-checkout-provider";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
@@ -51,13 +58,23 @@ export default async function SettingsLayout({
         businessNameSlot={
           <Suspense
             fallback={
-              <div className="flex items-center gap-2.5 px-1 py-1">
+              <div className="flex items-center gap-2.5 px-1 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0">
                 <Skeleton className="size-7 shrink-0 rounded-full" />
-                <Skeleton className="h-4 w-24 rounded-md" />
+                <Skeleton className="h-4 w-24 rounded-md group-data-[collapsible=icon]:hidden" />
               </div>
             }
           >
             <BusinessNameSlot businessSlug={businessSlug} />
+          </Suspense>
+        }
+        mobileBusinessSwitcherSlot={
+          <Suspense fallback={<MobileBusinessSwitcherSkeleton />}>
+            <MobileBusinessSwitcherSlot businessSlug={businessSlug} />
+          </Suspense>
+        }
+        mobileUserMenuSlot={
+          <Suspense fallback={<MobileUserMenuSkeleton />}>
+            <MobileUserMenuSlot businessSlug={businessSlug} />
           </Suspense>
         }
       >
@@ -118,7 +135,7 @@ async function BusinessNameSlot({ businessSlug }: { businessSlug: string }) {
   return (
     <Link
       href={dashboardPath}
-      className="flex min-w-0 items-center gap-2.5 rounded-md px-1 py-1 transition-colors hover:bg-sidebar-accent"
+      className="flex min-w-0 items-center gap-2.5 rounded-md px-1 py-1 transition-colors hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
     >
       <BusinessAvatar
         name={business.name}
@@ -126,7 +143,7 @@ async function BusinessNameSlot({ businessSlug }: { businessSlug: string }) {
         size="sm"
         loading="eager"
       />
-      <span className="truncate text-sm font-medium text-foreground">
+      <span className="truncate text-sm font-medium text-foreground group-data-[collapsible=icon]:hidden">
         {business.name}
       </span>
     </Link>
@@ -158,12 +175,58 @@ async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
 
 function UserMenuSkeleton() {
   return (
-    <div className="flex items-center gap-2.5 px-2 py-1.5">
+    <div className="flex items-center gap-2.5 px-2 py-1.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0">
       <Skeleton className="size-8 shrink-0 rounded-lg" />
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 group-data-[collapsible=icon]:hidden">
         <Skeleton className="h-3.5 w-20 rounded" />
         <Skeleton className="h-3 w-28 rounded" />
       </div>
     </div>
+  );
+}
+
+async function MobileBusinessSwitcherSlot({ businessSlug }: { businessSlug: string }) {
+  const { businessContext } = await getAppShellContext(businessSlug);
+  const session = await requireSession();
+  const allMemberships = await getBusinessMembershipsForUser(session.user.id, "all");
+  const memberships = allMemberships.filter(
+    (m) => m.business.recordState !== "trash",
+  );
+
+  const { getBusinessQuotaForUser } = await import("@/features/businesses/quota");
+  const businessQuota = await getBusinessQuotaForUser({ ownerUserId: session.user.id });
+
+  return (
+    <MobileBusinessSwitcher
+      currentBusiness={businessContext}
+      memberships={memberships}
+      businessQuota={businessQuota}
+    />
+  );
+}
+
+async function MobileUserMenuSlot({ businessSlug }: { businessSlug: string }) {
+  const { user, businessContext } = await getAppShellContext(businessSlug);
+  const profile = await getAccountProfileForUser(user.id);
+
+  const avatarSrc = resolveUserAvatarSrc({
+    avatarStoragePath: profile?.avatarStoragePath,
+    profileUpdatedAt: profile?.updatedAt,
+    oauthImage: user.image ?? null,
+  });
+
+  return (
+    <MobileUserMenu
+      user={{
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatarSrc,
+      }}
+      businessRole={businessContext.role}
+      businessSlug={businessContext.business.slug}
+      businessId={businessContext.business.id}
+      plan={businessContext.business.plan}
+    />
   );
 }

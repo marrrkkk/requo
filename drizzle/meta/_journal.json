@@ -78,6 +78,27 @@
       "when": 1780440159375,
       "tag": "0010_add_default_invoice_due_days",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786820452737,
+      "tag": "0011_remove_ai_conversations_drafts_memories",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786964970456,
+      "tag": "0012_remove_jobs_invoices_automations",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786971350353,
+      "tag": "0013_grounded_quote_knowledge",
+      "breakpoints": true
     }
   ]
 }

@@ -1,96 +1,119 @@
-"server only";
+import "server-only";
 
 import { asc, count, desc, eq } from "drizzle-orm";
-import { cacheLife, cacheTag } from "next/cache";
+import { cache } from "react";
 
 import { db } from "@/lib/db/client";
-import { businessMemories } from "@/lib/db/schema/memories";
-import type {
-  DashboardMemoryData,
-  DashboardMemorySummary,
-  BusinessMemoryContext,
-} from "@/features/memory/types";
 import {
-  getBusinessMemoryCacheTags,
-  settingsBusinessCacheLife,
-} from "@/lib/cache/business-tags";
-import { getUsageLimit } from "@/lib/plans";
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
+  businessKnowledgeFiles,
+  businessMemories,
+} from "@/lib/db/schema";
+import { getUsageLimit } from "@/lib/plans/usage-limits";
+import type { BusinessPlan } from "@/lib/plans/plans";
+import type {
+  KnowledgeFileRow,
+  KnowledgeSummary,
+  MemoryRow,
+} from "@/features/memory/types";
 
-export async function getMemoryDashboardData(
+export const listBusinessMemories = cache(async (
   businessId: string,
-): Promise<DashboardMemoryData> {
-  "use cache";
-
-  cacheLife(settingsBusinessCacheLife);
-  cacheTag(...getBusinessMemoryCacheTags(businessId));
-
-  const memories = await db
+): Promise<MemoryRow[]> => {
+  const rows = await db
     .select({
       id: businessMemories.id,
       title: businessMemories.title,
       content: businessMemories.content,
+      category: businessMemories.category,
       position: businessMemories.position,
+      embedding: businessMemories.embedding,
       createdAt: businessMemories.createdAt,
       updatedAt: businessMemories.updatedAt,
     })
     .from(businessMemories)
     .where(eq(businessMemories.businessId, businessId))
-    .orderBy(asc(businessMemories.position), desc(businessMemories.createdAt));
+    .orderBy(
+      asc(businessMemories.position),
+      asc(businessMemories.createdAt),
+    );
 
-  return { memories };
-}
+  return rows.map((row) => ({
+    ...row,
+    hasEmbedding: Array.isArray(row.embedding) && row.embedding.length > 0,
+  }));
+});
 
-export async function getMemorySummaryForBusiness(
+export const listBusinessKnowledgeFiles = cache(async (
   businessId: string,
-  plan: plan,
-): Promise<DashboardMemorySummary> {
-  "use cache";
+): Promise<KnowledgeFileRow[]> => {
+  const rows = await db
+    .select({
+      id: businessKnowledgeFiles.id,
+      originalFileName: businessKnowledgeFiles.originalFileName,
+      mimeType: businessKnowledgeFiles.mimeType,
+      byteSize: businessKnowledgeFiles.byteSize,
+      status: businessKnowledgeFiles.status,
+      extractedCharacterCount: businessKnowledgeFiles.extractedCharacterCount,
+      failureReason: businessKnowledgeFiles.failureReason,
+      createdAt: businessKnowledgeFiles.createdAt,
+      updatedAt: businessKnowledgeFiles.updatedAt,
+    })
+    .from(businessKnowledgeFiles)
+    .where(eq(businessKnowledgeFiles.businessId, businessId))
+    .orderBy(desc(businessKnowledgeFiles.createdAt));
 
-  cacheLife(settingsBusinessCacheLife);
-  cacheTag(...getBusinessMemoryCacheTags(businessId));
+  return rows;
+});
 
-  const [[memoryCountResult]] = await Promise.all([
+export const countBusinessKnowledgeSources = cache(async (
+  businessId: string,
+): Promise<number> => {
+  const [memoryCount, fileCount] = await Promise.all([
     db
-      .select({
-        memoryCount: count(businessMemories.id),
-      })
+      .select({ count: count() })
       .from(businessMemories)
       .where(eq(businessMemories.businessId, businessId)),
+    db
+      .select({ count: count() })
+      .from(businessKnowledgeFiles)
+      .where(eq(businessKnowledgeFiles.businessId, businessId)),
   ]);
 
-  const memoryCount = memoryCountResult?.memoryCount ?? 0;
-  const limit = getUsageLimit(plan, "memoriesPerBusiness");
+  return (memoryCount[0]?.count ?? 0) + (fileCount[0]?.count ?? 0);
+});
 
-  return {
-    memoryCount,
-    limit,
-  };
-}
-
-export async function buildBusinessMemoryContext(
+export const getBusinessKnowledgeSummary = cache(async (
   businessId: string,
-): Promise<BusinessMemoryContext> {
-  "use cache";
+  plan: BusinessPlan,
+): Promise<KnowledgeSummary> => {
+  const [memoryCount, fileRows] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(businessMemories)
+      .where(eq(businessMemories.businessId, businessId)),
+    db
+      .select({
+        status: businessKnowledgeFiles.status,
+        count: count(),
+      })
+      .from(businessKnowledgeFiles)
+      .where(eq(businessKnowledgeFiles.businessId, businessId))
+      .groupBy(businessKnowledgeFiles.status),
+  ]);
 
-  cacheLife(settingsBusinessCacheLife);
-  cacheTag(...getBusinessMemoryCacheTags(businessId));
+  const memoryTotal = memoryCount[0]?.count ?? 0;
+  const fileTotal = fileRows.reduce((sum, row) => sum + row.count, 0);
 
-  const memories = await db
-    .select({
-      title: businessMemories.title,
-      content: businessMemories.content,
-    })
-    .from(businessMemories)
-    .where(eq(businessMemories.businessId, businessId))
-    .orderBy(asc(businessMemories.position));
-
-  const combinedText = memories
-    .map((m) => `## ${m.title}\n${m.content}`)
-    .join("\n\n");
+  const byStatus = new Map(fileRows.map((row) => [row.status, row.count]));
 
   return {
-    memories,
-    combinedText,
+    sourceCount: memoryTotal + fileTotal,
+    sourceLimit: getUsageLimit(plan, "knowledgeSourcesPerBusiness"),
+    memoryCount: memoryTotal,
+    fileCount: fileTotal,
+    readyFileCount: byStatus.get("ready") ?? 0,
+    processingCount:
+      (byStatus.get("processing") ?? 0) + (byStatus.get("pending") ?? 0),
+    failedFileCount: byStatus.get("failed") ?? 0,
   };
-}
+});

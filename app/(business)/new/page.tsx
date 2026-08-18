@@ -14,7 +14,6 @@ import { getBusinessQuotaForUser } from "@/features/businesses/quota";
 import { dashboardPath } from "@/features/businesses/routes";
 import { onboardingPath } from "@/features/onboarding/routes";
 import { UpgradePrompt } from "@/features/paywall";
-import { planMeta } from "@/lib/plans/plans";
 import { requireSession } from "@/lib/auth/session";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
@@ -105,7 +104,7 @@ async function NewBusinessPageContent() {
           <UpgradePrompt
             variant="empty-state"
             plan={businessQuota.plan}
-            description={`Your ${planMeta[businessQuota.plan].label} plan supports ${businessQuota.limit === 1 ? "1 business" : `${businessQuota.limit} businesses`}. You already have ${businessQuota.current}. Upgrade to add more.`}
+            description={`The Free plan supports 1 free business. You already have ${businessQuota.current}. Archive a free business or upgrade to Pro to create another.`}
           />
         )}
       </main>

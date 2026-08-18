@@ -47,7 +47,7 @@ import {
   hotBusinessCacheLife,
 } from "@/lib/cache/business-tags";
 import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
-import { db } from "@/lib/db/client";
+import { db, executeRows } from "@/lib/db/client";
 import {
   activityLogs,
   aiTokenLogs,
@@ -246,7 +246,13 @@ async function getFreeAnalyticsUncached(
       })
       .from(inquiries)
       .leftJoin(firstQuoteSq, eq(firstQuoteSq.inquiryId, inquiries.id))
-      .where(and(eq(inquiries.businessId, businessId), gte(inquiries.submittedAt, since))),
+      .where(
+        and(
+          eq(inquiries.businessId, businessId),
+          gte(inquiries.submittedAt, since),
+          isNull(inquiries.deletedAt),
+        ),
+      ),
     db
       .select({
         sent: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.sentAt} is not null and ${quotes.sentAt} >= ${since.toISOString()})`,
@@ -559,7 +565,7 @@ async function getProAnalyticsUncached(
   // For the current day (partial), query raw events in real-time
   let todayData = { formViews: 0, inquirySubmissions: 0, quotesSent: 0, acceptedQuotes: 0 };
   if (todayIsInRange) {
-    const [todayRows] = await db.execute<{
+    const todayRows = (await executeRows<{
       form_views: string;
       inquiry_submissions: string;
       quotes_sent: string;
@@ -608,7 +614,7 @@ async function getProAnalyticsUncached(
         count(*) FILTER (WHERE metric = 'sent') AS quotes_sent,
         count(*) FILTER (WHERE metric = 'accepted') AS accepted_quotes
       FROM today_events
-    `);
+    `))[0];
     if (todayRows) {
       const row = todayRows as unknown as {
         form_views: string;
@@ -1085,7 +1091,7 @@ export async function getTopSources(
 ): Promise<ReferrerSource[]> {
   const { since: effectiveSince, until: effectiveUntil } = resolveDateWindow(since, until);
 
-  const rows = await db.execute<{ domain: string; visit_count: string }>(sql`
+  const rows = await executeRows<{ domain: string; visit_count: string }>(sql`
     SELECT
       metadata->>'referrer' AS domain,
       count(*) AS visit_count
@@ -1130,7 +1136,7 @@ export async function getCampaignPerformance(
 ): Promise<CampaignPerformanceRow[]> {
   const { since: effectiveSince, until: effectiveUntil } = resolveDateWindow(since, until);
 
-  const rows = await db.execute<{ source: string; campaign: string; inquiry_count: string }>(sql`
+  const rows = await executeRows<{ source: string; campaign: string; inquiry_count: string }>(sql`
     SELECT
       metadata->>'utmSource' AS source,
       metadata->>'utmCampaign' AS campaign,

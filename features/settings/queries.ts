@@ -53,7 +53,12 @@ export async function getBusinessSettingsForBusiness(
       defaultQuoteTerms: businesses.defaultQuoteTerms,
       quoteEmailTemplate: businesses.quoteEmailTemplate,
       defaultQuoteValidityDays: businesses.defaultQuoteValidityDays,
-      defaultInvoiceDueDays: businesses.defaultInvoiceDueDays,
+      sendInquiryAckEmail: businesses.sendInquiryAckEmail,
+      autoDraftQuoteOnQualify: businesses.autoDraftQuoteOnQualify,
+      autoArchiveStaleInquiries: businesses.autoArchiveStaleInquiries,
+      autoArchiveStaleInquiryDays: businesses.autoArchiveStaleInquiryDays,
+      autoFollowUpOnQuoteViewed: businesses.autoFollowUpOnQuoteViewed,
+      quoteViewedFollowUpDelayDays: businesses.quoteViewedFollowUpDelayDays,
       notifyOnNewInquiry: businesses.notifyOnNewInquiry,
       notifyOnQuoteSent: businesses.notifyOnQuoteSent,
       notifyOnQuoteResponse: businesses.notifyOnQuoteResponse,
@@ -473,3 +478,4 @@ export async function getBusinessLogoAssetForBusiness(businessId: string) {
 
   return business ?? null;
 }
+

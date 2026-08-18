@@ -25,3 +25,15 @@ export {
   usageLimitLabels,
   formatUsageLimitValue,
 } from "./usage-limits";
+
+export {
+  planCatalog,
+  type PlanCatalogEntry,
+  annualBillingPromoCopy,
+  aiDraftAllowanceLabels,
+  aiDraftingClarification,
+  pricingComparison,
+  type PricingComparisonCategory,
+  type PricingComparisonRow,
+  type PricingComparisonCell,
+} from "./catalog";

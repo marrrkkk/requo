@@ -2,7 +2,6 @@ import type { BusinessRecordState } from "@/features/businesses/lifecycle";
 import type { InquiryStatus } from "@/features/inquiries/types";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import type {
-  QuotePostAcceptanceStatus,
   QuoteReminderKind,
   QuoteStatus,
 } from "@/features/quotes/types";
@@ -34,7 +33,6 @@ export type BusinessOverviewQuoteActionItem = {
   currency: string;
   totalInCents: number;
   status: QuoteStatus;
-  postAcceptanceStatus: QuotePostAcceptanceStatus;
   validUntil: string;
   sentAt: Date | null;
   acceptedAt: Date | null;
@@ -50,6 +48,7 @@ export type BusinessOverviewCounts = {
   recentAcceptedQuotes: number;
   declinedQuotes: number;
   draftQuotes: number;
+  awaitingResponseQuotes: number;
 };
 
 export type BusinessOverviewData = {
@@ -59,7 +58,20 @@ export type BusinessOverviewData = {
   recentAcceptedQuotes: BusinessOverviewQuoteActionItem[];
   declinedQuotes: BusinessOverviewQuoteActionItem[];
   draftQuotes: BusinessOverviewQuoteActionItem[];
+  awaitingResponseQuotes: BusinessOverviewQuoteActionItem[];
   counts: BusinessOverviewCounts;
+};
+
+/**
+ * Lightweight, all-plans money snapshot for the dashboard KPI row.
+ * Both figures are quote-derived; sums assume a single business currency.
+ */
+export type BusinessMoneySnapshot = {
+  currency: string;
+  wonInCents: number;
+  wonCount: number;
+  inPlayInCents: number;
+  inPlayCount: number;
 };
 
 export type BusinessDashboardSummaryData = {

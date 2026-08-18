@@ -167,7 +167,7 @@ function SidebarProvider({
 function Sidebar({
   side = "left",
   variant = "sidebar",
-  collapsible = "offcanvas",
+  collapsible = "icon",
   className,
   children,
   dir,
@@ -195,27 +195,7 @@ function Sidebar({
   }
 
   if (isMobile) {
-    return (
-      <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
-        <SheetContent
-          dir={dir}
-          data-mobile="true"
-          data-sidebar="sidebar"
-          data-slot="sidebar"
-          className="w-(--sidebar-width) max-w-[calc(100vw-1rem)] bg-sidebar p-0 text-sidebar-foreground"
-          motionPreset="sidebar"
-          showCloseButton={false}
-          side={side}
-          style={{ "--sidebar-width": SIDEBAR_WIDTH_MOBILE } as React.CSSProperties}
-        >
-          <SheetHeader className="sr-only">
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
-          </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
-        </SheetContent>
-      </Sheet>
-    );
+    return null;
   }
 
   return (
@@ -427,7 +407,7 @@ function SidebarGroupLabel({
       data-sidebar="group-label"
       data-slot="sidebar-group-label"
       className={cn(
-        "motion-sidebar-panel flex h-8 shrink-0 items-center rounded-md px-2 text-[0.68rem] font-medium uppercase tracking-[0.14em] text-sidebar-foreground/60 ring-sidebar-ring outline-hidden transition-[margin,opacity] group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0 focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
+        "motion-sidebar-panel flex h-7 shrink-0 items-center rounded-md px-2 text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-sidebar-foreground/60 ring-sidebar-ring outline-hidden transition-[margin,opacity] group-data-[collapsible=icon]:-mt-7 group-data-[collapsible=icon]:opacity-0 focus-visible:ring-2 [&>svg]:size-3.5 [&>svg]:shrink-0",
         className,
       )}
       {...props}
@@ -447,7 +427,7 @@ function SidebarGroupAction({
       data-sidebar="group-action"
       data-slot="sidebar-group-action"
       className={cn(
-        "motion-sidebar-panel absolute top-3.5 right-3 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground ring-sidebar-ring outline-hidden transition-[transform,background-color,color] group-data-[collapsible=icon]:hidden after:absolute after:-inset-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 lg:after:hidden [&>svg]:size-4 [&>svg]:shrink-0",
+        "motion-sidebar-panel absolute top-3 right-2.5 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground ring-sidebar-ring outline-hidden transition-[transform,background-color,color] group-data-[collapsible=icon]:hidden after:absolute after:-inset-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 lg:after:hidden [&>svg]:size-3.5 [&>svg]:shrink-0",
         className,
       )}
       {...props}
@@ -492,18 +472,18 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button group/menu-button motion-sidebar-panel flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[width,height,padding,background-color,color,box-shadow,transform] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:[&>span:last-child]:hidden group-data-[collapsible=icon]:[&>svg+span]:hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-accent-foreground data-active:bg-sidebar-accent data-active:font-medium data-active:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
+  "peer/menu-button group/menu-button motion-sidebar-panel flex w-full items-center gap-2.5 overflow-hidden rounded-md px-2.5 py-2 text-left text-xs font-medium ring-sidebar-ring outline-hidden transition-[width,height,padding,background-color,color,transform] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:[&>span:last-child]:hidden group-data-[collapsible=icon]:[&>svg+span]:hidden hover:bg-sidebar-accent/80 hover:text-sidebar-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-foreground data-active:bg-sidebar-accent data-active:font-semibold data-active:text-sidebar-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
   {
     variants: {
       variant: {
-        default: "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+        default: "text-sidebar-foreground/75 hover:bg-sidebar-accent/80 hover:text-sidebar-foreground",
         outline:
-          "border border-sidebar-border bg-background hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          "border border-sidebar-border bg-background hover:bg-sidebar-accent hover:text-sidebar-foreground",
       },
       size: {
-        default: "h-10 text-sm",
-        sm: "h-8 rounded-sm text-xs",
-        lg: "h-12 text-sm group-data-[collapsible=icon]:size-12! group-data-[collapsible=icon]:p-0!",
+        default: "h-9 text-xs",
+        sm: "h-8 rounded-md text-xs",
+        lg: "h-11 text-xs group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:p-0!",
       },
     },
     defaultVariants: {

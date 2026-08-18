@@ -10,165 +10,12 @@ import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import {
-  formatUsageLimitValue,
-  getUsageLimit,
-  planFeatureLabels,
-} from "@/lib/plans";
 import type { BillingCurrency } from "@/lib/billing/types";
 import { PricingIntervalToggle } from "@/components/marketing/pricing-interval-toggle";
-
-/*──────────────────────────────────────────────────────────────────────────────
- * Feature comparison table data
- *────────────────────────────────────────────────────────────────────────────*/
-
-type PricingFeatureRow = {
-  label: string;
-  free: string | boolean;
-  pro: string | boolean;
-  business: string | boolean;
-};
-
-type PricingFeatureCategory = {
-  category: string;
-  features: PricingFeatureRow[];
-};
-
-const pricingCategories: PricingFeatureCategory[] = [
-  {
-    category: "Core Workflow",
-    features: [
-      { label: "Inquiries per month", free: "Unlimited", pro: "Unlimited", business: "Unlimited" },
-      { label: "Quotes per month", free: "Unlimited", pro: "Unlimited", business: "Unlimited" },
-      { label: "Public inquiry pages", free: true, pro: true, business: true },
-      { label: "AI-powered inquiry chat", free: true, pro: true, business: true },
-      { label: "Public quote pages", free: true, pro: true, business: true },
-      { label: "Quote status tracking", free: true, pro: true, business: true },
-      { label: "Jobs & invoices", free: true, pro: true, business: true },
-      { label: planFeatureLabels.followUps, free: "3 active", pro: "Unlimited", business: "Unlimited" },
-      { label: planFeatureLabels.customerHistory, free: true, pro: true, business: true },
-      { label: "Push notifications", free: true, pro: true, business: true },
-    ],
-  },
-  {
-    category: "Limits & Quotas",
-    features: [
-      { label: "AI credits / month", free: "100", pro: "500", business: "2,000" },
-      {
-        label: "AI line item generations / month",
-        free: `${getUsageLimit("free", "aiLineItemGenerationsPerMonth")}`,
-        pro: `${getUsageLimit("pro", "aiLineItemGenerationsPerMonth")}`,
-        business: `${getUsageLimit("business", "aiLineItemGenerationsPerMonth")}`,
-      },
-      {
-        label: "Requo quote emails / day",
-        free: `${getUsageLimit("free", "requoQuoteEmailsPerDay")}`,
-        pro: `${getUsageLimit("pro", "requoQuoteEmailsPerDay")}`,
-        business: `${getUsageLimit("business", "requoQuoteEmailsPerDay")}`,
-      },
-      {
-        label: "Requo quote emails / month",
-        free: `${getUsageLimit("free", "requoQuoteEmailsPerMonth")}`,
-        pro: `${getUsageLimit("pro", "requoQuoteEmailsPerMonth")}`,
-        business: `${getUsageLimit("business", "requoQuoteEmailsPerMonth")}`,
-      },
-      {
-        label: "Live inquiry forms",
-        free: `${getUsageLimit("free", "liveFormsPerBusiness")}`,
-        pro: `${getUsageLimit("pro", "liveFormsPerBusiness")}`,
-        business: "Unlimited",
-      },
-      {
-        label: "Custom fields per form",
-        free: `${getUsageLimit("free", "customFieldsPerForm")}`,
-        pro: `${getUsageLimit("pro", "customFieldsPerForm")}`,
-        business: `${getUsageLimit("business", "customFieldsPerForm")}`,
-      },
-      {
-        label: "File upload size",
-        free: formatUsageLimitValue("publicInquiryAttachmentMaxBytes", getUsageLimit("free", "publicInquiryAttachmentMaxBytes")),
-        pro: formatUsageLimitValue("publicInquiryAttachmentMaxBytes", getUsageLimit("pro", "publicInquiryAttachmentMaxBytes")),
-        business: formatUsageLimitValue("publicInquiryAttachmentMaxBytes", getUsageLimit("business", "publicInquiryAttachmentMaxBytes")),
-      },
-      {
-        label: "Businesses per account",
-        free: `${getUsageLimit("free", "businessesPerWorkspace")}`,
-        pro: `${getUsageLimit("pro", "businessesPerWorkspace")}`,
-        business: `${getUsageLimit("business", "businessesPerWorkspace")}`,
-      },
-      {
-        label: "Active jobs",
-        free: `${getUsageLimit("free", "activeJobsPerBusiness")}`,
-        pro: "Unlimited",
-        business: "Unlimited",
-      },
-    ],
-  },
-  {
-    category: "AI & Productivity",
-    features: [
-      { label: planFeatureLabels.aiAssistant, free: "100 credits", pro: "500 credits", business: "2,000 credits" },
-      { label: "AI quote drafting", free: true, pro: true, business: true },
-      { label: "AI follow-up messages", free: true, pro: true, business: true },
-      { label: "AI inquiry summaries", free: true, pro: true, business: true },
-      { label: "AI data import", free: true, pro: true, business: true },
-      {
-        label: planFeatureLabels.knowledgeBase,
-        free: `${getUsageLimit("free", "memoriesPerBusiness")} items`,
-        pro: `${getUsageLimit("pro", "memoriesPerBusiness")} items`,
-        business: `${getUsageLimit("business", "memoriesPerBusiness")} items`,
-      },
-      {
-        label: planFeatureLabels.quoteLibrary,
-        free: `${getUsageLimit("free", "pricingEntriesPerBusiness")} entries`,
-        pro: `${getUsageLimit("pro", "pricingEntriesPerBusiness")} entries`,
-        business: "Unlimited",
-      },
-      { label: planFeatureLabels.emailTemplates, free: false, pro: true, business: true },
-      { label: planFeatureLabels.exports, free: false, pro: true, business: true },
-    ],
-  },
-  {
-    category: "Automation",
-    features: [
-      { label: planFeatureLabels.automations, free: "1 active", pro: "20 active", business: "100 active" },
-      { label: planFeatureLabels.workflowBuilder, free: false, pro: true, business: true },
-      { label: planFeatureLabels.autoFollowUps, free: false, pro: true, business: true },
-    ],
-  },
-  {
-    category: "Customization & Branding",
-    features: [
-      { label: "Logo and business name", free: true, pro: true, business: true },
-      { label: planFeatureLabels.multipleForms, free: false, pro: true, business: true },
-      { label: planFeatureLabels.inquiryPageCustomization, free: false, pro: true, business: true },
-      { label: planFeatureLabels.removeWatermark, free: false, pro: true, business: true },
-    ],
-  },
-  {
-    category: "Analytics",
-    features: [
-      { label: "Dashboard overview", free: true, pro: true, business: true },
-      { label: planFeatureLabels.analyticsConversion, free: true, pro: true, business: true },
-      { label: planFeatureLabels.analyticsWorkflow, free: false, pro: true, business: true },
-      { label: "Scheduled reports", free: false, pro: true, business: true },
-    ],
-  },
-  {
-    category: "Team & Scale",
-    features: [
-      {
-        label: planFeatureLabels.members,
-        free: false,
-        pro: false,
-        business: `Up to ${getUsageLimit("business", "membersPerBusiness")}`,
-      },
-      { label: "Roles & permissions", free: false, pro: false, business: true },
-      { label: "Audit logs", free: false, pro: false, business: true },
-      { label: "Priority support", free: false, pro: false, business: true },
-    ],
-  },
-];
+import {
+  pricingComparison,
+  aiDraftingClarification,
+} from "@/lib/plans/catalog";
 
 /*──────────────────────────────────────────────────────────────────────────────
  * Component
@@ -192,22 +39,21 @@ export function PricingPage({
           Simple pricing. No surprises.
         </h1>
         <p className="max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg sm:leading-8">
-          Start free with unlimited inquiries and quotes. Upgrade when you need
-          faster workflows, more AI credits, and automation to keep every deal moving.
+          Start free and run the complete inquiry-to-quote workflow. Upgrade when you
+          want Requo to handle more of the follow-up, drafting, and presentation work.
         </p>
       </div>
 
       {/* Plan cards with toggle */}
       <PricingIntervalToggle currency={currency} />
 
-      {/* Feature comparison */}
       <section className="mx-auto w-full max-w-[76rem] rounded-2xl border border-border/70 bg-card/40 overflow-hidden">
         <div className="flex flex-col gap-2 px-5 py-6 sm:px-8 sm:py-7">
           <h2 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
             Compare plans
           </h2>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            See exactly what each plan includes.
+            See exactly what each plan includes. {aiDraftingClarification}
           </p>
         </div>
 
@@ -231,7 +77,7 @@ export function PricingPage({
               </tr>
             </thead>
             <tbody>
-              {pricingCategories.map((category) => (
+              {pricingComparison.map((category) => (
                 <Fragment key={category.category}>
                   <tr className="border-t border-border/50">
                     <td
@@ -262,7 +108,7 @@ export function PricingPage({
 
         {/* Mobile stacked view */}
         <div className="flex flex-col gap-0 md:hidden">
-          {pricingCategories.map((category) => (
+          {pricingComparison.map((category) => (
             <div key={category.category} className="border-t border-border/50">
               <p className="px-5 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-primary">
                 {category.category}
@@ -373,7 +219,7 @@ function PricingCell({
   value,
   highlighted,
 }: {
-  value: string | boolean;
+  value: string | boolean | number;
   highlighted?: boolean;
 }) {
   return (
@@ -398,7 +244,7 @@ function PricingCell({
   );
 }
 
-function MobileCell({ value }: { value: string | boolean }) {
+function MobileCell({ value }: { value: string | boolean | number }) {
   if (typeof value === "boolean") {
     return value ? (
       <Check className="mx-auto size-3.5 text-primary" />

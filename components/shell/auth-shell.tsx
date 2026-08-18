@@ -1,9 +1,3 @@
-import {
-  MessageSquareText,
-  ReceiptText,
-  Sparkles,
-  ArrowRight,
-} from "lucide-react";
 import { ReactNode } from "react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
@@ -44,81 +38,25 @@ export function AuthShell({
 
   if (layout === "signup") {
     return (
-      <div className="flex min-h-dvh w-full flex-col lg:flex-row">
-        {/* Left: Form side */}
-        <div className="flex flex-1 flex-col items-center justify-center px-5 py-10 sm:px-8 lg:px-12 xl:px-16">
-          <div className="w-full max-w-[26rem]">
-            <div className="mb-8 lg:hidden">
-              <BrandMark subtitle={null} />
-            </div>
-            <AuthFormPlain badge={badge} title={title} description={description} hideBrandMark>
-              {children}
-            </AuthFormPlain>
-          </div>
-        </div>
-
-        {/* Right: Visual branded panel */}
-        <div className="auth-visual-panel">
-          <div className="relative z-10 flex h-full flex-col justify-between p-8 sm:p-10 lg:p-12 xl:p-16">
-            <div className="auth-visual-brand">
-              <BrandMark subtitle={null} />
-            </div>
-
-            <div className="flex flex-col gap-8">
-              <div className="flex flex-col gap-4">
-                <h2 className="font-heading text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl xl:text-[2.75rem]">
-                  Turn inquiries into
-                  <br />
-                  accepted quotes.
-                </h2>
-                <p className="max-w-md text-base leading-relaxed text-white/70 sm:text-lg">
-                  The workflow tool for owner-led service businesses that handle
-                  custom pricing.
+      <div className="flex min-h-dvh w-full flex-col items-center justify-center px-5 py-12 sm:px-8">
+        <div className="flex w-full max-w-[24rem] flex-col gap-10">
+          {/* Brand */}
+          <div className="flex flex-col items-center gap-6">
+            <BrandMark subtitle={null} />
+            <div className="flex flex-col items-center gap-2 text-center">
+              <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-[1.75rem]">
+                {title}
+              </h1>
+              {description ? (
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {description}
                 </p>
-              </div>
-
-              <div className="grid gap-5">
-                {[
-                  {
-                    icon: MessageSquareText,
-                    text: "Capture scope, timing, and budget in one form",
-                  },
-                  {
-                    icon: ReceiptText,
-                    text: "Send professional quotes with line items",
-                  },
-                  {
-                    icon: Sparkles,
-                    text: "Track views, acceptances, and follow up on time",
-                  },
-                ].map((item, i) => {
-                  const Icon = item.icon;
-                  return (
-                    <div key={i} className="flex items-center gap-4">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 backdrop-blur-sm">
-                        <Icon className="h-4.5 w-4.5 text-white/90" />
-                      </div>
-                      <p className="text-sm font-medium text-white/85 sm:text-[0.94rem]">
-                        {item.text}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 text-sm text-white/50">
-              <ArrowRight className="h-3.5 w-3.5" />
-              <span>Free to start. No credit card required.</span>
+              ) : null}
             </div>
           </div>
 
-          {/* Decorative elements */}
-          <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div className="absolute -right-20 -top-20 h-80 w-80 rounded-full bg-white/[0.04] blur-3xl" />
-            <div className="absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-white/[0.03] blur-3xl" />
-            <div className="absolute right-12 top-1/3 h-48 w-48 rounded-full bg-white/[0.02] blur-2xl" />
-          </div>
+          {/* Form */}
+          <div>{children}</div>
         </div>
       </div>
     );

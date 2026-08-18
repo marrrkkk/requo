@@ -6,7 +6,6 @@ import { redirect } from "next/navigation";
 
 import { getValidationActionState } from "@/lib/action-state";
 import { requireUser } from "@/lib/auth/session";
-import { getEffectivePlanForUser } from "@/lib/billing/subscription-service";
 import {
   getBusinessAnalyticsCacheTags,
   getBusinessInquiryFormsCacheTags,
@@ -589,18 +588,16 @@ export async function unlockBusinessAction(
   }
 
   try {
-    const effectivePlan = await getEffectivePlanForUser(ownerAccess.user.id);
     const result = await unlockBusinessIfAllowed({
       businessId,
       ownerUserId: ownerAccess.user.id,
       actorUserId: ownerAccess.user.id,
-      targetPlan: effectivePlan,
     });
 
     if (!result.ok) {
       if (result.reason === "active_business_limit_reached") {
         return {
-          error: "You reached your active business limit. Upgrade to unlock more businesses.",
+          error: "You already have an active Free business. Unlock a paid business instead, or archive a Free business first.",
         };
       }
 

@@ -92,7 +92,7 @@ function inputFor(userId: string, name: string) {
   };
 }
 
-describe("global business quota enforcement", () => {
+describe("one free business per owner", () => {
   beforeEach(async () => {
     await cleanup();
   });
@@ -132,20 +132,16 @@ describe("global business quota enforcement", () => {
     });
 
     expect(quota.current).toBe(2);
-    expect(quota.limit).toBe(2);
+    expect(quota.limit).toBe(1);
     expect(quota.allowed).toBe(false);
   });
 
-  it("blocks free users after two free businesses", async () => {
+  it("blocks free users once a free business exists", async () => {
     const ownerId = `${prefix}_free_owner`;
 
     await createTestUser(ownerId);
     await createExistingBusiness({
       id: `${prefix}_free_existing_a`,
-      ownerUserId: ownerId,
-    });
-    await createExistingBusiness({
-      id: `${prefix}_free_existing_b`,
       ownerUserId: ownerId,
     });
 
@@ -158,8 +154,50 @@ describe("global business quota enforcement", () => {
       .from(businesses)
       .where(eq(businesses.ownerUserId, ownerId));
 
-    // 2 existing + 0 new = 2
-    expect(Number(row?.value ?? 0)).toBe(2);
+    // 1 existing + 0 new = 1
+    expect(Number(row?.value ?? 0)).toBe(1);
+  });
+
+  it("preserves legacy multi-free owners while blocking new free businesses", async () => {
+    const ownerId = `${prefix}_legacy_owner`;
+
+    await createTestUser(ownerId);
+    await createExistingBusiness({
+      id: `${prefix}_legacy_a`,
+      ownerUserId: ownerId,
+    });
+    await createExistingBusiness({
+      id: `${prefix}_legacy_b`,
+      ownerUserId: ownerId,
+    });
+
+    const quota = await getBusinessQuotaForUser({
+      ownerUserId: ownerId,
+      plan: "free",
+    });
+
+    // Legacy owner keeps both active businesses accessible...
+    expect(await getOwnedBusinessCountForUser(ownerId)).toBe(2);
+    expect(quota.current).toBe(2);
+
+    // ...but cannot create another free business.
+    await expect(
+      createBusinessForUser({ ...inputFor(ownerId, "Blocked Business") }),
+    ).rejects.toBeInstanceOf(BusinessQuotaExceededError);
+
+    // Archiving a legacy free business does not permit a replacement until
+    // the owner is back below the one-business limit.
+    await testDb
+      .update(businesses)
+      .set({ archivedAt: now, updatedAt: now })
+      .where(eq(businesses.id, `${prefix}_legacy_b`));
+
+    const afterArchive = await getBusinessQuotaForUser({
+      ownerUserId: ownerId,
+      plan: "free",
+    });
+    expect(afterArchive.current).toBe(1);
+    expect(afterArchive.allowed).toBe(false);
   });
 
   it("allows business plan users with any owned business count", async () => {
@@ -175,9 +213,8 @@ describe("global business quota enforcement", () => {
         slug: slug(`${prefix}_business_existing_${index}`),
         plan: "business" as plan,
         businessType: "general_project_services" as const,
-    timezone: "America/New_York",
-    
-    
+        timezone: "America/New_York",
+
         defaultCurrency: "USD",
         createdAt: now,
         updatedAt: now,
@@ -222,9 +259,10 @@ describe("global business quota enforcement", () => {
       createBusinessForUser({ ...inputFor(ownerId, "Race Business B") }),
     ]);
 
-    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
-    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
-    // Starting from 1 free business, only 1 concurrent free creation fits into the 2 free business limit.
-    expect(await getOwnedBusinessCountForUser(ownerId)).toBe(2);
+    // Starting from 1 free business, no concurrent free creation fits into
+    // the one-free-business limit.
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(0);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(2);
+    expect(await getOwnedBusinessCountForUser(ownerId)).toBe(1);
   });
 });

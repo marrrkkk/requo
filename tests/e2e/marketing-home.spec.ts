@@ -14,36 +14,36 @@ test("marketing homepage highlights the signup-first workflow", async ({
 
   await expect(
     page.getByRole("heading", {
-      name: /Quote software for owner-led service businesses\./,
+      name: /Stop losing jobs to slow responses\./,
     }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "Start free" }).first()).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      name: /Quotes stall when inquiry details live everywhere\./,
+      name: /Every missed inquiry is an opportunity someone else can win\./,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      name: /Four steps from lead to quote\./,
+      name: /Keep every opportunity moving\./,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      name: /Everything you need between inquiry and quote\./,
+      name: /One connected workflow from inquiry to booked job\./,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      name: /Questions that matter before you switch\./,
+      name: /Questions you’re probably asking\./,
     }),
   ).toBeVisible();
   await expect(
-    page.getByText("What if most inquiries still come from Facebook, email, or phone?"),
+    page.getByText("What exactly does Requo do?"),
   ).toBeVisible();
   await expect(
     page.getByRole("img", {
-      name: "Placeholder screenshot of the Requo quote workflow",
+      name: "Requo quote management dashboard showing inquiry inbox, quote builder, and follow-up schedule for service businesses",
     }),
   ).toBeVisible();
 });
@@ -80,7 +80,7 @@ test("marketing homepage stays readable on a narrow viewport", async ({
   expect(hasHorizontalOverflow).toBe(false);
 
   const faqHeading = page.getByRole("heading", {
-    name: /Questions that matter before you switch\./,
+    name: /Questions you’re probably asking\./,
   });
 
   await faqHeading.scrollIntoViewIfNeeded();

@@ -23,10 +23,12 @@ Billing tables:
 
 Pricing is defined in `lib/billing/plans.ts` and uses USD cents:
 
-- Pro monthly: `$5.99`
-- Pro yearly: `$59.90`
-- Business monthly: `$12.99`
-- Business yearly: `$129.90`
+- Pro monthly: `$9.00` (900 cents)
+- Pro yearly: `$90.00` (9000 cents)
+- Business monthly: `$24.00` (2400 cents)
+- Business yearly: `$240.00` (24000 cents)
+
+Annual billing provides two months free (10 months for the price of 12).
 
 ## Polar setup (sandbox)
 

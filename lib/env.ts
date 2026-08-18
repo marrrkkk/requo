@@ -70,6 +70,11 @@ const envSchema = z.object({
   POLAR_BUSINESS_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
   POLAR_PRO_YEARLY_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
   POLAR_BUSINESS_YEARLY_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
+  /** Product ids used before the current pricing; kept for webhook reverse-resolution of active subscriptions. */
+  POLAR_LEGACY_PRO_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
+  POLAR_LEGACY_BUSINESS_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
+  POLAR_LEGACY_PRO_YEARLY_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
+  POLAR_LEGACY_BUSINESS_YEARLY_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
   NEXT_PUBLIC_APP_URL: emptyToUndefined(z.url()),
 
   INNGEST_DEV: emptyToUndefined(z.enum(["0", "1"]).or(z.literal("true"))),

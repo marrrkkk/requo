@@ -1,12 +1,10 @@
 "use client";
 
 import {
-  BookCopy,
   Bell,
   CreditCard,
   FileText,
   Mail,
-  Receipt,
   ScrollText,
   Settings2,
   Tags,
@@ -27,9 +25,7 @@ const settingsNavigationIcons: Record<BusinessSettingsNavigationIcon, typeof Set
   general: Settings2,
   members: Users,
   notifications: Bell,
-  knowledge: BookCopy,
   quote: FileText,
-  invoices: Receipt,
   email: Mail,
   pricing: Tags,
   billing: CreditCard,

@@ -10,12 +10,12 @@ import type { BillingCurrency, BillingInterval, PaidPlan, PlanPricing } from "@/
 /** Prices in smallest currency unit (USD cents / PHP centavos). */
 export const planPricing: Record<BillingInterval, Record<PaidPlan, PlanPricing>> = {
   monthly: {
-    pro: { USD: 699, PHP: 39900 },
-    business: { USD: 1699, PHP: 99900 },
+    pro: { USD: 900, PHP: 49900 },
+    business: { USD: 2400, PHP: 129900 },
   },
   yearly: {
-    pro: { USD: 6990, PHP: 399000 },
-    business: { USD: 16990, PHP: 999000 },
+    pro: { USD: 9000, PHP: 499000 },
+    business: { USD: 24000, PHP: 1299000 },
   },
 };
 
@@ -59,7 +59,7 @@ export function getPlanPriceLabel(
 
 /**
  * Returns the monthly equivalent label for yearly plans.
- * e.g. "$4.16/mo" for Pro yearly at USD.
+ * e.g. "$7.50/mo" for Pro yearly at USD.
  */
 export function getMonthlyEquivalentLabel(
   plan: PaidPlan,
@@ -72,6 +72,9 @@ export function getMonthlyEquivalentLabel(
 
 /**
  * Returns the savings percentage for yearly vs monthly billing.
+ * Annual pricing is billed as 10 months for the price of 12 ("two months
+ * free"), so every plan saves exactly one sixth. Retained for compatibility;
+ * UI copy should use the "Two months free" wording from the plan catalog.
  */
 export function getYearlySavingsPercent(
   plan: PaidPlan,

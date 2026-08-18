@@ -211,7 +211,7 @@ async function NewQuoteContent({
           businessSlug={businessContext.business.slug}
           canUseAiGenerator={hasFeatureAccess(
             businessContext.business.plan,
-            "aiAssistant",
+            "aiQuoteDrafting",
           )}
           canUseQuoteLibrary={canUseLibrary}
           currency={businessContext.business.defaultCurrency}
@@ -234,7 +234,7 @@ async function NewQuoteContent({
           businessSlug={businessContext.business.slug}
           canUseAiGenerator={hasFeatureAccess(
             businessContext.business.plan,
-            "aiAssistant",
+            "aiQuoteDrafting",
           )}
           canUseQuoteLibrary={canUseLibrary}
           currency={businessContext.business.defaultCurrency}

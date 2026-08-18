@@ -9,6 +9,7 @@ import { sendBatchedNotification } from "@/lib/inngest/batch";
 import {
   inngestEvents,
   type EnableQuoteAutoFollowUpEventData,
+  type InquiryQualifiedEventData,
   type PushInquiryReceivedEventData,
   type PushQuoteResponseEventData,
   type PushQuoteSentEventData,
@@ -88,6 +89,15 @@ export async function sendEnableQuoteAutoFollowUpEvent(
 ): Promise<void> {
   await inngest.send({
     name: inngestEvents.enableQuoteAutoFollowUp,
+    data,
+  });
+}
+
+export async function sendInquiryQualifiedEvent(
+  data: InquiryQualifiedEventData,
+): Promise<void> {
+  await inngest.send({
+    name: inngestEvents.inquiryQualified,
     data,
   });
 }

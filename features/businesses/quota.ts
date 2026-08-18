@@ -32,7 +32,7 @@ export function isBusinessQuotaExceededError(
 }
 
 export function getBusinessQuotaLimit(plan: plan) {
-  return getUsageLimit(plan, "businessesPerPlan");
+  return getUsageLimit(plan, "freeBusinessesPerOwner");
 }
 
 export async function getOwnedBusinessCountForUser(
@@ -70,13 +70,14 @@ export async function getBusinessQuotaForUser({
     client,
   );
 
-  // New business creation uses a "max 2 free businesses" rule:
-  // - You may always create up to 2 FREE businesses.
-  // - When you have 2 free businesses already, the next business must be paid (Pro or Business).
-  // - If you upgrade one of the free businesses to Pro/Business, you reduce your FREE count,
-  //   which allows you to create another FREE business.
+  // One active Free business per owner:
+  // - An owner may always operate one business without a paid subscription.
+  // - Every additional business must have its own paid subscription.
+  // - A paid subscription never unlocks sibling businesses.
   //
   // Paid-ness is based on `business_subscriptions` status for the business.
+  // Legacy owners with more than one active Free business keep access; the
+  // `freeCount < limit` check below serves both the new and legacy policies.
   if (requestedPlan === "free") {
     const [paidRow] = await client
       .select({ value: count(businesses.id) })
@@ -104,14 +105,14 @@ export async function getBusinessQuotaForUser({
     const paidCount = Number(paidRow?.value ?? 0);
     const freeCount = Math.max(0, totalOwnedActive - paidCount);
 
-    const limit = getUsageLimit("free", "businessesPerWorkspace");
-    const allowed = freeCount < (limit ?? 0);
+    const limit = getUsageLimit("free", "freeBusinessesPerOwner") ?? 1;
+    const allowed = freeCount < limit;
 
     return {
       ownerUserId,
       plan: "free",
       current: freeCount,
-      limit: limit ?? 2,
+      limit,
       allowed,
       upgradePlan: allowed ? null : getUpgradePlan("free"),
     };
@@ -135,10 +136,10 @@ export function getBusinessQuotaExceededMessage(
     return "Your plan can not create that business right now.";
   }
 
-  const freeLimit = quota.limit ?? 2;
+  const freeLimit = quota.limit ?? 1;
   const upgradeLabel = quota.upgradePlan ? planMeta[quota.upgradePlan].label : "Pro";
 
-  return `Your Free tier supports up to ${freeLimit} free businesses. You already have ${quota.current} free businesses. Upgrade to ${upgradeLabel} to create more.`;
+  return `Your Free plan supports ${freeLimit} free business${freeLimit === 1 ? "" : "es"}. You already have ${quota.current} free business${quota.current === 1 ? "" : "es"}. Archive a free business or upgrade to ${upgradeLabel} to create another.`;
 }
 
 async function lockBusinessQuotaForUser(

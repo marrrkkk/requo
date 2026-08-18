@@ -54,7 +54,7 @@ export function AdminFooterMenu() {
             tooltip="Sign out"
           >
             <LogOut />
-            <span>Sign out</span>
+            <span className="group-data-[collapsible=icon]:hidden">Sign out</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

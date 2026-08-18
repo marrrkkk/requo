@@ -8,7 +8,7 @@ export type OnboardingFieldName =
   | "countryCode"
   | "defaultCurrency"
   | "customerContactChannel"
-  | "starterTemplateBusinessType"
+  | "starterWorkflow"
   | "companySize"
   | "referralSource";
 

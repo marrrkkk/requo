@@ -9,10 +9,11 @@ vi.mock("@/lib/db/client", async () => {
 
 import type { QuoteEditorInput } from "@/features/quotes/schemas";
 import {
+  acknowledgeQuoteUncertaintyForBusiness,
   createQuoteForBusiness,
   markQuoteSentForBusiness,
   respondToPublicQuoteByToken,
-  updateQuotePostAcceptanceStatusForBusiness,
+  updateQuoteForBusiness,
 } from "@/features/quotes/mutations";
 import { activityLogs, inquiries, quoteItems, quotes } from "@/lib/db/schema";
 
@@ -35,7 +36,7 @@ function quoteInput(overrides: Partial<QuoteEditorInput> = {}): QuoteEditorInput
     customerContactMethod: "email",
     customerContactHandle: "taylor@example.com",
     notes: "Includes design, production, and installation.",
-    validUntil: "2026-05-31",
+    validUntil: "2099-12-31",
     discountInCents: 5000,
     taxInCents: 0,
     items: [
@@ -230,81 +231,237 @@ describe("features/quotes/mutations workflow", () => {
     );
   }, 15_000);
 
-  it("updates post-acceptance status only after the customer accepts", async () => {
+  it("persists grounded pricing provenance and downgrades owner-edited items", async () => {
     const created = await createQuoteForBusiness({
       businessId: ids.businessId,
       actorUserId: ids.ownerUserId,
       currency: "USD",
-      inquiryId: ids.inquiryId,
-      quote: quoteInput(),
+      quote: quoteInput({
+        title: "Provenance quote",
+        aiReadiness: "needs_confirmation",
+        aiGenerationId: "gen_abc123",
+        aiMissingInfo: [
+          { label: "Location", question: "Where will the work happen?" },
+          { label: "Timeline", question: "When do you need it?", critical: true },
+        ],
+        items: [
+          {
+            id: "line-verified",
+            description: "Verified item",
+            quantity: 1,
+            unitPriceInCents: 10000,
+            aiPricingStatus: "verified",
+            aiPricingLibraryEntryId: "entry_1",
+            aiPricingLibraryItemId: "item_1",
+            aiEvidence: {
+              entryId: "entry_1",
+              itemId: "item_1",
+              sourceLabel: "Design work",
+              matchType: "exact",
+              reason: "Exact match in pricing library.",
+            },
+          },
+          {
+            id: "line-suggested",
+            description: "Suggested item",
+            quantity: 1,
+            unitPriceInCents: 9000,
+            aiPricingStatus: "suggested",
+            aiPricingLibraryEntryId: "entry_2",
+            aiPricingLibraryItemId: "item_2",
+            aiEvidence: {
+              entryId: "entry_2",
+              itemId: "item_2",
+              sourceLabel: "Design work",
+              matchType: "suggested",
+              reason: "Close match in pricing library.",
+            },
+          },
+        ],
+      }),
     });
 
-    const lockedBeforeAcceptance =
-      await updateQuotePostAcceptanceStatusForBusiness({
-        businessId: ids.businessId,
-      quoteId: created!.id,
-      actorUserId: ids.ownerUserId,
-        postAcceptanceStatus: "scheduled",
-      });
+    expect(created).not.toBeNull();
 
-    expect(lockedBeforeAcceptance).toEqual(
+    const storedQuote = await getStoredQuote(created!.id);
+    expect(storedQuote.aiReadiness).toBe("needs_confirmation");
+    expect(storedQuote.aiGenerationId).toBe("gen_abc123");
+    expect(storedQuote.aiMissingInfo).toEqual([
+      { label: "Location", question: "Where will the work happen?", critical: false },
+      { label: "Timeline", question: "When do you need it?", critical: true },
+    ]);
+
+    const storedItems = await testDb
+      .select()
+      .from(quoteItems)
+      .where(eq(quoteItems.quoteId, created!.id))
+      .orderBy(quoteItems.position);
+
+    expect(storedItems[0]).toEqual(
       expect.objectContaining({
-        updated: false,
-        locked: true,
-        postAcceptanceStatus: "none",
+        aiPricingStatus: "verified",
+        aiPricingLibraryEntryId: "entry_1",
+        aiPricingLibraryItemId: "item_1",
+        aiEvidence: expect.objectContaining({
+          entryId: "entry_1",
+          matchType: "exact",
+        }),
+      }),
+    );
+    expect(storedItems[1]).toEqual(
+      expect.objectContaining({
+        aiPricingStatus: "suggested",
+        aiPricingLibraryEntryId: "entry_2",
       }),
     );
 
-    const sent = await markQuoteSentForBusiness({
+    // Owner edits the suggested item (editor marks it owner_brief) and saves:
+    // the server must downgrade it to owner_set and clear its library refs.
+    const updated = await updateQuoteForBusiness({
       businessId: ids.businessId,
       quoteId: created!.id,
       actorUserId: ids.ownerUserId,
-      sendMethod: "requo",
-    });
-    await respondToPublicQuoteByToken({
-      token: sent!.publicToken!,
-      response: "accepted",
+      quote: quoteInput({
+        title: "Provenance quote",
+        aiReadiness: "needs_confirmation",
+        aiGenerationId: "gen_abc123",
+        items: [
+          {
+            id: "line-verified",
+            description: "Verified item",
+            quantity: 1,
+            unitPriceInCents: 10000,
+            aiPricingStatus: "verified",
+            aiPricingLibraryEntryId: "entry_1",
+            aiPricingLibraryItemId: "item_1",
+            aiEvidence: {
+              entryId: "entry_1",
+              itemId: "item_1",
+              sourceLabel: "Design work",
+              matchType: "exact",
+              reason: "Exact match in pricing library.",
+            },
+          },
+          {
+            id: "line-suggested",
+            description: "Suggested item (owner price)",
+            quantity: 1,
+            unitPriceInCents: 12000,
+            aiPricingStatus: "suggested",
+            aiPricingLibraryEntryId: "entry_2",
+            aiPricingLibraryItemId: "item_2",
+            aiEvidence: {
+              entryId: "entry_2",
+              itemId: "item_2",
+              sourceLabel: "Design work",
+              matchType: "suggested",
+              reason: "Close match in pricing library.",
+            },
+            aiReview: {
+              name: "Suggested item",
+              pricingSource: "owner_brief",
+              pricingSourceLabel: "Owner-set price",
+              confidence: "high",
+              reviewStatus: "matched",
+              reason: "Owner set a custom price.",
+            },
+          },
+        ],
+      }),
     });
 
-    const scheduled = await updateQuotePostAcceptanceStatusForBusiness({
-      businessId: ids.businessId,
-      quoteId: created!.id,
-      actorUserId: ids.ownerUserId,
-      postAcceptanceStatus: "scheduled",
-    });
+    expect(updated?.updated).toBe(true);
 
-    expect(scheduled).toEqual(
+    const afterUpdateItems = await testDb
+      .select()
+      .from(quoteItems)
+      .where(eq(quoteItems.quoteId, created!.id))
+      .orderBy(quoteItems.position);
+
+    expect(afterUpdateItems[1]).toEqual(
       expect.objectContaining({
-        updated: true,
-        locked: false,
-        postAcceptanceStatus: "scheduled",
+        description: "Suggested item (owner price)",
+        aiPricingStatus: "owner_set",
+        aiPricingLibraryEntryId: null,
+        aiPricingLibraryItemId: null,
+        aiEvidence: null,
       }),
     );
+    expect(afterUpdateItems[0]).toEqual(
+      expect.objectContaining({
+        aiPricingStatus: "verified",
+        aiPricingLibraryEntryId: "entry_1",
+      }),
+    );
+  }, 15_000);
 
-    const [activity] = await testDb
+  it("records the owner's pricing acknowledgement once for needs-confirmation quotes", async () => {
+    const created = await createQuoteForBusiness({
+      businessId: ids.businessId,
+      actorUserId: ids.ownerUserId,
+      currency: "USD",
+      quote: quoteInput({
+        title: "Ack gate quote",
+        aiReadiness: "needs_confirmation",
+      }),
+    });
+
+    expect(created).not.toBeNull();
+    expect((await getStoredQuote(created!.id)).aiAcknowledgedAt).toBeNull();
+
+    const firstAck = await acknowledgeQuoteUncertaintyForBusiness({
+      businessId: ids.businessId,
+      quoteId: created!.id,
+      actorUserId: ids.ownerUserId,
+    });
+
+    expect(firstAck).toEqual(
+      expect.objectContaining({ updated: true, locked: false }),
+    );
+
+    const storedQuote = await getStoredQuote(created!.id);
+    expect(storedQuote.aiAcknowledgedAt).toBeInstanceOf(Date);
+    expect(storedQuote.aiAcknowledgedBy).toBe(ids.ownerUserId);
+
+    const activity = await testDb
       .select()
       .from(activityLogs)
       .where(
         and(
-          eq(activityLogs.type, "quote.post_acceptance_updated"),
-          eq(activityLogs.businessId, ids.businessId)
-        )
-      )
-      .limit(1);
+          eq(activityLogs.quoteId, created!.id),
+          eq(activityLogs.type, "quote.ai_pricing_acknowledged"),
+        ),
+      );
 
-    expect(activity).toEqual(
-      expect.objectContaining({
-        businessId: ids.businessId,
-        quoteId: created!.id,
-        inquiryId: ids.inquiryId,
-      }),
+    expect(activity).toHaveLength(1);
+
+    // Idempotent: a second acknowledgement is a no-op.
+    const secondAck = await acknowledgeQuoteUncertaintyForBusiness({
+      businessId: ids.businessId,
+      quoteId: created!.id,
+      actorUserId: ids.ownerUserId,
+    });
+
+    expect(secondAck).toEqual(
+      expect.objectContaining({ updated: false, locked: false }),
     );
 
-    const [inquiry] = await testDb
-      .select({ status: inquiries.status })
-      .from(inquiries)
-      .where(eq(inquiries.id, ids.inquiryId));
+    // Sent quotes can't be acknowledged.
+    await markQuoteSentForBusiness({
+      businessId: ids.businessId,
+      quoteId: created!.id,
+      actorUserId: ids.ownerUserId,
+      sendMethod: "manual",
+    });
 
-    expect(inquiry.status).toBe("won");
+    const sentAck = await acknowledgeQuoteUncertaintyForBusiness({
+      businessId: ids.businessId,
+      quoteId: created!.id,
+      actorUserId: ids.ownerUserId,
+    });
+
+    expect(sentAck).toEqual(
+      expect.objectContaining({ updated: false, locked: true }),
+    );
   }, 15_000);
 });

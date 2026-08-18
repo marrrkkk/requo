@@ -75,561 +75,293 @@ import { canManageOperationalBusinessSettings } from "@/lib/business-members";
 import type { BusinessContext } from "@/lib/db/business-access";
 
 import { BrandMark } from "@/components/shared/brand-mark";
-
 import { BusinessAvatar } from "@/components/shared/business-avatar";
-
 import { PlanBadge } from "@/components/shared/paywall";
-
+import { MobileBottomNav } from "@/components/shell/mobile-bottom-nav";
 import {
-
   getDashboardBreadcrumbs,
-
   getDashboardNavigation,
-
   isDashboardNavigationItemActive,
-
 } from "@/components/shell/dashboard-navigation";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-
 import { Badge } from "@/components/ui/badge";
-
 import { Button } from "@/components/ui/button";
-
 import {
-
   Breadcrumb,
-
   BreadcrumbItem,
-
   BreadcrumbLink,
-
   BreadcrumbList,
-
   BreadcrumbPage,
-
   BreadcrumbSeparator,
-
 } from "@/components/ui/breadcrumb";
-
 import {
-
   DropdownMenu,
-
   DropdownMenuContent,
-
   DropdownMenuGroup,
-
   DropdownMenuItem,
-
   DropdownMenuLabel,
-
   DropdownMenuSeparator,
-
   DropdownMenuTrigger,
-
 } from "@/components/ui/dropdown-menu";
-
 import { Spinner } from "@/components/ui/spinner";
-
 import {
-
   Sidebar,
-
   SidebarContent,
-
   SidebarFooter,
-
   SidebarGroup,
-
   SidebarHeader,
-
   SidebarInset,
-
   SidebarMenu,
-
   SidebarMenuButton,
-
   SidebarMenuItem,
-
   SidebarProvider,
-
   SidebarRail,
-
   SidebarSeparator,
-
   SidebarTrigger,
-
   useSidebar,
-
 } from "@/components/ui/sidebar";
-
 import {
-
   getBusinessDashboardPath,
-
 } from "@/features/businesses/routes";
-
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
-
 import {
-
   getBusinessMembersPath,
-
   getBusinessPath,
-
   getBusinessSettingsPath,
-
 } from "@/features/businesses/routes";
-
-import { AskRequoButton } from "@/components/shell/ask-requo-button";
 import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
-
 import { cn } from "@/lib/utils";
 
-
-
 const CommandMenu = dynamic(
-
   () =>
-
     import("@/components/shell/command-menu").then(
-
       (module) => module.CommandMenu,
-
     ),
-
   {
-
     loading: () => (
-
       <div className="hidden h-9 w-64 rounded-lg border border-border/60 bg-muted/20 md:block lg:w-80" />
-
     ),
-
   },
-
 );
 
-
-
 type DashboardShellProps = {
-
   children: ReactNode;
-
   themePreference: ThemePreference;
-
   user: {
-
     id: string;
-
     email: string;
-
     name: string;
-
     avatarSrc: string | null;
-
   };
-
   businessContext: BusinessContext;
-
   businessMemberships: BusinessContext[];
-
   /** Pre-rendered banner below the top nav, e.g. archived business warning. */
-
   bannerSlot?: ReactNode;
-
   /** Pre-rendered notification bell, typically Suspense-wrapped for streaming. */
-
   notificationSlot: ReactNode;
-
   /** Pre-rendered upgrade button, typically Suspense-wrapped for streaming. */
-
   upgradeSlot: ReactNode;
-
   /** Pre-rendered getting started checklist for the sidebar. */
-
   checklistSlot?: ReactNode;
-
 };
 
-
-
 export function DashboardShell({
-
   children,
-
   themePreference,
-
   user,
-
   businessContext,
-
   businessMemberships,
-
   bannerSlot,
-
   notificationSlot,
-
   upgradeSlot,
-
   checklistSlot,
-
 }: DashboardShellProps) {
-
   const pathname = usePathname();
-
   const businessCheckout = useBusinessCheckout();
-
   const liveplan =
-
     businessCheckout?.businessId === businessContext.business.id
-
       ? businessCheckout.currentPlan
-
       : null;
-
   const business =
-
     liveplan &&
-
     liveplan !== businessContext.business.plan
-
       ? {
-
           ...businessContext.business,
-
           plan: liveplan,
-
         }
-
       : businessContext.business;
-
   const shellBusinessContext =
-
     business === businessContext.business
-
       ? businessContext
-
       : {
-
           ...businessContext,
-
           business,
-
         };
-
   const shellBusinessMemberships = liveplan
-
     ? businessMemberships.map((membership) =>
-
         membership.business.id === business.id
-
           ? {
-
               ...membership,
-
               business: {
-
                 ...membership.business,
-
                 plan: liveplan,
-
               },
-
             }
-
           : membership,
-
       )
-
     : businessMemberships;
 
   const breadcrumbs = useMemo(() => getDashboardBreadcrumbs(pathname), [pathname]);
-
   const dashboardNavigation = useMemo(
     () => getDashboardNavigation(business.slug, businessContext.role),
     [business.slug, businessContext.role],
   );
-
   const currentPageLabel = breadcrumbs.at(-1)?.label ?? business.name;
 
-
-
   return (
-
     <SidebarProvider
-
       defaultOpen
-
       style={
-
         {
-
           "--sidebar-width": "17.5rem",
-
           "--sidebar-width-icon": "4.25rem",
-
         } as CSSProperties
-
       }
-
     >
-
       <ThemePreferenceSync
-
         themePreference={themePreference}
-
         userId={user.id}
-
       />
-
-      <Sidebar collapsible="offcanvas">
-
-        <SidebarHeader className="gap-0 px-0 py-0">
-
-          <div className="flex min-h-9 items-center justify-between px-3 py-1.5 sm:py-2">
-
+      <Sidebar collapsible="icon">
+        <SidebarHeader className="gap-0 p-0">
+          <div className="flex h-13 items-center justify-between border-b border-sidebar-border px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
             <BrandMark
-
               collapseLabel
-
-              className="min-w-0 px-2 py-1.5"
-
+              className="min-w-0 px-2 py-1.5 group-data-[collapsible=icon]:p-0"
               subtitle={null}
-
               href={getBusinessDashboardPath(business.slug)}
-
             />
-
-            <SidebarTrigger className="size-7 shrink-0" />
-
+            <SidebarTrigger className="size-7 shrink-0 group-data-[collapsible=icon]:hidden" />
           </div>
-
-          <SidebarSeparator />
-
-          <div className="px-3 py-3">
-
+          <div className="px-3 py-3 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
             <BusinessSwitcher
-
               currentBusiness={shellBusinessContext}
-
               memberships={shellBusinessMemberships}
-
             />
-
           </div>
-
         </SidebarHeader>
 
-
-
-        <SidebarContent className="gap-4 px-1 pb-3">
-
-          <SidebarGroup className="px-3 pt-3">
-
+        <SidebarContent className="gap-4 px-1 pb-3 group-data-[collapsible=icon]:px-0">
+          <SidebarGroup className="px-3 pt-3 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:pt-2">
             <SidebarMenu>
-
               {dashboardNavigation.map((item) => (
-
                 <DashboardNavigationItem
-
                   isActive={isDashboardNavigationItemActive(pathname, item.href)}
-
                   item={item}
-
                   key={item.href}
-
                 />
-
               ))}
-
             </SidebarMenu>
-
           </SidebarGroup>
-
         </SidebarContent>
 
-
-
         {checklistSlot}
-
         <SidebarSeparator />
 
-
-
-        <SidebarFooter className="p-3 pt-2">
-
+        <SidebarFooter className="p-3 pt-2 group-data-[collapsible=icon]:p-2">
           <DashboardUserMenu
-
             user={user}
-
             businessRole={businessContext.role}
-
             businessSlug={business.slug}
-
             plan={business.plan}
-
             upgradeSlot={upgradeSlot}
-
           />
-
         </SidebarFooter>
 
-
-
         <SidebarRail />
-
       </Sidebar>
 
-
-
       <SidebarInset className="min-h-svh min-w-0">
-
-        <header className="dashboard-topbar flex items-center">
-
+        <header className="dashboard-topbar flex h-13 items-center">
           <DesktopSidebarTrigger />
-
           <div className="dashboard-topbar-inner min-w-0 flex-1">
-
             <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
-
-              <SidebarTrigger className="size-8 shrink-0 lg:hidden" />
-
-              <Button asChild variant="ghost" size="icon-sm" className="hidden size-8 shrink-0 md:inline-flex">
-
+              <Button asChild variant="ghost" size="icon-sm" className="hidden size-8 shrink-0 lg:inline-flex">
                 <Link href={getBusinessDashboardPath(business.slug)} aria-label="Home">
-
                   <HomeIcon className="size-4" />
-
                 </Link>
-
               </Button>
-
               <span
-
                 aria-hidden="true"
-
-                className="hidden h-3.5 w-px shrink-0 self-center bg-border md:block"
-
+                className="hidden h-3.5 w-px shrink-0 self-center bg-border lg:block"
               />
-
               <div className="min-w-0 flex-1 md:hidden">
-
                 <p className="truncate font-heading text-sm font-semibold tracking-tight text-foreground">
-
                   {currentPageLabel}
-
                 </p>
-
                 <p className="truncate text-[0.7rem] text-muted-foreground">
-
                   {business.name}
-
                 </p>
-
               </div>
-
               <div className="hidden min-w-0 flex-1 md:block">
-
                 <Breadcrumb>
-
                   <BreadcrumbList>
-
                     {breadcrumbs.map((item, index) => {
-
                       const isLast = index === breadcrumbs.length - 1;
 
-
-
                       return (
-
                         <Fragment key={`${item.label}-${item.href ?? index}`}>
-
                           {index > 0 ? <BreadcrumbSeparator /> : null}
-
                           <BreadcrumbItem>
-
                             {isLast || !item.href ? (
-
                               <BreadcrumbPage>{item.label}</BreadcrumbPage>
-
                             ) : (
-
                               <BreadcrumbLink asChild>
-
                                 <Link href={item.href} prefetch={true}>
-
                                   {item.label}
-
                                 </Link>
-
                               </BreadcrumbLink>
-
                             )}
-
                           </BreadcrumbItem>
-
                         </Fragment>
-
                       );
-
                     })}
-
                   </BreadcrumbList>
-
                 </Breadcrumb>
-
               </div>
-
               <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 md:min-w-0 md:flex-initial md:justify-start">
-
                 <div className="hidden md:block">
-
                   <CommandMenu
-
                     businessSlug={business.slug}
-
                     businessId={business.id}
-
                     role={businessContext.role}
-
                     plan={business.plan}
-
                   />
-
                 </div>
-
-                <AskRequoButton businessSlug={business.slug} userName={user.name || "You"} variant="ghost" />
-
                 {notificationSlot}
-
               </div>
-
             </div>
-
           </div>
-
         </header>
 
         {bannerSlot}
 
-        <div className="flex flex-1 flex-col">
-
+        <div className="flex flex-1 flex-col pb-16 lg:pb-0">
           <main className="dashboard-main" data-archived={business.recordState === "archived" || undefined}>
-
             <div className="dashboard-content">{children}</div>
-
           </main>
-
         </div>
 
-        </SidebarInset>
-
+        <MobileBottomNav
+          businessSlug={business.slug}
+          businessName={business.name}
+          businessLogoUrl={business.logoStoragePath ? "/api/business/logo" : null}
+          role={businessContext.role}
+          checklistSlot={checklistSlot}
+        />
+      </SidebarInset>
     </SidebarProvider>
-
   );
-
 }
 
 
@@ -729,7 +461,7 @@ const DashboardNavigationItem = memo(function DashboardNavigationItem({
 
           />
 
-          <span>{item.label}</span>
+          <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
 
         </Link>
 
@@ -847,6 +579,8 @@ function DashboardUserMenu({
 
               size="lg"
 
+              tooltip={user.name}
+
             >
 
               <Avatar className="rounded-lg">
@@ -865,7 +599,7 @@ function DashboardUserMenu({
 
               </Avatar>
 
-              <div className="grid min-w-0 flex-1 text-left leading-tight">
+              <div className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
 
                 <span className="truncate text-sm font-medium text-sidebar-foreground">
 
@@ -881,7 +615,7 @@ function DashboardUserMenu({
 
               </div>
 
-              <ChevronsUpDown className="ml-auto text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[state=open]/menu-button:rotate-180" />
+              <ChevronsUpDown className="ml-auto text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[state=open]/menu-button:rotate-180 group-data-[collapsible=icon]:hidden" />
 
             </SidebarMenuButton>
 
@@ -1157,7 +891,7 @@ function BusinessSwitcher({
 
         <button
 
-          className="group/business-switcher w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-accent dark:data-[state=open]:bg-accent"
+          className="group/business-switcher w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-accent dark:data-[state=open]:bg-accent group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none hover:group-data-[collapsible=icon]:bg-sidebar-accent"
 
           data-tour="business-switcher"
 
@@ -1165,15 +899,15 @@ function BusinessSwitcher({
 
         >
 
-          <div className="flex items-start gap-3.5">
+          <div className="flex items-start gap-3.5 group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center">
 
             <BusinessAvatar
               name={business.name}
               logoUrl={business.logoStoragePath ? "/api/business/logo" : null}
-              className="size-14 rounded-[0.9rem] border-sidebar-border shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] dark:border-white/8 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_1px_rgba(0,0,0,0.18)] [&_[data-slot=avatar-image]]:rounded-[0.9rem] [&_[data-slot=avatar-fallback]]:rounded-[0.9rem] [&_[data-slot=avatar-fallback]]:text-sm [&_[data-slot=avatar-fallback]]:tracking-[0.16em] [&_[data-slot=avatar-fallback]]:text-sidebar-foreground"
+              className="size-14 rounded-[0.9rem] border-sidebar-border shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] dark:border-white/8 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_1px_rgba(0,0,0,0.18)] [&_[data-slot=avatar-image]]:rounded-[0.9rem] [&_[data-slot=avatar-fallback]]:rounded-[0.9rem] [&_[data-slot=avatar-fallback]]:text-sm [&_[data-slot=avatar-fallback]]:tracking-[0.16em] [&_[data-slot=avatar-fallback]]:text-sidebar-foreground group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-image]]:group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-fallback]]:group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-fallback]]:group-data-[collapsible=icon]:text-xs"
             />
 
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
 
               <div className="flex items-center justify-between gap-3">
 
@@ -1199,7 +933,7 @@ function BusinessSwitcher({
 
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-2 group-data-[collapsible=icon]:hidden">
             <PlanBadge plan={business.plan} />
 
             <Badge

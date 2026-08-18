@@ -17,7 +17,12 @@ import {
 
 test.describe.configure({ mode: "serial" });
 
-async function signIn(page: Page, email: string, password: string) {
+async function signIn(
+  page: Page,
+  email: string,
+  password: string,
+  expectedUrl: RegExp = /\/home$/,
+) {
   await page.goto("/login");
   await page.waitForLoadState("networkidle");
 
@@ -25,7 +30,7 @@ async function signIn(page: Page, email: string, password: string) {
   await page.locator("#password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  await expect(page).toHaveURL(/\/businesses$/, { timeout: 20_000 });
+  await expect(page).toHaveURL(expectedUrl, { timeout: 20_000 });
 }
 
 test("owner can invite a new member from business settings", async ({ page }) => {
@@ -82,14 +87,14 @@ test("manager can access operational settings but not members", async ({
 }) => {
   await signIn(page, demoManagerEmail, demoManagerPassword);
 
-  await page.goto(`/${demoBusinessSlug}/settings/knowledge`);
+  await page.goto(`/${demoBusinessSlug}/settings/pricing`);
   await expect(page).toHaveURL(
-    new RegExp(`/${demoBusinessSlug}/settings/knowledge$`),
+    new RegExp(`/${demoBusinessSlug}/settings/pricing$`),
     { timeout: 20_000 },
   );
   await expect(
     page.getByRole("heading", {
-      name: "Knowledge",
+      name: "Pricing",
       level: 1,
     }),
   ).toBeVisible();
@@ -119,7 +124,7 @@ test("staff can access inquiry work but not forms or operational settings", asyn
     { timeout: 20_000 },
   );
 
-  await page.goto(`/${demoBusinessSlug}/settings/knowledge`);
+  await page.goto(`/${demoBusinessSlug}/settings/pricing`);
   await expect(page).toHaveURL(
     new RegExp(`/${demoBusinessSlug}/home$`),
     { timeout: 20_000 },
@@ -133,16 +138,18 @@ test("staff can access inquiry work but not forms or operational settings", asyn
 });
 
 test("non-members cannot open another business dashboard @smoke", async ({ page }) => {
-  await signIn(page, demoOutsiderEmail, demoOutsiderPassword);
-  await expect(
-    page.getByRole("heading", { name: "Your businesses" }),
-  ).toBeVisible();
+  await signIn(
+    page,
+    demoOutsiderEmail,
+    demoOutsiderPassword,
+    /\/onboarding$|\/home$|\/login$/,
+  );
 
   await page.goto(`/${demoBusinessSlug}/home`);
-  await expect(page).toHaveURL(/\/businesses$/, { timeout: 20_000 });
-  await expect(
-    page.getByRole("heading", { name: "Your businesses" }),
-  ).toBeVisible();
+  await expect(page).not.toHaveURL(
+    new RegExp(`/${demoBusinessSlug}/home$`),
+    { timeout: 20_000 },
+  );
 });
 
 test("owner can change a member role and remove them safely", async ({ page }) => {

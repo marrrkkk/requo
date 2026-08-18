@@ -38,24 +38,11 @@ export {
 } from "./usage-limiter";
 export type { UsageLimitCheck, UsageLimitResult } from "./usage-limiter";
 export {
-  MAX_TOOL_CALLS_PER_TURN,
-  MAX_STEPS_PER_TURN,
-  checkAssistantBudget,
-  recordAssistantTurn,
-} from "./assistant-usage";
-export type { AssistantBudgetCheck, AssistantBudgetResult, AssistantTurnUsage } from "./assistant-usage";
-export { summarizeDroppedMessages, summarizeConversation } from "./history-summarizer";
-export {
   classifyMessageComplexity,
   getHistoryLimitForComplexity,
   getContextBudgetForComplexity,
 } from "./message-complexity";
 export type { MessageComplexity } from "./message-complexity";
-export {
-  generateEmbedding,
-  cosineSimilarity,
-  rankBySimilarity,
-} from "./embeddings";
 export {
   selectModels,
   selectToolCallingModels,

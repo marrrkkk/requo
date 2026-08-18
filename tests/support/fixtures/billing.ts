@@ -58,7 +58,7 @@ const FIXTURE_NOW = new Date("2026-04-20T00:00:00.000Z");
 const PERIOD_START = new Date("2026-04-01T00:00:00.000Z");
 
 /** Paid period ends after `FIXTURE_NOW` (access continues). */
-const PERIOD_END_FUTURE = new Date("2026-05-20T00:00:00.000Z");
+const PERIOD_END_FUTURE = new Date("2099-05-20T00:00:00.000Z");
 
 /** Paid period ended before `FIXTURE_NOW` (access has lapsed). */
 const PERIOD_END_PAST = new Date("2026-04-10T00:00:00.000Z");

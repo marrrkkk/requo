@@ -14,6 +14,9 @@
 /coverage
 /playwright-report
 /test-results
+# Generated test reports — regenerated on every run, and Playwright's JSON reporter even
+# serializes process.env (secrets) into its metadata. Never track them.
+/reports/
 
 # next.js
 /.next/
@@ -45,5 +48,10 @@ next-env.d.ts
 
 # editor
 .vscode
+
+# local AI tooling workspaces
+.kilo/
+.kiro/
+
 # Remotion video project
 /requo-video/

@@ -8,6 +8,14 @@ import type {
 export type { AiProviderName, AiQualityTier } from "@/lib/ai/model-options";
 
 // ---------------------------------------------------------------------------
+// Task types — the only remaining AI tasks are quote generation related.
+// ---------------------------------------------------------------------------
+
+export const aiTaskTypes = ["quote_draft", "quote_improvement"] as const;
+
+export type AiTaskType = (typeof aiTaskTypes)[number];
+
+// ---------------------------------------------------------------------------
 // AI Types — shared type definitions for the AI layer
 //
 // These types are used by the router, pipeline, surface service, and

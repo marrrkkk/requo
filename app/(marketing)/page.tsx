@@ -21,11 +21,11 @@ import {
 } from "@/lib/seo/site";
 
 const marketingDescription =
-  "Stop losing jobs to slow responses. Capture every inquiry, send quotes faster with AI, follow up automatically, and close more of the work you're already generating interest for.";
+  "Capture inquiries, send quotes, and follow up automatically before opportunities go cold. Requo is built for owner-led service businesses.";
 
 export const metadata: Metadata = {
   ...createPageMetadata({
-    absoluteTitle: "Requo | Never Lose a Job to a Slow Response",
+    absoluteTitle: "Requo | Keep Every Opportunity Moving",
     description: marketingDescription,
     pathname: "/",
   }),
@@ -35,11 +35,11 @@ export const metadata: Metadata = {
     "estimate software",
     "proposal software",
     "service business software",
-    "contractor software",
-    "freelancer tools",
     "inquiry management",
     "quote tracking",
-    "follow-up automation",
+    "follow-up software",
+    "custom quote software",
+    "inquiry to quote",
   ],
 };
 

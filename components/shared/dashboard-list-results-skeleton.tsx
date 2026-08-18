@@ -59,27 +59,24 @@ export function DashboardListResultsSkeleton({
         </div>
       </DashboardTableContainer>
 
-      <div className="data-list-mobile-grid min-h-[320px]">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="section-panel p-5">
-            <div className="flex flex-col gap-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 flex-1 flex-col gap-2">
-                  <Skeleton className="h-5 w-32 rounded-md" />
-                  <Skeleton className="h-4 w-40 rounded-md" />
-                </div>
-                <Skeleton className="h-6 w-24 rounded-full" />
+      <div className="flex flex-col gap-2.5 min-h-[300px] xl:hidden">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background px-3.5 py-3 shadow-xs"
+          >
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Skeleton className="h-4 w-36 rounded-md" />
+                <Skeleton className="h-5 w-16 rounded-full" />
               </div>
-
-              <div className={`grid gap-3 ${isInquiryList ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-                {Array.from({ length: mobileTileCount }).map((__, tileIndex) => (
-                  <div key={tileIndex} className="info-tile h-full px-3.5 py-3 shadow-none">
-                    <Skeleton className="h-3 w-16 rounded-md" />
-                    <Skeleton className="mt-3 h-4 w-full rounded-md" />
-                  </div>
-                ))}
+              <Skeleton className="h-3.5 w-48 rounded-md" />
+              <div className="mt-0.5 flex items-center gap-2">
+                <Skeleton className="h-3 w-20 rounded-md" />
+                <Skeleton className="h-3 w-24 rounded-md" />
               </div>
             </div>
+            <Skeleton className="size-4 shrink-0 rounded-full" />
           </div>
         ))}
       </div>

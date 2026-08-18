@@ -8,7 +8,6 @@ import {
   SettingsCollectionBodySkeleton,
   SettingsFormBodySkeleton,
 } from "@/components/shell/settings-body-skeletons";
-import { isAutoCreateJobOnAcceptanceEnabled } from "@/features/automations/queries";
 import { getBusinessBillingOverview } from "@/features/billing/queries";
 import {
   createQuoteLibraryEntryAction,
@@ -77,9 +76,8 @@ async function BusinessQuoteSettingsContent() {
   const { businessContext } = await getBusinessOperationalPageContext();
   const businessId = businessContext.business.id;
 
-  const [settings, autoJob] = await Promise.all([
+  const [settings] = await Promise.all([
     getBusinessSettingsForBusiness(businessId),
-    isAutoCreateJobOnAcceptanceEnabled(businessId),
   ]);
 
   if (!settings) {
@@ -89,7 +87,6 @@ async function BusinessQuoteSettingsContent() {
   return (
     <BusinessQuoteSettingsForm
       action={updateBusinessQuoteSettingsAction}
-      autoCreateJobOnAcceptance={autoJob.enabled}
       key={`business-quote-settings-${settings.updatedAt.getTime()}`}
       settings={settings}
     />

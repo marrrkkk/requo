@@ -717,6 +717,7 @@ export function DashboardNotificationBell({
         <SheetContent
           className="h-[min(34rem,calc(100dvh-0.75rem))] rounded-t-2xl"
           side="bottom"
+          showCloseButton={false}
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Notifications</SheetTitle>

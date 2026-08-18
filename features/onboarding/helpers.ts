@@ -1,7 +1,7 @@
 import {
-  getStarterTemplateBusinessType,
-  type StarterTemplateBusinessType,
-} from "@/features/businesses/starter-templates";
+  getRecommendedStarterWorkflow,
+  type StarterWorkflowKey,
+} from "@/features/businesses/starter-workflows";
 import {
   resolveCurrencyForCountry,
 } from "@/features/businesses/locale";
@@ -10,7 +10,7 @@ import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
 import { createPublicInquiryPreviewBusiness } from "@/features/inquiries/preview-business";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
 
-export const onboardingSessionStorageKey = "requo-onboarding-draft-v6";
+export const onboardingSessionStorageKey = "requo-onboarding-draft-v7";
 
 /**
  * Clears the onboarding draft from sessionStorage.
@@ -31,7 +31,7 @@ export type OnboardingDraft = {
   businessName: string;
   businessSlug: string;
   businessType: BusinessType | "";
-  starterTemplateBusinessType: StarterTemplateBusinessType | "";
+  starterWorkflow: StarterWorkflowKey | "";
   countryCode: string;
   defaultCurrency: string;
   /** Matches `customerContactChannelValues` in onboarding/schemas when set. */
@@ -48,7 +48,7 @@ export function createEmptyOnboardingDraft(): OnboardingDraft {
     businessName: "",
     businessSlug: "",
     businessType: "",
-    starterTemplateBusinessType: "",
+    starterWorkflow: "",
     countryCode: "",
     defaultCurrency: "",
     customerContactChannel: "",
@@ -57,12 +57,12 @@ export function createEmptyOnboardingDraft(): OnboardingDraft {
   };
 }
 
-export function getRecommendedStarterTemplateForBusinessType(
+export function getRecommendedStarterWorkflowForBusinessType(
   businessType: BusinessType | "",
-): StarterTemplateBusinessType {
+): StarterWorkflowKey {
   return businessType
-    ? getStarterTemplateBusinessType(businessType)
-    : "general_project_services";
+    ? getRecommendedStarterWorkflow(businessType)
+    : "project_quote";
 }
 
 export function resolveOnboardingCurrencyChange({
@@ -95,12 +95,14 @@ export function resolveOnboardingCurrencyChange({
 export function createOnboardingPreviewBusiness(
   draft: OnboardingDraft,
 ): PublicInquiryBusiness {
-  const selectedTemplate =
-    draft.starterTemplateBusinessType ||
-    getRecommendedStarterTemplateForBusinessType(draft.businessType);
+  const selectedWorkflow =
+    draft.starterWorkflow ||
+    getRecommendedStarterWorkflowForBusinessType(draft.businessType);
   const businessName = draft.businessName.trim() || "Your business";
+  const businessType = draft.businessType || "general_project_services";
+  
   const preset = createInquiryFormPreset({
-    businessType: selectedTemplate,
+    businessType,
     businessName,
   });
 
@@ -109,12 +111,12 @@ export function createOnboardingPreviewBusiness(
     name: businessName,
     slug: "preview-business",
     plan: "free",
-    businessType: draft.businessType || selectedTemplate,
+    businessType,
     form: {
       id: "preview-form",
       name: preset.name,
       slug: preset.slug,
-      businessType: selectedTemplate,
+      businessType,
     },
     inquiryFormConfig: preset.inquiryFormConfig,
     inquiryPageConfig: preset.inquiryPageConfig,

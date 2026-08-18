@@ -21,6 +21,7 @@ export const auditActionLabels = {
   "quote.draft_deleted": "Draft quote deleted",
   "quote.canceled_after_acceptance": "Quote canceled after acceptance",
   "quote.work_completed": "Work completed",
+  "quote.ai_pricing_acknowledged": "AI pricing confirmed by owner",
   "business.created": "Business created",
   "business.archived": "Business archived",
   "business.trashed": "Business moved to trash",

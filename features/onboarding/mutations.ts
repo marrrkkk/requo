@@ -2,9 +2,7 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 
-import {
-  type StarterTemplateBusinessType,
-} from "@/features/businesses/starter-templates";
+import type { StarterWorkflowKey } from "@/features/businesses/starter-workflows";
 import { createBusinessRecordForUser } from "@/features/businesses/mutations";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import type { InquiryFormConfig } from "@/features/inquiries/form-config";
@@ -26,11 +24,11 @@ type CompleteOnboardingForUserInput = {
   referralSource?: string;
   businessName: string;
   businessSlug?: string;
-  businessType?: BusinessType;
-  starterTemplateBusinessType: StarterTemplateBusinessType;
+  businessType: BusinessType;
+  starterWorkflow: StarterWorkflowKey;
   countryCode: string;
   defaultCurrency: string;
-  customerContactChannel?: string;
+  customerContactChannel: string;
   inquiryFormConfigOverride?: InquiryFormConfig;
   avatarUpload?: { storagePath: string; contentType: string } | null;
 };
@@ -49,7 +47,7 @@ export async function completeOnboardingForUser({
   businessName,
   businessSlug,
   businessType,
-  starterTemplateBusinessType,
+  starterWorkflow,
   countryCode,
   defaultCurrency,
   customerContactChannel,
@@ -107,10 +105,10 @@ export async function completeOnboardingForUser({
       user,
       name: businessName,
       preferredSlug: businessSlug,
-      businessType: businessType ?? "general_project_services",
-      starterTemplateBusinessType,
+      businessType,
+      starterWorkflow,
       shortDescription: null,
-      customerContactChannel: customerContactChannel ?? "email",
+      customerContactChannel,
       inquiryFormConfigOverride,
       plan: currentPlan,
       activitySource: "onboarding",

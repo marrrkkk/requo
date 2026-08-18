@@ -1,8 +1,6 @@
 import {
   getBusinessInquiriesPath,
   getBusinessInquiryFormsPath,
-  getBusinessJobsPath,
-  getBusinessInvoicesPath,
   getBusinessNewQuotePath,
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
@@ -40,8 +38,6 @@ export async function NextStepSection({
     totalQuotes: summary.totalQuotes,
     wonCount: summary.wonCount,
     hasQualifiedInquiry: progress.hasQualifiedInquiry,
-    hasJob: progress.hasJob,
-    hasInvoice: progress.hasInvoice,
     businessSlug,
     inquirySourceTip: hints.inquirySourceTip,
   });
@@ -55,8 +51,6 @@ function resolveNextStep({
   totalQuotes,
   wonCount,
   hasQualifiedInquiry,
-  hasJob,
-  hasInvoice,
   businessSlug,
   inquirySourceTip,
 }: {
@@ -65,8 +59,6 @@ function resolveNextStep({
   totalQuotes: number;
   wonCount: number;
   hasQualifiedInquiry: boolean;
-  hasJob: boolean;
-  hasInvoice: boolean;
   businessSlug: string;
   inquirySourceTip: string;
 }): NextStepSuggestion | null {
@@ -121,28 +113,6 @@ function resolveNextStep({
         "Check which quotes have been viewed and follow up to close the deal.",
       href: getBusinessQuotesPath(businessSlug),
       ctaLabel: "View quotes",
-    };
-  }
-
-  if (!hasJob) {
-    return {
-      id: "first-job",
-      title: "Create a job from your accepted quote",
-      description:
-        "Track delivery from start to finish by turning accepted quotes into jobs.",
-      href: getBusinessJobsPath(businessSlug),
-      ctaLabel: "Create job",
-    };
-  }
-
-  if (!hasInvoice) {
-    return {
-      id: "first-invoice",
-      title: "Invoice your completed work",
-      description:
-        "Generate and send an invoice to get paid for work you've delivered.",
-      href: getBusinessInvoicesPath(businessSlug),
-      ctaLabel: "Create invoice",
     };
   }
 

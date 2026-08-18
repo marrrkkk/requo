@@ -9,10 +9,7 @@ const MILESTONE_PREFIX = "requo:milestone:";
 export type MilestoneKey =
   | "first-inquiry"
   | "first-quote-sent"
-  | "first-quote-accepted"
-  | "first-job"
-  | "first-invoice"
-  | "first-invoice-paid";
+  | "first-quote-accepted";
 
 export const milestoneMessages: Record<
   MilestoneKey,
@@ -28,19 +25,7 @@ export const milestoneMessages: Record<
   },
   "first-quote-accepted": {
     title: "🎊 Quote accepted!",
-    description: "Create a job to track delivery, or invoice right away.",
-  },
-  "first-job": {
-    title: "🛠️ First job created!",
-    description: "Track progress from start to finish.",
-  },
-  "first-invoice": {
-    title: "💰 First invoice sent!",
-    description: "You'll be notified when it's paid.",
-  },
-  "first-invoice-paid": {
-    title: "✅ Invoice paid!",
-    description: "The full workflow is working for you.",
+    description: "Well done! The workflow is working for you.",
   },
 };
 

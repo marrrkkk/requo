@@ -3,7 +3,7 @@ import "server-only";
 import { and, eq, isNull, sql } from "drizzle-orm";
 
 import type { CohortRow } from "@/features/analytics/types";
-import { db } from "@/lib/db/client";
+import { db, executeRows } from "@/lib/db/client";
 import { inquiries } from "@/lib/db/schema";
 
 /**
@@ -53,7 +53,7 @@ export async function getCohortAnalysis(
   // 1. Find each customer's first inquiry month
   // 2. For each cohort month, count total customers
   // 3. Count how many submitted another inquiry within 3, 6, 12 months
-  const rows = await db.execute<{
+  const rows = await executeRows<{
     cohort_month: string;
     total_customers: string;
     returned_in_3_months: string;

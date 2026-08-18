@@ -16,13 +16,7 @@ import {
 // ---------------------------------------------------------------------------
 
 export type PublicActionType =
-  | "ai-chat"
   | "ai-file-import"
-  | "ai-quote-draft"
-  | "automation-create"
-  | "automation-event-emit"
-  | "business-inquiry-ai"
-  | "public-inquiry-chat"
   | "public-inquiry-submit"
   | "public-quote-respond"
   | "public-quote-revision";

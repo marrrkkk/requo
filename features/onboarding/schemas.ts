@@ -7,9 +7,9 @@ import {
   normalizeBusinessCurrencyCode,
 } from "@/features/businesses/locale";
 import {
-  starterTemplateBusinessTypes,
-  type StarterTemplateBusinessType,
-} from "@/features/businesses/starter-templates";
+  starterWorkflowKeys,
+  type StarterWorkflowKey,
+} from "@/features/businesses/starter-workflows";
 import {
   businessTypes,
   type BusinessType,
@@ -99,13 +99,25 @@ export const customerContactChannelOptions = (
   label,
 }));
 
-export const onboardingBusinessContextSchema = z.object({
+/**
+ * Step 1: Business Basics
+ * Combines essential business info with owner name (if not already in profile).
+ */
+export const onboardingBusinessBasicsSchema = z.object({
   businessName: z
     .string()
     .trim()
     .min(2, "Enter a business name.")
     .max(80, "Use 80 characters or fewer."),
-  businessType: z.enum(businessTypes).optional(),
+  businessSlug: z
+    .string()
+    .trim()
+    .min(2, "Enter a URL slug.")
+    .max(60, "Use 60 characters or fewer.")
+    .regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/, "Use only lowercase letters, numbers, and hyphens.")
+    .optional(),
+  businessType: z.enum(businessTypes),
+  customerContactChannel: z.enum(customerContactChannelValues),
   countryCode: z
     .string()
     .trim()
@@ -118,14 +130,6 @@ export const onboardingBusinessContextSchema = z.object({
     .min(1, "Choose a currency.")
     .transform(normalizeBusinessCurrencyCode)
     .refine(isSupportedBusinessCurrencyCode, "Choose a supported currency."),
-  customerContactChannel: z.enum(customerContactChannelValues).optional(),
-});
-
-export const onboardingTemplateSchema = z.object({
-  starterTemplateBusinessType: z.enum(starterTemplateBusinessTypes),
-});
-
-export const onboardingOwnerProfileSchema = z.object({
   firstName: z
     .string()
     .trim()
@@ -136,24 +140,28 @@ export const onboardingOwnerProfileSchema = z.object({
     .trim()
     .min(1, "Enter your last name.")
     .max(60, "Use 60 characters or fewer."),
-  jobTitle: z.enum(jobTitleValues).optional(),
 });
 
+/**
+ * Step 2: Starting Workflow
+ * Selects one of three workflow patterns for the initial inquiry form.
+ */
+export const onboardingStartingWorkflowSchema = z.object({
+  starterWorkflow: z.enum(starterWorkflowKeys),
+});
+
+/**
+ * Complete onboarding submission schema.
+ * Merges both steps plus optional deferred fields.
+ */
 export const completeOnboardingSchema = z.object({
-  ...onboardingBusinessContextSchema.shape,
-  ...onboardingTemplateSchema.shape,
-  ...onboardingOwnerProfileSchema.shape,
-  businessSlug: z
-    .string()
-    .trim()
-    .min(2, "Enter a URL slug.")
-    .max(60, "Use 60 characters or fewer.")
-    .regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/, "Use only lowercase letters, numbers, and hyphens.")
-    .optional(),
+  ...onboardingBusinessBasicsSchema.shape,
+  ...onboardingStartingWorkflowSchema.shape,
+  // Deferred optional fields (not shown in blocking onboarding)
+  jobTitle: z.enum(jobTitleValues).optional(),
   companySize: z.string().optional(),
   referralSource: z.string().optional(),
 });
 
 export type OnboardingBusinessType = BusinessType;
-export type OnboardingStarterTemplateBusinessType =
-  StarterTemplateBusinessType;
+export type OnboardingStarterWorkflow = StarterWorkflowKey;

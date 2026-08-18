@@ -50,7 +50,7 @@ function makeKey(overrides?: Partial<CacheKeyComponents>): CacheKeyComponents {
   return {
     businessId: "biz_123",
     userId: "user_456",
-    taskType: "inquiry_summary",
+    taskType: "quote_draft",
     promptVersion: "abc123",
     modelTier: "cheap",
     sourceDataVersions: {
@@ -63,7 +63,7 @@ function makeKey(overrides?: Partial<CacheKeyComponents>): CacheKeyComponents {
 
 function makeOutput(overrides?: Partial<CachedAiOutput>): CachedAiOutput {
   return {
-    text: "This is a summary of the inquiry.",
+    text: "This is a draft quote.",
     model: "llama-3.1-8b-instant",
     provider: "groq",
     createdAt: "2024-01-15T10:00:00.000Z",
@@ -95,14 +95,14 @@ describe("generateCacheKey", () => {
   });
 
   it("produces different keys when userId differs", () => {
-    const key1 = generateCacheKey(makeKey({ userId: "user_a", taskType: "quote_draft" }));
-    const key2 = generateCacheKey(makeKey({ userId: "user_b", taskType: "quote_draft" }));
+    const key1 = generateCacheKey(makeKey({ userId: "user_a" }));
+    const key2 = generateCacheKey(makeKey({ userId: "user_b" }));
     expect(key1).not.toBe(key2);
   });
 
   it("produces different keys when taskType differs", () => {
-    const key1 = generateCacheKey(makeKey({ taskType: "inquiry_summary" }));
-    const key2 = generateCacheKey(makeKey({ taskType: "quote_draft" }));
+    const key1 = generateCacheKey(makeKey({ taskType: "quote_draft" }));
+    const key2 = generateCacheKey(makeKey({ taskType: "quote_improvement" }));
     expect(key1).not.toBe(key2);
   });
 
@@ -255,57 +255,19 @@ describe("NULL_SENTINEL", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Business-scoped cache keys (Requirement 20)
+// Cache key scoping
 // ---------------------------------------------------------------------------
 
-describe("business-scoped cache keys", () => {
+describe("cache key scoping", () => {
   beforeEach(() => {
     mockStore.clear();
   });
 
-  it("BUSINESS_SCOPED_TASKS contains inquiry_summary, form_suggestion, business_memory_summary", () => {
-    expect(BUSINESS_SCOPED_TASKS.has("inquiry_summary")).toBe(true);
-    expect(BUSINESS_SCOPED_TASKS.has("form_suggestion")).toBe(true);
-    expect(BUSINESS_SCOPED_TASKS.has("business_memory_summary")).toBe(true);
+  it("BUSINESS_SCOPED_TASKS is empty (no remaining business-scoped tasks)", () => {
+    expect(BUSINESS_SCOPED_TASKS.size).toBe(0);
   });
 
-  it("BUSINESS_SCOPED_TASKS does not contain personalized tasks", () => {
-    expect(BUSINESS_SCOPED_TASKS.has("quote_draft")).toBe(false);
-    expect(BUSINESS_SCOPED_TASKS.has("assistant_message")).toBe(false);
-    expect(BUSINESS_SCOPED_TASKS.has("followup_message")).toBe(false);
-  });
-
-  it("produces identical keys for different userIds on business-scoped tasks", () => {
-    const key1 = generateCacheKey(
-      makeKey({ userId: "user_a", taskType: "inquiry_summary" }),
-    );
-    const key2 = generateCacheKey(
-      makeKey({ userId: "user_b", taskType: "inquiry_summary" }),
-    );
-    expect(key1).toBe(key2);
-  });
-
-  it("produces identical keys for different userIds on form_suggestion", () => {
-    const key1 = generateCacheKey(
-      makeKey({ userId: "user_x", taskType: "form_suggestion" }),
-    );
-    const key2 = generateCacheKey(
-      makeKey({ userId: "user_y", taskType: "form_suggestion" }),
-    );
-    expect(key1).toBe(key2);
-  });
-
-  it("produces identical keys for different userIds on business_memory_summary", () => {
-    const key1 = generateCacheKey(
-      makeKey({ userId: "user_1", taskType: "business_memory_summary" }),
-    );
-    const key2 = generateCacheKey(
-      makeKey({ userId: "user_2", taskType: "business_memory_summary" }),
-    );
-    expect(key1).toBe(key2);
-  });
-
-  it("produces different keys for different userIds on personalized tasks", () => {
+  it("produces different keys for different userIds on quote_draft", () => {
     const key1 = generateCacheKey(
       makeKey({ userId: "user_a", taskType: "quote_draft" }),
     );
@@ -315,39 +277,13 @@ describe("business-scoped cache keys", () => {
     expect(key1).not.toBe(key2);
   });
 
-  it("produces different keys for different userIds on assistant_message", () => {
-    const key1 = generateCacheKey(
-      makeKey({ userId: "user_a", taskType: "assistant_message" }),
-    );
-    const key2 = generateCacheKey(
-      makeKey({ userId: "user_b", taskType: "assistant_message" }),
-    );
+  it("still differentiates by businessId", () => {
+    const key1 = generateCacheKey(makeKey({ businessId: "biz_a" }));
+    const key2 = generateCacheKey(makeKey({ businessId: "biz_b" }));
     expect(key1).not.toBe(key2);
   });
 
-  it("still differentiates by businessId for business-scoped tasks", () => {
-    const key1 = generateCacheKey(
-      makeKey({ businessId: "biz_a", taskType: "inquiry_summary" }),
-    );
-    const key2 = generateCacheKey(
-      makeKey({ businessId: "biz_b", taskType: "inquiry_summary" }),
-    );
-    expect(key1).not.toBe(key2);
-  });
-
-  it("uses ai:biz: prefix for business-scoped tasks in getCachedOutput/setCachedOutput", async () => {
-    const key = makeKey({ taskType: "inquiry_summary" });
-    const output = makeOutput();
-
-    await setCachedOutput(key, output, 3600);
-
-    // Verify the stored key uses the ai:biz: prefix
-    const storedKeys = Array.from(mockStore.keys());
-    const bizKeys = storedKeys.filter((k) => k.startsWith("ai:biz:"));
-    expect(bizKeys.length).toBe(1);
-  });
-
-  it("uses ai: prefix for personalized tasks in getCachedOutput/setCachedOutput", async () => {
+  it("uses ai: prefix for quote_draft keys in getCachedOutput/setCachedOutput", async () => {
     const key = makeKey({ taskType: "quote_draft" });
     const output = makeOutput();
 
@@ -361,18 +297,7 @@ describe("business-scoped cache keys", () => {
     expect(personalKeys.length).toBe(1);
   });
 
-  it("different users share cached output for business-scoped tasks", async () => {
-    const keyUser1 = makeKey({ userId: "user_1", taskType: "inquiry_summary" });
-    const keyUser2 = makeKey({ userId: "user_2", taskType: "inquiry_summary" });
-    const output = makeOutput({ text: "Shared summary" });
-
-    await setCachedOutput(keyUser1, output, 3600);
-    const result = await getCachedOutput(keyUser2);
-
-    expect(result).toEqual(output);
-  });
-
-  it("different users do NOT share cached output for personalized tasks", async () => {
+  it("different users do NOT share cached output for quote_draft", async () => {
     const keyUser1 = makeKey({ userId: "user_1", taskType: "quote_draft" });
     const keyUser2 = makeKey({ userId: "user_2", taskType: "quote_draft" });
     const output = makeOutput({ text: "Personal draft" });

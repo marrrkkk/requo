@@ -70,7 +70,7 @@ describe('features/inquiries/actions', () => {
     await testDb.insert(businesses).values({
       id: 'test_business_2',
       name: 'Action Workspace',
-      slug: 'action-business',
+      slug: 'action-business-2',
       plan: 'free',
       ownerUserId: 'test_user_w2',
       createdAt: new Date(),
@@ -170,6 +170,7 @@ describe('features/inquiries/actions', () => {
       const formData = new FormData();
       formData.set('formSlug', 'test-form');
       formData.set('customerName', 'Manual Request Customer');
+      formData.set('customerEmail', 'manual.request@example.com');
       formData.set('customerContactMethod', 'email');
       formData.set('customerContactHandle', 'manual.request@example.com');
       formData.set('serviceCategory', 'Vehicle wrap install');

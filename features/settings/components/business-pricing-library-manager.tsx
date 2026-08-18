@@ -40,12 +40,10 @@ import {
 import { DashboardEmptyState } from "@/components/shared/dashboard-layout";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImporterDialog } from "@/features/importer/components/importer-dialog";
-import type { KnowledgeDraft } from "@/features/importer/components/importer-knowledge-review";
 import type { PricingDraft } from "@/features/importer/components/importer-pricing-review";
 import type {
   ImporterAnalyzeResult,
   ImporterCommitResult,
-  ImporterDestination,
 } from "@/features/importer/types";
 import {
   QuoteLibraryEntryForm,
@@ -82,14 +80,7 @@ type BusinessPricingLibraryManagerProps = {
     formData: FormData,
   ) => Promise<QuoteLibraryDeleteActionState>;
   importerEnabled: boolean;
-  analyzeImportAction: (
-    destination: ImporterDestination,
-    formData: FormData,
-  ) => Promise<ImporterAnalyzeResult>;
-  commitKnowledgeImportAction: (payload: {
-    sourceName: string;
-    items: KnowledgeDraft[];
-  }) => Promise<ImporterCommitResult>;
+  analyzeImportAction: (formData: FormData) => Promise<ImporterAnalyzeResult>;
   commitPricingImportAction: (payload: {
     sourceName: string;
     entries: PricingDraft[];
@@ -111,7 +102,6 @@ export function BusinessPricingLibraryManager({
   deleteAction,
   importerEnabled,
   analyzeImportAction,
-  commitKnowledgeImportAction,
   commitPricingImportAction,
 }: BusinessPricingLibraryManagerProps) {
   const [filter, setFilter] = useState<FilterTab>("all");
@@ -411,9 +401,7 @@ export function BusinessPricingLibraryManager({
       {importerEnabled ? (
         <ImporterDialog
           analyzeAction={analyzeImportAction}
-          commitKnowledgeAction={commitKnowledgeImportAction}
           commitPricingAction={commitPricingImportAction}
-          destination="pricing"
           onOpenChange={setImporterOpen}
           open={importerOpen}
         />

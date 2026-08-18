@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { QuoteEmailTemplateConfig } from "@/features/settings/email-templates";
 import { renderBusinessMemberInviteEmail } from "@/emails/templates/business-member-invite";
 import { renderEmailVerificationEmail } from "@/emails/templates/email-verification";
+import { renderInquiryAcknowledgmentEmail } from "@/emails/templates/inquiry-acknowledgment";
 import { renderMagicLinkEmail } from "@/emails/templates/magic-link";
 import { renderPasswordResetEmail } from "@/emails/templates/password-reset";
 import { renderPublicInquiryNotificationEmail } from "@/emails/templates/public-inquiry-notification";
@@ -762,6 +763,70 @@ export async function sendQuoteResponseOwnerNotificationEmail({
     tags: {
       type: "quote",
       event: "quote_response_owner_notification",
+    },
+  });
+}
+
+export async function sendInquiryAcknowledgmentEmail({
+  inquiryId,
+  businessId,
+  businessName,
+  customerEmail,
+  customerName,
+  serviceCategory,
+  details,
+  replyToEmail,
+}: {
+  inquiryId: string;
+  businessId: string;
+  businessName: string;
+  customerEmail: string;
+  customerName: string;
+  serviceCategory: string;
+  details?: string;
+  replyToEmail?: string;
+}) {
+  if (!isEmailConfigured) {
+    logDeliverySkipped(
+      "Email is not configured yet. Inquiry acknowledgment email delivery was skipped.",
+      "inquiry",
+    );
+    return;
+  }
+
+  const senderConfigurationError = getConfigurationError("inquiry");
+
+  if (senderConfigurationError) {
+    logDeliverySkipped(
+      `Email sender is misconfigured. Inquiry acknowledgment email delivery was skipped. ${senderConfigurationError}`,
+      "inquiry",
+    );
+    return;
+  }
+
+  const template = renderInquiryAcknowledgmentEmail({
+    businessName,
+    customerName,
+    serviceCategory,
+    details,
+  });
+
+  await sendBrandedEmail({
+    emailType: "inquiry",
+    to: customerEmail,
+    replyTo: getFallbackReplyTo(replyToEmail),
+    subject: template.subject,
+    html: template.html,
+    idempotencyKey: `inquiry:${inquiryId}:ack:${getRecipientKey(customerEmail)}`,
+    businessId,
+    metadata: {
+      inquiryId,
+      businessId,
+      serviceCategory,
+    },
+    tags: {
+      type: "inquiry",
+      event: "inquiry_acknowledgment",
     },
   });
 }

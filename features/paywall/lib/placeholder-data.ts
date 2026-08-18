@@ -221,7 +221,7 @@ export const placeholderReportData: PlaceholderReportData = {
 export type PlaceholderDataMap = {
   analyticsConversion: PlaceholderConversionData;
   analyticsWorkflow: PlaceholderWorkflowData;
-  aiAssistant: PlaceholderAiData;
+  aiQuoteDrafting: PlaceholderAiData;
   exports: PlaceholderReportData;
 };
 
@@ -230,7 +230,7 @@ export type PlaceholderFeature = keyof PlaceholderDataMap;
 const placeholderDataMap: Record<PlaceholderFeature, PlaceholderDataMap[PlaceholderFeature]> = {
   analyticsConversion: placeholderConversionData,
   analyticsWorkflow: placeholderWorkflowData,
-  aiAssistant: placeholderAiData,
+  aiQuoteDrafting: placeholderAiData,
   exports: placeholderReportData,
 };
 

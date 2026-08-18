@@ -57,10 +57,12 @@ import {
 } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import { MobileSettingsBottomNav } from "@/components/shell/mobile-settings-bottom-nav";
+import { MobileTopBar } from "@/components/shell/mobile-top-bar";
 import type { SettingsNavigationGroup } from "@/features/settings/navigation";
 import { cn } from "@/lib/utils";
 
-const settingsIcons: Record<string, LucideIcon> = {
+export const settingsIcons: Record<string, LucideIcon> = {
   user: User,
   palette: Palette,
   bell: Bell,
@@ -89,6 +91,10 @@ export type SettingsShellFrameProps = {
   user?: SettingsUserData;
   userMenuSlot?: ReactNode;
   businessNameSlot: ReactNode;
+  /** Streamed mobile top bar business switcher slot. */
+  mobileBusinessSwitcherSlot?: ReactNode;
+  /** Streamed mobile top bar user menu slot. */
+  mobileUserMenuSlot?: ReactNode;
 };
 
 /**
@@ -103,6 +109,8 @@ export function SettingsShellFrame({
   user,
   userMenuSlot,
   businessNameSlot,
+  mobileBusinessSwitcherSlot,
+  mobileUserMenuSlot,
 }: SettingsShellFrameProps) {
   const businessDashboardPath = getBusinessDashboardPath(businessSlug);
 
@@ -116,26 +124,26 @@ export function SettingsShellFrame({
         } as CSSProperties
       }
     >
-      <Sidebar collapsible="offcanvas">
-        <SidebarHeader className="gap-0 px-0 py-0">
-          <div className="flex h-12 items-center justify-between border-b border-border/70 px-3">
+      <Sidebar collapsible="icon">
+        <SidebarHeader className="gap-0 p-0">
+          <div className="flex h-13 items-center justify-between border-b border-sidebar-border px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
             <BrandMark
               collapseLabel
-              className="min-w-0 px-2 py-1.5"
+              className="min-w-0 px-2 py-1.5 group-data-[collapsible=icon]:p-0"
               subtitle="Settings"
               href={businessDashboardPath}
             />
-            <SidebarTrigger className="size-7 shrink-0" />
+            <SidebarTrigger className="size-7 shrink-0 group-data-[collapsible=icon]:hidden" />
           </div>
-          <div className="flex items-center gap-2.5 px-5 py-3">
+          <div className="flex items-center gap-2.5 px-5 py-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2">
             {businessNameSlot}
           </div>
         </SidebarHeader>
 
-        <SidebarContent className="gap-0 px-1 pb-3">
+        <SidebarContent className="gap-0 px-1 pb-3 group-data-[collapsible=icon]:px-0">
           {groups.map((group) => (
-            <SidebarGroup key={group.label} className="px-3 pt-4">
-              <span className="meta-label px-3 pb-1.5 text-xs text-muted-foreground">
+            <SidebarGroup key={group.label} className="px-3 pt-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:pt-2">
+              <span className="meta-label px-3 pb-1.5 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
                 {group.label}
               </span>
               <SidebarMenu>
@@ -154,7 +162,7 @@ export function SettingsShellFrame({
 
         <SidebarSeparator />
 
-        <SidebarFooter className="p-3 pt-2">
+        <SidebarFooter className="p-3 pt-2 group-data-[collapsible=icon]:p-2">
           {userMenuSlot ?? (user ? <SettingsUserMenu user={user} businessSlug={businessSlug} /> : null)}
         </SidebarFooter>
 
@@ -162,36 +170,52 @@ export function SettingsShellFrame({
       </Sidebar>
 
       <SidebarInset className="min-h-svh min-w-0">
-        <header className="dashboard-topbar flex h-12 items-center">
-          <DesktopSidebarTrigger />
-          <div className="dashboard-topbar-inner min-w-0 flex-1">
-            <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
-              <SidebarTrigger className="size-8 shrink-0 lg:hidden" />
-              <Button
-                asChild
-                variant="ghost"
-                size="icon-sm"
-                className="hidden size-8 shrink-0 lg:inline-flex"
-              >
-                <Link href={businessDashboardPath} aria-label="Home">
-                  <HomeIcon className="size-4" />
-                </Link>
-              </Button>
-              <span
-                aria-hidden="true"
-                className="hidden h-3.5 w-px shrink-0 self-center bg-border md:block"
-              />
-              <p className="hidden text-sm font-medium text-foreground md:block">
-                Settings
-              </p>
+        {/* Mobile top app bar (below lg) */}
+        <MobileTopBar
+          businessControl={mobileBusinessSwitcherSlot}
+          pageTitle="Settings"
+          userControl={mobileUserMenuSlot}
+        />
+
+        {/* Desktop topbar (lg and above) */}
+        <div className="sticky top-0 z-30 hidden h-13 items-stretch border-b border-border/70 bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/80 lg:flex">
+          <header className="flex min-w-0 flex-1 items-center">
+            <DesktopSidebarTrigger />
+            <div className="dashboard-topbar-inner min-w-0 flex-1">
+              <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="icon-sm"
+                  className="hidden size-8 shrink-0 lg:inline-flex"
+                >
+                  <Link href={businessDashboardPath} aria-label="Home">
+                    <HomeIcon className="size-4" />
+                  </Link>
+                </Button>
+                <span
+                  aria-hidden="true"
+                  className="hidden h-3.5 w-px shrink-0 self-center bg-border lg:block"
+                />
+                <p className="text-sm font-medium text-foreground">
+                  Settings
+                </p>
+              </div>
             </div>
-          </div>
-        </header>
-        <div className="flex flex-1 flex-col">
+          </header>
+        </div>
+
+        <div className="flex flex-1 flex-col pb-20 lg:pb-0">
           <main className="dashboard-main">
             <div className="dashboard-content dashboard-page">{children}</div>
           </main>
         </div>
+
+        <MobileSettingsBottomNav
+          businessSlug={businessSlug}
+          groups={groups}
+          userMenuSlot={userMenuSlot ?? (user ? <SettingsUserMenu user={user} businessSlug={businessSlug} /> : null)}
+        />
       </SidebarInset>
     </SidebarProvider>
   );
@@ -251,7 +275,7 @@ const SettingsNavigationItem = memo(function SettingsNavigationItem({
               isActive && "text-primary",
             )}
           />
-          <span>{label}</span>
+          <span className="group-data-[collapsible=icon]:hidden">{label}</span>
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -287,6 +311,7 @@ export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserDat
             <SidebarMenuButton
               className="data-[state=open]:bg-sidebar-accent"
               size="lg"
+              tooltip={user.name}
             >
               <Avatar className="size-8 rounded-lg">
                 {user.avatarSrc ? (
@@ -302,7 +327,7 @@ export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserDat
                   {getInitials(user.name)}
                 </AvatarFallback>
               </Avatar>
-              <div className="grid min-w-0 flex-1 text-left leading-tight">
+              <div className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
                 <span className="truncate text-sm font-medium text-sidebar-foreground">
                   {user.name}
                 </span>
@@ -310,7 +335,7 @@ export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserDat
                   {user.email}
                 </span>
               </div>
-              <ChevronsUpDown className="ml-auto text-muted-foreground" />
+              <ChevronsUpDown className="ml-auto text-muted-foreground group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

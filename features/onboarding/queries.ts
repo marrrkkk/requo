@@ -9,7 +9,7 @@ import {
   hotBusinessCacheLife,
 } from "@/lib/cache/business-tags";
 import { db } from "@/lib/db/client";
-import { businessMembers, inquiries, invoices, jobs } from "@/lib/db/schema";
+import { businessMembers, inquiries } from "@/lib/db/schema";
 
 export async function getDashboardTourCompletedForMembership(
   membershipId: string,
@@ -69,14 +69,12 @@ export const getCachedDashboardTourCompleted = cache(
 
 export type ChecklistProgress = {
   hasQualifiedInquiry: boolean;
-  hasJob: boolean;
-  hasInvoice: boolean;
 };
 
 /**
  * Cached inner function for checklist progress.
- * Tagged with business-scoped checklist tags so mutations on inquiries,
- * jobs, or invoices can invalidate via `revalidateTag`.
+ * Tagged with business-scoped checklist tags so mutations on inquiries
+ * can invalidate via `revalidateTag`.
  */
 async function getCachedChecklistProgressForBusiness(
   businessId: string,
@@ -86,7 +84,7 @@ async function getCachedChecklistProgressForBusiness(
   cacheLife(hotBusinessCacheLife);
   cacheTag(...getBusinessChecklistCacheTags(businessId));
 
-  const [qualifiedRow, jobRow, invoiceRow] = await Promise.all([
+  const [qualifiedRow] = await Promise.all([
     db
       .select({ id: inquiries.id })
       .from(inquiries)
@@ -98,22 +96,10 @@ async function getCachedChecklistProgressForBusiness(
         ),
       )
       .limit(1),
-    db
-      .select({ id: jobs.id })
-      .from(jobs)
-      .where(eq(jobs.businessId, businessId))
-      .limit(1),
-    db
-      .select({ id: invoices.id })
-      .from(invoices)
-      .where(eq(invoices.businessId, businessId))
-      .limit(1),
   ]);
 
   return {
     hasQualifiedInquiry: qualifiedRow.length > 0,
-    hasJob: jobRow.length > 0,
-    hasInvoice: invoiceRow.length > 0,
   };
 }
 

@@ -3,17 +3,14 @@ import {
   BarChart3,
   BellRing,
   CheckCircle2,
-  ClipboardList,
   FileText,
   FormInput,
   Home as HomeIcon,
   Inbox,
-  Receipt,
   Search,
   Send,
   Target,
   TrendingUp,
-  Workflow,
   type LucideIcon,
 } from "lucide-react";
 
@@ -41,10 +38,7 @@ const navItems: readonly NavItem[] = [
   { label: "Inquiries", icon: Inbox },
   { label: "Quotes", icon: FileText },
   { label: "Follow-ups", icon: BellRing },
-  { label: "Jobs", icon: ClipboardList },
-  { label: "Invoices", icon: Receipt },
   { label: "Forms", icon: FormInput },
-  { label: "Automations", icon: Workflow },
   { label: "Analytics", icon: BarChart3 },
 ];
 

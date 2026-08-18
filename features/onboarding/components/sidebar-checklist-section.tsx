@@ -1,8 +1,6 @@
 import {
   getBusinessInquiriesPath,
   getBusinessInquiryFormsPath,
-  getBusinessJobsPath,
-  getBusinessInvoicesPath,
   getBusinessNewQuotePath,
   getBusinessQuotesPath,
   getBusinessSettingsPath,
@@ -66,18 +64,6 @@ export async function SidebarChecklistSection({
       title: "Get a quote accepted",
       complete: summary.wonCount > 0,
       href: getBusinessQuotesPath(businessSlug),
-    },
-    {
-      id: "job",
-      title: "Create first job",
-      complete: progress.hasJob,
-      href: getBusinessJobsPath(businessSlug),
-    },
-    {
-      id: "invoice",
-      title: "Send first invoice",
-      complete: progress.hasInvoice,
-      href: getBusinessInvoicesPath(businessSlug),
     },
   ];
 

@@ -53,14 +53,6 @@ const faqRows: CsvRow[] = [
     channel: "chat",
   },
   {
-    category: "Automation",
-    question: "How do automation templates work?",
-    answer:
-      "Automation templates give you starter trigger-action flows. You can enable them and customize timing or actions.",
-    tags: "automations,templates,follow-up",
-    channel: "chat",
-  },
-  {
     category: "Troubleshooting",
     question: "Why is my quote email not sending?",
     answer:
@@ -77,11 +69,11 @@ const faqRows: CsvRow[] = [
     channel: "chat",
   },
   {
-    category: "Invoices",
-    question: "Can accepted quotes become jobs and invoices?",
+    category: "Follow-ups",
+    question: "How do follow-up reminders work?",
     answer:
-      "Yes. Accepted quotes can be converted into jobs, and invoices can be generated once work is in progress or complete.",
-    tags: "quotes,jobs,invoices,workflow",
+      "Requo can automatically create follow-up tasks when quotes are viewed but not responded to. Adjust timing in Settings > Workflow Defaults.",
+    tags: "follow-ups,quotes,workflow",
     channel: "chat",
   },
   {
@@ -146,13 +138,6 @@ const cannedResponseRows: CsvRow[] = [
     use_case: "product-feedback",
   },
   {
-    intent: "automation_setup_help",
-    tone: "guided",
-    response:
-      "A good starting point is Quote Sent -> Create Follow-up. I can walk you through enabling that template in Automations.",
-    use_case: "automations",
-  },
-  {
     intent: "cancel_subscription",
     tone: "empathetic",
     response:
@@ -172,13 +157,6 @@ const cannedResponseRows: CsvRow[] = [
     response:
       "I am escalating this to our support team with your context so you do not need to repeat details.",
     use_case: "escalation",
-  },
-  {
-    intent: "invoice_troubleshooting",
-    tone: "practical",
-    response:
-      "If invoice sending fails, confirm recipient email, sender configuration, and retry. If it still fails, send us the invoice ID.",
-    use_case: "invoices",
   },
   {
     intent: "knowledge_import_help",
@@ -224,20 +202,6 @@ const supportIntentRows: CsvRow[] = [
     primary_team: "technical-support",
     priority: "high",
     suggested_action: "verify_sender_config_and_logs",
-  },
-  {
-    intent: "automation_not_triggering",
-    example_utterance: "My follow-up automation does not run after quote sent.",
-    primary_team: "technical-support",
-    priority: "high",
-    suggested_action: "inspect_trigger_conditions_and_rule_status",
-  },
-  {
-    intent: "invoice_generation_help",
-    example_utterance: "How do I generate an invoice from a completed job?",
-    primary_team: "product-support",
-    priority: "normal",
-    suggested_action: "guide_job_to_invoice_flow",
   },
   {
     intent: "feature_explanation_knowledge",
@@ -307,11 +271,11 @@ const onboardingGuideRows: CsvRow[] = [
   {
     guide_id: "onb_004",
     stage: "follow_up",
-    title: "Enable follow-up automation",
+    title: "Set up follow-up reminders",
     steps:
-      "Open Automations, enable a quote follow-up template, and set timing to match your sales cycle.",
-    expected_outcome: "Follow-ups run automatically for pending quotes",
-    related_feature: "automations",
+      "Create follow-ups for quotes that need attention, and adjust timing in Settings > Workflow Defaults.",
+    expected_outcome: "Follow-up reminders keep deals moving forward",
+    related_feature: "follow-ups",
   },
   {
     guide_id: "onb_005",
@@ -342,15 +306,6 @@ const onboardingGuideRows: CsvRow[] = [
   },
   {
     guide_id: "onb_008",
-    stage: "invoice_workflow",
-    title: "Create invoices from completed jobs",
-    steps:
-      "After quote acceptance and job progress updates, generate and send invoices from the Invoices area.",
-    expected_outcome: "Revenue workflow is tracked from inquiry to payment",
-    related_feature: "invoices",
-  },
-  {
-    guide_id: "onb_009",
     stage: "support",
     title: "Use support channels effectively",
     steps:
@@ -359,7 +314,7 @@ const onboardingGuideRows: CsvRow[] = [
     related_feature: "settings-support",
   },
   {
-    guide_id: "onb_010",
+    guide_id: "onb_009",
     stage: "optimization",
     title: "Review analytics for conversion gaps",
     steps:

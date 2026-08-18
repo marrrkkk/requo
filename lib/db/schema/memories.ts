@@ -11,6 +11,23 @@ import {
 
 import { businesses } from "@/lib/db/schema/businesses";
 
+/**
+ * Manual knowledge entries maintained by the business owner.
+ *
+ * Content is context-only for AI quote generation: it may shape wording,
+ * scope, exclusions, and clarification questions, but it is never monetary
+ * authority. `pricing_knowledge` is a legacy category kept readable; it must
+ * not authorize a generated price.
+ */
+export const businessMemoryCategories = [
+  "business_rules",
+  "customer_context",
+  "workflow_preferences",
+  "pricing_knowledge",
+] as const;
+
+export type BusinessMemoryCategory = (typeof businessMemoryCategories)[number];
+
 export const businessMemories = pgTable(
   "business_memories",
   {
@@ -21,16 +38,18 @@ export const businessMemories = pgTable(
     title: text("title").notNull(),
     content: text("content").notNull(),
     position: integer("position").notNull().default(0),
+    category: text("category")
+      .$type<BusinessMemoryCategory>()
+      .notNull()
+      .default("business_rules"),
+    /** Gemini embedding of `title + "\n" + content`. Nullable; lexical fallback when absent. */
+    embedding: jsonb("embedding").$type<number[] | null>().default(null),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
-    /** Embedding vector stored as JSONB array for semantic search. Null if not yet generated. */
-    embedding: jsonb("embedding").$type<number[] | null>().default(null),
-    /** Memory category for intent-based retrieval filtering. */
-    category: text("category").notNull().default("business_rules"),
   },
   (table) => [
     index("business_memories_business_id_idx").on(table.businessId),
@@ -42,10 +61,7 @@ export const businessMemories = pgTable(
       table.businessId,
       table.category,
     ),
-    check(
-      "business_memories_position_nonnegative",
-      sql`${table.position} >= 0`,
-    ),
+    check("business_memories_position_nonnegative", sql`${table.position} >= 0`),
     check(
       "business_memories_title_length",
       sql`char_length(${table.title}) <= 200`,
@@ -56,7 +72,7 @@ export const businessMemories = pgTable(
     ),
     check(
       "business_memories_category_check",
-      sql`${table.category} IN ('business_rules', 'pricing_knowledge', 'customer_context', 'workflow_preferences')`,
+      sql`${table.category} in ('business_rules', 'pricing_knowledge', 'customer_context', 'workflow_preferences')`,
     ),
   ],
 );

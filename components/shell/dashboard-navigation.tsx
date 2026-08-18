@@ -2,13 +2,10 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
   BellRing,
-  ClipboardList,
   FileText,
   FormInput,
   Home,
   Inbox,
-  Receipt,
-  Workflow,
 } from "lucide-react";
 
 
@@ -18,16 +15,12 @@ import {
 } from "@/lib/business-members";
 import {
   getBusinessAnalyticsPath,
-  getBusinessAutomationsPath,
-  getBusinessChatPath,
   getBusinessDashboardPath,
   getBusinessDashboardSlugFromPathname,
   getBusinessPath,
   getBusinessFollowUpsPath,
   getBusinessFormsPath,
   getBusinessInquiriesPath,
-  getBusinessInvoicesPath,
-  getBusinessJobsPath,
   getBusinessMembersPath,
   getBusinessNewInquiryPath,
   getBusinessQuotesPath,
@@ -76,28 +69,10 @@ export function getDashboardNavigation(
       icon: BellRing,
     },
     {
-      href: getBusinessJobsPath(slug),
-      label: "Jobs",
-      description: "Track accepted work from start to finish.",
-      icon: ClipboardList,
-    },
-    {
-      href: getBusinessInvoicesPath(slug),
-      label: "Invoices",
-      description: "Generate, send, and track payment for completed work.",
-      icon: Receipt,
-    },
-    {
       href: getBusinessFormsPath(slug),
       label: "Forms",
       description: "Build and manage the forms that capture customer inquiries.",
       icon: FormInput,
-    },
-    {
-      href: getBusinessAutomationsPath(slug),
-      label: "Automations",
-      description: "Automate follow-ups, handoffs, and routine workflow steps.",
-      icon: Workflow,
     },
     ...(canViewBusinessAnalytics(role)
       ? [
@@ -373,16 +348,6 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
         label: sectionLabel,
       },
     ]);
-  }
-
-  const chatPath = getBusinessChatPath(slug);
-
-  if (pathname === `${chatPath}/new`) {
-    return [{ label: "New chat" }];
-  }
-
-  if (pathname.startsWith(`${chatPath}/`)) {
-    return [{ label: "Chat" }];
   }
 
   return [{ label: "Home" }];

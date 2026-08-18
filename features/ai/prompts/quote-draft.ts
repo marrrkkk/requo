@@ -1,89 +1,76 @@
 /**
- * Prompt template for the quote_draft task.
+ * Prompt template for the quote_draft task — grounded pipeline.
  *
  * Complex task — structured output, system prompt ≤1600 tokens.
- * Context fields: inquiryText, customerName, customerEmail, pricingBlocks,
- *                 businessMemorySummary
+ * Context is a pre-assembled text block containing:
+ * - inquiry context
+ * - retrieved knowledge evidence (scope-only; NEVER monetary authority)
+ * - pricing candidates (with IDs; prices visible for reference, never trusted)
+ * - revision request / current items
+ *
+ * The model NEVER authors prices. It returns candidate IDs and match types;
+ * the server hydrates actual prices from the pricing library deterministically.
  */
-export function buildQuoteDraftPrompt(
-  context: Record<string, string>,
-): string {
-  const isRevision = Boolean(context.revisionContext);
-
+export function buildQuoteDraftPrompt(contextText: string): string {
   const lines = [
-    isRevision
-      ? "Revise an existing quote based on the customer's feedback below."
-      : "Generate a quote draft for the customer inquiry below.",
-    "Use a professional tone. All prices in cents (integer). No currency symbols.",
+    "Generate a quote draft for the customer inquiry below.",
+    "Use a professional tone.",
     "",
-    "PRICING RULES (CRITICAL — READ CAREFULLY):",
-    "- ALWAYS check the \"Approved pricing blocks\" section below FIRST before creating any line item.",
-    "- If a service or item closely matches an entry in the pricing library (even partial name match or related service), USE that entry's exact price. Set reviewStatus to \"matched\" and pricingSource to the appropriate library type.",
-    "- Only include unitPriceInCents > 0 when taken directly from the provided pricing blocks, past quotes, or business memory.",
-    "- If no approved pricing exists for an item and no close match is found, set unitPriceInCents to 0 and reviewStatus to \"needs_review\". Do NOT hallucinate or invent prices.",
-    "- Never interpolate, extrapolate, or calculate new prices from existing ones (e.g. do NOT double a half-day rate to get a full-day rate).",
-    "- Prefer using existing pricing library entries over inventing new line item descriptions. If the customer asks for something covered by an existing block/package, use that block/package.",
-    "- For entries marked (package): list EACH line item from the package as a SEPARATE item in the items array. Use the exact unitPriceInCents and quantity from each package line item. Set pricingSource to \"pricing_library_package\" and pricingSourceLabel to the package name. Do NOT create a single summary row for the whole package.",
-    "- For entries marked (block): use the block's price directly. Set pricingSource to \"pricing_library_block\" and pricingSourceLabel to the block name.",
+    "MONETARY RULES (CRITICAL — READ CAREFULLY):",
+    "- You NEVER set prices. You return zero prices. All unitPriceInCents MUST be 0.",
+    "- The server applies the actual price from the pricing candidate you select.",
+    "- For each line item, either select a pricing candidate id from the \"PRICING CANDIDATES\" section or set pricingCandidateId to null.",
+    "- Use matchType \"exact\" ONLY when the item is clearly and fully covered by that candidate entry (same service, same scope, no caveats).",
+    "- Use matchType \"suggested\" when the candidate is related but not a certain match for the item.",
+    "- Use matchType \"none\" (or null candidate) when no candidate fits. The item then stays unpriced for the owner.",
+    "- Business knowledge (memories and files) informs scope, wording, exclusions, and terms — it is NEVER a price source. Never mark a candidate as exact from knowledge alone.",
+    "- Past quotes are context only. They never set prices.",
+    "- Do not interpolate or extrapolate prices from any source.",
     "",
-  ];
-
-  if (isRevision) {
-    lines.push(
-      "REVISION RULES (HIGHEST PRIORITY):",
-      "- You are modifying an EXISTING quote. The current line items are listed below.",
-      "- Output ALL current items with their original descriptions, prices, and quantities — unless the customer asked to change them.",
-      "- To fulfill the customer's request, CHANGE the quantity/price of the specific item mentioned.",
-      "- Do NOT output package names (like \"Starter package\"). Output EACH individual line item separately (e.g. \"Discovery and creative direction\", \"Design production\", \"Revision round\").",
-      "- Do NOT add new items that duplicate existing items. If an item already exists in current items, just adjust its quantity.",
-      "- Example: if current items has \"Revision round (qty: 1, unit price: $450.00)\" and customer says \"add 3 more revision round\", output \"Revision round\" with quantity=4 and unitPriceInCents=45000.",
-      "",
-      "CUSTOMER REVISION REQUEST:",
-      context.revisionContext ?? "",
-      "",
-      "CURRENT QUOTE LINE ITEMS (output these with modifications):",
-      context.currentItems ?? "None.",
-      "",
-    );
-  }
-
-  lines.push(
+    "SCOPE RULES:",
+    "- Only include services or items the customer explicitly asked for (or clearly implied by the inquiry).",
+    "- Never invent deliverables, materials, timelines, terms, exclusions, taxes, or discounts.",
+    "- If the request is missing critical details, list them in missingInfo with critical: true and ask targeted questions.",
+    "- When nothing can be priced and the scope is thin, still produce a useful scope-only draft — zero-priced items with reasons.",
+    "",
+    "PACKAGE RULES:",
+    "- When you select a package candidate (kind \"package\"), list EACH line item of the package as a separate item, selecting the same candidate id with matchType \"exact\", and reference the package's item ids.",
+    "- Do NOT create a single summary row for the whole package.",
+    "",
+    "REVISION RULES (applied when a REVISION REQUEST section is present — HIGHEST PRIORITY):",
+    "- You are modifying an EXISTING quote. The current line items are listed below with their prices.",
+    "- Output ALL current items unless the customer asked to change them.",
+    "- Keep each current item's pricingCandidateId when it exists; otherwise set it to null (the owner already priced it).",
+    "- Do NOT output package names. Output each individual line item separately.",
+    "- Do not add items that duplicate existing ones.",
+    "",
     "Output JSON matching this shape:",
     `{`,
     `  "title": "string (2-160 chars, quote title)",`,
     `  "notes": "string or null (customer-facing notes)",`,
     `  "rationale": "string or null (internal rationale, ≤240 chars)",`,
+    `  "pricingLibraryEntryId": "string or null (primary candidate entry id, if any)",`,
     `  "items": [`,
     `    {`,
     `      "name": "string (≤120 chars)",`,
     `      "description": "string (≤400 chars)",`,
     `      "quantity": "integer ≥ 1",`,
-    `      "unitPriceInCents": "integer ≥ 0",`,
-    `      "pricingSource": "pricing_library_block" | "pricing_library_package" | "past_quote" | "business_memory" | "owner_brief" | "none",`,
-    `      "pricingSourceLabel": "string or null",`,
-    `      "confidence": "high" | "medium" | "low",`,
-    `      "reviewStatus": "matched" | "calculated" | "needs_review" | "no_pricing_found",`,
-    `      "reason": "string (why this item was added, where price came from)"`,
+    `      "unitPriceInCents": 0 (ALWAYS 0 — the server prices the item)`,
+    `      "pricingCandidateId": "string or null (entry id from PRICING CANDIDATES)",`,
+    `      "pricingItemId": "string or null (item id from that candidate)",`,
+    `      "matchType": "exact" | "suggested" | "none",`,
+    `      "knowledgeCitationIds": ["chunkId or sourceId strings from KNOWLEDGE EVIDENCE"],`,
+    `      "reason": "string (why this item was added, what evidence supports it)"`,
     `    }`,
     `  ],`,
-    `  "missingInfo": [{ "label": "string", "question": "string" }],`,
+    `  "missingInfo": [{ "label": "string", "question": "string", "critical": true }],`,
     `  "clarificationMessage": "string or null"`,
     `}`,
     "",
     "Do not wrap in markdown. Return JSON only.",
     "",
-    `Customer: ${context.customerName ?? "Unknown"}`,
-    context.customerEmail ? `Email: ${context.customerEmail}` : "",
-    "",
-    "Inquiry:",
-    context.inquiryText ?? "",
-    "",
-    "Approved pricing blocks:",
-    context.pricingBlocks ?? "None available.",
-    "",
-    "Business memory:",
-    context.businessMemorySummary ?? "None available.",
-  );
+    contextText.trim(),
+  ];
 
   return lines.filter(Boolean).join("\n");
 }

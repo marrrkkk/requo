@@ -8,7 +8,6 @@ import { SettingsPricingBodySkeleton } from "@/components/shell/settings-body-sk
 import { getBusinessBillingOverview } from "@/features/billing/queries";
 import {
   analyzeImportAction,
-  commitKnowledgeImportAction,
   commitPricingImportAction,
 } from "@/features/importer/actions";
 import {
@@ -110,9 +109,8 @@ async function PricingContent() {
       pricingLimit={getUsageLimit(businessContext.business.plan, "pricingEntriesPerBusiness")}
       quoteLibrary={pricingEntries}
       updateAction={updateQuoteLibraryEntryAction}
-      importerEnabled={hasFeatureAccess(businessContext.business.plan, "aiAssistant")}
+      importerEnabled={hasFeatureAccess(businessContext.business.plan, "aiQuoteDrafting")}
       analyzeImportAction={analyzeImportAction}
-      commitKnowledgeImportAction={commitKnowledgeImportAction}
       commitPricingImportAction={commitPricingImportAction}
     />
   );

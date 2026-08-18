@@ -3,12 +3,11 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 
-import { Fragment, memo, type CSSProperties, type ReactNode, useMemo, useCallback } from "react";
-import { Home as HomeIcon, Maximize2, Plus, X } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { Fragment, memo, type CSSProperties, type ReactNode, useMemo } from "react";
+import { Home as HomeIcon } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 import { BrandMark } from "@/components/shared/brand-mark";
-import { RequoIcon } from "@/components/shared/requo-icon";
 import {
   getActiveDashboardNavigationItem,
   getDashboardBreadcrumbs,
@@ -25,6 +24,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { MobileBottomNav } from "@/components/shell/mobile-bottom-nav";
 import {
   Sidebar,
   SidebarContent,
@@ -41,10 +41,10 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { getBusinessDashboardPath, getBusinessChatConversationPath, getBusinessChatNewPath } from "@/features/businesses/routes";
-import { AskRequoButton } from "@/components/shell/ask-requo-button";
-import { AiPanelProvider, useAiPanelSafe } from "@/features/ai/chat-ui/ai-panel-provider";
+import { getBusinessDashboardPath } from "@/features/businesses/routes";
 import { cn } from "@/lib/utils";
+
+import { MobileTopBar } from "@/components/shell/mobile-top-bar";
 
 const CommandMenu = dynamic(
   () =>
@@ -70,6 +70,10 @@ export type DashboardShellFrameProps = {
   notificationSlot: ReactNode;
   /** Streamed upgrade button slot (Suspense-wrapped). */
   upgradeSlot: ReactNode;
+  /** Streamed mobile top bar business switcher slot. */
+  mobileBusinessSwitcherSlot?: ReactNode;
+  /** Streamed mobile top bar user menu slot. */
+  mobileUserMenuSlot?: ReactNode;
   /** Streamed getting started checklist for the sidebar. */
   checklistSlot?: ReactNode;
   /** Streamed theme sync slot (Suspense-wrapped). */
@@ -78,8 +82,6 @@ export type DashboardShellFrameProps = {
   bannerSlot?: ReactNode;
   /** Streamed command menu slot (Suspense-wrapped, provides role/plan context). */
   commandMenuSlot?: ReactNode;
-  /** Streamed AI side panel slot (renders AiSidePanel with resolved user data). */
-  aiPanelSlot?: ReactNode;
 };
 
 /**
@@ -100,11 +102,12 @@ export function DashboardShellFrame({
   userMenuSlot,
   notificationSlot,
   upgradeSlot: _upgradeSlot,
+  mobileBusinessSwitcherSlot,
+  mobileUserMenuSlot,
   checklistSlot,
   themeSyncSlot,
   bannerSlot,
   commandMenuSlot,
-  aiPanelSlot,
 }: DashboardShellFrameProps) {
   const pathname = usePathname();
   const breadcrumbs = useMemo(() => getDashboardBreadcrumbs(pathname), [pathname]);
@@ -118,13 +121,12 @@ export function DashboardShellFrame({
     [businessSlug],
   );
 
-  const currentPageLabel = breadcrumbs.at(-1)?.label ?? businessSlug;
+  const currentPageLabel = breadcrumbs.at(-1)?.label ?? "Home";
   const dashboardPath = getBusinessDashboardPath(businessSlug);
   const activeNavItem = getActiveDashboardNavigationItem(pathname);
   const ActiveIcon = activeNavItem?.icon ?? HomeIcon;
 
   return (
-    <AiPanelProvider>
     <SidebarProvider
       defaultOpen
       style={
@@ -135,25 +137,24 @@ export function DashboardShellFrame({
       }
     >
       {themeSyncSlot}
-      <Sidebar collapsible="offcanvas">
-        <SidebarHeader className="gap-0 px-0 py-0">
-          <div className="flex min-h-9 items-center justify-between px-3 py-1.5 sm:py-2">
+      <Sidebar collapsible="icon">
+        <SidebarHeader className="gap-0 p-0">
+          <div className="flex h-13 items-center justify-between border-b border-sidebar-border px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
             <BrandMark
               collapseLabel
-              className="min-w-0 px-2 py-1.5"
+              className="min-w-0 px-2 py-1.5 group-data-[collapsible=icon]:p-0"
               subtitle={null}
               href={dashboardPath}
             />
-            <SidebarTrigger className="size-7 shrink-0" />
+            <SidebarTrigger className="size-7 shrink-0 group-data-[collapsible=icon]:hidden" />
           </div>
-          <SidebarSeparator />
-          <div className="px-3 py-3">
+          <div className="px-3 py-3 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
             {businessSwitcherSlot}
           </div>
         </SidebarHeader>
 
-        <SidebarContent className="gap-4 px-1 pb-3">
-          <SidebarGroup className="px-3 pt-3">
+        <SidebarContent className="gap-4 px-1 pb-3 group-data-[collapsible=icon]:px-0">
+          <SidebarGroup className="px-3 pt-3 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:pt-2">
             <SidebarMenu>
               {dashboardNavigation.map((item) => (
                 <DashboardNavigationItem
@@ -169,7 +170,7 @@ export function DashboardShellFrame({
         {checklistSlot}
         <SidebarSeparator />
 
-        <SidebarFooter className="p-3 pt-2">
+        <SidebarFooter className="p-3 pt-2 group-data-[collapsible=icon]:p-2">
           {userMenuSlot}
         </SidebarFooter>
 
@@ -177,13 +178,20 @@ export function DashboardShellFrame({
       </Sidebar>
 
       <SidebarInset className="min-h-svh min-w-0">
-        {/* Topbar row — sticky at top, contains main nav + panel header */}
-        <div className="sticky top-0 z-30 flex items-stretch border-b border-border/70 bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/80">
+        {/* Mobile top app bar (below lg) */}
+        <MobileTopBar
+          businessControl={mobileBusinessSwitcherSlot}
+          pageTitle={currentPageLabel}
+          notificationSlot={notificationSlot}
+          userControl={mobileUserMenuSlot}
+        />
+
+        {/* Desktop Topbar row (lg and above) */}
+        <div className="sticky top-0 z-30 hidden h-13 items-stretch border-b border-border/70 bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/80 lg:flex">
           <header className="flex min-w-0 flex-1 items-center">
             <DesktopSidebarTrigger />
             <div className="dashboard-topbar-inner min-w-0 flex-1">
               <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
-                <SidebarTrigger className="size-8 shrink-0 lg:hidden" />
                 <Button asChild variant="ghost" size="icon-sm" className="hidden size-8 shrink-0 lg:inline-flex">
                   <Link href={activeNavItem?.href ?? dashboardPath} aria-label={activeNavItem?.label ?? "Home"}>
                     <ActiveIcon className="size-4" />
@@ -191,11 +199,9 @@ export function DashboardShellFrame({
                 </Button>
                 <span
                   aria-hidden="true"
-                  className="hidden h-3.5 w-px shrink-0 self-center bg-border md:block"
+                  className="hidden h-3.5 w-px shrink-0 self-center bg-border lg:block"
                 />
-                <div className="min-w-0 flex-1 md:hidden">
-                </div>
-                <div className="hidden min-w-0 flex-1 md:block">
+                <div className="min-w-0 flex-1">
                   <Breadcrumb>
                     <BreadcrumbList>
                       {breadcrumbs.map((item, index) => {
@@ -232,27 +238,28 @@ export function DashboardShellFrame({
                       />
                     )}
                   </div>
-                  <AskRequoButton businessSlug={businessSlug} />
                   {notificationSlot}
                 </div>
               </div>
             </div>
           </header>
-          {/* Panel header renders here at the same level as the topbar */}
-          <AiPanelHeader />
         </div>
         {bannerSlot}
 
-        {/* Content + panel side by side */}
-        <div className="flex items-start">
-          <ContentArea>{children}</ContentArea>
-
-          {/* AI Side Panel body — sticky below topbar */}
-          {aiPanelSlot}
+        {/* Content */}
+        <div className="min-w-0 flex-1 pb-20 lg:pb-0" data-slot="dashboard-scroll-area">
+          <main className="dashboard-main">
+            <div className="dashboard-content">{children}</div>
+          </main>
         </div>
+
+        {/* Mobile Bottom Navigation */}
+        <MobileBottomNav
+          businessSlug={businessSlug}
+          checklistSlot={checklistSlot}
+        />
       </SidebarInset>
     </SidebarProvider>
-    </AiPanelProvider>
   );
 }
 
@@ -267,78 +274,6 @@ function DesktopSidebarTrigger() {
   return (
     <div className="hidden items-center pl-3 lg:flex">
       <SidebarTrigger className="size-8 shrink-0" />
-    </div>
-  );
-}
-
-/** Content area that adds a data attribute when the AI panel is open for CSS adaptation. */
-function ContentArea({ children }: { children: ReactNode }) {
-  const panelContext = useAiPanelSafe();
-  const isOpen = panelContext?.isOpen ?? false;
-
-  return (
-    <div
-      className="min-w-0 flex-1"
-      data-slot="dashboard-scroll-area"
-      data-ai-panel-open={isOpen || undefined}
-    >
-      <main className="dashboard-main">
-        <div className="dashboard-content">{children}</div>
-      </main>
-    </div>
-  );
-}
-
-/**
- * Panel header that renders inline with the topbar when the AI panel is open.
- * Returns null when the panel is closed so it doesn't occupy space.
- */
-function AiPanelHeader() {
-  const panelContext = useAiPanelSafe();
-  const router = useRouter();
-
-  const handleNewChat = useCallback(() => {
-    panelContext?.setConversation(null);
-  }, [panelContext]);
-
-  const handleExpand = useCallback(() => {
-    if (!panelContext) return;
-    const { conversationId, close } = panelContext;
-    // Get businessSlug from pathname
-    const slug = window.location.pathname.split("/")[1] || "";
-    if (conversationId) {
-      router.push(getBusinessChatConversationPath(slug, conversationId));
-    } else {
-      router.push(getBusinessChatNewPath(slug));
-    }
-    close();
-  }, [panelContext, router]);
-
-  const handleClose = useCallback(() => {
-    panelContext?.close();
-  }, [panelContext]);
-
-  if (!panelContext || !panelContext.isOpen) return null;
-
-  const panelTitle = "Requo AI";
-
-  return (
-    <div className="hidden w-[380px] shrink-0 items-center justify-between border-b border-border/70 border-l border-l-border/60 bg-background px-3 md:flex">
-      <div className="flex items-center gap-2">
-        <RequoIcon className="size-4 text-primary" />
-        <span className="text-sm font-medium">{panelTitle}</span>
-      </div>
-      <div className="flex items-center gap-0.5">
-        <Button variant="ghost" size="icon-xs" onClick={handleNewChat} title="New chat">
-          <Plus className="size-3.5" />
-        </Button>
-        <Button variant="ghost" size="icon-xs" onClick={handleExpand} title="Open full screen">
-          <Maximize2 className="size-3.5" />
-        </Button>
-        <Button variant="ghost" size="icon-xs" onClick={handleClose} title="Close">
-          <X className="size-3.5" />
-        </Button>
-      </div>
     </div>
   );
 }
@@ -382,7 +317,7 @@ const DashboardNavigationItem = memo(function DashboardNavigationItem({
               isActive && "text-primary",
             )}
           />
-          <span>{item.label}</span>
+          <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>

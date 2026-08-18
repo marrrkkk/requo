@@ -13,15 +13,6 @@ export type QuoteStatus = (typeof quoteStatuses)[number];
 export const quoteStatusFilterValues = ["all", ...quoteStatuses] as const;
 export type QuoteStatusFilterValue = (typeof quoteStatusFilterValues)[number];
 export type QuoteRecordView = (typeof quoteRecordViews)[number];
-export const quotePostAcceptanceStatuses = [
-  "none",
-  "booked",
-  "scheduled",
-  "in_progress",
-  "completed",
-  "no_job_tracking",
-  "canceled",
-] as const;
 export const quoteDeliveryMethods = ["requo", "manual"] as const;
 export const quoteSendChannels = [
   "email",
@@ -40,8 +31,6 @@ export const quoteSendEventTypes = [
   "copied_followup",
 ] as const;
 export type QuoteSendEventType = (typeof quoteSendEventTypes)[number];
-export type QuotePostAcceptanceStatus =
-  (typeof quotePostAcceptanceStatuses)[number];
 export type QuoteDeliveryMethod = (typeof quoteDeliveryMethods)[number];
 export const quoteReminderKinds = ["follow_up_due", "expiring_soon"] as const;
 export type QuoteReminderKind = (typeof quoteReminderKinds)[number];
@@ -53,6 +42,12 @@ import type {
   InquiryStatus,
 } from "@/features/inquiries/types";
 import type { BusinessPlan } from "@/lib/plans/plans";
+import type {
+  AiQuoteDraftItem,
+  AiQuoteMissingInfoItem,
+  AiQuotePricingStatus,
+  AiQuoteReadiness,
+} from "@/features/ai/types";
 
 export type QuoteListFilters = {
   q?: string;
@@ -77,7 +72,6 @@ export type DashboardQuoteListItem = {
   validUntil: string;
   status: QuoteStatus;
   archivedAt: Date | null;
-  postAcceptanceStatus: QuotePostAcceptanceStatus;
   sentAt: Date | null;
   publicViewedAt: Date | null;
   customerRespondedAt: Date | null;
@@ -190,7 +184,6 @@ export type DashboardQuoteDetail = {
   status: QuoteStatus;
   archivedAt: Date | null;
   voidedAt: Date | null;
-  postAcceptanceStatus: QuotePostAcceptanceStatus;
   sentAt: Date | null;
   acceptedAt: Date | null;
   publicViewedAt: Date | null;
@@ -212,7 +205,10 @@ export type DashboardQuoteDetail = {
   activities: DashboardQuoteActivity[];
   linkedInquiry: QuoteLinkedInquirySummary | null;
   reminders: QuoteReminderKind[];
-  checklistItems: PostWinChecklistItem[];
+  /** Server-computed AI readiness. `needs_confirmation` gates sending. */
+  aiReadiness: AiQuoteReadiness | null;
+  /** Set when the owner explicitly acknowledged suggested/unconfirmed pricing. */
+  aiAcknowledgedAt: Date | null;
 };
 
 export type QuoteSendPayload = {
@@ -237,6 +233,12 @@ export type QuoteSendPayload = {
   status: QuoteStatus;
   updatedAt: Date;
   items: DashboardQuoteItem[];
+  /** Server-computed AI readiness. `needs_confirmation` gates sending. */
+  aiReadiness: AiQuoteReadiness | null;
+  /** Set when the owner explicitly acknowledged suggested/unconfirmed pricing. */
+  aiAcknowledgedAt: Date | null;
+  /** Missing-info questions surfaced by the last AI draft. Informational. */
+  aiMissingInfo: AiQuoteMissingInfoItem[] | null;
 };
 
 export type PublicQuoteView = {
@@ -284,6 +286,17 @@ export type QuoteEditorLineItemValue = {
    * an AI-generated draft. Cleared once the owner edits the price.
    */
   aiReview?: AiQuoteLineItemReview;
+  /**
+   * Grounded pricing state carried through saves. `owner_set` when the owner
+   * edited a generated line item — the server never accepts any other value
+   * from the model or the client as authoritative for a changed line.
+   */
+  aiPricingStatus?: AiQuotePricingStatus;
+  /** Pricing library entry/item behind a generated price (null once owner-edited). */
+  aiPricingLibraryEntryId?: string | null;
+  aiPricingLibraryItemId?: string | null;
+  /** Grounded pricing evidence set by server-side hydration/verification. */
+  aiEvidence?: AiQuoteDraftItem["aiEvidence"] | null;
 };
 
 /**
@@ -379,14 +392,6 @@ export type QuoteRecordActionState = {
   success?: string;
 };
 
-export type QuotePostAcceptanceActionState = {
-  error?: string;
-  success?: string;
-  fieldErrors?: Partial<
-    Record<"postAcceptanceStatus", string[] | undefined>
-  >;
-};
-
 export type QuoteCancellationActionState = {
   error?: string;
   success?: string;
@@ -396,18 +401,6 @@ export type QuoteCancellationActionState = {
 };
 
 export type QuoteCompletionActionState = {
-  error?: string;
-  success?: string;
-};
-
-export type PostWinChecklistItem = {
-  id: string;
-  label: string;
-  completedAt: Date | null;
-  position: number;
-};
-
-export type PostWinChecklistActionState = {
   error?: string;
   success?: string;
 };

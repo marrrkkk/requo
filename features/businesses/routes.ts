@@ -10,12 +10,9 @@ export type BusinessSettingsSection =
   | "profile"
   | "security"
   | "quote"
-  | "invoices"
   | "email"
   | "pricing"
-  | "knowledge"
   | "support"
-  | "automations"
   | "integrations"
   | "billing"
   | "audit-log";
@@ -67,22 +64,6 @@ export function getBusinessFollowUpsPath(slug: string) {
 
 export function getBusinessFollowUpPath(slug: string, followUpId: string) {
   return `${getBusinessFollowUpsPath(slug)}/${followUpId}`;
-}
-
-export function getBusinessAssistantPath(slug: string) {
-  return `${getBusinessPath(slug)}/assistant`;
-}
-
-export function getBusinessChatPath(slug: string) {
-  return `${getBusinessPath(slug)}/chat`;
-}
-
-export function getBusinessChatNewPath(slug: string) {
-  return `${getBusinessChatPath(slug)}/new`;
-}
-
-export function getBusinessChatConversationPath(slug: string, conversationId: string) {
-  return `${getBusinessChatPath(slug)}/${conversationId}`;
 }
 
 export function getBusinessNewQuotePath(
@@ -218,30 +199,6 @@ export function getBusinessInquiryFormPreviewPath(
   formSlug: string,
 ) {
   return `${getBusinessPath(slug)}/preview/inquiry/${formSlug}`;
-}
-
-export function getBusinessAutomationsPath(slug: string) {
-  return `${getBusinessPath(slug)}/automations`;
-}
-
-export function getBusinessJobsPath(slug: string) {
-  return `${getBusinessPath(slug)}/jobs`;
-}
-
-export function getBusinessJobPath(slug: string, jobId: string) {
-  return `${getBusinessJobsPath(slug)}/${jobId}`;
-}
-
-export function getBusinessInvoicesPath(slug: string) {
-  return `${getBusinessPath(slug)}/invoices`;
-}
-
-export function getBusinessInvoicePath(slug: string, invoiceId: string) {
-  return `${getBusinessInvoicesPath(slug)}/${invoiceId}`;
-}
-
-export function getBusinessKnowledgeCompatibilityPath(slug: string) {
-  return `${getBusinessPath(slug)}/knowledge`;
 }
 
 export function getBusinessDashboardSlugFromPathname(pathname: string) {

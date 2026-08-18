@@ -14,7 +14,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
 import { QuoteRecordStateBadge } from "@/features/quotes/components/quote-record-state-badge";
 import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
@@ -99,9 +98,7 @@ export function QuoteListTable({
                       prefetch={true}
                       text={quote.title}
                     />
-                    {reminders.length ||
-                    quote.postAcceptanceStatus !== "none" ||
-                    isViewedWithoutResponse(quote) ? (
+                    {reminders.length || isViewedWithoutResponse(quote) ? (
                       <Link
                         className="flex flex-wrap gap-2"
                         href={quoteHref}
@@ -110,11 +107,6 @@ export function QuoteListTable({
                         {reminders.map((reminder) => (
                           <QuoteReminderBadge key={reminder} kind={reminder} />
                         ))}
-                        {quote.postAcceptanceStatus !== "none" ? (
-                          <QuotePostAcceptanceStatusBadge
-                            status={quote.postAcceptanceStatus}
-                          />
-                        ) : null}
                         {isViewedWithoutResponse(quote) ? (
                           <Badge variant="secondary">Viewed, no response</Badge>
                         ) : null}

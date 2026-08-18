@@ -11,6 +11,7 @@ import {
   Link2,
   Mail,
   SendHorizontal,
+  ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -112,6 +113,19 @@ type SendQuoteDialogProps = {
    */
   unpricedItemCount?: number;
   /**
+   * Whether the quote's AI readiness requires the owner to confirm
+   * suggested/unconfirmed pricing before the quote can be sent.
+   */
+  needsAiConfirmation?: boolean;
+  /**
+   * Server action recording the owner's explicit pricing acknowledgement.
+   * Unlocks sending when `needsAiConfirmation` is true.
+   */
+  acknowledgeAction?: (
+    prevState: QuoteSendActionState,
+    formData: FormData,
+  ) => Promise<QuoteSendActionState>;
+  /**
    * Data for the quote preview panel. When provided, a "Preview" toggle
    * is shown in the dialog header allowing the owner to see what the
    * customer will see before sending.
@@ -161,6 +175,8 @@ export function SendQuoteDialog({
   disabled = false,
   canAutoFollowUp = false,
   unpricedItemCount = 0,
+  needsAiConfirmation = false,
+  acknowledgeAction,
   previewData,
   previewHref,
 }: SendQuoteDialogProps) {
@@ -183,7 +199,10 @@ export function SendQuoteDialog({
   const detectedChannel = getDefaultSendChannel(quote.customerContactMethod);
   const [selectedChannel, setSelectedChannel] =
     useState<QuoteSendChannel>(detectedChannel);
-  const sendBlocked = unpricedItemCount > 0;
+  const [aiAcknowledged, setAiAcknowledged] = useState(false);
+  const [ackPending, setAckPending] = useState(false);
+  const confirmationBlocked = needsAiConfirmation && !aiAcknowledged;
+  const sendBlocked = unpricedItemCount > 0 || confirmationBlocked;
   const templateInput = {
     customerName: quote.customerName,
     businessName,
@@ -208,6 +227,7 @@ export function SendQuoteDialog({
       setSelectedChannel(detectedChannel);
       setEditedMessage(getChannelMessage(detectedChannel, templateInput));
       setCopiedField(null);
+      setAiAcknowledged(false);
     }
     setOpen(next);
   }
@@ -282,6 +302,12 @@ export function SendQuoteDialog({
 
   function handleSendWithRequo() {
     if (disabled || isPending) return;
+    if (confirmationBlocked) {
+      toast.error(
+        "Review the suggested prices and confirm them before sending.",
+      );
+      return;
+    }
     if (unpricedItemCount > 0) {
       toast.error(
         unpricedItemCount === 1
@@ -296,6 +322,12 @@ export function SendQuoteDialog({
 
   function handleMarkAsSent() {
     if (disabled || isPending) return;
+    if (confirmationBlocked) {
+      toast.error(
+        "Review the suggested prices and confirm them before sending.",
+      );
+      return;
+    }
     if (unpricedItemCount > 0) {
       toast.error(
         unpricedItemCount === 1
@@ -306,6 +338,24 @@ export function SendQuoteDialog({
     }
     setClickedAction("manual");
     submitSend("manual");
+  }
+
+  async function handleAcknowledgePricing() {
+    if (!acknowledgeAction || ackPending) return;
+
+    setAckPending(true);
+    try {
+      const result = await acknowledgeAction({}, new FormData());
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      setAiAcknowledged(true);
+      toast.success(result.success ?? "Pricing reviewed and confirmed.");
+      scheduleRefresh();
+    } finally {
+      setAckPending(false);
+    }
   }
 
   /* --- Mailto URL --- */
@@ -423,6 +473,17 @@ export function SendQuoteDialog({
                     Set a price for every line item before sending this quote.
                     The assistant won&apos;t pick a price for items it
                     can&apos;t match to your saved pricing.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
+              {confirmationBlocked ? (
+                <Alert className="border-amber-500/30 bg-amber-500/10">
+                  <AlertTitle>Confirm suggested pricing</AlertTitle>
+                  <AlertDescription>
+                    Some line items were priced from suggested matches that
+                    need your confirmation. Review the line items, then confirm
+                    the pricing to send this quote.
                   </AlertDescription>
                 </Alert>
               ) : null}
@@ -602,6 +663,24 @@ export function SendQuoteDialog({
             </ResponsiveOverlayBody>
 
             <ResponsiveOverlayFooter className="flex-col gap-2 sm:flex-col">
+              {confirmationBlocked && acknowledgeAction ? (
+                <Button
+                  className="w-full"
+                  disabled={ackPending || isPending}
+                  onClick={handleAcknowledgePricing}
+                  type="button"
+                  variant="secondary"
+                >
+                  {ackPending ? (
+                    <Spinner data-icon="inline-start" aria-hidden="true" />
+                  ) : (
+                    <ShieldCheck data-icon="inline-start" />
+                  )}
+                  {ackPending
+                    ? "Confirming..."
+                    : "I've reviewed the suggested prices"}
+                </Button>
+              ) : null}
               {/* Primary send action */}
               {showRequoOption ? (
                 <>

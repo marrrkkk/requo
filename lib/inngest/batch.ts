@@ -1,14 +1,11 @@
 import "server-only";
 
 import { inngest } from "@/lib/inngest/client";
-import type { AutomationDispatchEventData } from "@/lib/inngest/events";
-import { inngestEvents } from "@/lib/inngest/events";
 
 // --- Constants ---
 
 const MAX_PAYLOAD_SIZE_BYTES = 512 * 1024; // 512KB
 const MAX_RECIPIENTS_PER_EVENT = 100;
-const MAX_TRIGGERS_PER_EVENT = 50;
 const MAX_RETRY_ATTEMPTS = 3;
 const INITIAL_BACKOFF_MS = 1000;
 
@@ -29,13 +26,6 @@ type BatchResult = {
   delivered: number;
   failed: number;
 };
-
-// --- Debounce State ---
-
-const debounceTimers = new Map<
-  string,
-  { timer: ReturnType<typeof setTimeout>; triggers: AutomationDispatchEventData[] }
->();
 
 // --- Utility Functions ---
 
@@ -201,75 +191,7 @@ export async function sendBatchedNotification(
   await batchSendEvents(events);
 }
 
-/**
- * Combines automation triggers for the same business within a debounce
- * window into single events (max 50 per event).
- *
- * If triggers are already provided as an array, they are sent immediately
- * in batches of up to 50. If debounceMs > 0, triggers are accumulated
- * within the window and flushed when the window expires.
- */
-export async function sendDebouncedAutomationDispatch(
-  businessId: string,
-  triggers: AutomationDispatchEventData[],
-  debounceMs: number = 5000,
-): Promise<void> {
-  if (triggers.length === 0) return;
-
-  const key = `automation:${businessId}`;
-
-  // If no debounce, send immediately
-  if (debounceMs <= 0) {
-    await flushAutomationTriggers(businessId, triggers);
-    return;
-  }
-
-  // Accumulate triggers in the debounce window
-  const existing = debounceTimers.get(key);
-  if (existing) {
-    existing.triggers.push(...triggers);
-    // Reset the timer
-    clearTimeout(existing.timer);
-    existing.timer = setTimeout(() => {
-      const entry = debounceTimers.get(key);
-      if (entry) {
-        debounceTimers.delete(key);
-        void flushAutomationTriggers(businessId, entry.triggers);
-      }
-    }, debounceMs);
-  } else {
-    const timer = setTimeout(() => {
-      const entry = debounceTimers.get(key);
-      if (entry) {
-        debounceTimers.delete(key);
-        void flushAutomationTriggers(businessId, entry.triggers);
-      }
-    }, debounceMs);
-    debounceTimers.set(key, { timer, triggers: [...triggers] });
-  }
-}
-
 // --- Internal Helpers ---
-
-async function flushAutomationTriggers(
-  businessId: string,
-  triggers: AutomationDispatchEventData[],
-): Promise<void> {
-  const events: EventPayload[] = [];
-
-  for (let i = 0; i < triggers.length; i += MAX_TRIGGERS_PER_EVENT) {
-    const chunk = triggers.slice(i, i + MAX_TRIGGERS_PER_EVENT);
-    events.push({
-      name: inngestEvents.automationDispatch,
-      data: {
-        businessId,
-        triggers: chunk,
-      },
-    });
-  }
-
-  await batchSendEvents(events);
-}
 
 async function sendWithRetry(
   batchId: string,

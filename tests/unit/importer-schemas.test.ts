@@ -1,62 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { importerCommitPricingSchema } from "@/features/importer/schemas";
 import {
-  importerCommitKnowledgeSchema,
-  importerCommitPricingSchema,
-} from "@/features/importer/schemas";
-import {
-  importerMaxKnowledgeItems,
   importerMaxPricingEntries,
   importerMaxPricingItemsPerEntry,
 } from "@/features/importer/types";
-
-describe("importerCommitKnowledgeSchema", () => {
-  it("accepts a valid knowledge payload", () => {
-    const result = importerCommitKnowledgeSchema.safeParse({
-      sourceName: "policies.pdf",
-      items: [
-        { title: "Refund policy", content: "We refund within 14 days." },
-        { title: "Cancellation", content: "Cancel 48h before." },
-      ],
-    });
-
-    expect(result.success).toBe(true);
-  });
-
-  it("rejects empty items array", () => {
-    const result = importerCommitKnowledgeSchema.safeParse({
-      sourceName: "policies.pdf",
-      items: [],
-    });
-
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects items missing required fields", () => {
-    const result = importerCommitKnowledgeSchema.safeParse({
-      sourceName: "policies.pdf",
-      items: [{ title: "", content: "body" }],
-    });
-
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects more items than the per-import cap", () => {
-    const items = Array.from({ length: importerMaxKnowledgeItems + 1 }).map(
-      (_, index) => ({
-        title: `Item ${index}`,
-        content: "content",
-      }),
-    );
-
-    const result = importerCommitKnowledgeSchema.safeParse({
-      sourceName: "big.pdf",
-      items,
-    });
-
-    expect(result.success).toBe(false);
-  });
-});
 
 describe("importerCommitPricingSchema", () => {
   it("accepts a valid pricing payload", () => {

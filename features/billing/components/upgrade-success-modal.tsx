@@ -15,52 +15,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { BusinessPlan } from "@/lib/plans/plans";
-
-type PlanFeatureHighlight = {
-  label: string;
-  description: string;
-};
-
-const proFeatureHighlights: PlanFeatureHighlight[] = [
-  { label: "Auto follow-ups", description: "Automated email reminders when customers haven't responded" },
-  { label: "Visual workflow builder", description: "Compose multi-step automations with drag-and-drop" },
-  { label: "Multiple inquiry forms", description: "Up to 5 live forms for different services" },
-  { label: "100 AI generations/month", description: "AI-drafted quotes, follow-ups, and suggestions" },
-  { label: "20 quote sends/day", description: "Send quotes directly through Requo email" },
-  { label: "Remove Requo branding", description: "Clean public inquiry and quote pages" },
-  { label: "Performance analytics", description: "Trends, funnels, and period comparisons" },
-  { label: "Data exports", description: "Export inquiries, quotes, and audit logs" },
-];
-
-const businessFeatureHighlights: PlanFeatureHighlight[] = [
-  { label: "Everything in Pro", description: "All Pro features included" },
-  { label: "Team members", description: "Invite up to 25 members with role-based access" },
-  { label: "Unlimited inquiry forms", description: "No limit on live forms per business" },
-  { label: "500 AI generations/month", description: "Higher AI-powered drafts and suggestions" },
-  { label: "50 quote sends/day", description: "Higher Requo email delivery volume" },
-  { label: "10 businesses", description: "Manage up to 10 businesses from one account" },
-];
-
-function getFeaturesForPlan(plan: BusinessPlan): PlanFeatureHighlight[] {
-  switch (plan) {
-    case "pro":
-      return proFeatureHighlights;
-    case "business":
-      return businessFeatureHighlights;
-    default:
-      return proFeatureHighlights;
-  }
-}
+import { planCatalog } from "@/lib/plans/catalog";
 
 function getPlanLabel(plan: BusinessPlan): string {
-  switch (plan) {
-    case "pro":
-      return "Pro";
-    case "business":
-      return "Business";
-    default:
-      return "Pro";
-  }
+  return planCatalog[plan].label;
 }
 
 export function UpgradeSuccessModal() {
@@ -101,7 +59,7 @@ export function UpgradeSuccessModal() {
     router.refresh();
   }
 
-  const features = getFeaturesForPlan(plan);
+  const features = planCatalog[plan].highlights;
   const label = getPlanLabel(plan);
 
   return (
@@ -121,14 +79,11 @@ export function UpgradeSuccessModal() {
         <DialogBody>
           <ul className="grid gap-2">
             {features.map((feature) => (
-              <li key={feature.label} className="flex items-start gap-3">
+              <li key={feature} className="flex items-start gap-3">
                 <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" />
                 <div className="min-w-0">
                   <p className="text-sm font-medium leading-tight">
-                    {feature.label}
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    {feature.description}
+                    {feature}
                   </p>
                 </div>
               </li>

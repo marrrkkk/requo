@@ -17,17 +17,12 @@ import {
 } from "@/components/ui/responsive-overlay";
 import { Spinner } from "@/components/ui/spinner";
 import {
-  ImporterKnowledgeReview,
-  type KnowledgeDraft,
-} from "@/features/importer/components/importer-knowledge-review";
-import {
   ImporterPricingReview,
   type PricingDraft,
 } from "@/features/importer/components/importer-pricing-review";
 import type {
   ImporterAnalyzeResult,
   ImporterCommitResult,
-  ImporterDestination,
   ImporterPlanContext,
 } from "@/features/importer/types";
 import {
@@ -39,14 +34,7 @@ import { cn } from "@/lib/utils";
 type ImporterDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  destination: ImporterDestination;
-  analyzeAction: (
-    destination: ImporterDestination,
-    formData: FormData,
-  ) => Promise<ImporterAnalyzeResult>;
-  commitKnowledgeAction: (
-    payload: { sourceName: string; items: KnowledgeDraft[] },
-  ) => Promise<ImporterCommitResult>;
+  analyzeAction: (formData: FormData) => Promise<ImporterAnalyzeResult>;
   commitPricingAction: (
     payload: { sourceName: string; entries: PricingDraft[] },
   ) => Promise<ImporterCommitResult>;
@@ -54,28 +42,18 @@ type ImporterDialogProps = {
 
 type Step = "upload" | "analyzing" | "review";
 
-type ReviewState =
-  | {
-      destination: "knowledge";
-      sourceName: string;
-      warnings: string[];
-      items: KnowledgeDraft[];
-      planContext: ImporterPlanContext;
-    }
-  | {
-      destination: "pricing";
-      sourceName: string;
-      warnings: string[];
-      entries: PricingDraft[];
-      planContext: ImporterPlanContext;
-    };
+type ReviewState = {
+  destination: "pricing";
+  sourceName: string;
+  warnings: string[];
+  entries: PricingDraft[];
+  planContext: ImporterPlanContext;
+};
 
 export function ImporterDialog({
   open,
   onOpenChange,
-  destination,
   analyzeAction,
-  commitKnowledgeAction,
   commitPricingAction,
 }: ImporterDialogProps) {
   const [step, setStep] = useState<Step>("upload");
@@ -132,33 +110,10 @@ export function ImporterDialog({
 
       formData.append("file", file);
 
-      const result = await analyzeAction(destination, formData);
+      const result = await analyzeAction(formData);
 
       if (!result.ok) {
         toast.error(result.error);
-        return;
-      }
-
-      if (result.destination === "knowledge") {
-        if (!result.items.length) {
-          toast.error(
-            "The AI didn't find any knowledge to import from that file. Try a different file or add items manually.",
-          );
-          return;
-        }
-
-        setReview({
-          destination: "knowledge",
-          sourceName: result.sourceName,
-          warnings: result.warnings,
-          planContext: result.planContext,
-          items: result.items.map((item) => ({
-            draftId: item.draftId,
-            title: item.title,
-            content: item.content,
-          })),
-        });
-        setStep("review");
         return;
       }
 
@@ -206,27 +161,6 @@ export function ImporterDialog({
     }
 
     startCommitting(async () => {
-      if (review.destination === "knowledge") {
-        const result = await commitKnowledgeAction({
-          sourceName: review.sourceName,
-          items: review.items,
-        });
-
-        if (result.error && result.created === 0) {
-          toast.error(result.error);
-          return;
-        }
-
-        toast.success(
-          result.created === 1
-            ? "1 knowledge item imported."
-            : `${result.created} knowledge items imported.`,
-          result.error ? { description: result.error } : undefined,
-        );
-        handleClose(false);
-        return;
-      }
-
       const result = await commitPricingAction({
         sourceName: review.sourceName,
         entries: review.entries,
@@ -247,14 +181,9 @@ export function ImporterDialog({
     });
   }
 
-  const title =
-    destination === "knowledge"
-      ? "Import knowledge from file"
-      : "Import pricing from file";
+  const title = "Import pricing from file";
   const description =
-    destination === "knowledge"
-      ? "Upload a document and AI will extract knowledge items you can review before saving."
-      : "Upload a pricing sheet and AI will extract pricing entries you can review before saving.";
+    "Upload a pricing sheet and AI will extract pricing entries you can review before saving.";
 
   return (
     <ResponsiveOverlay open={open} onOpenChange={handleClose}>
@@ -277,29 +206,16 @@ export function ImporterDialog({
           {isAnalyzing ? <AnalyzingStep /> : null}
 
           {step === "review" && review ? (
-            review.destination === "knowledge" ? (
-              <ImporterKnowledgeReview
-                items={review.items}
-                onChange={(items) =>
-                  setReview({ ...review, items })
-                }
-                overLimitNonce={overLimitNonce}
-                planContext={review.planContext}
-                sourceName={review.sourceName}
-                warnings={review.warnings}
-              />
-            ) : (
-              <ImporterPricingReview
-                entries={review.entries}
-                onChange={(entries) =>
-                  setReview({ ...review, entries })
-                }
-                overLimitNonce={overLimitNonce}
-                planContext={review.planContext}
-                sourceName={review.sourceName}
-                warnings={review.warnings}
-              />
-            )
+            <ImporterPricingReview
+              entries={review.entries}
+              onChange={(entries) =>
+                setReview({ ...review, entries })
+              }
+              overLimitNonce={overLimitNonce}
+              planContext={review.planContext}
+              sourceName={review.sourceName}
+              warnings={review.warnings}
+            />
           ) : null}
         </ResponsiveOverlayBody>
 
@@ -361,17 +277,11 @@ export function ImporterDialog({
 function hasSelectedItems(review: ReviewState | null): boolean {
   if (!review) return false;
 
-  if (review.destination === "knowledge") {
-    return review.items.length > 0;
-  }
-
   return review.entries.length > 0;
 }
 
 function getSelectedCount(review: ReviewState): number {
-  return review.destination === "knowledge"
-    ? review.items.length
-    : review.entries.length;
+  return review.entries.length;
 }
 
 function isOverLimit(review: ReviewState, selectedCount: number): boolean {
@@ -391,19 +301,12 @@ function buildOverLimitMessage(
   if (limit === null) return "";
 
   const overBy = existingCount + selectedCount - limit;
-  const noun = review.destination === "knowledge" ? "knowledge items" : "pricing entries";
 
-  return `You have ${existingCount} saved ${noun} and selected ${selectedCount} more, which is ${overBy} over your plan limit of ${limit}. Remove ${overBy} highlighted ${overBy === 1 ? "item" : "items"} from the bottom of the list, or upgrade your plan.`;
+  return `You have ${existingCount} saved pricing entries and selected ${selectedCount} more, which is ${overBy} over your plan limit of ${limit}. Remove ${overBy} highlighted ${overBy === 1 ? "item" : "items"} from the bottom of the list, or upgrade your plan.`;
 }
 
 function getCommitLabel(review: ReviewState | null): string {
   if (!review) return "Import";
-
-  if (review.destination === "knowledge") {
-    const count = review.items.length;
-
-    return count === 1 ? "Import 1 item" : `Import ${count} items`;
-  }
 
   const count = review.entries.length;
 

@@ -32,7 +32,6 @@ import type {
 import { BusinessInquiryFormDangerZone } from "@/features/settings/components/business-inquiry-form-danger-zone";
 import { BusinessInquiryFormForm } from "@/features/settings/components/business-inquiry-form-form";
 import { BusinessInquiryFormManageCard } from "@/features/settings/components/business-inquiry-form-manage-card";
-import { BusinessInquiryFormPresetCard } from "@/features/settings/components/business-inquiry-form-preset-card";
 import { BusinessInquiryPreviewOverlay } from "@/features/settings/components/business-inquiry-preview-overlay";
 import { BusinessInquiryPageForm } from "@/features/settings/components/business-inquiry-page-form";
 
@@ -315,8 +314,10 @@ export function BusinessInquiryFormEditorTabs({
               </div>
             ) : null}
 
-            <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
+            <div className="flex flex-col gap-5">
               <BusinessInquiryFormManageCard
+                applyPresetAction={applyPresetAction}
+                businessType={pageDraft.businessType}
                 duplicateAction={duplicateAction}
                 formId={settings.formId}
                 isDefault={settings.isDefault}
@@ -324,14 +325,7 @@ export function BusinessInquiryFormEditorTabs({
                 setDefaultAction={setDefaultAction}
                 togglePublicAction={togglePublicAction}
               />
-              <BusinessInquiryFormPresetCard
-                action={applyPresetAction}
-                businessType={pageDraft.businessType}
-                formId={settings.formId}
-              />
-            </div>
-
-            <BusinessInquiryFormDangerZone
+              <BusinessInquiryFormDangerZone
                 activeFormCount={settings.activeFormCount}
                 archiveAction={archiveAction}
                 deleteAction={deleteAction}
@@ -340,6 +334,7 @@ export function BusinessInquiryFormEditorTabs({
                 isDefault={settings.isDefault}
                 submittedInquiryCount={settings.submittedInquiryCount}
               />
+            </div>
           </section>
         </TabsContent>
       </div>

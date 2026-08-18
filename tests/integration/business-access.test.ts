@@ -48,7 +48,7 @@ import {
   getBusinessContextForMembershipSlug,
 } from "@/lib/db/business-access";
 import { getBusinessContextForUser } from "@/lib/db/business-access";
-import { accountSubscriptions, businesses } from "@/lib/db/schema";
+import { businessSubscriptions, businesses } from "@/lib/db/schema";
 
 import { closeTestDb, testDb } from "@/tests/support/db";
 import {
@@ -223,18 +223,32 @@ describe("business access control", () => {
       .set({ plan: "free", updatedAt: new Date() })
       .where(eq(businesses.id, ids.businessId));
 
-    await testDb.insert(accountSubscriptions).values({
-      id: `${prefix}_subscription_active`,
-      userId: ids.ownerUserId,
-      status: "active",
-      plan: "business",
-      billingProvider: "polar",
-      billingCurrency: "USD",
-      currentPeriodStart: new Date("2026-05-01T00:00:00.000Z"),
-      currentPeriodEnd: new Date("2026-06-01T00:00:00.000Z"),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    await testDb.insert(businessSubscriptions).values([
+      {
+        id: `${prefix}_subscription_active`,
+        businessId: ids.businessId,
+        status: "active",
+        plan: "business",
+        billingProvider: "polar",
+        billingCurrency: "USD",
+        currentPeriodStart: new Date("2099-05-01T00:00:00.000Z"),
+        currentPeriodEnd: new Date("2099-06-01T00:00:00.000Z"),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: `${prefix}_subscription_active_archived`,
+        businessId: ids.archivedBusinessId,
+        status: "active",
+        plan: "business",
+        billingProvider: "polar",
+        billingCurrency: "USD",
+        currentPeriodStart: new Date("2099-05-01T00:00:00.000Z"),
+        currentPeriodEnd: new Date("2099-06-01T00:00:00.000Z"),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
 
     try {
       const [businessContext, secondaryBusinessContext] = await Promise.all([
@@ -246,8 +260,11 @@ describe("business access control", () => {
       expect(secondaryBusinessContext?.business.plan).toBe("business");
     } finally {
       await testDb
-        .delete(accountSubscriptions)
-        .where(eq(accountSubscriptions.userId, ids.ownerUserId));
+        .delete(businessSubscriptions)
+        .where(eq(businessSubscriptions.businessId, ids.businessId));
+      await testDb
+        .delete(businessSubscriptions)
+        .where(eq(businessSubscriptions.businessId, ids.archivedBusinessId));
       await testDb
         .update(businesses)
         .set({ plan: "pro", updatedAt: new Date() })

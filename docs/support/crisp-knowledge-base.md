@@ -8,9 +8,7 @@ Requo is a workflow management platform for service businesses that handle inbou
 2. **Qualify and organize** inquiries
 3. **Create and send professional quotes**
 4. **Track quote status** (viewed, accepted, rejected, expired)
-5. **Convert accepted quotes to jobs**
-6. **Invoice completed work**
-7. **Automate repetitive tasks** through workflow automation
+5. **Follow up consistently** to convert quotes to wins
 
 ## Target Users
 
@@ -44,26 +42,12 @@ Requo is a workflow management platform for service businesses that handle inbou
 - Accept/reject responses from customers
 - Quote status: draft, sent, viewed, accepted, rejected, expired, voided
 
-### Jobs & Invoicing
-- Convert accepted quotes to jobs automatically
-- Track job progress and completion
-- Generate invoices from jobs
-- Invoice PDF generation and email delivery
-- Payment tracking
-
 ### Follow-ups & Reminders
 - Manual and automated follow-up scheduling
 - Reminder notifications for pending quotes
 - Follow-up task management
 - Customizable follow-up timing
-
-### Workflow Automation
-- Event-driven automation rules
-- Visual workflow builder for advanced users
-- Automation triggers: inquiry received, quote sent, quote viewed, quote accepted, job created, invoice sent, etc.
-- Automation actions: create follow-up, send notification, update status, generate draft, etc.
-- Business-scoped automation templates
-- Enable/disable automations per business
+- Smart workflow defaults for common scenarios
 
 ### Multi-Business Support
 - Manage multiple businesses from one account
@@ -94,29 +78,47 @@ Requo is a workflow management platform for service businesses that handle inbou
 ## Plans & Pricing
 
 ### Free Plan
-- 1 business
-- 10 quotes per month
-- Basic features
-- Email support
+- Run your inquiry and quote workflow for one business
+- 1 member (owner only)
+- Unlimited inquiries and quotes
+- 1 live inquiry form with 3 custom fields
+- About 10 AI quote drafts per month (30 weighted credits)
+- 15 Requo email sends per month
+- 10 saved pricing library entries
+- 5 knowledge sources
+- Manual follow-ups
+- Inquiry and quote CSV exports
+- 5 MB file attachments on public forms
 
-### Pro Plan
-- 3 businesses
-- 100 quotes per month
-- Advanced features
-- Priority support
-- Workflow automation
-- AI assistant access
+### Pro Plan ($9/month or $90/year)
+- Save time with automatic follow-ups, more AI drafting, custom emails, and advanced insights
+- 1 member (owner only)
+- Everything in Free, plus:
+- 5 live inquiry forms with 10 custom fields each
+- About 50 AI quote drafts per month (150 weighted credits)
+- 200 Requo email sends per month
+- 50 saved pricing library entries
+- 25 knowledge sources
+- Automatic follow-ups
+- Custom quote email templates
+- Inquiry-page customization
+- Advanced analytics and scheduled reports
+- Remove Requo branding
+- 25 MB file attachments on public forms
 
-### Business Plan
-- Unlimited businesses
-- Unlimited quotes
-- All features
-- Priority support
-- Advanced analytics
-- Custom branding
-- API access (coming soon)
+### Business Plan ($24/month or $240/year)
+- Give a small team shared access, roles, and higher limits
+- Up to 5 members with roles and permissions
+- Everything in Pro, plus:
+- 10 live inquiry forms with 24 custom fields each
+- About 165 AI quote drafts per month (500 weighted credits)
+- 500 Requo email sends per month
+- Unlimited saved pricing library entries
+- 50 knowledge sources
+- Audit log access
+- 50 MB file attachments on public forms
 
-Plans available in monthly and yearly billing (yearly saves 20%).
+**Note:** Annual billing gives you two months free. Each business requires its own subscription (Pro or Business), or operates on Free with one Free business allowed per owner.
 
 ## Common Questions
 
@@ -151,16 +153,16 @@ A: Requo checks email addresses and inquiry content to flag potential duplicates
 A: From an inquiry, click "Create Quote" or go to Quotes → New Quote. Add line items, set pricing, configure terms, and save as draft or send immediately.
 
 **Q: Can I use AI to generate quotes?**
-A: Yes, the AI assistant can draft quotes based on inquiry details and your business context. Review and edit before sending.
+A: Yes, the AI assistant can draft quotes based on inquiry details and your business context. Review and edit before sending. AI drafting counts toward your monthly credit allowance.
 
 **Q: How do I send a quote?**
-A: Click "Send Quote" from the quote detail page. Choose email delivery (sent from your configured email domain) or copy the public quote link to share manually.
+A: Click "Send Quote" from the quote detail page. You can send via Requo email (counts toward your monthly send limit) or copy the public quote link to share manually (unlimited).
 
 **Q: Can customers accept quotes online?**
 A: Yes, public quote pages have "Accept" and "Decline" buttons. Customers can add comments when responding.
 
 **Q: What happens when a quote is accepted?**
-A: The quote status changes to "accepted" and you can convert it to a job. If you have automation enabled, this can happen automatically.
+A: The quote status changes to "accepted". You'll receive a notification and can begin work or follow your next steps.
 
 **Q: Can I edit a quote after sending?**
 A: You can create a new version/revision. The original sent quote remains unchanged for customer reference.
@@ -171,41 +173,13 @@ A: Set an expiration date when creating a quote. After that date, the quote stat
 **Q: Can I void a quote?**
 A: Yes, use the "Void Quote" action. Voided quotes cannot be accepted and are marked as canceled.
 
-### Jobs & Invoices
-
-**Q: How do I create a job from an accepted quote?**
-A: Click "Convert to Job" on an accepted quote. Job details are pre-filled from the quote.
-
-**Q: Can I invoice before a job is complete?**
-A: Yes, you can create invoices at any job stage. Common patterns: deposit invoice upfront, final invoice on completion, or milestone invoicing.
-
-**Q: How do I send an invoice?**
-A: From the invoice detail page, click "Send Invoice". A PDF is generated and emailed to the customer.
-
-**Q: Can customers pay invoices online?**
-A: Payment processing integration is coming soon. Currently, invoices include your payment instructions.
-
-### Workflow Automation
-
-**Q: What can I automate?**
-A: Common automations: auto-create follow-ups when quotes are sent, notify team when quotes are accepted, auto-convert accepted quotes to jobs, send reminders for pending quotes.
-
-**Q: How do I set up automation?**
-A: Go to Settings → Automations. Choose from templates or create custom rules. Each rule has a trigger (event) and action (what happens).
-
-**Q: Can I disable automations temporarily?**
-A: Yes, toggle any automation on/off without deleting it.
-
-**Q: What's the visual workflow builder?**
-A: An advanced drag-and-drop interface for creating multi-step workflows with conditions and branching logic. Available on Pro and Business plans.
-
-### Multi-Business
+### Account & Security
 
 **Q: How do I add another business?**
-A: Click your profile menu → "Businesses" → "Add Business". Each business has separate data, settings, and branding.
+A: Click your profile menu → "Businesses" → "Add Business". Each additional business requires its own Pro or Business subscription. Your first business can operate on Free.
 
 **Q: Can I invite team members?**
-A: Yes, go to Settings → Members and send invitations. Members can access the business dashboard based on their permissions.
+A: Yes, on the Business plan. Go to Settings → Members and send invitations. Members can access the business dashboard based on their roles.
 
 **Q: How do I switch between businesses?**
 A: Use the business switcher in the top navigation or press `Cmd/Ctrl + K` and type the business name.
@@ -227,19 +201,22 @@ A: No. Your data is only used for your requests and is not shared with AI provid
 ### Billing & Subscriptions
 
 **Q: How do I upgrade my plan?**
-A: Go to Settings → Billing → "Upgrade Plan". Choose your plan and complete checkout.
+A: Go to Settings → Billing → "Upgrade Plan". Choose your plan and complete checkout through Polar.
 
 **Q: Can I change plans anytime?**
 A: Yes, upgrade or downgrade anytime. Upgrades take effect immediately. Downgrades take effect at the end of your current billing period.
 
 **Q: What happens if I exceed my plan limits?**
-A: You'll be prompted to upgrade. On the Free plan, you can't create more quotes after hitting the limit until the next month or upgrading.
+A: You'll see a message explaining the limit and be prompted to upgrade. For example, if you reach your monthly AI drafting allowance, you can still create quotes manually or wait until next month. Email send limits work the same way - you can always share quotes via public link.
 
 **Q: Do you offer refunds?**
 A: Yes, see our refund policy at requo.app/refund-policy. Generally, we offer prorated refunds within 30 days.
 
 **Q: Can I cancel anytime?**
 A: Yes, cancel from Settings → Billing. You'll retain access until the end of your paid period.
+
+**Q: How does business-scoped billing work?**
+A: Each business has its own subscription. Your first business can run on Free. Additional businesses require their own Pro or Business subscription. A Pro subscription on one business does not unlock Pro features on another business.
 
 ### Account & Security
 
@@ -253,7 +230,7 @@ A: Yes, if enabled by your instance. Click "Continue with Google" on the login p
 A: Yes. We use industry-standard encryption, secure authentication, and regular security audits. See requo.app/security for details.
 
 **Q: Can I export my data?**
-A: Data export is coming soon. Contact support if you need your data urgently.
+A: Yes, on all plans. You can export inquiries and quotes as CSV from your dashboard. Advanced analytics reports can be exported on Pro and Business plans.
 
 **Q: How do I delete my account?**
 A: Contact support to request account deletion. This is permanent and cannot be undone.
@@ -327,8 +304,9 @@ If you're still having trouble, I can check the logs on our end. What's the quot
 
 ### Upgrade/Billing Question
 "I can help with your plan upgrade. Our plans are:
-- **Pro**: 3 businesses, 100 quotes/month, automation, AI assistant
-- **Business**: Unlimited businesses and quotes, all features
+- **Free**: 1 business, unlimited inquiries and quotes, about 10 AI drafts/month, 15 email sends/month, 1 live form
+- **Pro** ($9/month): Auto follow-ups, custom emails and branding, advanced analytics, about 50 AI drafts/month, 5 live forms
+- **Business** ($24/month): Up to 5 members, roles, audit logs, highest limits (about 165 AI drafts/month, 10 live forms)
 
 You can upgrade anytime from Settings → Billing. Upgrades take effect immediately and you'll only pay the prorated difference for the current period.
 

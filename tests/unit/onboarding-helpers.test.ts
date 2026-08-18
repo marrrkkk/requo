@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createOnboardingPreviewBusiness,
-  getRecommendedStarterTemplateForBusinessType,
+  getRecommendedStarterWorkflowForBusinessType,
   resolveOnboardingCurrencyChange,
   type OnboardingDraft,
 } from "@/features/onboarding/helpers";
@@ -16,7 +16,7 @@ function createDraft(
     businessName: "Northline Studio",
     businessSlug: "northline-studio",
     businessType: "web_it_services",
-    starterTemplateBusinessType: "creative_marketing_services",
+    starterWorkflow: "project_quote",
     countryCode: "US",
     defaultCurrency: "USD",
     customerContactChannel: "email",
@@ -28,19 +28,25 @@ function createDraft(
 }
 
 describe("features/onboarding/helpers", () => {
-  describe("getRecommendedStarterTemplateForBusinessType", () => {
-    it("maps detailed business categories to the closest starter template", () => {
+  describe("getRecommendedStarterWorkflowForBusinessType", () => {
+    it("maps business categories to recommended workflows", () => {
       expect(
-        getRecommendedStarterTemplateForBusinessType("web_it_services"),
-      ).toBe("creative_marketing_services");
+        getRecommendedStarterWorkflowForBusinessType("web_it_services"),
+      ).toBe("project_quote");
       expect(
-        getRecommendedStarterTemplateForBusinessType("repair_services"),
-      ).toBe("contractor_home_improvement");
+        getRecommendedStarterWorkflowForBusinessType("cleaning_services"),
+      ).toBe("recurring_service");
       expect(
-        getRecommendedStarterTemplateForBusinessType(
+        getRecommendedStarterWorkflowForBusinessType(
           "consulting_professional_services",
         ),
-      ).toBe("consulting_professional_services");
+      ).toBe("consultation_proposal");
+    });
+
+    it("defaults to project_quote for empty business type", () => {
+      expect(getRecommendedStarterWorkflowForBusinessType("")).toBe(
+        "project_quote",
+      );
     });
   });
 
@@ -67,24 +73,24 @@ describe("features/onboarding/helpers", () => {
   });
 
   describe("createOnboardingPreviewBusiness", () => {
-    it("builds preview defaults from the selected starter template while keeping the chosen business category", () => {
+    it("builds preview defaults from the selected workflow while keeping the chosen business category", () => {
       const preview = createOnboardingPreviewBusiness(createDraft());
 
       expect(preview.businessType).toBe("web_it_services");
-      expect(preview.form.businessType).toBe("creative_marketing_services");
+      expect(preview.form.businessType).toBe("web_it_services");
       expect(preview.inquiryPageConfig.headline).toContain("Northline Studio");
       expect(preview.inquiryFormConfig.projectFields.length).toBeGreaterThan(0);
     });
 
-    it("falls back to the recommended starter template when none is selected yet", () => {
+    it("falls back to the recommended starter workflow when none is selected yet", () => {
       const preview = createOnboardingPreviewBusiness(
         createDraft({
-          starterTemplateBusinessType: "",
-          businessType: "repair_services",
+          starterWorkflow: "",
+          businessType: "cleaning_services",
         }),
       );
 
-      expect(preview.form.businessType).toBe("contractor_home_improvement");
+      expect(preview.businessType).toBe("cleaning_services");
     });
   });
 });

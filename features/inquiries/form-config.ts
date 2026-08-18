@@ -5,6 +5,10 @@ import {
   type StarterTemplateBusinessType,
 } from "@/features/businesses/starter-templates";
 import {
+  getRecommendedStarterWorkflow,
+  type StarterWorkflowKey,
+} from "@/features/businesses/starter-workflows";
+import {
   businessTypes,
   normalizeBusinessType,
   type BusinessType,
@@ -255,18 +259,6 @@ export type InquiryFormGroupLabels = {
   project: string;
 };
 
-export type InquiryFormConversationalAvatarStyle = "brand" | "initials";
-
-export type InquiryFormConversationalMode = {
-  enabled: boolean;
-  /** Optional custom opening message. Defaults to an AI-generated greeting. */
-  openingMessage?: string;
-  /** Display name for the chatbot. Defaults to "{businessName} Assistant". */
-  assistantName?: string;
-  /** Avatar style in chat bubbles. Defaults to "brand". */
-  avatarStyle?: InquiryFormConversationalAvatarStyle;
-};
-
 export type InquiryFormContactFields = {
   customerName: InquiryContactFieldConfig;
   email?: InquiryContactFieldConfig;
@@ -279,8 +271,6 @@ export type InquiryFormConfig = {
   groupLabels: InquiryFormGroupLabels;
   contactFields: InquiryFormContactFields;
   projectFields: InquiryFormFieldDefinition[];
-  /** Optional conversational AI intake mode. Undefined means disabled. */
-  conversationalMode?: InquiryFormConversationalMode;
 };
 
 export type InquirySubmittedFieldSnapshotField = {
@@ -413,20 +403,6 @@ export const inquiryFormConfigSchema = z
       preferredContact: inquiryContactFieldConfigSchema,
     }),
     projectFields: z.array(inquiryFormFieldSchema).max(24),
-    conversationalMode: z
-      .object({
-        enabled: z.boolean(),
-        openingMessage: z.preprocess(
-          emptyToUndefined,
-          z.string().trim().max(500).optional(),
-        ),
-        assistantName: z.preprocess(
-          emptyToUndefined,
-          z.string().trim().max(60).optional(),
-        ),
-        avatarStyle: z.enum(["brand", "initials"]).optional(),
-      })
-      .optional(),
   })
   .superRefine((value, context) => {
     const serviceCategoryFields = value.projectFields.filter(
@@ -512,6 +488,12 @@ export const inquiryFormConfigSchema = z
 
 type CreateInquiryFormConfigDefaultsInput = {
   businessType?: BusinessType;
+  /**
+   * Explicit workflow selection for generating inquiry form fields.
+   * When provided, this determines the field pattern directly.
+   * When absent, the workflow is derived from businessType for backward compatibility.
+   */
+  starterWorkflow?: StarterWorkflowKey;
 };
 
 function getDefaultInquiryFormGroupLabels(
@@ -1006,10 +988,44 @@ function createRecurringServiceFields() {
 
 export function createInquiryFormConfigDefaults({
   businessType = "general_project_services",
+  starterWorkflow,
 }: CreateInquiryFormConfigDefaultsInput = {}): InquiryFormConfig {
   const resolvedBusinessType = normalizeBusinessType(businessType);
-  const starterTemplateBusinessType =
-    getStarterTemplateBusinessType(resolvedBusinessType);
+
+  // Determine workflow: explicit selection takes precedence,
+  // otherwise derive from businessType for backward compatibility
+  const effectiveWorkflow =
+    starterWorkflow ?? getRecommendedStarterWorkflow(resolvedBusinessType);
+
+  // Map workflow to the legacy template type for field generation
+  // This preserves existing field builders while using new workflow concept
+  let starterTemplateBusinessType: StarterTemplateBusinessType;
+
+  switch (effectiveWorkflow) {
+    case "recurring_service":
+      starterTemplateBusinessType = "cleaning_services";
+      break;
+    case "consultation_proposal":
+      starterTemplateBusinessType = "consulting_professional_services";
+      break;
+    case "project_quote":
+    default:
+      // For project_quote, use general project fields if business type normally
+      // maps to recurring or consultation, otherwise use the business-type-specific
+      // template to preserve vertical-appropriate field patterns
+      if (
+        getRecommendedStarterWorkflow(resolvedBusinessType) !== "project_quote"
+      ) {
+        // This business type normally uses a different workflow,
+        // so use general project fields for project_quote
+        starterTemplateBusinessType = "general_project_services";
+      } else {
+        // This business type naturally uses project_quote workflow,
+        // so use its specific template
+        starterTemplateBusinessType = getStarterTemplateBusinessType(resolvedBusinessType);
+      }
+      break;
+  }
 
   let projectFields: InquiryFormFieldDefinition[];
 

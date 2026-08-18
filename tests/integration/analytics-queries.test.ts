@@ -4,9 +4,9 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 
 vi.mock("@/lib/db/client", async () => {
-  const { testDb: mockedDb } = await import("../support/db");
+  const { testDb: mockedDb, testExecuteRows: mockedExecuteRows } = await import("../support/db");
 
-  return { db: mockedDb };
+  return { db: mockedDb, executeRows: mockedExecuteRows };
 });
 
 vi.mock("next/cache", () => ({
@@ -22,6 +22,7 @@ import {
 import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
 import {
   activityLogs,
+  analyticsDailyRollups,
   analyticsEvents,
   businesses,
   businessInquiryForms,
@@ -95,6 +96,9 @@ async function cleanupAnalyticsFixtures() {
   await testDb
     .delete(inquiries)
     .where(inArray(inquiries.id, [...inquiryIds]));
+  await testDb
+    .delete(analyticsDailyRollups)
+    .where(eq(analyticsDailyRollups.businessId, businessId));
   await testDb
     .delete(businessInquiryForms)
     .where(
@@ -486,6 +490,86 @@ describe("features/analytics/queries", () => {
         occurredAt: hoursAgo(236),
       },
     ]);
+
+    // Populate daily rollups the way the nightly rollup job would, so the
+    // pro-tier trend (which reads complete days from the rollup table) has
+    // data covering every fixture timestamp.
+    type RollupCounts = {
+      formViews: number;
+      uniqueVisitors: number;
+      inquirySubmissions: number;
+      quotesSent: number;
+      quotesAccepted: number;
+      quotesRejected: number;
+      revenueCents: number;
+    };
+    const emptyRollup = (): RollupCounts => ({
+      formViews: 0,
+      uniqueVisitors: 0,
+      inquirySubmissions: 0,
+      quotesSent: 0,
+      quotesAccepted: 0,
+      quotesRejected: 0,
+      revenueCents: 0,
+    });
+    const rollupByDay = new Map<string, RollupCounts>();
+    const dayOf = (date: Date) => date.toISOString().slice(0, 10);
+    const incRollup = (day: string, field: keyof RollupCounts, amount = 1) => {
+      const entry = rollupByDay.get(day) ?? emptyRollup();
+      entry[field] += amount;
+      rollupByDay.set(day, entry);
+    };
+
+    const formViewsByDay = new Map<string, { views: number; visitors: Set<string> }>();
+    for (const [at, visitor] of [
+      [hoursAgo(500), "visitor-a"],
+      [hoursAgo(480), "visitor-a"],
+      [hoursAgo(240), "visitor-b"],
+      [hoursAgo(239), "visitor-b"],
+      [hoursAgo(120), "visitor-c"],
+      [hoursAgo(288), "visitor-d"],
+      [hoursAgo(264), "visitor-d"],
+      [hoursAgo(144), "visitor-e"],
+      [hoursAgo(120), "visitor-e"],
+    ] as const) {
+      const day = dayOf(at);
+      const entry = formViewsByDay.get(day) ?? { views: 0, visitors: new Set<string>() };
+      entry.views += 1;
+      entry.visitors.add(visitor);
+      formViewsByDay.set(day, entry);
+    }
+    for (const [day, entry] of formViewsByDay) {
+      const counts = rollupByDay.get(day) ?? emptyRollup();
+      counts.formViews += entry.views;
+      counts.uniqueVisitors += entry.visitors.size;
+      rollupByDay.set(day, counts);
+    }
+
+    for (const at of [
+      hoursAgo(480),
+      hoursAgo(240),
+      hoursAgo(120),
+      hoursAgo(288),
+    ]) {
+      incRollup(dayOf(at), "inquirySubmissions");
+    }
+    for (const at of [hoursAgo(432), hoursAgo(192), hoursAgo(240)]) {
+      incRollup(dayOf(at), "quotesSent");
+    }
+    incRollup(dayOf(hoursAgo(360)), "quotesAccepted");
+    incRollup(dayOf(hoursAgo(168)), "quotesRejected");
+    incRollup(dayOf(hoursAgo(360)), "revenueCents", 15000);
+
+    await testDb.insert(analyticsDailyRollups).values(
+      [...rollupByDay.entries()].map(([day, counts]) => ({
+        id: `test_analytics_rollup_${day}`,
+        businessId,
+        date: day,
+        ...counts,
+        createdAt: now,
+        updatedAt: now,
+      })),
+    );
   });
 
   afterAll(async () => {

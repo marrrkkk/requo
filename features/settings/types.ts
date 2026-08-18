@@ -30,7 +30,12 @@ export type BusinessSettingsView = {
   defaultQuoteTerms: string | null;
   quoteEmailTemplate: QuoteEmailTemplateConfig | null;
   defaultQuoteValidityDays: number;
-  defaultInvoiceDueDays: number;
+  sendInquiryAckEmail: boolean;
+  autoDraftQuoteOnQualify: boolean;
+  autoArchiveStaleInquiries: boolean;
+  autoArchiveStaleInquiryDays: number;
+  autoFollowUpOnQuoteViewed: boolean;
+  quoteViewedFollowUpDelayDays: number;
   notifyInAppOnNewInquiry: boolean;
   notifyInAppOnQuoteSent: boolean;
   notifyInAppOnQuoteResponse: boolean;
@@ -90,7 +95,13 @@ export type BusinessNotificationSettingsActionState = {
 export type BusinessQuoteSettingsFieldName =
   | "defaultQuoteNotes"
   | "defaultQuoteTerms"
-  | "defaultQuoteValidityDays";
+  | "defaultQuoteValidityDays"
+  | "sendInquiryAckEmail"
+  | "autoDraftQuoteOnQualify"
+  | "autoArchiveStaleInquiries"
+  | "autoArchiveStaleInquiryDays"
+  | "autoFollowUpOnQuoteViewed"
+  | "quoteViewedFollowUpDelayDays";
 
 export type BusinessQuoteSettingsFieldErrors = Partial<
   Record<BusinessQuoteSettingsFieldName, string[] | undefined>
@@ -100,18 +111,6 @@ export type BusinessQuoteSettingsActionState = {
   error?: string;
   success?: string;
   fieldErrors?: BusinessQuoteSettingsFieldErrors;
-};
-
-export type BusinessInvoiceSettingsFieldName = "defaultInvoiceDueDays";
-
-export type BusinessInvoiceSettingsFieldErrors = Partial<
-  Record<BusinessInvoiceSettingsFieldName, string[] | undefined>
->;
-
-export type BusinessInvoiceSettingsActionState = {
-  error?: string;
-  success?: string;
-  fieldErrors?: BusinessInvoiceSettingsFieldErrors;
 };
 
 export type BusinessEmailTemplateFieldName =

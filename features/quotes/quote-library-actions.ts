@@ -19,7 +19,9 @@ import {
   quoteLibraryEntrySchema,
 } from "@/features/quotes/quote-library-schemas";
 import { getQuoteWithItemsForBusiness } from "@/features/quotes/queries";
+import { getQuoteLibrarySummaryForBusiness } from "@/features/quotes/quote-library-queries";
 import { hasFeatureAccess } from "@/lib/plans";
+import { getUsageLimit } from "@/lib/plans/usage-limits";
 import type {
   QuoteLibraryActionState,
   QuoteLibraryDeleteActionState,
@@ -88,6 +90,23 @@ export async function createQuoteLibraryEntryAction(
       "Check the highlighted fields and try again.",
       mapQuoteLibraryFieldErrors,
     );
+  }
+
+  const pricingEntryLimit = getUsageLimit(
+    businessContext.business.plan,
+    "pricingEntriesPerBusiness",
+  );
+
+  if (pricingEntryLimit !== null) {
+    const summary = await getQuoteLibrarySummaryForBusiness(
+      businessContext.business.id,
+    );
+
+    if (summary.entryCount >= pricingEntryLimit) {
+      return {
+        error: `This plan supports ${pricingEntryLimit} saved pricing entries. Remove an entry or upgrade to save another.`,
+      };
+    }
   }
 
   try {
@@ -172,6 +191,24 @@ export async function saveQuoteLineItemToPricingLibrary(
   const entryName =
     description.length > 120 ? `${description.slice(0, 117).trimEnd()}...` : description;
 
+  const pricingEntryLimit = getUsageLimit(
+    businessContext.business.plan,
+    "pricingEntriesPerBusiness",
+  );
+
+  if (pricingEntryLimit !== null) {
+    const summary = await getQuoteLibrarySummaryForBusiness(
+      businessContext.business.id,
+    );
+
+    if (summary.entryCount >= pricingEntryLimit) {
+      return {
+        ok: false,
+        error: `This plan supports ${pricingEntryLimit} saved pricing entries. Remove an entry or upgrade to save another.`,
+      };
+    }
+  }
+
   try {
     await createQuoteLibraryEntryForBusiness({
       businessId: businessContext.business.id,
@@ -244,6 +281,23 @@ export async function saveQuoteAsTemplateAction(
       ),
     ),
   );
+
+  const pricingEntryLimit = getUsageLimit(
+    businessContext.business.plan,
+    "pricingEntriesPerBusiness",
+  );
+
+  if (pricingEntryLimit !== null) {
+    const summary = await getQuoteLibrarySummaryForBusiness(
+      businessContext.business.id,
+    );
+
+    if (summary.entryCount >= pricingEntryLimit) {
+      return {
+        error: `This plan supports ${pricingEntryLimit} saved pricing entries. Remove an entry or upgrade to save another.`,
+      };
+    }
+  }
 
   try {
     await createQuoteLibraryEntryForBusiness({

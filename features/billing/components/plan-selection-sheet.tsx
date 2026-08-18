@@ -34,7 +34,7 @@ const planCards: PlanCard[] = [
     tagline: "For solo operators",
     highlights: [
       "AI assistant",
-      "Basic automation",
+      "Workflow defaults",
       "Follow-ups",
       "Email sending",
     ],
@@ -43,7 +43,7 @@ const planCards: PlanCard[] = [
     id: "pro",
     tagline: "For growing businesses",
     highlights: [
-      "Advanced automations",
+      "Auto follow-ups",
       "Advanced analytics",
       "More live forms",
       "More email sending",
