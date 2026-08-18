@@ -2,7 +2,6 @@ import "server-only";
 
 import { and, eq, gt, isNotNull, isNull, lt, lte, or } from "drizzle-orm";
 
-import { emitEvent } from "@/features/automations/dispatcher";
 import { insertBusinessNotification } from "@/features/notifications/mutations";
 import { sendEmailWithFallback } from "@/lib/email";
 import { db } from "@/lib/db/client";
@@ -105,7 +104,7 @@ export async function processFollowUpReminders(): Promise<FollowUpRemindersSumma
               businessId: row.businessId,
               inquiryId: row.inquiryId,
               quoteId: row.quoteId,
-              type: "automation",
+              type: "follow_up_due",
               title: `Follow-up due: ${row.followUpTitle}`,
               summary: `Reminder to follow up with ${customerName} about ${recordLabel}.`,
             });
@@ -132,12 +131,6 @@ export async function processFollowUpReminders(): Promise<FollowUpRemindersSumma
             });
             emailsSent++;
           }
-
-          emitEvent(row.businessId, "follow_up.due", {
-            followUpId: row.followUpId,
-            quoteId: row.quoteId ?? undefined,
-            inquiryId: row.inquiryId ?? undefined,
-          });
 
           await tx
             .update(followUps)
@@ -191,12 +184,15 @@ export async function processFollowUpReminders(): Promise<FollowUpRemindersSumma
     const overdueFollowUps = await db
       .select({
         followUpId: followUps.id,
+        followUpTitle: followUps.title,
         businessId: followUps.businessId,
         dueAt: followUps.dueAt,
         quoteId: followUps.quoteId,
         inquiryId: followUps.inquiryId,
+        notifyInApp: businesses.notifyInAppOnFollowUpReminder,
       })
       .from(followUps)
+      .innerJoin(businesses, eq(followUps.businessId, businesses.id))
       .where(and(...overdueConditions))
       .orderBy(followUps.id)
       .limit(BATCH_SIZE);
@@ -210,10 +206,21 @@ export async function processFollowUpReminders(): Promise<FollowUpRemindersSumma
         (now.getTime() - overdue.dueAt.getTime()) / (1000 * 60 * 60 * 24),
       );
 
-      if (overdueBy >= 1) {
-        emitEvent(overdue.businessId, "follow_up.overdue", {
-          followUpId: overdue.followUpId,
-          overdueBy,
+      if (overdueBy >= 1 && overdue.notifyInApp) {
+        await db.transaction(async (tx) => {
+          await insertBusinessNotification(tx, {
+            businessId: overdue.businessId,
+            inquiryId: overdue.inquiryId,
+            quoteId: overdue.quoteId,
+            type: "follow_up_due",
+            title: `Follow-up overdue: ${overdue.followUpTitle}`,
+            summary: `This follow-up was due ${overdueBy} day${overdueBy > 1 ? "s" : ""} ago and still needs attention.`,
+            metadata: {
+              overdueBy,
+              dueAt: overdue.dueAt.toISOString(),
+            },
+            now,
+          });
         });
       }
 

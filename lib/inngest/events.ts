@@ -1,20 +1,19 @@
-import type { TriggerPayload, TriggerType } from "@/features/automations/types";
-
 export const inngestEvents = {
-  automationDispatch: "requo/automation.dispatch",
+  inquiryQualified: "requo/inquiry.qualified",
   pushInquiryReceived: "requo/push.inquiry-received",
   pushQuoteSent: "requo/push.quote-sent",
   pushQuoteResponse: "requo/push.quote-response",
   enableQuoteAutoFollowUp: "requo/quotes.enable-auto-follow-up",
+  knowledgeFileUploaded: "requo/knowledge.file-uploaded",
 } as const;
 
 export type InngestEventName =
   (typeof inngestEvents)[keyof typeof inngestEvents];
 
-export type AutomationDispatchEventData = {
+export type InquiryQualifiedEventData = {
   businessId: string;
-  triggerType: TriggerType;
-  payload: TriggerPayload[TriggerType];
+  inquiryId: string;
+  qualifiedAt: string;
 };
 
 export type PushInquiryReceivedEventData = {
@@ -45,4 +44,9 @@ export type EnableQuoteAutoFollowUpEventData = {
   quoteId: string;
   delayDays: number;
   maxAttempts: number;
+};
+
+export type KnowledgeFileUploadedEventData = {
+  businessId: string;
+  fileId: string;
 };

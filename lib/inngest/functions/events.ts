@@ -1,13 +1,17 @@
+import { eq } from "drizzle-orm";
+
+import { generateQuoteDraftForBusiness } from "@/features/ai/quote-generator";
 import { enableAutoFollowUpForQuote } from "@/features/quotes/mutations";
-import { runAutomationDispatch } from "@/features/automations/dispatcher";
-import type { TriggerPayload, TriggerType } from "@/features/automations/types";
 import { getBusinessInquiryPath, getBusinessQuotePath } from "@/features/businesses/routes";
 import { getBusinessMessagingSettings } from "@/lib/db/business-access";
+import { db } from "@/lib/db/client";
+import { businesses } from "@/lib/db/schema";
+import { checkUsageLimit } from "@/lib/ai";
 import { inngest } from "@/lib/inngest/client";
 import {
   inngestEvents,
-  type AutomationDispatchEventData,
   type EnableQuoteAutoFollowUpEventData,
+  type InquiryQualifiedEventData,
   type PushInquiryReceivedEventData,
   type PushQuoteResponseEventData,
   type PushQuoteSentEventData,
@@ -18,44 +22,6 @@ import {
 } from "@/lib/push/send";
 
 type BatchedRecipient<T> = { userId: string; payload: T };
-
-export const automationDispatch = inngest.createFunction(
-  {
-    id: "automation-dispatch",
-    name: "Dispatch automation event",
-    triggers: [{ event: inngestEvents.automationDispatch }],
-    retries: 3,
-    concurrency: {
-      limit: 20,
-      key: "event.data.businessId",
-    },
-  },
-  async ({ event, step }) => {
-    const data = event.data as AutomationDispatchEventData | { businessId: string; triggers: AutomationDispatchEventData[] };
-
-    await step.run("dispatch-automation-event", async () => {
-      // Support both batched (triggers array) and legacy (single trigger) formats
-      if ("triggers" in data && Array.isArray(data.triggers)) {
-        for (const trigger of data.triggers) {
-          await runAutomationDispatch(
-            trigger.businessId,
-            trigger.triggerType,
-            trigger.payload as TriggerPayload[TriggerType],
-          );
-        }
-      } else {
-        const singleData = data as AutomationDispatchEventData;
-        await runAutomationDispatch(
-          singleData.businessId,
-          singleData.triggerType,
-          singleData.payload as TriggerPayload[TriggerType],
-        );
-      }
-    });
-
-    return { ok: true };
-  },
-);
 
 export const pushInquiryReceived = inngest.createFunction(
   {
@@ -226,8 +192,64 @@ export const enableQuoteAutoFollowUp = inngest.createFunction(
   },
 );
 
+export const inquiryQualifiedAiDraft = inngest.createFunction(
+  {
+    id: "inquiry-qualified-ai-draft",
+    name: "Generate AI draft quote for qualified inquiry",
+    triggers: [{ event: inngestEvents.inquiryQualified }],
+    retries: 2,
+    concurrency: {
+      limit: 5,
+      key: "event.data.businessId",
+    },
+  },
+  async ({ event, step }) => {
+    const data = event.data as InquiryQualifiedEventData;
+
+    return step.run("generate-ai-draft-quote", async () => {
+      const [business] = await db
+        .select({
+          autoDraftQuoteOnQualify: businesses.autoDraftQuoteOnQualify,
+          ownerUserId: businesses.ownerUserId,
+          plan: businesses.plan,
+        })
+        .from(businesses)
+        .where(eq(businesses.id, data.businessId))
+        .limit(1);
+
+      if (!business?.autoDraftQuoteOnQualify) {
+        return { skipped: true };
+      }
+
+      const usage = await checkUsageLimit({
+        userId: business.ownerUserId,
+        businessId: data.businessId,
+        taskType: "quote_draft",
+        plan: business.plan,
+      });
+
+      if (!usage.allowed) {
+        // Degrade silently when the business AI usage limit is hit.
+        return { skipped: true, reason: usage.reason };
+      }
+
+      const result = await generateQuoteDraftForBusiness({
+        businessId: data.businessId,
+        userId: business.ownerUserId,
+        inquiryId: data.inquiryId,
+      });
+
+      if (!result.ok) {
+        return { skipped: true, reason: result.error };
+      }
+
+      return { drafted: true };
+    });
+  },
+);
+
 export const eventFunctions = [
-  automationDispatch,
+  inquiryQualifiedAiDraft,
   pushInquiryReceived,
   pushQuoteSent,
   pushQuoteResponse,
