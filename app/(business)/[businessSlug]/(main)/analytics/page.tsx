@@ -27,6 +27,7 @@ import { hasFeatureAccess } from "@/lib/plans";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { FirstVisitTip } from "@/features/onboarding/components/first-visit-tip";
 import { featureTips } from "@/features/onboarding/feature-tips";
+import { PremiumContentBlur } from "@/features/paywall";
 
 type AnalyticsPageProps = {
   params: Promise<{ businessSlug: string }>;
@@ -202,9 +203,18 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
       }}
     />
   ) : (
-    <div className="rounded-xl bg-surface-muted p-6 text-sm text-muted-foreground">
-      Upgrade to unlock advanced analytics.
-    </div>
+    <PremiumContentBlur
+      feature="analyticsConversion"
+      plan={plan}
+      upgradeAction={{
+        userId: user.id,
+        businessId,
+        businessSlug: business.slug,
+        currentPlan: plan,
+      }}
+    >
+      <div />
+    </PremiumContentBlur>
   );
 
   return (
