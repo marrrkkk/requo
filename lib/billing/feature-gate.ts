@@ -54,7 +54,7 @@ export async function hasActiveSubscription(businessId: string): Promise<boolean
  * have at least one active paid subscription on any business.
  */
 export async function canCreateBusiness(userId: string): Promise<boolean> {
-  const limit = getUsageLimit("free", "businessesPerWorkspace") ?? 2;
+  const limit = getUsageLimit("free", "freeBusinessesPerOwner") ?? 1;
 
   const totalOwnedActive = await db
     .select({ value: count(businesses.id) })

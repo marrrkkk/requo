@@ -18,8 +18,8 @@ import { FeatureGate } from "@/features/paywall";
 </FeatureGate>
 
 // For full pages
-<FeatureGate feature="workflowBuilder" plan={plan} variant="page" upgradeAction={props}>
-  <WorkflowBuilder />
+<FeatureGate feature="members" plan={plan} variant="page" upgradeAction={props}>
+  <MembersManager />
 </FeatureGate>
 ```
 
@@ -78,13 +78,13 @@ import { FeatureGate } from "@/features/paywall";
 **Example with preview**:
 ```tsx
 <FeatureGate 
-  feature="workflowBuilder" 
+  feature="analyticsConversion" 
   plan={plan} 
   variant="page"
   upgradeAction={upgradeProps}
-  previewContent={<DemoWorkflowBuilder />}
+  previewContent={<DemoAnalytics />}
 >
-  <RealWorkflowBuilder />
+  <RealAnalytics />
 </FeatureGate>
 ```
 
@@ -147,7 +147,6 @@ See `lib/plans/entitlements.ts` for the complete list:
 - `customerHistory`
 - `followUps`
 - `aiAssistant`
-- `automations`
 - `knowledgeBase`
 - `quoteLibrary`
 
@@ -160,7 +159,6 @@ See `lib/plans/entitlements.ts` for the complete list:
 - `exports`
 - `removeWatermark`
 - `autoFollowUps`
-- `workflowBuilder`
 
 **Business Plan** (requires Business):
 - `members`
@@ -268,7 +266,7 @@ export default async function EmailSettingsPage() {
 ```tsx
 // Before
 <FeaturePreviewPaywall 
-  feature="workflowBuilder" 
+  feature="exports" 
   plan={plan} 
   previewContent={<Demo />}
   upgradeAction={props}
@@ -278,7 +276,7 @@ export default async function EmailSettingsPage() {
 
 // After
 <FeatureGate 
-  feature="workflowBuilder" 
+  feature="exports" 
   plan={plan} 
   variant="page"
   previewContent={<Demo />}

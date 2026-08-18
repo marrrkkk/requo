@@ -4,29 +4,24 @@
  * Limits are defined per business plan. A `null` limit means unlimited.
  * Usage enforcement uses the helpers in `./usage.ts`.
  *
- * Usage is counted at the business scope except business creation, which is
- * capped globally across businesses owned by the account.
+ * Usage is counted at the business scope. Core records (inquiries, quotes,
+ * customers, accepted quotes) and manual follow-ups are intentionally not
+ * capped. The only account-scoped limit is `freeBusinessesPerOwner`, which
+ * is enforced by `features/businesses/quota.ts`.
  */
 
 import type { BusinessPlan } from "@/lib/plans/plans";
 
 export const usageLimitKeys = [
-  "inquiriesPerMonth",
-  "quotesPerMonth",
-  "aiLineItemGenerationsPerMonth",
+  "aiWeightedCreditsPerMonth",
   "requoQuoteEmailsPerDay",
   "requoQuoteEmailsPerMonth",
-  "businessesPerWorkspace",
-  "membersPerWorkspace",
-  "liveFormsPerWorkspace",
-  "businessesPerPlan",
+  "freeBusinessesPerOwner",
   "membersPerBusiness",
   "liveFormsPerBusiness",
-  "memoriesPerBusiness",
   "pricingEntriesPerBusiness",
+  "knowledgeSourcesPerBusiness",
   "customFieldsPerForm",
-  "activeFollowUps",
-  "activeJobsPerBusiness",
   "publicInquiryAttachmentMaxBytes",
 ] as const;
 
@@ -36,60 +31,39 @@ type PlanUsageLimits = Record<UsageLimitKey, number | null>;
 
 const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
   free: {
-    inquiriesPerMonth: null,
-    quotesPerMonth: null,
-    aiLineItemGenerationsPerMonth: 10,
+    aiWeightedCreditsPerMonth: 30,
     requoQuoteEmailsPerDay: 3,
     requoQuoteEmailsPerMonth: 15,
-    businessesPerWorkspace: 2,
-    membersPerWorkspace: 1,
-    liveFormsPerWorkspace: 1,
-    businessesPerPlan: 2,
+    freeBusinessesPerOwner: 1,
     membersPerBusiness: 1,
     liveFormsPerBusiness: 1,
-    memoriesPerBusiness: 5,
     pricingEntriesPerBusiness: 10,
+    knowledgeSourcesPerBusiness: 5,
     customFieldsPerForm: 3,
-    activeFollowUps: 3,
-    activeJobsPerBusiness: 5,
     publicInquiryAttachmentMaxBytes: 5 * 1024 * 1024,
   },
   pro: {
-    inquiriesPerMonth: null,
-    quotesPerMonth: null,
-    aiLineItemGenerationsPerMonth: 100,
+    aiWeightedCreditsPerMonth: 150,
     requoQuoteEmailsPerDay: 20,
     requoQuoteEmailsPerMonth: 200,
-    businessesPerWorkspace: 5,
-    membersPerWorkspace: 1,
-    liveFormsPerWorkspace: 5,
-    businessesPerPlan: 5,
+    freeBusinessesPerOwner: null,
     membersPerBusiness: 1,
     liveFormsPerBusiness: 5,
-    memoriesPerBusiness: 10,
-    pricingEntriesPerBusiness: 20,
+    pricingEntriesPerBusiness: 50,
+    knowledgeSourcesPerBusiness: 25,
     customFieldsPerForm: 10,
-    activeFollowUps: null,
-    activeJobsPerBusiness: null,
     publicInquiryAttachmentMaxBytes: 25 * 1024 * 1024,
   },
   business: {
-    inquiriesPerMonth: null,
-    quotesPerMonth: null,
-    aiLineItemGenerationsPerMonth: 500,
+    aiWeightedCreditsPerMonth: 500,
     requoQuoteEmailsPerDay: 50,
     requoQuoteEmailsPerMonth: 500,
-    businessesPerWorkspace: 10,
-    membersPerWorkspace: 25,
-    liveFormsPerWorkspace: null,
-    businessesPerPlan: 10,
-    membersPerBusiness: 25,
-    liveFormsPerBusiness: null,
-    memoriesPerBusiness: 50,
+    freeBusinessesPerOwner: null,
+    membersPerBusiness: 5,
+    liveFormsPerBusiness: 10,
     pricingEntriesPerBusiness: null,
+    knowledgeSourcesPerBusiness: 50,
     customFieldsPerForm: 24,
-    activeFollowUps: null,
-    activeJobsPerBusiness: null,
     publicInquiryAttachmentMaxBytes: 50 * 1024 * 1024,
   },
 };
@@ -116,22 +90,15 @@ export function isUsageLimited(
 
 /** Human-readable labels for usage limit keys. */
 export const usageLimitLabels: Record<UsageLimitKey, string> = {
-  inquiriesPerMonth: "Inquiries per month",
-  quotesPerMonth: "Quotes per month",
-  aiLineItemGenerationsPerMonth: "AI line item generations per month",
+  aiWeightedCreditsPerMonth: "Weighted AI credits per month",
   requoQuoteEmailsPerDay: "Requo quote sends per day",
   requoQuoteEmailsPerMonth: "Requo quote sends per month",
-  businessesPerWorkspace: "Businesses across businesses",
-  membersPerWorkspace: "Members per business",
-  liveFormsPerWorkspace: "Live inquiry forms",
-  businessesPerPlan: "Businesses per plan",
+  freeBusinessesPerOwner: "Free businesses per owner",
   membersPerBusiness: "Members per business",
   liveFormsPerBusiness: "Live inquiry forms",
-  memoriesPerBusiness: "Knowledge items per business",
   pricingEntriesPerBusiness: "Pricing entries per business",
+  knowledgeSourcesPerBusiness: "Knowledge sources per business",
   customFieldsPerForm: "Custom fields per form",
-  activeFollowUps: "Active follow-ups",
-  activeJobsPerBusiness: "Active jobs per business",
   publicInquiryAttachmentMaxBytes: "Public inquiry upload size",
 };
 

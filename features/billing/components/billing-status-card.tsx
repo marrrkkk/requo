@@ -16,7 +16,6 @@ import {
   CircleDashed,
   ArrowUpRight,
   ExternalLink,
-  FileText,
   Mail,
   Sparkles,
   Users,
@@ -310,18 +309,11 @@ function UsageLimitsGrid({
   plan: BusinessPlan;
   usage: PlanUsageData;
 }) {
-  const quotesLimit = getUsageLimit(plan, "quotesPerMonth");
   const emailsLimit = getUsageLimit(plan, "requoQuoteEmailsPerMonth");
   const membersLimit = getUsageLimit(plan, "membersPerBusiness");
   const formsLimit = getUsageLimit(plan, "liveFormsPerBusiness");
 
   const limits: UsageLimitItem[] = [
-    {
-      icon: FileText,
-      label: "Quotes",
-      current: usage.quotes,
-      limit: quotesLimit,
-    },
     {
       icon: Mail,
       label: "Emails sent",

@@ -94,13 +94,13 @@ type FeatureGateProps = {
  * @example
  * // Page gating with preview
  * <FeatureGate 
- *   feature="workflowBuilder" 
+ *   feature="exports" 
  *   plan={plan} 
  *   variant="page" 
  *   upgradeAction={props}
- *   previewContent={<DemoBuilder />}
+ *   previewContent={<DemoExport />}
  * >
- *   <RealBuilder />
+ *   <RealExport />
  * </FeatureGate>
  */
 export function FeatureGate({

@@ -216,30 +216,23 @@ export async function checkUsageAllowance(
   let current: number;
 
   switch (key) {
-    case "inquiriesPerMonth":
-      current = await getMonthlyInquiryCount(businessId);
-      break;
-    case "quotesPerMonth":
-      current = await getMonthlyQuoteCount(businessId);
-      break;
     case "requoQuoteEmailsPerDay":
       current = await getDailyRequoQuoteSendCount(businessId);
       break;
     case "requoQuoteEmailsPerMonth":
       current = await getMonthlyRequoQuoteSendCount(businessId);
       break;
-    case "businessesPerWorkspace":
-      // This is now per-user, but we still count at the business level
-      // The actual user-level check is in features/businesses/quota.ts
-      current = 0;
-      break;
-    case "membersPerWorkspace":
+    case "membersPerBusiness":
       current = await getBusinessMemberCount(businessId);
       break;
-    case "liveFormsPerWorkspace":
+    case "liveFormsPerBusiness":
       current = await getBusinessLiveFormsCount(businessId);
       break;
     default:
+      // Remaining limits (AI credits, pricing entries, knowledge sources,
+      // custom fields, attachment size, free businesses per owner) are
+      // enforced at their own write boundaries or by
+      // `features/businesses/quota.ts`.
       current = 0;
   }
 

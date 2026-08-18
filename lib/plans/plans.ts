@@ -29,21 +29,21 @@ export const planMeta: Record<BusinessPlan, PlanMeta> = {
   free: {
     label: "Free",
     description:
-      "For solo owners running the core inquiry-to-quote workflow for one business.",
+      "Run your inquiry and quote workflow for one business.",
     ctaLabel: "Get started free",
     highlighted: false,
   },
   pro: {
     label: "Pro",
     description:
-      "For operators who need advanced intake, exports, AI, and multiple businesses.",
+      "Save time with automatic follow-ups, more AI drafting, custom emails, and advanced insights.",
     ctaLabel: "Upgrade to Pro",
     highlighted: true,
   },
   business: {
     label: "Business",
     description:
-      "For teams that need member roles, shared access, and the highest limits.",
+      "Give a small team shared access, roles, and higher limits.",
     ctaLabel: "Upgrade to Business",
     highlighted: false,
   },

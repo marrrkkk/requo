@@ -15,69 +15,57 @@ export const planFeatures = [
   "analyticsWorkflow",
   "multipleForms",
   "inquiryPageCustomization",
-  "attachments",
   "emailTemplates",
-  "customerHistory",
+  "aiQuoteDrafting",
   "quoteLibrary",
   "knowledgeBase",
-  "aiAssistant",
-  "members",
   "exports",
   "removeWatermark",
   "followUps",
   "autoFollowUps",
-  "automations",
-  "workflowBuilder",
+  "members",
+  "auditLogs",
 ] as const;
 
 export type PlanFeature = (typeof planFeatures)[number];
 
 const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
   free: new Set<PlanFeature>([
-    "attachments",
-    "customerHistory",
     "followUps",
-    "aiAssistant",
-    "automations",
-    "knowledgeBase",
+    "aiQuoteDrafting",
     "quoteLibrary",
+    "knowledgeBase",
+    "exports",
   ]),
   pro: new Set<PlanFeature>([
     "analyticsConversion",
     "analyticsWorkflow",
     "multipleForms",
     "inquiryPageCustomization",
-    "attachments",
     "emailTemplates",
-    "customerHistory",
+    "aiQuoteDrafting",
     "quoteLibrary",
     "knowledgeBase",
-    "aiAssistant",
     "exports",
     "removeWatermark",
     "followUps",
     "autoFollowUps",
-    "automations",
-    "workflowBuilder",
   ]),
   business: new Set<PlanFeature>([
     "analyticsConversion",
     "analyticsWorkflow",
     "multipleForms",
     "inquiryPageCustomization",
-    "attachments",
     "emailTemplates",
-    "customerHistory",
+    "aiQuoteDrafting",
     "quoteLibrary",
     "knowledgeBase",
-    "aiAssistant",
-    "members",
     "exports",
     "removeWatermark",
     "followUps",
     "autoFollowUps",
-    "automations",
-    "workflowBuilder",
+    "members",
+    "auditLogs",
   ]),
 };
 
@@ -117,19 +105,16 @@ export const planFeatureLabels: Record<PlanFeature, string> = {
   analyticsWorkflow: "Operations analytics",
   multipleForms: "Multiple inquiry forms",
   inquiryPageCustomization: "Inquiry page customization",
-  attachments: "File attachments",
   emailTemplates: "Email templates",
-  customerHistory: "Customer history",
+  aiQuoteDrafting: "AI quote drafting",
   quoteLibrary: "Quote library",
-  knowledgeBase: "Knowledge",
-  aiAssistant: "AI assistant",
-  members: "Team members",
+  knowledgeBase: "Knowledge base",
   exports: "Data exports",
   removeWatermark: "Remove Requo watermark",
   followUps: "Follow-ups",
   autoFollowUps: "Auto follow-ups",
-  automations: "Automations",
-  workflowBuilder: "Visual workflow builder",
+  members: "Team members",
+  auditLogs: "Audit logs",
 };
 
 /** Short value description for use in paywall locked states. */
@@ -142,30 +127,24 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
     "Create additional inquiry forms for different services or audiences.",
   inquiryPageCustomization:
     "Customize your public inquiry page layout, showcase image, and supporting cards.",
-  attachments:
-    "Let customers attach files to their inquiries, with higher limits on paid plans.",
   emailTemplates:
     "Customize the email message used when sending quotes through Requo.",
-  customerHistory:
-    "Review a customer's prior inquiries and quotes from inquiry and quote detail pages.",
+  aiQuoteDrafting:
+    "Get AI-generated quote drafts and improvements for your inquiries.",
   quoteLibrary:
-    "Build a library of reusable quote templates.",
+    "Build a library of reusable pricing entries and quote templates.",
   knowledgeBase:
-    "Manage FAQs and knowledge files for your AI assistant.",
-  aiAssistant:
-    "Get AI-drafted replies and suggestions for inquiries.",
-  members:
-    "Invite team members and assign roles.",
+    "Save business knowledge and files so AI quote drafts stay grounded in how you work.",
   exports:
-    "Export inquiries, quotes, audit logs, and automation logs.",
+    "Export inquiries and quotes as CSV from your dashboard.",
   removeWatermark:
     "Remove the Requo watermark from public inquiry and quote pages.",
   followUps:
     "Create follow-up reminders to stay on top of inquiries and quotes.",
   autoFollowUps:
     "Automatically send follow-up emails when customers haven't responded to a quote.",
-  automations:
-    "Automate repetitive workflow steps with event-driven rules that fire actions on triggers.",
-  workflowBuilder:
-    "Compose multi-step automations visually with a drag-and-drop canvas builder.",
+  members:
+    "Invite team members and assign roles.",
+  auditLogs:
+    "Review meaningful admin, lifecycle, and security actions for this business.",
 };
