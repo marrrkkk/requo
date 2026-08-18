@@ -4,8 +4,6 @@ quote_creation_help,How do I create a quote from an inquiry?,product-support,nor
 billing_failed_payment,My subscription payment failed this month.,billing-support,high,request_account_and_payment_details
 access_issue_member,My teammate cannot access settings pages.,product-support,high,check_member_role_permissions
 email_delivery_issue,Customers are not receiving quote emails.,technical-support,high,verify_sender_config_and_logs
-automation_not_triggering,My follow-up automation does not run after quote sent.,technical-support,high,inspect_trigger_conditions_and_rule_status
-invoice_generation_help,How do I generate an invoice from a completed job?,product-support,normal,guide_job_to_invoice_flow
 feature_explanation_knowledge,What does the Knowledge section actually do?,customer-success,normal,explain_ai_context_usage
 bug_report_ui,The settings page keeps blanking on mobile.,technical-support,high,collect_device_browser_and_repro_steps
 refund_request,I need a refund for a recent charge.,billing-support,high,verify_order_and_route_refund_workflow

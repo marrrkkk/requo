@@ -57,7 +57,7 @@ views plus customer responses from one place.
 
 ## Inngest Checklist
 
-- Background jobs (cron schedules, automation dispatch, push notification side effects) run through Inngest at `/api/inngest`.
+- Background jobs (cron schedules, workflow defaults, push notification side effects) run through Inngest at `/api/inngest`.
 - Local development: set `INNGEST_DEV=1` and run `npm run dev:inngest` alongside `npm run dev:app`.
 - Production:
   - Create an Inngest Cloud app for Requo.

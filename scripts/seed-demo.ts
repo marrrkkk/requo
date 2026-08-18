@@ -25,20 +25,13 @@ import type { InquirySubmittedFieldSnapshot } from "../features/inquiries/form-c
 import { createInquiryFormPreset } from "../features/inquiries/inquiry-forms";
 import { db, dbConnection } from "../lib/db/client";
 import {
-
   activityLogs,
-  aiConversations,
-  aiDrafts,
-  aiMessages,
-  aiTokenLogs,
-  aiUsageEvents,
   analyticsEvents,
   auditLogs,
   billingEvents,
   businessInquiryForms,
   businessMemberInvites,
   businessMembers,
-  businessMemories,
   businessNotificationReads,
   businessNotifications,
   businessNotificationStates,
@@ -48,14 +41,8 @@ import {
   emailOutbox,
   followUps,
   inquiries,
-  inquiryMessages,
   inquiryNotes,
-  invoiceItems,
-  invoices,
-  jobItems,
-  jobs,
   paymentAttempts,
-  postWinChecklistItems,
   profiles,
   quoteItems,
   quoteLibraryEntries,
@@ -69,9 +56,6 @@ import { env } from "../lib/env";
 import type { BusinessPlan } from "../lib/plans/plans";
 type InquiryStatus = "new" | "quoted" | "waiting" | "won" | "lost" | "archived" | "overdue";
 type QuoteStatus = "draft" | "sent" | "revision_requested" | "accepted" | "rejected" | "expired" | "voided";
-type _QuotePostAcceptanceStatus = "none" | "job_created";
-type JobStatus = "todo" | "in_progress" | "done";
-type InvoiceStatus = "draft" | "sent" | "viewed" | "paid" | "overdue" | "voided";
 
 const DEFAULT_PASSWORD = "ChangeMe123456!";
 
@@ -319,7 +303,7 @@ const businessTypeCategories: Record<BusinessType, string[]> = {
   ],
   web_it_services: [
     "Website build",
-    "Automation setup",
+    "Integration setup",
     "System migration",
     "Managed support",
   ],
@@ -515,9 +499,6 @@ const inquiryDetails = [
 const resetTableNames = [
   "admin_audit_logs",
   "activity_logs",
-  "ai_drafts",
-  "ai_messages",
-  "ai_conversations",
   "ai_usage_events",
   "ai_token_logs",
   "audit_logs",
@@ -528,7 +509,6 @@ const resetTableNames = [
   "email_attempts",
   "email_outbox",
   "follow_ups",
-  "post_win_checklist_items",
   "quote_items",
   "quotes",
   "inquiry_notes",
@@ -538,7 +518,6 @@ const resetTableNames = [
   "quote_library_entry_items",
   "quote_library_entries",
   "reply_snippets",
-  "business_memories",
   "business_member_invites",
   "business_members",
   "user_recent_businesses",
@@ -1073,41 +1052,6 @@ async function seedBusinessDefaults(input: {
   ownerUserId: string;
   plan: BusinessPlan;
 }) {
-  const memories: Array<typeof businessMemories.$inferInsert> = [
-    {
-      id: id("mem"),
-      businessId: input.businessId,
-      title: "Quoting standard",
-      content:
-        "Confirm scope, customer timing, delivery location, and approval deadline before sending final pricing.",
-      position: 0,
-      createdAt: daysAgo(85),
-      updatedAt: daysAgo(85),
-    },
-    {
-      id: id("mem"),
-      businessId: input.businessId,
-      title: "Follow-up rhythm",
-      content:
-        "Follow up one business day after a quote is viewed and again two days before the quote expires.",
-      position: 1,
-      createdAt: daysAgo(85),
-      updatedAt: daysAgo(85),
-    },
-    {
-      id: id("mem"),
-      businessId: input.businessId,
-      title: "Missing info checklist",
-      content:
-        "Flag missing event date, guest count, package preference, budget, site address, and delivery deadline before drafting a quote.",
-      position: 2,
-      createdAt: daysAgo(84),
-      updatedAt: daysAgo(84),
-    },
-  ];
-
-  await db.insert(businessMemories).values(memories);
-
   await db.insert(replySnippets).values([
     {
       id: id("snippet"),
@@ -1485,8 +1429,6 @@ async function _seedGeneratedBusinessData(input: {
             : quoteStatus === "rejected"
               ? "Thanks, but we are going another direction."
               : null,
-        postAcceptanceStatus:
-          quoteStatus === "accepted" ? pick(rng, ["none", "booked", "scheduled"] as const) : "none",
         validUntil:
           quoteStatus === "expired"
             ? toDateStr(daysAgo(randInt(rng, 1, 8)))
@@ -1581,638 +1523,6 @@ function buildQuoteItems(input: {
   }
 
   return rows;
-}
-
-/**
- * Build job items from quote items
- */
-function buildJobItemsFromQuote(
-  businessId: string,
-  jobId: string,
-  quoteItemsData: Array<typeof quoteItems.$inferInsert>,
-  createdAt: Date,
-): Array<typeof jobItems.$inferInsert> {
-  return quoteItemsData.map((quoteItem, position) => ({
-    id: id("job_item"),
-    businessId,
-    jobId,
-    description: quoteItem.description,
-    quantity: quoteItem.quantity,
-    unitPriceInCents: quoteItem.unitPriceInCents,
-    lineTotalInCents: quoteItem.lineTotalInCents,
-    position,
-    createdAt,
-    updatedAt: createdAt,
-  }));
-}
-
-/**
- * Build invoice items from job items or quote items
- */
-function buildInvoiceItemsFromJob(
-  businessId: string,
-  invoiceId: string,
-  itemsData: Array<{ description: string; quantity: number; unitPriceInCents: number; lineTotalInCents: number }>,
-  createdAt: Date,
-): Array<typeof invoiceItems.$inferInsert> {
-  return itemsData.map((item, position) => ({
-    id: id("inv_item"),
-    businessId,
-    invoiceId,
-    description: item.description,
-    quantity: item.quantity,
-    unitPriceInCents: item.unitPriceInCents,
-    lineTotalInCents: item.lineTotalInCents,
-    position,
-    createdAt,
-    updatedAt: createdAt,
-  }));
-}
-
-/**
- * Create a job from an accepted quote
- */
-async function _createJobFromQuote(
-  businessId: string,
-  quote: typeof quotes.$inferInsert,
-  quoteItemsData: Array<typeof quoteItems.$inferInsert>,
-  ownerUserId: string,
-  jobStatus: JobStatus,
-  position: number,
-): Promise<{ job: typeof jobs.$inferInsert; jobItemsData: Array<typeof jobItems.$inferInsert> }> {
-  const jobId = id("job");
-  const _jobNumber = `JOB-${quote.quoteNumber?.replace("Q-", "") ?? String(position).padStart(4, "0")}`;
-  const createdAt = quote.acceptedAt ?? daysAgo(7);
-
-  let startedAt: Date | null = null;
-  let completedAt: Date | null = null;
-
-  if (jobStatus === "in_progress" || jobStatus === "done") {
-    startedAt = addDays(createdAt, 2);
-  }
-  if (jobStatus === "done") {
-    completedAt = addDays(startedAt ?? createdAt, 5);
-  }
-
-  const job: typeof jobs.$inferInsert = {
-    id: jobId,
-    businessId,
-    quoteId: quote.id,
-    title: quote.title ?? `Job for ${quote.customerName}`,
-    customerName: quote.customerName,
-    customerEmail: quote.customerEmail,
-    customerContactMethod: quote.customerContactMethod,
-    customerContactHandle: quote.customerContactHandle,
-    status: jobStatus,
-    currency: quote.currency,
-    totalInCents: quote.totalInCents,
-    notes: `Job created from accepted quote ${quote.quoteNumber}`,
-    position,
-    startedAt,
-    completedAt,
-    completedBy: completedAt ? ownerUserId : null,
-    createdAt,
-    updatedAt: completedAt ?? startedAt ?? createdAt,
-  };
-
-  const jobItemsData = buildJobItemsFromQuote(businessId, jobId, quoteItemsData, createdAt);
-
-  return { job, jobItemsData };
-}
-
-/**
- * Create an invoice from a job or quote
- */
-async function _createInvoiceFromJob(
-  businessId: string,
-  job: typeof jobs.$inferInsert,
-  quote: typeof quotes.$inferInsert,
-  jobItemsData: Array<typeof jobItems.$inferInsert>,
-  ownerUserId: string,
-  invoiceStatus: InvoiceStatus,
-  invoiceNumber: number,
-): Promise<{ invoice: typeof invoices.$inferInsert; invoiceItems: Array<typeof invoiceItems.$inferInsert> }> {
-  const invoiceId = id("inv");
-  const invoiceNumText = `INV-${String(invoiceNumber).padStart(4, "0")}`;
-  const createdAt = job.completedAt ?? job.startedAt ?? job.createdAt ?? daysAgo(5);
-
-  const issuedAt = addDays(createdAt, 1);
-  const dueAt = addDays(issuedAt, 14);
-
-  let sentAt: Date | null = null;
-  let viewedAt: Date | null = null;
-  let paidAt: Date | null = null;
-  let voidedAt: Date | null = null;
-
-  if (invoiceStatus !== "draft") {
-    sentAt = addDays(issuedAt, 1);
-  }
-  if (invoiceStatus === "viewed" || invoiceStatus === "paid") {
-    viewedAt = addDays(sentAt!, 2);
-  }
-  if (invoiceStatus === "paid") {
-    paidAt = addDays(viewedAt!, 3);
-  }
-  if (invoiceStatus === "voided") {
-    voidedAt = addDays(sentAt ?? issuedAt, 5);
-  }
-
-  const invoice: typeof invoices.$inferInsert = {
-    id: invoiceId,
-    businessId,
-    jobId: job.id,
-    quoteId: quote.id,
-    invoiceNumber: invoiceNumText,
-    title: `Invoice for ${job.title}`,
-    customerName: job.customerName,
-    customerEmail: job.customerEmail,
-    customerContactMethod: job.customerContactMethod,
-    customerContactHandle: job.customerContactHandle,
-    status: invoiceStatus,
-    currency: job.currency,
-    notes: `Invoice generated from job ${job.id.slice(-6)}`,
-    terms: "Payment due within 14 days",
-    subtotalInCents: job.totalInCents,
-    discountInCents: 0,
-    taxInCents: 0,
-    totalInCents: job.totalInCents,
-    issuedAt,
-    dueAt,
-    sentAt,
-    viewedAt,
-    paidAt,
-    paidBy: paidAt ? ownerUserId : null,
-    voidedAt,
-    voidedBy: voidedAt ? ownerUserId : null,
-    createdAt,
-    updatedAt: paidAt ?? voidedAt ?? viewedAt ?? sentAt ?? issuedAt,
-  };
-
-  const invoiceItemsData = buildInvoiceItemsFromJob(
-    businessId,
-    invoiceId,
-    jobItemsData.map(ji => ({
-      description: ji.description,
-      quantity: ji.quantity ?? 1,
-      unitPriceInCents: ji.unitPriceInCents ?? 0,
-      lineTotalInCents: ji.lineTotalInCents ?? 0
-    })),
-    createdAt
-  );
-
-  return { invoice, invoiceItems: invoiceItemsData };
-}
-
-/**
- * Seed comprehensive linked data: Inquiry → Quote → Job → Invoice
- * Creates every status combination for proper testing
- */
-async function seedLinkedEntityChains(input: {
-  businessId: string;
-  business: BusinessSeed;
-  formId: string;
-  ownerUserId: string;
-}) {
-  const rng = createRng(`${input.business.slug}-linked`);
-  const categories = businessTypeCategories[input.business.businessType] ?? businessTypeCategories.general_project_services;
-  const itemTemplates = quoteItemTemplates[input.business.businessType] ?? quoteItemTemplates.general_project_services;
-
-  // All inquiry statuses to create
-  const inquiryStatuses: InquiryStatus[] = ["new", "waiting", "quoted", "won", "lost", "archived", "overdue"];
-
-  // All quote statuses to create (for quoted/won inquiries)
-  const _quoteStatuses: QuoteStatus[] = ["draft", "sent", "revision_requested", "accepted", "rejected", "expired", "voided"];
-
-  // All job statuses
-  const jobStatuses: JobStatus[] = ["todo", "in_progress", "done"];
-
-  // All invoice statuses
-  const invoiceStatuses: InvoiceStatus[] = ["draft", "sent", "viewed", "paid", "overdue", "voided"];
-
-  const inquiryRows: Array<typeof inquiries.$inferInsert> = [];
-  const quoteRows: Array<typeof quotes.$inferInsert> = [];
-  const quoteItemRows: Array<typeof quoteItems.$inferInsert> = [];
-  const jobRows: Array<typeof jobs.$inferInsert> = [];
-  const jobItemRows: Array<typeof jobItems.$inferInsert> = [];
-  const invoiceRows: Array<typeof invoices.$inferInsert> = [];
-  const invoiceItemRows: Array<typeof invoiceItems.$inferInsert> = [];
-  const followUpRows: Array<typeof followUps.$inferInsert> = [];
-  const checklistRows: Array<typeof postWinChecklistItems.$inferInsert> = [];
-  const activityRows: Array<typeof activityLogs.$inferInsert> = [];
-  const noteRows: Array<typeof inquiryNotes.$inferInsert> = [];
-
-  let quoteCounter = 1000;
-  let invoiceCounter = 1000;
-
-  // Create inquiries for each status
-  for (const inquiryStatus of inquiryStatuses) {
-    // Create 2 inquiries per status for variety
-    for (let i = 0; i < 2; i++) {
-      const inquiryId = id("inq");
-      const firstName = pick(rng, firstNames);
-      const lastName = pick(rng, lastNames);
-      const customerName = `${firstName} ${lastName}`;
-      const customerEmail = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`;
-      const customerPhone = `+1 415 555 ${randInt(rng, 1000, 9999)}`;
-      const contactMethod = chance(rng, 0.6) ? "email" : "phone";
-      const contactHandle = contactMethod === "email" ? customerEmail : customerPhone;
-      const serviceCategory = pick(rng, categories);
-      const submittedAt = daysAgo(randInt(rng, 5, 60), randInt(rng, 8, 18));
-
-      const archivedAt = inquiryStatus === "archived" ? addDays(submittedAt, randInt(rng, 5, 15)) : null;
-
-      inquiryRows.push({
-        id: inquiryId,
-        businessId: input.businessId,
-        businessInquiryFormId: input.formId,
-        status: inquiryStatus,
-        subject: serviceCategory,
-        customerName,
-        customerEmail,
-        customerContactMethod: contactMethod,
-        customerContactHandle: contactHandle,
-        serviceCategory,
-        requestedDeadline: toDateStr(addDays(submittedAt, randInt(rng, 7, 30))),
-        budgetText: `$${randInt(rng, 10, 50) * 100} - $${randInt(rng, 60, 150) * 100}`,
-        details: `Looking for ${serviceCategory.toLowerCase()} services. Please provide a detailed quote with timeline.`,
-        submittedFieldSnapshot: createSubmittedFieldSnapshot({
-          businessType: input.business.businessType,
-          customerName,
-          contactMethod,
-          contactHandle,
-          serviceCategory,
-          requestedDeadline: toDateStr(addDays(submittedAt, randInt(rng, 7, 30))),
-          budgetText: `$${randInt(rng, 10, 50) * 100} - $${randInt(rng, 60, 150) * 100}`,
-          details: `Looking for ${serviceCategory.toLowerCase()} services.`,
-        }),
-        source: "public_form",
-        quoteRequested: inquiryStatus !== "archived",
-        submittedAt,
-        lastRespondedAt: inquiryStatus !== "new" && inquiryStatus !== "archived"
-          ? addDays(submittedAt, randInt(rng, 1, 3))
-          : null,
-        archivedAt,
-        archivedBy: archivedAt ? input.ownerUserId : null,
-        createdAt: submittedAt,
-        updatedAt: archivedAt ?? submittedAt,
-      });
-
-      // Add activity log for inquiry
-      activityRows.push({
-        id: id("act"),
-        businessId: input.businessId,
-        inquiryId,
-        actorUserId: input.ownerUserId,
-        type: "inquiry.submitted",
-        summary: `${customerName} submitted an inquiry for ${serviceCategory}.`,
-        createdAt: submittedAt,
-        updatedAt: submittedAt,
-      });
-
-      // Add note for some inquiries
-      if (chance(rng, 0.3)) {
-        noteRows.push({
-          id: id("note"),
-          businessId: input.businessId,
-          inquiryId,
-          authorUserId: input.ownerUserId,
-          body: "Follow up needed - check if budget aligns with scope.",
-          createdAt: addDays(submittedAt, 1),
-          updatedAt: addDays(submittedAt, 1),
-        });
-      }
-
-      // Create quotes for quoted/won/lost inquiries
-      if (inquiryStatus === "quoted" || inquiryStatus === "won" || inquiryStatus === "lost") {
-        // Create 1-2 quotes per inquiry
-        const numQuotes = inquiryStatus === "quoted" ? 2 : 1;
-
-        for (let q = 0; q < numQuotes; q++) {
-          const quoteId = id("quote");
-          const quoteNum = `Q-${quoteCounter++}`;
-
-          // Determine quote status based on inquiry status
-          let quoteStatus: QuoteStatus;
-          if (inquiryStatus === "won") {
-            quoteStatus = "accepted";
-          } else if (inquiryStatus === "lost") {
-            quoteStatus = "rejected";
-          } else {
-            // For quoted inquiries, pick from remaining statuses
-            quoteStatus = pick(rng, ["draft", "sent", "revision_requested", "expired", "voided"]);
-          }
-
-          const quoteCreatedAt = addDays(submittedAt, randInt(rng, 1, 3));
-          const sentAt = quoteStatus !== "draft" ? addDays(quoteCreatedAt, randInt(rng, 0, 2)) : null;
-          const acceptedAt = quoteStatus === "accepted" ? addDays(sentAt ?? quoteCreatedAt, randInt(rng, 1, 5)) : null;
-          const rejectedAt = quoteStatus === "rejected" ? addDays(sentAt ?? quoteCreatedAt, randInt(rng, 1, 7)) : null;
-          const voidedAt = quoteStatus === "voided" ? addDays(sentAt ?? quoteCreatedAt, randInt(rng, 2, 8)) : null;
-
-          const lineItems = buildQuoteItems({
-            businessId: input.businessId,
-            quoteId,
-            templates: itemTemplates,
-            rng,
-            createdAt: quoteCreatedAt,
-          });
-
-          const subtotal = lineItems.reduce((sum, item) => sum + (item.lineTotalInCents ?? 0), 0);
-          const discount = chance(rng, 0.2) ? Math.floor(subtotal * 0.1) : 0;
-          const total = subtotal - discount;
-
-          const rawToken = `${input.business.slug}-${quoteNum.toLowerCase()}-${randInt(rng, 1000, 9999)}`;
-
-          quoteRows.push({
-            id: quoteId,
-            businessId: input.businessId,
-            inquiryId,
-            status: quoteStatus,
-            quoteNumber: quoteNum,
-            ...tokenFields(rawToken),
-            title: `${serviceCategory} Quote`,
-            customerName,
-            customerEmail,
-            customerContactMethod: contactMethod,
-            customerContactHandle: contactHandle,
-            currency: input.business.defaultCurrency,
-            notes: "Quote valid for 14 days from issue date.",
-            subtotalInCents: subtotal,
-            discountInCents: discount,
-            totalInCents: total,
-            sentAt,
-            acceptedAt,
-            voidedAt,
-            voidedBy: voidedAt ? input.ownerUserId : null,
-            publicViewedAt: sentAt ? addDays(sentAt, randInt(rng, 0, 3)) : null,
-            customerRespondedAt: acceptedAt ?? rejectedAt,
-            customerResponseMessage: acceptedAt
-              ? "Approved! Please proceed with the work."
-              : rejectedAt
-                ? "Thanks, but we've decided to go with another vendor."
-                : null,
-            postAcceptanceStatus: acceptedAt ? pick(rng, ["none", "booked", "scheduled"]) : "none",
-            validUntil: toDateStr(addDays(sentAt ?? quoteCreatedAt, 14)),
-            createdAt: quoteCreatedAt,
-            updatedAt: acceptedAt ?? rejectedAt ?? voidedAt ?? sentAt ?? quoteCreatedAt,
-          });
-
-          quoteItemRows.push(...lineItems);
-
-          // Activity for quote
-          activityRows.push({
-            id: id("act"),
-            businessId: input.businessId,
-            inquiryId,
-            quoteId,
-            actorUserId: input.ownerUserId,
-            type: "quote.created",
-            summary: `Quote ${quoteNum} created for ${customerName}.`,
-            metadata: { quoteNumber: quoteNum, totalInCents: total },
-            createdAt: quoteCreatedAt,
-            updatedAt: quoteCreatedAt,
-          });
-
-          // Follow-up for sent quotes
-          if (quoteStatus === "sent" || quoteStatus === "revision_requested") {
-            followUpRows.push({
-              id: id("follow"),
-              businessId: input.businessId,
-              inquiryId,
-              quoteId,
-              assignedToUserId: input.ownerUserId,
-              title: `Follow up on ${quoteStatus === "sent" ? "sent" : "revised"} quote`,
-              reason: "Quote is active and awaiting customer response.",
-              category: "sales",
-              channel: "email",
-              dueAt: daysFromNow(randInt(rng, 2, 5)),
-              status: "pending",
-              createdByUserId: input.ownerUserId,
-              createdAt: sentAt ?? quoteCreatedAt,
-              updatedAt: sentAt ?? quoteCreatedAt,
-            });
-          }
-
-          // For accepted quotes, create jobs and potentially invoices
-          if (quoteStatus === "accepted" && acceptedAt) {
-            // Create post-win checklist
-            checklistRows.push(
-              {
-                id: id("checklist"),
-                businessId: input.businessId,
-                quoteId,
-                label: "Confirm schedule with customer",
-                position: 0,
-                createdAt: acceptedAt,
-                updatedAt: acceptedAt,
-              },
-              {
-                id: id("checklist"),
-                businessId: input.businessId,
-                quoteId,
-                label: "Collect deposit payment",
-                position: 1,
-                completedAt: chance(rng, 0.5) ? addDays(acceptedAt, 2) : null,
-                createdAt: acceptedAt,
-                updatedAt: chance(rng, 0.5) ? addDays(acceptedAt, 2) : acceptedAt,
-              },
-              {
-                id: id("checklist"),
-                businessId: input.businessId,
-                quoteId,
-                label: "Order materials / begin work",
-                position: 2,
-                createdAt: acceptedAt,
-                updatedAt: acceptedAt,
-              }
-            );
-
-            // Create job
-            const jobStatus = pick(rng, jobStatuses);
-            const jobId = id("job");
-            const jobNumber = `JOB-${quoteNum.replace("Q-", "")}`;
-            const jobCreatedAt = addDays(acceptedAt, 1);
-
-            let startedAt: Date | null = null;
-            let completedAt: Date | null = null;
-
-            if (jobStatus === "in_progress" || jobStatus === "done") {
-              startedAt = addDays(jobCreatedAt, 2);
-            }
-            if (jobStatus === "done") {
-              completedAt = addDays(startedAt ?? jobCreatedAt, randInt(rng, 3, 10));
-            }
-
-            const job: typeof jobs.$inferInsert = {
-              id: jobId,
-              businessId: input.businessId,
-              quoteId,
-              title: `${serviceCategory} - ${customerName}`,
-              customerName,
-              customerEmail,
-              customerContactMethod: contactMethod,
-              customerContactHandle: contactHandle,
-              status: jobStatus,
-              currency: input.business.defaultCurrency,
-              totalInCents: total,
-              notes: `Job created from accepted quote ${quoteNum}`,
-              position: jobRows.length,
-              startedAt,
-              completedAt,
-              completedBy: completedAt ? input.ownerUserId : null,
-              createdAt: jobCreatedAt,
-              updatedAt: completedAt ?? startedAt ?? jobCreatedAt,
-            };
-
-            jobRows.push(job);
-
-            // Create job items from quote items
-            const jItems = lineItems.map((qi, pos) => ({
-              id: id("job_item"),
-              businessId: input.businessId,
-              jobId,
-              description: qi.description,
-              quantity: qi.quantity,
-              unitPriceInCents: qi.unitPriceInCents,
-              lineTotalInCents: qi.lineTotalInCents,
-              position: pos,
-              completedAt: jobStatus === "done" ? addDays(startedAt ?? jobCreatedAt, randInt(rng, 1, 5)) : null,
-              createdAt: jobCreatedAt,
-              updatedAt: jobCreatedAt,
-            }));
-
-            jobItemRows.push(...jItems);
-
-            // Activity for job
-            activityRows.push({
-              id: id("act"),
-              businessId: input.businessId,
-              quoteId,
-              actorUserId: input.ownerUserId,
-              type: "job.created",
-              summary: `Job ${jobNumber} created from accepted quote ${quoteNum}.`,
-              metadata: { jobId, quoteNumber: quoteNum },
-              createdAt: jobCreatedAt,
-              updatedAt: jobCreatedAt,
-            });
-
-            // For done jobs, create invoice
-            if (jobStatus === "done" && completedAt) {
-              const invStatus = pick(rng, invoiceStatuses);
-              const invId = id("inv");
-              const invNum = `INV-${invoiceCounter++}`;
-              const invCreatedAt = addDays(completedAt, 1);
-              const issuedAt = addDays(invCreatedAt, 1);
-              const dueAt = addDays(issuedAt, 14);
-
-              let invSentAt: Date | null = null;
-              let invViewedAt: Date | null = null;
-              let invPaidAt: Date | null = null;
-              let invVoidedAt: Date | null = null;
-
-              if (invStatus !== "draft") {
-                invSentAt = addDays(issuedAt, 1);
-              }
-              if (invStatus === "viewed" || invStatus === "paid") {
-                invViewedAt = addDays(invSentAt!, randInt(rng, 1, 3));
-              }
-              if (invStatus === "paid") {
-                invPaidAt = addDays(invViewedAt!, randInt(rng, 1, 5));
-              }
-              if (invStatus === "voided") {
-                invVoidedAt = addDays(invSentAt ?? issuedAt, randInt(rng, 3, 10));
-              }
-
-              invoiceRows.push({
-                id: invId,
-                businessId: input.businessId,
-                jobId,
-                quoteId,
-                invoiceNumber: invNum,
-                title: `Invoice for ${serviceCategory}`,
-                customerName,
-                customerEmail,
-                customerContactMethod: contactMethod,
-                customerContactHandle: contactHandle,
-                status: invStatus,
-                currency: input.business.defaultCurrency,
-                notes: `Payment for completed job ${jobNumber}`,
-                terms: "Net 14 days",
-                subtotalInCents: total,
-                discountInCents: 0,
-                taxInCents: 0,
-                totalInCents: total,
-                issuedAt,
-                dueAt,
-                sentAt: invSentAt,
-                viewedAt: invViewedAt,
-                paidAt: invPaidAt,
-                paidBy: invPaidAt ? input.ownerUserId : null,
-                voidedAt: invVoidedAt,
-                voidedBy: invVoidedAt ? input.ownerUserId : null,
-                createdAt: invCreatedAt,
-                updatedAt: invPaidAt ?? invVoidedAt ?? invViewedAt ?? invSentAt ?? issuedAt,
-              });
-
-              // Invoice items
-              const invItems = jItems.map((ji, pos) => ({
-                id: id("inv_item"),
-                businessId: input.businessId,
-                invoiceId: invId,
-                description: ji.description,
-                quantity: ji.quantity,
-                unitPriceInCents: ji.unitPriceInCents,
-                lineTotalInCents: ji.lineTotalInCents,
-                position: pos,
-                createdAt: invCreatedAt,
-                updatedAt: invCreatedAt,
-              }));
-
-              invoiceItemRows.push(...invItems);
-
-              // Activity for invoice
-              activityRows.push({
-                id: id("act"),
-                businessId: input.businessId,
-                quoteId,
-                actorUserId: input.ownerUserId,
-                type: "invoice.created",
-                summary: `Invoice ${invNum} created for completed job.`,
-                metadata: { invoiceNumber: invNum, amount: total },
-                createdAt: invCreatedAt,
-                updatedAt: invCreatedAt,
-              });
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Insert all data
-  await insertMany(inquiries, inquiryRows);
-  await insertMany(quotes, quoteRows);
-  await insertMany(quoteItems, quoteItemRows);
-  await insertMany(jobs, jobRows);
-  await insertMany(jobItems, jobItemRows);
-  await insertMany(invoices, invoiceRows);
-  await insertMany(invoiceItems, invoiceItemRows);
-  await insertMany(followUps, followUpRows);
-  await insertMany(postWinChecklistItems, checklistRows);
-  await insertMany(activityLogs, activityRows);
-  await insertMany(inquiryNotes, noteRows);
-
-  console.log(`    Linked entities created:`);
-  console.log(`      - ${inquiryRows.length} inquiries (all statuses)`);
-  console.log(`      - ${quoteRows.length} quotes (all statuses)`);
-  console.log(`      - ${jobRows.length} jobs (all statuses)`);
-  console.log(`      - ${invoiceRows.length} invoices (all statuses)`);
-
-  return {
-    inquiries: inquiryRows.length,
-    quotes: quoteRows.length,
-    jobs: jobRows.length,
-    invoices: invoiceRows.length,
-  };
 }
 
 async function insertMany<T extends { $inferInsert: unknown }>(
@@ -2375,7 +1685,6 @@ async function seedStableSmokeFixtures(input: {
       publicViewedAt: daysAgo(17),
       customerRespondedAt: daysAgo(16),
       customerResponseMessage: "Approved. Please move ahead with the rollout.",
-      postAcceptanceStatus: "scheduled",
       validUntil: toDateStr(daysAgo(3)),
       createdAt: daysAgo(19),
       updatedAt: daysAgo(16),
@@ -2426,7 +1735,6 @@ async function seedStableSmokeFixtures(input: {
       publicViewedAt: daysAgo(8),
       customerRespondedAt: daysAgo(7),
       customerResponseMessage: "Looks good. Please schedule the install.",
-      postAcceptanceStatus: "none",
       validUntil: toDateStr(daysFromNow(10)),
       createdAt: daysAgo(10),
       updatedAt: daysAgo(7),
@@ -2637,37 +1945,6 @@ async function seedStableSmokeFixtures(input: {
     },
   ]);
 
-  await db.insert(postWinChecklistItems).values([
-    {
-      id: id("post_win"),
-      businessId: input.businessId,
-      quoteId: acceptedQuoteId,
-      label: "Confirm installation date",
-      position: 0,
-      createdAt: daysAgo(7),
-      updatedAt: daysAgo(7),
-    },
-    {
-      id: id("post_win"),
-      businessId: input.businessId,
-      quoteId: acceptedQuoteId,
-      label: "Collect deposit",
-      completedAt: daysAgo(6),
-      position: 1,
-      createdAt: daysAgo(7),
-      updatedAt: daysAgo(6),
-    },
-    {
-      id: id("post_win"),
-      businessId: input.businessId,
-      quoteId: acceptedQuoteId,
-      label: "Send production proof",
-      position: 2,
-      createdAt: daysAgo(7),
-      updatedAt: daysAgo(7),
-    },
-  ]);
-
   await db.insert(activityLogs).values([
     {
       id: id("act"),
@@ -2737,13 +2014,6 @@ async function seedStableSmokeFixtures(input: {
     acceptedQuoteId,
     expiredQuoteId,
     voidedQuoteId,
-  });
-
-  await seedStableAiFixtures({
-    businessId: input.businessId,
-    ownerUserId: input.ownerUserId,
-    inquiryId: demoInquiryId,
-    quoteId: sentQuoteId,
   });
 }
 
@@ -2900,177 +2170,6 @@ async function seedStableAnalyticsAndNotifications(input: {
   ]);
 }
 
-async function seedStableAiFixtures(input: {
-  businessId: string;
-  ownerUserId: string;
-  inquiryId: string;
-  quoteId: string;
-}) {
-  const conversationId = "demo_ai_conversation_missing_info";
-  const dashboardConversationId = id("ai_conversation");
-  const answerMarkdown = [
-    "Missing:",
-    "- exact event date",
-    "- number of guests",
-    "- preferred package",
-    "- delivery deadline",
-    "",
-    "Suggested reply:",
-    "",
-    "Hi! Thanks for your inquiry. Before I send the final quote, may I confirm the event date and number of guests?",
-    "",
-    "Sources:",
-    `- [Foundry Labs booth kit](/${primaryBusinessSlug}/inquiries/${input.inquiryId})`,
-    `- [Q-SMOKE-1002](/${primaryBusinessSlug}/quotes/${input.quoteId})`,
-  ].join("\n");
-
-  await db.insert(aiConversations).values([
-    {
-      id: conversationId,
-      userId: input.ownerUserId,
-      businessId: input.businessId,
-      surface: "inquiry",
-      entityId: input.inquiryId,
-      title: "Missing quote details",
-      isDefault: true,
-      lastMessageAt: daysAgo(1),
-      createdAt: daysAgo(2),
-      updatedAt: daysAgo(1),
-    },
-    {
-      id: dashboardConversationId,
-      userId: input.ownerUserId,
-      businessId: input.businessId,
-      surface: "dashboard",
-      entityId: input.businessId,
-      title: "Today in BrightSide",
-      isDefault: false,
-      lastMessageAt: daysAgo(1, 10),
-      createdAt: daysAgo(3),
-      updatedAt: daysAgo(1, 10),
-    },
-  ]);
-
-  await db.insert(aiMessages).values([
-    {
-      id: id("ai_message"),
-      conversationId,
-      role: "user",
-      content: "Review this inquiry before I send the quote.",
-      status: "completed",
-      metadata: { source: "seed" },
-      createdAt: daysAgo(2),
-      updatedAt: daysAgo(2),
-    },
-    {
-      id: id("ai_message"),
-      conversationId,
-      role: "assistant",
-      content: answerMarkdown,
-      provider: "openrouter",
-      model: "openrouter/auto",
-      status: "completed",
-      metadata: {
-        format: "markdown",
-        sources: [
-          `/${primaryBusinessSlug}/inquiries/${input.inquiryId}`,
-          `/${primaryBusinessSlug}/quotes/${input.quoteId}`,
-        ],
-      },
-      createdAt: daysAgo(1),
-      updatedAt: daysAgo(1),
-    },
-    {
-      id: id("ai_message"),
-      conversationId: dashboardConversationId,
-      role: "assistant",
-      content:
-        "You have one viewed quote to follow up today and one accepted job waiting for schedule confirmation.",
-      provider: "openrouter",
-      model: "openrouter/auto",
-      status: "completed",
-      metadata: { format: "markdown" },
-      createdAt: daysAgo(1, 10),
-      updatedAt: daysAgo(1, 10),
-    },
-  ]);
-
-  await db.insert(aiDrafts).values({
-    id: id("ai_draft"),
-    businessId: input.businessId,
-    userId: input.ownerUserId,
-    entityId: input.inquiryId,
-    entityType: "inquiry",
-    taskType: "missing_info_detection",
-    content: {
-      markdown: answerMarkdown,
-      missingFields: [
-        "exact event date",
-        "number of guests",
-        "preferred package",
-        "delivery deadline",
-      ],
-    },
-    sourceDataTimestamp: daysAgo(1),
-    isStale: false,
-    lastAccessedAt: daysAgo(1),
-    createdAt: daysAgo(1),
-    updatedAt: daysAgo(1),
-  });
-
-  await db.insert(aiUsageEvents).values({
-    id: id("ai_usage"),
-    userId: input.ownerUserId,
-    businessId: input.businessId,
-    taskType: "missing_info_detection",
-    weight: 1,
-    createdAt: daysAgo(1),
-  });
-
-  await db.insert(aiTokenLogs).values({
-    id: id("ai_token"),
-    userId: input.ownerUserId,
-    businessId: input.businessId,
-    taskType: "missing_info_detection",
-    model: "openrouter/auto",
-    provider: "openrouter",
-    inputTokens: 560,
-    outputTokens: 180,
-    totalTokens: 740,
-    estimatedCostCents: 1,
-    cacheHit: false,
-    latencyMs: 1320,
-    status: "success",
-    unpriced: false,
-    createdAt: daysAgo(1),
-  });
-
-  await db.insert(inquiryMessages).values([
-    {
-      id: id("inquiry_message"),
-      inquiryId: input.inquiryId,
-      role: "user",
-      content: "What is missing before a final quote?",
-      status: "completed",
-      metadata: { source: "seed" },
-      createdAt: daysAgo(2),
-      updatedAt: daysAgo(2),
-    },
-    {
-      id: id("inquiry_message"),
-      inquiryId: input.inquiryId,
-      role: "assistant",
-      content: answerMarkdown,
-      provider: "openrouter",
-      model: "openrouter/auto",
-      status: "completed",
-      metadata: { format: "markdown" },
-      createdAt: daysAgo(1),
-      updatedAt: daysAgo(1),
-    },
-  ]);
-}
-
 async function main() {
   console.log("");
   console.log("Requo Demo Seeder");
@@ -3090,8 +2189,6 @@ async function main() {
       slug: string;
       inquiries: number;
       quotes: number;
-      jobs: number;
-      invoices: number;
     }>;
   }> = [];
   let primaryBusiness: CreatedBusiness | null = null;
@@ -3127,8 +2224,8 @@ async function main() {
         });
       }
 
-      // Use the new comprehensive linked entity seeder
-      const linkedCounts = await seedLinkedEntityChains({
+      // Seed generated inquiries and quotes (Phase 4 & 5 cleanup removed job/invoice seeding)
+      const linkedCounts = await _seedGeneratedBusinessData({
         business,
         businessId: createdBusiness.businessId,
         formId: createdBusiness.formId,
@@ -3157,8 +2254,6 @@ async function main() {
         slug: business.slug,
         inquiries: linkedCounts.inquiries,
         quotes: linkedCounts.quotes,
-        jobs: linkedCounts.jobs,
-        invoices: linkedCounts.invoices,
       });
     }
 
@@ -3205,7 +2300,7 @@ async function main() {
       ).toString();
 
       console.log(`  ${business.name} (${business.slug}):`);
-      console.log(`    ${business.inquiries} inquiries | ${business.quotes} quotes | ${business.jobs} jobs | ${business.invoices} invoices`);
+      console.log(`    ${business.inquiries} inquiries | ${business.quotes} quotes`);
       console.log(`    Dashboard: ${dashboardUrl}`);
     }
   }
@@ -3214,8 +2309,6 @@ async function main() {
   console.log("Status Coverage:");
   console.log("  Inquiries: new, waiting, quoted, won, lost, archived, overdue");
   console.log("  Quotes: draft, sent, revision_requested, accepted, rejected, expired, voided");
-  console.log("  Jobs: todo, in_progress, done");
-  console.log("  Invoices: draft, sent, viewed, paid, overdue, voided");
   console.log("");
 }
 

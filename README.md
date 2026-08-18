@@ -20,14 +20,11 @@
 
 ## Features
 
-Requo helps service businesses manage the complete workflow from inquiry to invoice:
+Requo helps service businesses manage the complete workflow from inquiry to quote:
 
 - **Inquiry Capture** — Public forms with file uploads, custom fields, and showcase images
 - **Quote Management** — Draft, send, track, and manage quotes with accept/reject flows
-- **Job Tracking** — Convert accepted quotes into tracked jobs
-- **Invoicing** — Generate PDF invoices and track payment status
-- **Follow-ups** — Automated scheduling and reminders
-- **Workflow Automation** — Event-driven triggers and visual workflow builder
+- **Follow-ups** — Automated scheduling and reminders with smart defaults
 - **Multi-business Support** — Manage multiple businesses from one account
 - **AI Assistance** — Smart drafting powered by multiple AI providers
 
