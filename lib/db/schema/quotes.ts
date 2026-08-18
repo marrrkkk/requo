@@ -40,6 +40,33 @@ export const quotePostAcceptanceStatusEnum = pgEnum(
   ],
 );
 
+export const aiQuoteReadinessEnum = pgEnum("ai_quote_readiness", [
+  "ready",
+  "needs_confirmation",
+  "scope_only",
+]);
+
+export const aiQuotePricingStatusEnum = pgEnum("ai_pricing_status", [
+  "verified",
+  "suggested",
+  "unpriced",
+  "owner_set",
+]);
+
+export type AiQuoteMissingInfoItem = {
+  label: string;
+  question: string;
+  critical: boolean;
+};
+
+export type AiQuoteItemEvidence = {
+  entryId: string | null;
+  itemId: string | null;
+  sourceLabel: string | null;
+  matchType: "exact" | "suggested" | "none";
+  reason: string;
+};
+
 export const quotes = pgTable(
   "quotes",
   {
@@ -76,9 +103,6 @@ export const quotes = pgTable(
       withTimezone: true,
     }),
     customerResponseMessage: text("customer_response_message"),
-    postAcceptanceStatus: quotePostAcceptanceStatusEnum("post_acceptance_status")
-      .notNull()
-      .default("none"),
     validUntil: date("expires_at", { mode: "string" }).notNull(),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     archivedBy: text("archived_by").references(() => user.id, {
@@ -127,6 +151,23 @@ export const quotes = pgTable(
     autoFollowUpStoppedAt: timestamp("auto_follow_up_stopped_at", {
       withTimezone: true,
     }),
+    /**
+     * Server-computed readiness of an AI-generated quote. `null` for manual or
+     * historical quotes. Never derived from model output alone.
+     */
+    aiReadiness: aiQuoteReadinessEnum("ai_readiness"),
+    /** Missing-information questions persisted with the quote (critical vs not). */
+    aiMissingInfo: jsonb("ai_missing_info")
+      .$type<AiQuoteMissingInfoItem[]>()
+      .default([]),
+    /** When the owner explicitly acknowledged remaining uncertainty before sending. */
+    aiAcknowledgedAt: timestamp("ai_acknowledged_at", { withTimezone: true }),
+    /** User who acknowledged remaining uncertainty. */
+    aiAcknowledgedBy: text("ai_acknowledged_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    /** Correlation ID for the generation run, used for observability/support. */
+    aiGenerationId: text("ai_generation_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -165,11 +206,6 @@ export const quotes = pgTable(
       table.businessId,
       table.quoteNumber,
     ),
-    index("quotes_accepted_post_win_idx")
-      .on(table.businessId, table.postAcceptanceStatus)
-      .where(
-        sql`${table.status} = 'accepted' and ${table.deletedAt} is null and ${table.archivedAt} is null`,
-      ),
     check(
       "quotes_totals_valid",
       sql`${table.subtotalInCents} >= 0 and ${table.discountInCents} >= 0 and ${table.taxInCents} >= 0 and ${table.totalInCents} >= 0 and ${table.subtotalInCents} >= ${table.discountInCents} and ${table.totalInCents} = ${table.subtotalInCents} - ${table.discountInCents} + ${table.taxInCents}`,
@@ -192,6 +228,17 @@ export const quoteItems = pgTable(
     unitPriceInCents: integer("unit_price_in_cents").notNull().default(0),
     lineTotalInCents: integer("line_total_in_cents").notNull().default(0),
     position: integer("position").notNull().default(0),
+    /**
+     * How the item's price was established. `null` for manual/historical items.
+     * Cleared to `owner_set` when the owner edits a generated item.
+     */
+    aiPricingStatus: aiQuotePricingStatusEnum("ai_pricing_status"),
+    /** Pricing-library entry that authorized a verified/suggested price. */
+    aiPricingLibraryEntryId: text("ai_pricing_library_entry_id"),
+    /** Pricing-library item that authorized a verified/suggested price. */
+    aiPricingLibraryItemId: text("ai_pricing_library_item_id"),
+    /** Source references and reason behind the item's price status. */
+    aiEvidence: jsonb("ai_evidence").$type<AiQuoteItemEvidence | null>().default(null),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
