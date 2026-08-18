@@ -1,12 +1,12 @@
 import "server-only";
 
+import { createHash } from "crypto";
 import { z } from "zod";
 
 import { getInquiryAssistantContextForBusiness } from "@/features/ai/queries";
 import { sanitizeAiInput } from "@/lib/ai/input-sanitizer";
 import { filterAiOutput } from "@/lib/ai/output-filter";
 import { logAiSecurityEvent } from "@/lib/ai/security-events";
-import { generateCanaryToken } from "@/features/ai/orchestrator/prompt-builder";
 import {
   aiQuoteDraftItemConfidenceLevels,
   aiQuoteDraftItemPricingSources,
@@ -16,14 +16,27 @@ import {
   type AiQuoteDraftItemConfidence,
   type AiQuoteDraftItemPricingSource,
   type AiQuoteDraftItemReviewStatus,
+  type AiQuoteKnowledgeCitation,
+  type AiQuoteMissingInfoItem,
+  type AiQuotePricingStatus,
+  type AiQuoteReadiness,
   type InquiryAssistantContext,
 } from "@/features/ai/types";
 import {
   normalizeAiQuoteClarificationMessage,
   normalizeAiQuoteMissingInfo,
 } from "@/features/ai/quote-missing-info";
-import { buildBusinessMemoryContext } from "@/features/memory/queries";
-import type { DashboardQuoteLibraryEntry } from "@/features/quotes/types";
+import {
+  formatPricingCandidates,
+  resolvePricingCandidate,
+  retrievePricingCandidates,
+  type PricingCandidate,
+} from "@/features/ai/pricing-retrieval";
+import {
+  formatKnowledgeEvidence,
+  retrieveBusinessKnowledge,
+  type KnowledgeEvidence,
+} from "@/features/memory/retrieval";
 import { formatQuoteMoney } from "@/features/quotes/utils";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema";
@@ -43,14 +56,8 @@ import type {
   CacheKeyComponents,
   CachedAiOutput,
 } from "@/lib/ai";
-import { getTaskConfig } from "@/features/ai/task-registry";
-import { buildTaskContext } from "@/features/ai/context-builder";
-import { retrieveRelevantPricing } from "@/features/ai/pricing-retriever";
-import { retrieveRelevantContext } from "@/features/ai/context-retriever";
-import { saveDraft } from "@/features/ai/draft-store";
 import { buildQuoteDraftPrompt } from "@/features/ai/prompts/quote-draft";
 import { buildQuoteImprovementPrompt } from "@/features/ai/prompts/quote-improvement";
-import { hashPromptVersion } from "@/features/ai/pipeline";
 import { eq } from "drizzle-orm";
 
 const MAX_DRAFT_ITEMS = 30;
@@ -60,37 +67,37 @@ const MAX_REASON_LENGTH = 280;
 const MAX_NAME_LENGTH = 120;
 const MAX_PRICING_SOURCE_LABEL_LENGTH = 160;
 
+/** Semantic prompt version — bump when the prompt contract changes. */
+const GROUNDED_DRAFT_PROMPT_VERSION = "grounded-draft-v1";
+const GROUNDED_IMPROVEMENT_PROMPT_VERSION = "grounded-improvement-v1";
+
 const PRICED_REVIEW_STATUSES = new Set<AiQuoteDraftItemReviewStatus>([
   "matched",
   "calculated",
 ]);
 
-function coerceAiQuoteDraftItemReviewStatus(
-  value: unknown,
-): AiQuoteDraftItemReviewStatus {
-  if (typeof value !== "string") return "needs_review";
+function contentHash(text: string): string {
+  return createHash("sha256").update(text).digest("hex");
+}
 
-  const normalized = value
-    .trim()
-    .toLowerCase()
-    // Common AI variations: "needs review" vs "needs_review"
-    .replace(/\s+/g, "_");
+function createGenerationId() {
+  return `qgen_${crypto.randomUUID().replace(/-/g, "")}`;
+}
 
-  switch (normalized) {
-    case "matched":
-      return "matched";
-    case "calculated":
-      return "calculated";
-    case "needs_review":
-      return "needs_review";
-    case "no_pricing_found":
-      return "no_pricing_found";
+function coerceMatchType(value: unknown): "exact" | "suggested" | "none" {
+  if (typeof value !== "string") return "none";
+
+  switch (value.trim().toLowerCase()) {
+    case "exact":
+      return "exact";
+    case "suggested":
+      return "suggested";
     default:
-      return "needs_review";
+      return "none";
   }
 }
 
-const quoteDraftResponseSchema = z.object({
+const groundedDraftResponseSchema = z.object({
   title: z.string().trim().min(2).max(160),
   notes: z
     .union([z.string(), z.null()])
@@ -113,29 +120,30 @@ const quoteDraftResponseSchema = z.object({
         name: z.string().trim().min(1).max(MAX_NAME_LENGTH).optional(),
         description: z.string().trim().min(1).max(400),
         quantity: z.coerce.number().finite().positive(),
-        unitPriceInCents: z.coerce.number().finite().nonnegative().nullable().optional(),
-        pricingSource: z
-          .enum(aiQuoteDraftItemPricingSources)
-          .optional()
-          .default("none"),
-        pricingSourceLabel: z
+        /**
+         * The model MUST return 0 here. Stage D hydration applies the saved
+         * pricing-library price; any model-provided value is ignored.
+         */
+        unitPriceInCents: z.coerce.number().finite().nonnegative().optional().default(0),
+        pricingCandidateId: z
           .union([z.string(), z.null()])
-          .transform((value) =>
-            typeof value === "string" ? value.trim() : null,
-          )
+          .transform((value) => (typeof value === "string" ? value.trim() : null))
           .optional()
           .default(null),
-        confidence: z
-          .enum(aiQuoteDraftItemConfidenceLevels)
+        pricingItemId: z
+          .union([z.string(), z.null()])
+          .transform((value) => (typeof value === "string" ? value.trim() : null))
           .optional()
-          .default("low"),
-        reviewStatus: z
-          .preprocess(
-            (value) => coerceAiQuoteDraftItemReviewStatus(value),
-            z.enum(aiQuoteDraftItemReviewStatuses),
-          )
+          .default(null),
+        matchType: z
+          .preprocess((value) => coerceMatchType(value), z.enum(["exact", "suggested", "none"]))
           .optional()
-          .default("needs_review"),
+          .default("none"),
+        knowledgeCitationIds: z
+          .array(z.string().trim().min(1).max(120))
+          .max(6)
+          .optional()
+          .default([]),
         reason: z.string().trim().min(1).max(600).optional().default(""),
       }),
     )
@@ -146,6 +154,7 @@ const quoteDraftResponseSchema = z.object({
       z.object({
         label: z.string().trim().min(2).max(120),
         question: z.string().trim().min(2).max(320),
+        critical: z.boolean().optional().default(false),
       }),
     )
     .max(12)
@@ -158,6 +167,8 @@ const quoteDraftResponseSchema = z.object({
     .default(null),
 });
 
+type RawDraftItem = z.infer<typeof groundedDraftResponseSchema>["items"][number];
+
 function truncate(value: string | null | undefined, limit: number) {
   const normalized = value?.replace(/\r\n?/g, "\n").trim() ?? "";
 
@@ -168,44 +179,23 @@ function truncate(value: string | null | undefined, limit: number) {
   return `${normalized.slice(0, limit).trimEnd()}...`;
 }
 
-function formatMemoryLines(
-  memory: Awaited<ReturnType<typeof buildBusinessMemoryContext>>,
-) {
-  if (!memory.memories.length) {
-    return "- No saved business knowledge.";
-  }
-
-  return memory.memories
-    .slice(0, 12)
-    .map((item) => `- ${item.title}: ${truncate(item.content, 800)}`)
-    .join("\n");
+function clampQuantity(value: number): number {
+  return Math.min(MAX_QUANTITY, Math.max(1, Math.trunc(value)));
 }
 
-function formatPricingLibrary(
-  entries: DashboardQuoteLibraryEntry[],
-  currency: string,
-) {
-  if (!entries.length) {
-    return "- No saved pricing entries.";
-  }
-
-  return entries
-    .map((entry) => {
-      const itemLines = entry.items.length
-        ? entry.items
-            .map(
-              (item) =>
-                `  ${item.description} x${item.quantity} @${formatQuoteMoney(item.unitPriceInCents, currency)}`,
-            )
-            .join("\n")
-        : "";
-
-      const header = `- "${entry.name}" (${entry.kind})${entry.description ? ` — ${truncate(entry.description, 150)}` : ""}`;
-
-      return itemLines ? `${header}\n${itemLines}` : header;
-    })
-    .join("\n");
+function clampPrice(value: number): number {
+  return Math.min(MAX_UNIT_PRICE_CENTS, Math.max(0, Math.round(value)));
 }
+
+function fallbackNameFromDescription(description: string) {
+  const firstLine = description.split(/[\n.;:]/)[0] ?? description;
+
+  return truncate(firstLine, MAX_NAME_LENGTH) || truncate(description, MAX_NAME_LENGTH);
+}
+
+// ---------------------------------------------------------------------------
+// Context formatting
+// ---------------------------------------------------------------------------
 
 function formatPastQuotes(context: InquiryAssistantContext, currency: string) {
   if (!context.relatedQuotes.length) {
@@ -233,7 +223,6 @@ function formatInquiryContextLines(
   context: InquiryAssistantContext,
   currency: string,
 ) {
-  // Compact inquiry header — only non-null fields
   const headerFields: string[] = [
     `Customer: ${context.inquiry.customerName}`,
   ];
@@ -247,7 +236,6 @@ function formatInquiryContextLines(
     `Inquiry: ${headerFields.join("; ")}`,
   ];
 
-  // Submitted fields (compact)
   const snapshot = context.inquiry.submittedFieldSnapshot;
   if (snapshot?.fields.length) {
     const fieldLines = snapshot.fields
@@ -256,10 +244,8 @@ function formatInquiryContextLines(
     sections.push("", "Submitted fields", fieldLines);
   }
 
-  // Customer details
   sections.push("", "Details", truncate(context.inquiry.details, 2000));
 
-  // Conversation messages (inquiry thread)
   if (context.messages.length > 0) {
     const messageLines = context.messages
       .slice(0, 10)
@@ -268,7 +254,6 @@ function formatInquiryContextLines(
     sections.push("", "Conversation", messageLines);
   }
 
-  // Notes (compact)
   if (context.notes.length) {
     sections.push(
       "",
@@ -280,18 +265,20 @@ function formatInquiryContextLines(
     );
   }
 
-  // Past quotes
-  sections.push("", "Past quotes", formatPastQuotes(context, currency));
+  sections.push("", "Past quotes (context only — never a price source)", formatPastQuotes(context, currency));
 
   return sections.join("\n");
 }
+
+// ---------------------------------------------------------------------------
+// JSON extraction/repair (defense in depth; Stage D re-validates everything)
+// ---------------------------------------------------------------------------
 
 function extractJsonObject(text: string): string | null {
   const trimmed = text.trim();
 
   if (!trimmed) return null;
 
-  // Strip markdown code fences if present.
   const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = fenceMatch ? fenceMatch[1].trim() : trimmed;
 
@@ -300,7 +287,6 @@ function extractJsonObject(text: string): string | null {
   if (candidate.startsWith("{") && candidate.endsWith("}")) {
     jsonStr = candidate;
   } else {
-    // Try to locate the first JSON object.
     const start = candidate.indexOf("{");
     const end = candidate.lastIndexOf("}");
 
@@ -311,31 +297,15 @@ function extractJsonObject(text: string): string | null {
 
   if (!jsonStr) return null;
 
-  // Attempt repair of common LLM JSON issues before returning
   return repairJson(jsonStr);
 }
 
-/**
- * Attempts to fix common JSON issues produced by LLMs:
- * - Trailing commas before ] or }
- * - Single-quoted strings → double-quoted
- * - Unescaped newlines inside string values
- * - JavaScript-style comments
- */
 function repairJson(json: string): string {
   let result = json;
 
-  // Remove single-line comments (// ...)
   result = result.replace(/\/\/[^\n]*/g, "");
-
-  // Remove multi-line comments (/* ... */)
   result = result.replace(/\/\*[\s\S]*?\*\//g, "");
-
-  // Remove trailing commas before } or ]
   result = result.replace(/,\s*([}\]])/g, "$1");
-
-  // Replace unescaped newlines inside strings (heuristic: between quotes)
-  // This handles the case where the model puts literal newlines in string values
   result = result.replace(
     /"([^"\\]*(?:\\.[^"\\]*)*)"/g,
     (match) => match.replace(/\n/g, "\\n").replace(/\r/g, "\\r"),
@@ -344,19 +314,13 @@ function repairJson(json: string): string {
   return result;
 }
 
-/**
- * Attempts to parse a JSON string with progressive repair strategies.
- * Returns the parsed object or null if all attempts fail.
- */
 function parseJsonSafe(jsonStr: string): unknown | null {
-  // Attempt 1: direct parse (already repaired by extractJsonObject)
   try {
     return JSON.parse(jsonStr);
   } catch {
-    // continue to repair attempts
+    // continue
   }
 
-  // Attempt 2: more aggressive trailing comma and whitespace cleanup
   try {
     const cleaned = jsonStr
       .replace(/,\s*([}\]])/g, "$1")
@@ -366,7 +330,6 @@ function parseJsonSafe(jsonStr: string): unknown | null {
     // continue
   }
 
-  // Attempt 3: replace single quotes with double quotes, fix unquoted keys
   try {
     const aggressive = jsonStr
       .replace(/'/g, '"')
@@ -377,7 +340,6 @@ function parseJsonSafe(jsonStr: string): unknown | null {
     // continue
   }
 
-  // Attempt 4: strip everything outside the outermost { }
   try {
     const start = jsonStr.indexOf("{");
     const end = jsonStr.lastIndexOf("}");
@@ -392,235 +354,134 @@ function parseJsonSafe(jsonStr: string): unknown | null {
   return null;
 }
 
-type RawDraftItem = z.infer<typeof quoteDraftResponseSchema>["items"][number];
+// ---------------------------------------------------------------------------
+// Stage D: deterministic hydration + verification
+// ---------------------------------------------------------------------------
 
-function fallbackNameFromDescription(description: string) {
-  const firstLine = description.split(/[\n.;:]/)[0] ?? description;
+type HydrationContext = {
+  candidates: PricingCandidate[];
+  currency: string;
+  evidenceById: Map<string, KnowledgeEvidence>;
+};
 
-  return truncate(firstLine, MAX_NAME_LENGTH) || truncate(description, MAX_NAME_LENGTH);
+function sourceForKind(kind: PricingCandidate["kind"]): AiQuoteDraftItemPricingSource {
+  switch (kind) {
+    case "package":
+      return "pricing_library_package";
+    case "template":
+      return "pricing_library_block";
+    default:
+      return "pricing_library_block";
+  }
 }
 
 /**
- * Resolve any source-label string the AI returns to a friendly, owner-visible
- * label. The model sometimes echoes a raw id (e.g. `qle_abc...` or `qte_...`)
- * instead of the entry name. We replace those with the actual library entry
- * name or past-quote number so the editor badge never shows an opaque id.
- */
-function resolveSourceLabel(
-  rawLabel: string | null,
-  source: AiQuoteDraftItemPricingSource,
-  maps: {
-    libraryNameById: Map<string, string>;
-    libraryIdsByName: Map<string, string>;
-    quoteLabelById: Map<string, string>;
-  },
-): string | null {
-  const trimmed = rawLabel?.trim() ?? "";
-
-  if (source === "pricing_library_block" || source === "pricing_library_package") {
-    if (!trimmed) return null;
-    // Direct id hit.
-    const byId = maps.libraryNameById.get(trimmed);
-    if (byId) return byId;
-    // The model already returned the name; keep it as-is.
-    if (maps.libraryIdsByName.has(trimmed.toLowerCase())) return trimmed;
-    // Looks like an id-ish prefix we don't know about; drop it so the badge
-    // doesn't surface a bare id.
-    if (/^[a-z]{2,4}_/i.test(trimmed)) return null;
-    return trimmed;
-  }
-
-  if (source === "past_quote") {
-    if (!trimmed) return null;
-    const byId = maps.quoteLabelById.get(trimmed);
-    if (byId) return byId;
-    if (/^[a-z]{2,4}_/i.test(trimmed)) return null;
-    return trimmed;
-  }
-
-  return trimmed || null;
-}
-
-/**
- * Normalise a single draft item and enforce the "no invented prices" rule.
+ * Hydrates one model item into a grounded draft item.
  *
- * - If the AI claims `matched`/`calculated` but the price isn't supported by an
- *   approved pricing source, we downgrade the item to `needs_review` and zero
- *   the price so the editor can flag it.
- * - If the AI provides a price but no pricing source, the price is dropped.
+ * The model never authors prices: prices are loaded from the retrieved
+ * pricing candidates (which were themselves loaded from the database).
+ * - verified: candidate entry is `exact` and the model claimed `exact` with a
+ *   resolvable item → saved price applied.
+ * - suggested: candidate is only `suggested` (or claimed weaker than exact) →
+ *   candidate price shown but owner confirmation required.
+ * - unpriced: no candidate, unknown ids, currency mismatch, or context-only
+ *   source (past quotes, memory, owner brief) → zero price.
  */
-function normaliseDraftItem(
-  item: RawDraftItem,
-  context: {
-    pricingLibraryIds: Set<string>;
-    pastQuoteIds: Set<string>;
-    libraryNameById: Map<string, string>;
-    libraryIdsByName: Map<string, string>;
-    quoteLabelById: Map<string, string>;
-    hasMemory?: boolean;
-  },
+function hydrateDraftItem(
+  raw: RawDraftItem,
+  ctx: HydrationContext,
 ): AiQuoteDraftItem {
-  let description = truncate(item.description, 400);
+  const description = truncate(raw.description, 400);
   const name = truncate(
-    item.name?.trim() ? item.name : fallbackNameFromDescription(description),
+    raw.name?.trim() ? raw.name : fallbackNameFromDescription(description),
     MAX_NAME_LENGTH,
   );
-  const quantity = Math.min(
-    MAX_QUANTITY,
-    Math.max(1, Math.trunc(item.quantity)),
-  );
-
+  const quantity = clampQuantity(raw.quantity);
   const reason =
-    truncate(item.reason, MAX_REASON_LENGTH) ||
+    truncate(raw.reason, MAX_REASON_LENGTH) ||
     "No reason provided by the assistant.";
 
-  const rawPricingSource: AiQuoteDraftItemPricingSource =
-    item.pricingSource ?? "none";
-  const rawConfidence: AiQuoteDraftItemConfidence = item.confidence ?? "low";
-  let reviewStatus: AiQuoteDraftItemReviewStatus =
-    item.reviewStatus ?? "needs_review";
-  let pricingSource: AiQuoteDraftItemPricingSource = rawPricingSource;
-  let pricingSourceLabel = resolveSourceLabel(
-    item.pricingSourceLabel,
-    pricingSource,
-    {
-      libraryNameById: context.libraryNameById,
-      libraryIdsByName: context.libraryIdsByName,
-      quoteLabelById: context.quoteLabelById,
-    },
-  );
-  if (pricingSourceLabel) {
-    pricingSourceLabel = truncate(
-      pricingSourceLabel,
-      MAX_PRICING_SOURCE_LABEL_LENGTH,
-    );
-  }
-  const rawPriceCents =
-    typeof item.unitPriceInCents === "number" && Number.isFinite(item.unitPriceInCents)
-      ? Math.max(0, Math.round(item.unitPriceInCents))
-      : 0;
-  let unitPriceInCents = Math.min(MAX_UNIT_PRICE_CENTS, rawPriceCents);
+  const citations: AiQuoteKnowledgeCitation[] = (raw.knowledgeCitationIds ?? [])
+    .map((id) => ctx.evidenceById.get(id))
+    .filter((evidence): evidence is KnowledgeEvidence => Boolean(evidence))
+    .slice(0, 6)
+    .map((evidence) => ({
+      sourceType: evidence.sourceType,
+      sourceId: evidence.sourceId,
+      chunkId: evidence.chunkId,
+      title: evidence.title,
+    }));
 
-  // The AI must use one of the approved sources before we accept a price.
-  const pricingSourceLooksApproved =
-    pricingSource === "pricing_library_block" ||
-    pricingSource === "pricing_library_package" ||
-    pricingSource === "past_quote" ||
-    pricingSource === "business_memory";
+  const resolution = resolvePricingCandidate({
+    candidates: ctx.candidates,
+    entryId: raw.pricingCandidateId,
+    itemId: raw.pricingItemId,
+    claimedMatchType: raw.matchType,
+    currency: ctx.currency,
+  });
 
-  if (PRICED_REVIEW_STATUSES.has(reviewStatus)) {
-    if (!pricingSourceLooksApproved || unitPriceInCents <= 0) {
-      // The AI claimed a price but couldn't justify it from approved data.
-      // Force the owner to review.
+  let reviewStatus: AiQuoteDraftItemReviewStatus = "needs_review";
+  let unitPriceInCents = 0;
+  let aiPricingStatus: AiQuotePricingStatus = "unpriced";
+  let pricingSource: AiQuoteDraftItemPricingSource = "none";
+  let pricingSourceLabel: string | null = null;
+  let confidence: AiQuoteDraftItemConfidence = "low";
+  let aiEvidence: AiQuoteDraftItem["aiEvidence"] = {
+    entryId: resolution?.entry.entryId ?? null,
+    itemId: resolution?.item?.itemId ?? null,
+    sourceLabel: resolution?.entry.name ?? null,
+    matchType: "none",
+    reason:
+      resolution?.reason ??
+      "No pricing candidate selected. The owner must price this line item.",
+  };
+
+  if (resolution) {
+    const source = sourceForKind(resolution.entry.kind);
+    pricingSource = source;
+    pricingSourceLabel = truncate(resolution.entry.name, MAX_PRICING_SOURCE_LABEL_LENGTH);
+    confidence = resolution.entry.matchType === "exact" ? "high" : "medium";
+
+    if (resolution.verified) {
+      // The saved price — never the model's price.
+      unitPriceInCents = clampPrice(resolution.item?.unitPriceInCents ?? 0);
+      reviewStatus = "matched";
+      aiPricingStatus = "verified";
+      aiEvidence = {
+        entryId: resolution.entry.entryId,
+        itemId: resolution.item?.itemId ?? null,
+        sourceLabel: resolution.entry.name,
+        matchType: "exact",
+        reason: resolution.reason,
+      };
+    } else if (resolution.item) {
+      // Suggested: candidate price shown, owner confirmation required.
+      unitPriceInCents = clampPrice(resolution.item.unitPriceInCents);
       reviewStatus = "needs_review";
-      unitPriceInCents = 0;
-      pricingSource = pricingSource === "owner_brief" ? "owner_brief" : "none";
-      pricingSourceLabel = pricingSourceLabel ?? null;
-    }
-  } else {
-    // For needs_review / no_pricing_found we never accept a price.
-    unitPriceInCents = 0;
-    if (
-      reviewStatus === "no_pricing_found" &&
-      pricingSource !== "none"
-    ) {
-      pricingSource = "none";
-    }
-  }
-
-  // Cross-check that the cited pricing-library / past-quote ids actually exist
-  // in the provided context. If they don't, downgrade to needs_review.
-  if (
-    PRICED_REVIEW_STATUSES.has(reviewStatus) &&
-    pricingSource === "pricing_library_block"
-  ) {
-    // Verify the cited label actually matches a real pricing library entry name.
-    const labelMatchesEntry = pricingSourceLabel &&
-      context.pricingLibraryIds.size > 0 &&
-      context.libraryNameById &&
-      Array.from(context.libraryNameById.values()).some(
-        (name) => name.toLowerCase() === pricingSourceLabel!.toLowerCase(),
-      );
-
-    if (!labelMatchesEntry) {
+      aiPricingStatus = "suggested";
+      aiEvidence = {
+        entryId: resolution.entry.entryId,
+        itemId: resolution.item.itemId,
+        sourceLabel: resolution.entry.name,
+        matchType: "suggested",
+        reason: resolution.reason,
+      };
+    } else {
       reviewStatus = "needs_review";
-      unitPriceInCents = 0;
-      pricingSource = "none";
-      pricingSourceLabel = null;
+      aiPricingStatus = "unpriced";
+      aiEvidence = {
+        entryId: resolution.entry.entryId,
+        itemId: null,
+        sourceLabel: resolution.entry.name,
+        matchType: "none",
+        reason: resolution.reason,
+      };
     }
   }
 
-  if (
-    PRICED_REVIEW_STATUSES.has(reviewStatus) &&
-    pricingSource === "pricing_library_package"
-  ) {
-    // Verify the cited label actually matches a real package entry name.
-    const labelMatchesEntry = pricingSourceLabel &&
-      context.pricingLibraryIds.size > 0 &&
-      context.libraryNameById &&
-      Array.from(context.libraryNameById.values()).some(
-        (name) => name.toLowerCase() === pricingSourceLabel!.toLowerCase(),
-      );
-
-    if (!labelMatchesEntry) {
-      reviewStatus = "needs_review";
-      unitPriceInCents = 0;
-      pricingSource = "none";
-      pricingSourceLabel = null;
-    }
-  }
-
-  if (
-    PRICED_REVIEW_STATUSES.has(reviewStatus) &&
-    pricingSource === "past_quote"
-  ) {
-    // Verify past quotes actually exist and the label references one.
-    const labelMatchesQuote = pricingSourceLabel &&
-      context.pastQuoteIds.size > 0 &&
-      context.quoteLabelById &&
-      Array.from(context.quoteLabelById.values()).some(
-        (label) => label.toLowerCase() === pricingSourceLabel!.toLowerCase(),
-      );
-
-    if (!context.pastQuoteIds.size || !labelMatchesQuote) {
-      reviewStatus = "needs_review";
-      unitPriceInCents = 0;
-      pricingSource = "none";
-      pricingSourceLabel = null;
-    }
-  }
-
-  if (
-    PRICED_REVIEW_STATUSES.has(reviewStatus) &&
-    pricingSource === "business_memory"
-  ) {
-    // Business memory is the weakest source — if there's no memory context at all, reject.
-    if (!context.hasMemory) {
-      reviewStatus = "needs_review";
-      unitPriceInCents = 0;
-      pricingSource = "none";
-      pricingSourceLabel = null;
-    }
-  }
-
-  const confidence: AiQuoteDraftItemConfidence = PRICED_REVIEW_STATUSES.has(
-    reviewStatus,
-  )
-    ? rawConfidence
-    : "low";
-
-  // For matched/calculated items pulled from the pricing library, use the
-  // library entry's title as the customer-facing description so the line item
-  // matches what the owner saved (and keeps wording consistent across quotes).
-  if (
-    PRICED_REVIEW_STATUSES.has(reviewStatus) &&
-    (pricingSource === "pricing_library_block" ||
-      pricingSource === "pricing_library_package") &&
-    pricingSourceLabel
-  ) {
-    description = truncate(pricingSourceLabel, 400);
-  }
-
+  // Context-only sources (past_quote, business_memory, owner_brief) never
+  // produce a price. The model's claimed source labels are ignored entirely;
+  // only candidate ids can resolve to a price.
   return {
     name: name || truncate(description, MAX_NAME_LENGTH),
     description,
@@ -630,9 +491,650 @@ function normaliseDraftItem(
     pricingSourceLabel,
     confidence,
     reviewStatus,
+    aiPricingStatus,
+    aiEvidence,
+    aiKnowledgeCitations: citations,
     reason,
   };
 }
+
+/**
+ * Expands package selections from canonical saved package items and rejects
+ * model rows that duplicate package contents.
+ */
+function expandPackageItemsFromCandidates(
+  items: AiQuoteDraftItem[],
+  candidates: PricingCandidate[],
+): AiQuoteDraftItem[] {
+  const packageIds = new Set(
+    items
+      .filter((item) => item.aiEvidence?.matchType === "exact")
+      .map((item) => item.aiEvidence?.entryId)
+      .filter((id): id is string => Boolean(id)),
+  );
+
+  if (packageIds.size === 0) {
+    return items;
+  }
+
+  const packageItemDescriptions = new Set<string>();
+  for (const candidate of candidates) {
+    if (packageIds.has(candidate.entryId) && candidate.kind === "package") {
+      for (const item of candidate.items) {
+        packageItemDescriptions.add(item.description.trim().toLowerCase());
+      }
+    }
+  }
+
+  const expanded: AiQuoteDraftItem[] = [];
+  const emittedPackageIds = new Set<string>();
+
+  for (const item of items) {
+    const entryId = item.aiEvidence?.entryId;
+
+    if (entryId && packageIds.has(entryId)) {
+      const candidate = candidates.find(
+        (c) => c.entryId === entryId && c.kind === "package",
+      );
+
+      if (candidate && candidate.items.length > 0) {
+        if (emittedPackageIds.has(entryId)) {
+          continue;
+        }
+
+        emittedPackageIds.add(entryId);
+
+        for (const packageItem of candidate.items) {
+          expanded.push({
+            name: truncate(packageItem.description, MAX_NAME_LENGTH),
+            description: truncate(packageItem.description, 400),
+            quantity: clampQuantity(packageItem.quantity),
+            unitPriceInCents: clampPrice(packageItem.unitPriceInCents),
+            pricingSource: "pricing_library_package",
+            pricingSourceLabel: candidate.name,
+            confidence: "high",
+            reviewStatus: "matched",
+            aiPricingStatus: "verified",
+            aiEvidence: {
+              entryId: candidate.entryId,
+              itemId: packageItem.itemId,
+              sourceLabel: candidate.name,
+              matchType: "exact",
+              reason: `From "${candidate.name}" package.`,
+            },
+            aiKnowledgeCitations: item.aiKnowledgeCitations,
+            reason: `From "${candidate.name}" package.`,
+          });
+        }
+
+        continue;
+      }
+    }
+
+    const descriptionKey = item.description.trim().toLowerCase();
+    if (descriptionKey && packageItemDescriptions.has(descriptionKey)) {
+      continue;
+    }
+
+    expanded.push(item);
+  }
+
+  return expanded;
+}
+
+function verifyGroundedDraft(
+  items: AiQuoteDraftItem[],
+  businessCurrency: string,
+): string[] {
+  const errors: string[] = [];
+
+  for (const item of items) {
+    if (item.unitPriceInCents > 0) {
+      if (
+        item.aiPricingStatus !== "verified" &&
+        item.aiPricingStatus !== "suggested" &&
+        item.aiPricingStatus !== "owner_set"
+      ) {
+        errors.push(`Item "${item.description}" has a price without an authorized pricing status.`);
+      }
+    }
+
+    if (item.aiPricingStatus === "verified") {
+      if (!item.aiEvidence?.entryId || !item.aiEvidence.itemId) {
+        errors.push(`Item "${item.description}" is verified but lacks source entry/item ids.`);
+      }
+
+      if (item.aiEvidence?.matchType !== "exact") {
+        errors.push(`Item "${item.description}" is verified without an exact source match.`);
+      }
+    }
+
+    if (item.aiEvidence?.matchType === "exact" && (!item.aiEvidence.entryId || !item.aiEvidence.itemId)) {
+      errors.push(`Item "${item.description}" cites an exact match without ids.`);
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * Attempts one constrained repair pass, then re-verifies. Any remaining
+ * violation is a safe failure — the draft is rejected rather than sent
+ * with unsupported data.
+ */
+function repairGroundedDraft(items: AiQuoteDraftItem[], businessCurrency: string) {
+  let errors = verifyGroundedDraft(items, businessCurrency);
+
+  if (errors.length === 0) {
+    return { ok: true as const, items };
+  }
+
+  // Repair pass: zero out every unauthorized price and demote to needs_review.
+  const repaired = items.map((item) => {
+    if (item.unitPriceInCents > 0 && item.aiPricingStatus !== "owner_set") {
+      const unauthorized =
+        item.aiPricingStatus !== "verified" && item.aiPricingStatus !== "suggested";
+
+      if (unauthorized || !item.aiEvidence?.entryId || !item.aiEvidence.itemId) {
+        return {
+          ...item,
+          unitPriceInCents: 0,
+          reviewStatus: "needs_review" as const,
+          aiPricingStatus: "unpriced" as const,
+          aiEvidence: item.aiEvidence
+            ? { ...item.aiEvidence, matchType: "none" as const, reason: "Verifier rejected the source; price reset for owner review." }
+            : item.aiEvidence,
+        };
+      }
+    }
+
+    return item;
+  });
+
+  errors = verifyGroundedDraft(repaired, businessCurrency);
+
+  if (errors.length > 0) {
+    return { ok: false as const, errors };
+  }
+
+  return { ok: true as const, items: repaired };
+}
+
+/**
+ * Server-computed readiness. Never trusted from the model.
+ */
+function computeQuoteReadiness(
+  items: AiQuoteDraftItem[],
+  missingInfo: AiQuoteMissingInfoItem[],
+): AiQuoteReadiness {
+  const hasUnpriced = items.some(
+    (item) => item.aiPricingStatus === "unpriced" || item.aiPricingStatus === null,
+  );
+  const hasSuggested = items.some((item) => item.aiPricingStatus === "suggested");
+  const hasCriticalQuestions = missingInfo.some((item) => item.critical === true);
+
+  if (hasUnpriced) {
+    return "scope_only";
+  }
+
+  if (hasSuggested || hasCriticalQuestions) {
+    return "needs_confirmation";
+  }
+
+  return "ready";
+}
+
+// ---------------------------------------------------------------------------
+// Shared pipeline
+// ---------------------------------------------------------------------------
+
+type StageBResult = {
+  candidates: PricingCandidate[];
+  evidence: KnowledgeEvidence[];
+  evidenceById: Map<string, KnowledgeEvidence>;
+};
+
+async function retrieveStageB(input: {
+  businessId: string;
+  queryText: string;
+  currency: string;
+}): Promise<StageBResult> {
+  const [pricing, knowledge] = await Promise.all([
+    retrievePricingCandidates({
+      businessId: input.businessId,
+      queryText: input.queryText,
+      currency: input.currency,
+    }),
+    retrieveBusinessKnowledge({
+      businessId: input.businessId,
+      queryText: input.queryText,
+    }),
+  ]);
+
+  const evidenceById = new Map<string, KnowledgeEvidence>();
+  for (const evidence of knowledge.evidence) {
+    evidenceById.set(evidence.chunkId, evidence);
+    evidenceById.set(evidence.sourceId, evidence);
+  }
+
+  return {
+    candidates: pricing.candidates,
+    evidence: knowledge.evidence,
+    evidenceById,
+  };
+}
+
+function buildGroundedContext(input: {
+  inquiryContextText: string;
+  candidates: PricingCandidate[];
+  evidence: KnowledgeEvidence[];
+  revisionContext?: string | null;
+  currentItemsText?: string | null;
+  existingDraftText?: string | null;
+}): string {
+  const contextParts: string[] = [];
+
+  if (input.inquiryContextText) {
+    contextParts.push(`INQUIRY CONTEXT:\n${truncate(input.inquiryContextText, 3000)}`);
+  }
+
+  contextParts.push(
+    `\nKNOWLEDGE EVIDENCE (scope, wording, policies, exclusions — NEVER prices):\n${formatKnowledgeEvidence(input.evidence)}`,
+  );
+
+  contextParts.push(
+    `\nPRICING CANDIDATES (prices shown for reference — the server applies the saved price):\n${formatPricingCandidates(input.candidates)}`,
+  );
+
+  if (input.revisionContext) {
+    contextParts.push(`\nREVISION REQUEST:\n${truncate(input.revisionContext, 1000)}`);
+  }
+
+  if (input.currentItemsText) {
+    contextParts.push(`\nCURRENT ITEMS:\n${truncate(input.currentItemsText, 2000)}`);
+  }
+
+  if (input.existingDraftText) {
+    contextParts.push(`\nEXISTING QUOTE DRAFT:\n${truncate(input.existingDraftText, 2000)}`);
+  }
+
+  return contextParts.join("\n");
+}
+
+function buildCacheSourceDataVersions(input: {
+  inquiryKey: string | null;
+  inquiryText: string;
+  candidates: PricingCandidate[];
+  evidence: KnowledgeEvidence[];
+  brief: string | null;
+  revisionComment: string | null;
+  currentItems: string | null;
+  currentItemsData: unknown;
+}): Record<string, string | null> {
+  return {
+    inquiry: input.inquiryKey,
+    inquiryContentHash: contentHash(input.inquiryText.slice(0, 4000)),
+    pricingCandidates: input.candidates.length
+      ? JSON.stringify(
+          input.candidates.map((candidate) => ({
+            id: candidate.entryId,
+            currency: candidate.currency,
+            kind: candidate.kind,
+            matchType: candidate.matchType,
+            items: candidate.items.map(
+              (item) => `${item.itemId}:${item.unitPriceInCents}:${item.quantity}`,
+            ),
+          })),
+        )
+      : null,
+    knowledge: input.evidence.length
+      ? input.evidence
+          .map((e) => `${e.chunkId}:${contentHash(e.content.slice(0, 500))}`)
+          .sort()
+          .join(",")
+      : null,
+    brief: input.brief ?? null,
+    revisionComment: input.revisionComment ?? null,
+    currentItems: input.currentItems ?? null,
+    currentItemsData: input.currentItemsData
+      ? JSON.stringify(input.currentItemsData)
+      : null,
+  };
+}
+
+/**
+ * Carried-over revision items are resolved against candidates by exact
+ * description match. A verified match re-applies the saved library price;
+ * otherwise the owner's saved price is preserved and the item is marked
+ * owner-set (the owner already priced it on a previous version).
+ */
+function resolveCarriedOverItem(
+  currentItem: { description: string; quantity: number; unitPriceInCents: number },
+  ctx: HydrationContext,
+): AiQuoteDraftItem {
+  const key = currentItem.description.trim().toLowerCase();
+
+  for (const candidate of ctx.candidates) {
+    if (candidate.name.toLowerCase() === key) {
+      const item = candidate.items.length === 1 ? candidate.items[0] : null;
+      if (item) {
+        return {
+          name: truncate(currentItem.description, MAX_NAME_LENGTH),
+          description: currentItem.description,
+          quantity: clampQuantity(item.quantity),
+          unitPriceInCents: clampPrice(item.unitPriceInCents),
+          pricingSource: sourceForKind(candidate.kind),
+          pricingSourceLabel: candidate.name,
+          confidence: "high",
+          reviewStatus: "matched",
+          aiPricingStatus: "verified",
+          aiEvidence: {
+            entryId: candidate.entryId,
+            itemId: item.itemId,
+            sourceLabel: candidate.name,
+            matchType: "exact",
+            reason: `Verified from "${candidate.name}".`,
+          },
+          aiKnowledgeCitations: [],
+          reason: `Carried over from previous version; matched "${candidate.name}".`,
+        };
+      }
+    }
+
+    for (const candidateItem of candidate.items) {
+      if (candidateItem.description.trim().toLowerCase() === key) {
+        return {
+          name: truncate(currentItem.description, MAX_NAME_LENGTH),
+          description: currentItem.description,
+          quantity: clampQuantity(candidateItem.quantity),
+          unitPriceInCents: clampPrice(candidateItem.unitPriceInCents),
+          pricingSource: sourceForKind(candidate.kind),
+          pricingSourceLabel: candidate.name,
+          confidence: "high",
+          reviewStatus: "matched",
+          aiPricingStatus: "verified",
+          aiEvidence: {
+            entryId: candidate.entryId,
+            itemId: candidateItem.itemId,
+            sourceLabel: candidate.name,
+            matchType: "exact",
+            reason: `Verified from "${candidate.name}".`,
+          },
+          aiKnowledgeCitations: [],
+          reason: `Carried over from previous version; matched "${candidate.name}".`,
+        };
+      }
+    }
+  }
+
+  // No library match: the owner already accepted this price on a previous
+  // version — preserve it as owner-set.
+  return {
+    name: truncate(currentItem.description, MAX_NAME_LENGTH),
+    description: currentItem.description,
+    quantity: clampQuantity(currentItem.quantity),
+    unitPriceInCents: clampPrice(currentItem.unitPriceInCents),
+    pricingSource: "owner_brief",
+    pricingSourceLabel: null,
+    confidence: "high",
+    reviewStatus: "matched",
+    aiPricingStatus: "owner_set",
+    aiEvidence: {
+      entryId: null,
+      itemId: null,
+      sourceLabel: null,
+      matchType: "none",
+      reason: "Price carried over from the previous quote version.",
+    },
+    aiKnowledgeCitations: [],
+    reason: "Carried over from previous version.",
+  };
+}
+
+/**
+ * For revisions: start with the current items as the base (resolved
+ * deterministically), then append genuinely new AI items that don't
+ * duplicate carried items.
+ */
+function mergeRevisionWithCurrentItems(
+  aiItems: AiQuoteDraftItem[],
+  currentItemsData: Array<{
+    description: string;
+    quantity: number;
+    unitPriceInCents: number;
+  }>,
+  ctx: HydrationContext,
+): AiQuoteDraftItem[] {
+  const result: AiQuoteDraftItem[] = [];
+  const seenDescriptions = new Set<string>();
+
+  for (const currentItem of currentItemsData) {
+    const key = currentItem.description.trim().toLowerCase();
+    if (!key || seenDescriptions.has(key)) {
+      continue;
+    }
+
+    seenDescriptions.add(key);
+    result.push(resolveCarriedOverItem(currentItem, ctx));
+  }
+
+  for (const aiItem of aiItems) {
+    const descLower = aiItem.description.trim().toLowerCase();
+    const nameLower = (aiItem.name || "").trim().toLowerCase();
+
+    if (!descLower || seenDescriptions.has(descLower)) {
+      continue;
+    }
+
+    let tooSimilar = false;
+    for (const existing of seenDescriptions) {
+      if (
+        existing.includes(descLower) ||
+        descLower.includes(existing) ||
+        (nameLower && (existing.includes(nameLower) || nameLower.includes(existing)))
+      ) {
+        tooSimilar = true;
+        break;
+      }
+    }
+
+    if (tooSimilar) {
+      continue;
+    }
+
+    seenDescriptions.add(descLower);
+    result.push(aiItem);
+  }
+
+  return result;
+}
+
+async function finalizeDraft(input: {
+  businessId: string;
+  userId: string;
+  taskType: "quote_draft" | "quote_improvement";
+  title: string;
+  notes: string | null;
+  rationale: string | null;
+  pricingLibraryEntryId: string | null;
+  rawItems: RawDraftItem[];
+  rawMissingInfo: Array<{ label: string; question: string; critical?: boolean }>;
+  rawClarification: string | null;
+  candidates: PricingCandidate[];
+  currency: string;
+  evidenceById: Map<string, KnowledgeEvidence>;
+  /** Revision-only: current items to carry over deterministically. */
+  currentItemsData?: Array<{
+    description: string;
+    quantity: number;
+    unitPriceInCents: number;
+  }> | null;
+  model: string;
+  provider: AiProviderName;
+  taskConfig: { temperature: number; maxOutputTokens: number; qualityTier: AiQualityTier; cacheTTL: number };
+  cacheKey: CacheKeyComponents;
+  responseText: string;
+  responseUsage: { promptTokens?: number; outputTokens?: number } | undefined;
+  responseModel: string;
+  responseProvider: string;
+  startTime: number;
+  /** Cache hits skip usage deduction and cooldown. */
+  fromCache?: boolean;
+}): Promise<AiQuoteDraft | null> {
+  const hydrationContext = {
+    candidates: input.candidates,
+    currency: input.currency,
+    evidenceById: input.evidenceById,
+  };
+
+  // Stage D: hydrate every item deterministically.
+  const hydrated = input.rawItems.map((item) =>
+    hydrateDraftItem(item, hydrationContext),
+  );
+
+  const merged =
+    input.taskType === "quote_draft" &&
+    input.currentItemsData &&
+    input.currentItemsData.length > 0
+      ? mergeRevisionWithCurrentItems(hydrated, input.currentItemsData, hydrationContext)
+      : hydrated;
+
+  const expanded = expandPackageItemsFromCandidates(
+    merged.filter((item) => item.description.length > 0),
+    input.candidates,
+  ).slice(0, MAX_DRAFT_ITEMS);
+
+  if (expanded.length === 0) {
+    return null;
+  }
+
+  // Verifier: one constrained repair pass, then safe failure.
+  const verification = repairGroundedDraft(expanded, input.currency);
+
+  if (!verification.ok) {
+    console.error(
+      "[quote-generator] Draft failed verification after repair:",
+      verification.errors.join("; "),
+    );
+    return null;
+  }
+
+  const items = verification.items;
+  const missingInfo = normalizeAiQuoteMissingInfo(input.rawMissingInfo);
+  const clarificationMessage = normalizeAiQuoteClarificationMessage({
+    message: input.rawClarification,
+    missingInfo,
+  });
+
+  const knownEntryId = input.pricingLibraryEntryId
+    ? input.candidates.find(
+        (candidate) =>
+          candidate.entryId === input.pricingLibraryEntryId &&
+          candidate.currency === input.currency,
+      )?.entryId ?? null
+    : null;
+
+  const itemsNeedingReview = items.filter(
+    (item) => !PRICED_REVIEW_STATUSES.has(item.reviewStatus),
+  ).length;
+
+  const citations = Array.from(
+    new Map(
+      items.flatMap((item) => item.aiKnowledgeCitations).map((citation) => [citation.chunkId, citation]),
+    ).values(),
+  );
+
+  const readiness = computeQuoteReadiness(items, missingInfo);
+
+  const draft: AiQuoteDraft = {
+    title: truncate(input.title, 160),
+    notes: input.notes?.trim() ? truncate(input.notes, 4000) : null,
+    items,
+    missingInfo,
+    clarificationMessage,
+    pricingLibraryEntryId: knownEntryId,
+    rationale: input.rationale?.trim() ? truncate(input.rationale, 600) : null,
+    model: input.model,
+    provider: input.provider,
+    itemsNeedingReview,
+    readiness,
+    aiGenerationId: createGenerationId(),
+    knowledgeCitations: citations,
+  };
+
+  // Cache only the final verified draft — the fingerprint includes candidate
+  // prices and knowledge hashes, so a stale price can never be served.
+  if (input.taskConfig.cacheTTL > 0 && !input.fromCache) {
+    const cachedResult: CachedAiOutput = {
+      text: input.responseText,
+      model: input.responseModel,
+      provider: input.responseProvider,
+      createdAt: new Date().toISOString(),
+      usage: input.responseUsage,
+    };
+
+    await setCachedOutput(input.cacheKey, cachedResult, input.taskConfig.cacheTTL);
+  }
+
+  if (input.fromCache) {
+    return draft;
+  }
+
+  const weight = TASK_WEIGHTS[input.taskType];
+  await recordUsage(input.userId, input.businessId, input.taskType, weight);
+  await startCooldown(input.userId, input.taskType);
+
+  await logAiInvocation({
+    businessId: input.businessId,
+    taskType: input.taskType,
+    model: input.responseModel,
+    provider: input.responseProvider,
+    inputTokens: input.responseUsage?.promptTokens ?? 0,
+    outputTokens: input.responseUsage?.outputTokens ?? 0,
+    cacheHit: false,
+    latencyMs: Date.now() - input.startTime,
+    status: "success",
+    userId: input.userId,
+  }).catch((logError) => {
+    console.warn("[quote-generator] Failed to log invocation:", logError);
+  });
+
+  return draft;
+}
+
+async function parseModelDraftResponse(
+  responseText: string,
+): Promise<z.infer<typeof groundedDraftResponseSchema> | null> {
+  const rawJson = extractJsonObject(responseText);
+
+  if (!rawJson) {
+    console.error("[quote-generator] No JSON found in response. Raw text:", responseText.slice(0, 500));
+    return null;
+  }
+
+  const parsedJson = parseJsonSafe(rawJson);
+
+  if (parsedJson === null) {
+    console.error("[quote-generator] JSON parse failed. Extracted JSON:", rawJson.slice(0, 500));
+    return null;
+  }
+
+  const validation = groundedDraftResponseSchema.safeParse(parsedJson);
+
+  if (!validation.success) {
+    console.error(
+      "[quote-generator] Zod validation failed:",
+      JSON.stringify(validation.error.issues.slice(0, 5)),
+    );
+    return null;
+  }
+
+  return validation.data;
+}
+
+// ---------------------------------------------------------------------------
+// Quote draft generation
+// ---------------------------------------------------------------------------
 
 type GenerateQuoteDraftInput = {
   businessId: string;
@@ -648,315 +1150,6 @@ type GenerateQuoteDraftInput = {
     unitPriceInCents: number;
   }> | null;
 };
-
-/**
- * For revisions: start with the original current items as the base, then
- * apply the AI's quantity/price changes on top. Filter out package summary
- * rows and duplicates of existing items.
- */
-function mergeRevisionWithCurrentItems(
-  aiItems: AiQuoteDraftItem[],
-  currentItemsData: Array<{
-    description: string;
-    quantity: number;
-    unitPriceInCents: number;
-  }>,
-  packageNames: Set<string>,
-  revisionComment: string | null,
-  libraryEntryByName?: Map<string, DashboardQuoteLibraryEntry>,
-): AiQuoteDraftItem[] {
-  // Build lookup of current items
-  const currentItemsByDesc = new Map<
-    string,
-    { description: string; quantity: number; unitPriceInCents: number }
-  >();
-  for (const item of currentItemsData) {
-    const key = item.description.trim().toLowerCase();
-    if (key) currentItemsByDesc.set(key, item);
-  }
-
-  // Try to parse quantity changes from revision comment
-  // Patterns: "add 3 more X", "change X to 4", "X qty 3", "3 X", "3 more X"
-  const quantityOverrides = new Map<string, number>();
-  if (revisionComment) {
-    const comment = revisionComment.toLowerCase();
-    for (const [desc] of currentItemsByDesc) {
-      const descLower = desc.toLowerCase();
-      // "add N more <item>"
-      const addMoreMatch = comment.match(
-        new RegExp(`add\\s+(\\d+)\\s+more\\s+${escapeRegex(descLower)}`, "i"),
-      );
-      if (addMoreMatch) {
-        const currentQty = currentItemsByDesc.get(desc)?.quantity ?? 1;
-        quantityOverrides.set(desc, currentQty + parseInt(addMoreMatch[1], 10));
-        continue;
-      }
-      // "N more <item>"
-      const nMoreMatch = comment.match(
-        new RegExp(`(\\d+)\\s+more\\s+${escapeRegex(descLower)}`, "i"),
-      );
-      if (nMoreMatch) {
-        const currentQty = currentItemsByDesc.get(desc)?.quantity ?? 1;
-        quantityOverrides.set(desc, currentQty + parseInt(nMoreMatch[1], 10));
-        continue;
-      }
-      // "<item> to N" or "<item> qty N"
-      const toNMatch = comment.match(
-        new RegExp(`${escapeRegex(descLower)}\\s+(?:to|qty|quantity|=)\\s+(\\d+)`, "i"),
-      );
-      if (toNMatch) {
-        quantityOverrides.set(desc, parseInt(toNMatch[1], 10));
-      }
-    }
-  }
-
-  // Start with current items, apply overrides
-  const result: AiQuoteDraftItem[] = [];
-  const seenDescriptions = new Set<string>();
-
-  for (const currentItem of currentItemsData) {
-    const key = currentItem.description.trim().toLowerCase();
-    if (seenDescriptions.has(key)) continue;
-    seenDescriptions.add(key);
-
-    const overriddenQty = quantityOverrides.get(key);
-    const finalQty = overriddenQty ?? currentItem.quantity;
-
-    // Verify item actually matches a pricing library entry before marking as "matched".
-    // Check if the item description matches any library entry name or any item within
-    // a library entry. Without a verified match, mark as "needs_review".
-    let verifiedSource: AiQuoteDraftItemPricingSource = "none";
-    let verifiedSourceLabel: string | null = null;
-    let verifiedReviewStatus: AiQuoteDraftItemReviewStatus = "needs_review";
-    let verifiedConfidence: AiQuoteDraftItemConfidence = "low";
-
-    if (libraryEntryByName) {
-      // Check if the description matches a library entry name directly
-      const directEntry = libraryEntryByName.get(key);
-      if (directEntry) {
-        verifiedSource = directEntry.kind === "package"
-          ? "pricing_library_package"
-          : "pricing_library_block";
-        verifiedSourceLabel = directEntry.name;
-        verifiedReviewStatus = "matched";
-        verifiedConfidence = "high";
-      } else {
-        // Check if the description matches any item within any library entry
-        for (const [, entry] of libraryEntryByName) {
-          const matchingItem = entry.items.find(
-            (item) => item.description.trim().toLowerCase() === key,
-          );
-          if (matchingItem) {
-            verifiedSource = entry.kind === "package"
-              ? "pricing_library_package"
-              : "pricing_library_block";
-            verifiedSourceLabel = entry.name;
-            verifiedReviewStatus = "matched";
-            verifiedConfidence = "high";
-            break;
-          }
-        }
-      }
-    }
-
-    result.push({
-      name: currentItem.description.slice(0, 120),
-      description: currentItem.description,
-      quantity: finalQty,
-      unitPriceInCents: verifiedReviewStatus === "matched"
-        ? currentItem.unitPriceInCents
-        : 0,
-      pricingSource: verifiedSource,
-      pricingSourceLabel: verifiedSourceLabel,
-      confidence: verifiedConfidence,
-      reviewStatus: verifiedReviewStatus,
-      reason: overriddenQty
-        ? `Quantity updated per customer revision request.`
-        : "Carried over from previous version.",
-    });
-  }
-
-  // Only add genuinely new AI items that:
-  // 1. Don't duplicate existing items
-  // 2. Aren't package summary rows
-  // 3. Have a meaningful description
-  for (const aiItem of aiItems) {
-    const descLower = aiItem.description.trim().toLowerCase();
-    const nameLower = (aiItem.name || "").trim().toLowerCase();
-
-    // Skip empty
-    if (!descLower) continue;
-    // Skip duplicates
-    if (seenDescriptions.has(descLower)) continue;
-    // Skip package summary rows
-    if (packageNames.has(descLower) || packageNames.has(nameLower)) continue;
-    // Skip if it's too similar to an existing item (fuzzy match)
-    let tooSimilar = false;
-    for (const existing of seenDescriptions) {
-      if (existing.includes(descLower) || descLower.includes(existing)) {
-        tooSimilar = true;
-        break;
-      }
-    }
-    if (tooSimilar) continue;
-
-    seenDescriptions.add(descLower);
-    result.push(aiItem);
-  }
-
-  return result;
-}
-
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/**
- * Replace any "matched" library-package line item with the package's actual
- * line items. The model often returns a mix of rows tagged with the same
- * `pricing_library_package` source — sometimes the saved package items,
- * sometimes a summary row priced at the package total — and the description
- * gets normalised back to the package name. To stay deterministic, we drop
- * every row that points to a known package and emit one canonical expansion
- * straight from the saved library.
- */
-function expandPackageItems(
-  items: AiQuoteDraftItem[],
-  context: {
-    libraryEntryById: Map<string, DashboardQuoteLibraryEntry>;
-    libraryEntryByName: Map<string, DashboardQuoteLibraryEntry>;
-  },
-): AiQuoteDraftItem[] {
-  function resolveEntry(item: AiQuoteDraftItem) {
-    // Direct match via pricingSourceLabel
-    if (
-      item.pricingSource === "pricing_library_package" &&
-      item.pricingSourceLabel
-    ) {
-      if (
-        item.reviewStatus !== "matched" &&
-        item.reviewStatus !== "calculated"
-      ) {
-        return null;
-      }
-
-      const labelLower = item.pricingSourceLabel.toLowerCase();
-      const entry =
-        context.libraryEntryById.get(item.pricingSourceLabel) ??
-        context.libraryEntryByName.get(labelLower);
-
-      if (!entry || entry.kind !== "package" || entry.items.length === 0) {
-        return null;
-      }
-
-      return entry;
-    }
-
-    // Fallback: match by item name or description against known package names
-    // This catches cases where the AI doesn't tag the source correctly
-    const nameLower = (item.name || item.description).toLowerCase().trim();
-    const descLower = item.description.toLowerCase().trim();
-
-    const entryByName = context.libraryEntryByName.get(nameLower);
-    if (entryByName && entryByName.kind === "package" && entryByName.items.length > 0) {
-      return entryByName;
-    }
-
-    const entryByDesc = context.libraryEntryByName.get(descLower);
-    if (entryByDesc && entryByDesc.kind === "package" && entryByDesc.items.length > 0) {
-      return entryByDesc;
-    }
-
-    return null;
-  }
-
-  const referencedPackageIds = new Set<string>();
-  for (const item of items) {
-    const entry = resolveEntry(item);
-    if (entry) {
-      referencedPackageIds.add(entry.id);
-    }
-  }
-
-  if (!referencedPackageIds.size) {
-    return items;
-  }
-
-  // Build a set of normalised descriptions that belong to any referenced
-  // package so we can drop the model's separate "scope rows" that re-list
-  // package items individually with a different (or missing) source tag.
-  const packageItemDescriptions = new Set<string>();
-  for (const packageId of referencedPackageIds) {
-    const entry =
-      context.libraryEntryById.get(packageId) ??
-      // Fallback: scan by id since libraryEntryById is keyed by id.
-      undefined;
-
-    if (!entry) continue;
-
-    for (const packageItem of entry.items) {
-      const key = packageItem.description.trim().toLowerCase();
-      if (key) {
-        packageItemDescriptions.add(key);
-      }
-    }
-  }
-
-  const expanded: AiQuoteDraftItem[] = [];
-  const emittedPackageIds = new Set<string>();
-
-  for (const item of items) {
-    const entry = resolveEntry(item);
-
-    if (entry && referencedPackageIds.has(entry.id)) {
-      // Drop this row regardless of its description; the canonical expansion
-      // is the single source of truth for the package contents.
-      if (emittedPackageIds.has(entry.id)) {
-        continue;
-      }
-
-      emittedPackageIds.add(entry.id);
-
-      for (const packageItem of entry.items) {
-        const safeQuantity = Math.min(
-          MAX_QUANTITY,
-          Math.max(1, Math.trunc(packageItem.quantity)),
-        );
-        const safeUnitPrice = Math.min(
-          MAX_UNIT_PRICE_CENTS,
-          Math.max(0, Math.round(packageItem.unitPriceInCents)),
-        );
-
-        expanded.push({
-          name: truncate(packageItem.description, MAX_NAME_LENGTH),
-          description: truncate(packageItem.description, 400),
-          quantity: safeQuantity,
-          unitPriceInCents: safeUnitPrice,
-          pricingSource: "pricing_library_package",
-          pricingSourceLabel: entry.name,
-          confidence: "high",
-          reviewStatus: "matched",
-          reason: `From "${entry.name}" package.`,
-        });
-      }
-
-      continue;
-    }
-
-    // Drop standalone rows whose description matches one of the package's
-    // items. The model often lists the package contents both as a summary
-    // row and as separate "scope" rows tagged differently, which produces
-    // duplicates against the canonical expansion above.
-    const descriptionKey = item.description.trim().toLowerCase();
-    if (descriptionKey && packageItemDescriptions.has(descriptionKey)) {
-      continue;
-    }
-
-    expanded.push(item);
-  }
-
-  return expanded;
-}
 
 type GenerateQuoteDraftResult =
   | { ok: true; draft: AiQuoteDraft }
@@ -987,7 +1180,6 @@ export async function generateQuoteDraftForBusiness(
   }
 
   // --- AI Input Sanitization ---
-  // Sanitize user-provided text inputs before they reach the AI provider.
   const userInputText = [input.brief ?? "", input.revisionComment ?? ""]
     .filter(Boolean)
     .join(" ");
@@ -1017,7 +1209,6 @@ export async function generateQuoteDraftForBusiness(
         businessId: input.businessId,
         rawInput: userInputText,
       });
-      // Use sanitized versions of the inputs
       if (input.brief) {
         const briefSanitization = await sanitizeAiInput(input.brief);
         if (briefSanitization.status !== "rejected") {
@@ -1035,7 +1226,7 @@ export async function generateQuoteDraftForBusiness(
 
   const currency = businessRow.defaultCurrency;
 
-  // Fetch inquiry context (needed for inquiry text and related quotes)
+  // Stage A: inquiry context.
   const inquiryContext = input.inquiryId
     ? await getInquiryAssistantContextForBusiness({
         businessId: input.businessId,
@@ -1050,7 +1241,6 @@ export async function generateQuoteDraftForBusiness(
     };
   }
 
-  // Assemble the inquiry text for pricing retrieval and context
   const inquiryText = inquiryContext
     ? [
         inquiryContext.inquiry.subject ?? "",
@@ -1061,105 +1251,47 @@ export async function generateQuoteDraftForBusiness(
         .join(" ")
     : input.brief ?? "";
 
-  // Use pricing retriever to get only relevant pricing blocks (Requirement 3.1)
-  // Also retrieve relevant past inquiries/quotes for additional context
-  const [pricingResult, memory, relevantContext] = await Promise.all([
-    retrieveRelevantPricing({
-      inquiryText,
-      businessId: input.businessId,
-      currency,
-    }),
-    buildBusinessMemoryContext(input.businessId),
-    retrieveRelevantContext({
-      businessId: input.businessId,
-      searchText: inquiryText,
-      currency,
-      excludeInquiryId: input.inquiryId ?? null,
-    }),
-  ]);
+  // Stage B: retrieve knowledge evidence and pricing candidates.
+  const stageB = await retrieveStageB({
+    businessId: input.businessId,
+    queryText: inquiryText,
+    currency,
+  });
 
-  const pricingLibrary = pricingResult.entries;
-
-  const pricingLibraryIds = new Set(pricingLibrary.map((entry) => entry.id));
-  const pastQuoteIds = new Set(
-    (inquiryContext?.relatedQuotes ?? []).map((quote) => quote.id),
-  );
-  const libraryNameById = new Map(
-    pricingLibrary.map((entry) => [entry.id, entry.name]),
-  );
-  const libraryIdsByName = new Map(
-    pricingLibrary.map((entry) => [entry.name.toLowerCase(), entry.id]),
-  );
-  const libraryEntryById = new Map(
-    pricingLibrary.map((entry) => [entry.id, entry]),
-  );
-  const libraryEntryByName = new Map(
-    pricingLibrary.map((entry) => [entry.name.toLowerCase(), entry]),
-  );
-  const quoteLabelById = new Map(
-    (inquiryContext?.relatedQuotes ?? []).map((quote) => [
-      quote.id,
-      quote.quoteNumber || quote.title,
-    ]),
-  );
-
-  // Format pricing blocks as a string for context
-  const pricingBlocksText = formatPricingLibrary(pricingLibrary, currency);
-
-  // Format business memory summary (≤500 chars as per Requirement 2.3)
-  const businessMemorySummaryText = truncate(formatMemoryLines(memory), 500);
-
-  // Format inquiry text for context (include relevant past data if found)
-  let inquiryContextText = inquiryContext
+  const inquiryContextText = inquiryContext
     ? formatInquiryContextLines(inquiryContext, currency)
     : input.brief?.trim()
       ? `Owner brief:\n${truncate(input.brief, 2000)}`
       : "";
 
-  // Append relevant past inquiries/quotes from the database
-  if (relevantContext.hasResults) {
-    const pastDataLines: string[] = [];
-    if (relevantContext.pastInquiries) {
-      pastDataLines.push(`\nRelevant past inquiries from this business:\n${relevantContext.pastInquiries}`);
-    }
-    if (relevantContext.pastQuotes) {
-      pastDataLines.push(`\nRelevant past quotes from this business:\n${relevantContext.pastQuotes}`);
-    }
-    if (pastDataLines.length > 0) {
-      inquiryContextText += pastDataLines.join("\n");
-    }
-  }
-
-  // Build context via context builder to enforce character budget (Requirement 2.2)
   const taskType = "quote_draft" as const;
-
-  // Build revision-specific context if applicable
   const revisionContext = input.revisionComment?.trim() || null;
   const currentItemsText = input.currentItems?.trim() || null;
 
-  const contextResult = buildTaskContext({
-    taskType,
-    availableData: {
-      inquiryText: inquiryContextText || null,
-      customerName: inquiryContext?.inquiry.customerName ?? null,
-      customerEmail: inquiryContext?.inquiry.customerEmail ?? null,
-      pricingBlocks: pricingBlocksText,
-      businessMemorySummary: businessMemorySummaryText,
+  // Stage C: structured draft generation.
+  const systemInstructions = buildQuoteDraftPrompt(
+    buildGroundedContext({
+      inquiryContextText,
+      candidates: stageB.candidates,
+      evidence: stageB.evidence,
       revisionContext,
-      currentItems: currentItemsText,
-    },
-  });
-
-  // Use the prompt template to build the system prompt
-  const systemInstructions = buildQuoteDraftPrompt(contextResult.assembledContext);
+      currentItemsText,
+    }),
+  );
 
   const userMessage = [
     "Business and inquiry context is below. Generate the quote draft now.",
-    "Remember: only price items that match approved pricing sources. Mark everything else as needs_review or no_pricing_found with unitPriceInCents = 0.",
+    "Return zero prices and select pricing candidate ids only — the server applies the saved prices.",
   ].join("\n");
 
-  const taskConfig = getTaskConfig(taskType);
-  const promptVersionHash = hashPromptVersion(systemInstructions);
+  const taskConfig = {
+    temperature: 0.3,
+    maxOutputTokens: 4000,
+    qualityTier: "balanced" as const,
+    cacheTTL: 3600,
+  };
+
+  const promptVersionHash = contentHash(systemInstructions);
 
   const completionRequest: AiCompletionRequest = {
     model: "",
@@ -1172,134 +1304,109 @@ export async function generateQuoteDraftForBusiness(
     qualityTier: taskConfig.qualityTier as AiQualityTier,
   };
 
-  // Build source data versions for cache key
-  const sourceDataVersions: Record<string, string | null> = {
-    inquiry: inquiryContext?.inquiry.createdAt.toISOString() ?? null,
-    pricingLibrary: pricingLibrary.length > 0
-      ? pricingLibrary.map((e) => e.id).sort().join(",")
-      : null,
-    brief: input.brief ?? null,
-    revisionComment: input.revisionComment ?? null,
-    currentItems: input.currentItems ?? null,
-    currentItemsData: input.currentItemsData
-      ? JSON.stringify(input.currentItemsData)
-      : null,
-  };
-
-  // Check cache (non-streaming path for quote_draft uses cache)
+  // Cache fingerprint: prompt version + template hash + source data hashes.
   const cacheKey: CacheKeyComponents = {
     businessId: input.businessId,
     userId: input.userId,
     taskType,
-    promptVersion: promptVersionHash,
+    promptVersion: `${GROUNDED_DRAFT_PROMPT_VERSION}:${promptVersionHash}`,
     modelTier: taskConfig.qualityTier as AiQualityTier,
-    sourceDataVersions,
+    sourceDataVersions: buildCacheSourceDataVersions({
+      inquiryKey: inquiryContext
+        ? `${inquiryContext.inquiry.id}:${inquiryContext.inquiry.createdAt.toISOString()}`
+        : null,
+      inquiryText,
+      candidates: stageB.candidates,
+      evidence: stageB.evidence,
+      brief: input.brief ?? null,
+      revisionComment: input.revisionComment ?? null,
+      currentItems: input.currentItems ?? null,
+      currentItemsData: input.currentItemsData,
+    }),
   };
 
   const cachedOutput = await getCachedOutput(cacheKey);
 
   if (cachedOutput) {
-    // Cache hit: log with zero tokens, skip usage deduction and cooldown
-    const cacheStartTime = Date.now();
-
-    await logAiInvocation({
-      userId: input.userId,
-      businessId: input.businessId,
-      taskType,
-      model: cachedOutput.model,
-      provider: cachedOutput.provider,
-      inputTokens: 0,
-      outputTokens: 0,
-      cacheHit: true,
-      latencyMs: Date.now() - cacheStartTime,
-      status: "success",
-    }).catch((logError) => {
-      console.warn("[quote-generator] Failed to log cache hit:", logError);
-    });
-
-    // Parse the cached text as a draft
+    // Cache hit: re-run the deterministic hydration/verification so the
+    // cached response is never trusted without verification.
     const cachedJson = extractJsonObject(cachedOutput.text);
+
     if (cachedJson) {
       try {
         const cachedParsed = JSON.parse(cachedJson);
-        const cachedValidation = quoteDraftResponseSchema.safeParse(cachedParsed);
+        const cachedValidation = groundedDraftResponseSchema.safeParse(cachedParsed);
+
         if (cachedValidation.success) {
-          const cachedItems = expandPackageItems(
-            cachedValidation.data.items
-              .map((item) =>
-                normaliseDraftItem(item, {
-                  pricingLibraryIds,
-                  pastQuoteIds,
-                  libraryNameById,
-                  libraryIdsByName,
-                  quoteLabelById,
-                  hasMemory: memory.memories.length > 0,
-                }),
-              )
-              .filter((item) => item.description.length > 0),
-            { libraryEntryById, libraryEntryByName },
-          ).slice(0, MAX_DRAFT_ITEMS);
+          const cachedDraft = await finalizeDraft({
+            businessId: input.businessId,
+            userId: input.userId,
+            taskType,
+            title: cachedValidation.data.title,
+            notes: cachedValidation.data.notes,
+            rationale: cachedValidation.data.rationale,
+            pricingLibraryEntryId: cachedValidation.data.pricingLibraryEntryId,
+            rawItems: cachedValidation.data.items,
+            rawMissingInfo: cachedValidation.data.missingInfo,
+            rawClarification: cachedValidation.data.clarificationMessage,
+            candidates: stageB.candidates,
+            currency,
+            evidenceById: stageB.evidenceById,
+            currentItemsData: (input as GenerateQuoteDraftInput).currentItemsData ?? null,
+            model: cachedOutput.model,
+            provider: cachedOutput.provider as AiProviderName,
+            taskConfig: { ...taskConfig, cacheTTL: 0 },
+            cacheKey,
+            responseText: cachedOutput.text,
+            responseUsage: cachedOutput.usage,
+            responseModel: cachedOutput.model,
+            responseProvider: cachedOutput.provider,
+            startTime: Date.now(),
+            fromCache: true,
+          });
 
-          if (cachedItems.length > 0) {
-            const cachedMissingInfo = normalizeAiQuoteMissingInfo(cachedValidation.data.missingInfo);
-            const cachedClarification = normalizeAiQuoteClarificationMessage({
-              message: cachedValidation.data.clarificationMessage,
-              missingInfo: cachedMissingInfo,
-            });
-
-            const cachedDraft: AiQuoteDraft = {
-              title: truncate(cachedValidation.data.title, 160),
-              notes: cachedValidation.data.notes?.trim()
-                ? truncate(cachedValidation.data.notes, 4000)
-                : null,
-              items: cachedItems,
-              missingInfo: cachedMissingInfo,
-              clarificationMessage: cachedClarification,
-              pricingLibraryEntryId: cachedValidation.data.pricingLibraryEntryId
-                ? pricingLibrary.find(
-                    (entry) => entry.id === cachedValidation.data.pricingLibraryEntryId && entry.currency === currency,
-                  )?.id ?? null
-                : null,
-              rationale: cachedValidation.data.rationale?.trim()
-                ? truncate(cachedValidation.data.rationale, 600)
-                : null,
+          if (cachedDraft) {
+            const cacheStartTime = Date.now();
+            await logAiInvocation({
+              userId: input.userId,
+              businessId: input.businessId,
+              taskType,
               model: cachedOutput.model,
-              provider: cachedOutput.provider as AiProviderName,
-              itemsNeedingReview: cachedItems.filter(
-                (item) => !PRICED_REVIEW_STATUSES.has(item.reviewStatus),
-              ).length,
-            };
+              provider: cachedOutput.provider,
+              inputTokens: 0,
+              outputTokens: 0,
+              cacheHit: true,
+              latencyMs: Date.now() - cacheStartTime,
+              status: "success",
+            }).catch((logError) => {
+              console.warn("[quote-generator] Failed to log cache hit:", logError);
+            });
 
             return { ok: true, draft: cachedDraft };
           }
         }
       } catch {
-        // Cached data is corrupt — fall through to fresh generation
+        // Cached data is corrupt — fall through to fresh generation.
       }
     }
   }
 
-  // Cache miss: invoke AI
+  // Cache miss: invoke AI.
   const startTime = Date.now();
 
   try {
     const response = await generateWithFallback(completionRequest);
-    const latencyMs = Date.now() - startTime;
-    const inputTokens = response.usage?.promptTokens ?? 0;
-    const outputTokens = response.usage?.completionTokens ?? 0;
 
     // --- AI Output Filtering ---
     const outputFilterResult = filterAiOutput(response.text, [
       "quote draft",
-      "approved pricing sources",
-      "needs_review",
-      "no_pricing_found",
+      "pricing candidates",
+      "matchType",
       "unitPriceInCents",
-    ], { canaryToken: generateCanaryToken(input.businessId) });
+    ]);
     if (outputFilterResult.status === "redacted") {
-      const isCanaryLeak = outputFilterResult.redactedPatterns.includes("canary_leak_detected");
       logAiSecurityEvent({
-        eventType: isCanaryLeak ? "canary_leak_detected" : "output_redacted",
+        eventType: "output_redacted",
         patternMatched: outputFilterResult.redactedPatterns.join(", "),
         userId: input.userId,
         businessId: input.businessId,
@@ -1308,153 +1415,45 @@ export async function generateQuoteDraftForBusiness(
     }
     const filteredResponseText = outputFilterResult.output;
 
-    const rawJson = extractJsonObject(filteredResponseText);
+    const parsed = await parseModelDraftResponse(filteredResponseText);
 
-    if (!rawJson) {
-      console.error("[quote-generator] No JSON found in response. Raw text:", filteredResponseText.slice(0, 500));
-      return {
-        ok: false,
-        error: "The assistant did not return a valid draft. Try again.",
-      };
-    }
-
-    const parsedJson = parseJsonSafe(rawJson);
-    if (parsedJson === null) {
-      console.error("[quote-generator] JSON parse failed. Extracted JSON:", rawJson.slice(0, 500));
-      return {
-        ok: false,
-        error: "The assistant returned malformed draft data. Try again.",
-      };
-    }
-
-    const validation = quoteDraftResponseSchema.safeParse(parsedJson);
-
-    if (!validation.success) {
-      console.error("[quote-generator] Zod validation failed:", JSON.stringify(validation.error.issues.slice(0, 5)));
+    if (!parsed) {
       return {
         ok: false,
         error: "The assistant returned an incomplete draft. Try again.",
       };
     }
 
-    const normalisedItems = validation.data.items
-      .map((item) =>
-        normaliseDraftItem(item, {
-                  pricingLibraryIds,
-                  pastQuoteIds,
-                  libraryNameById,
-                  libraryIdsByName,
-                  quoteLabelById,
-                  hasMemory: memory.memories.length > 0,
-                }),
-      )
-      .filter((item) => item.description.length > 0);
+    const draft = await finalizeDraft({
+      businessId: input.businessId,
+      userId: input.userId,
+      taskType,
+      title: parsed.title,
+      notes: parsed.notes,
+      rationale: parsed.rationale,
+      pricingLibraryEntryId: parsed.pricingLibraryEntryId,
+      rawItems: parsed.items,
+      rawMissingInfo: parsed.missingInfo,
+      rawClarification: parsed.clarificationMessage,
+      candidates: stageB.candidates,
+      currency,
+      evidenceById: stageB.evidenceById,
+      model: response.model,
+      provider: response.provider as AiProviderName,
+      taskConfig,
+      cacheKey,
+      responseText: response.text,
+      responseUsage: response.usage,
+      responseModel: response.model,
+      responseProvider: response.provider,
+      startTime,
+    });
 
-    // For revisions: merge AI's changes against current items (delta-merge approach).
-    // For fresh drafts: use the standard expansion which uses library quantities.
-    const items =
-      revisionContext && input.currentItemsData && input.currentItemsData.length > 0
-        ? mergeRevisionWithCurrentItems(
-            normalisedItems,
-            input.currentItemsData,
-            new Set([...libraryEntryByName.keys()]),
-            input.revisionComment ?? null,
-            libraryEntryByName,
-          ).slice(0, MAX_DRAFT_ITEMS)
-        : expandPackageItems(
-            normalisedItems,
-            { libraryEntryById, libraryEntryByName },
-          ).slice(0, MAX_DRAFT_ITEMS);
-
-    if (!items.length) {
+    if (!draft) {
       return {
         ok: false,
         error: "The assistant returned no usable line items. Try again.",
       };
-    }
-
-    // Cache the raw AI output for future requests
-    if (taskConfig.cacheTTL > 0) {
-      const cachedResult: CachedAiOutput = {
-        text: response.text,
-        model: response.model,
-        provider: response.provider,
-        createdAt: new Date().toISOString(),
-        usage: response.usage,
-      };
-
-      await setCachedOutput(cacheKey, cachedResult, taskConfig.cacheTTL);
-    }
-
-    // Record usage and start cooldown
-    const weight = TASK_WEIGHTS[taskType];
-    await recordUsage(input.userId, input.businessId, taskType, weight);
-    await startCooldown(input.userId, taskType);
-
-    // Log tokens
-    await logAiInvocation({
-      userId: input.userId,
-      businessId: input.businessId,
-      taskType,
-      model: response.model,
-      provider: response.provider,
-      inputTokens,
-      outputTokens,
-      cacheHit: false,
-      latencyMs,
-      status: "success",
-    }).catch((logError) => {
-      console.warn("[quote-generator] Failed to log invocation:", logError);
-    });
-
-    const libraryEntryId = validation.data.pricingLibraryEntryId;
-    const knownEntryId = libraryEntryId
-      ? pricingLibrary.find(
-          (entry) => entry.id === libraryEntryId && entry.currency === currency,
-        )?.id ?? null
-      : null;
-    const missingInfo = normalizeAiQuoteMissingInfo(
-      validation.data.missingInfo,
-    );
-    const clarificationMessage = normalizeAiQuoteClarificationMessage({
-      message: validation.data.clarificationMessage,
-      missingInfo,
-    });
-
-    const itemsNeedingReview = items.filter(
-      (item) => !PRICED_REVIEW_STATUSES.has(item.reviewStatus),
-    ).length;
-
-    const draft: AiQuoteDraft = {
-      title: truncate(validation.data.title, 160),
-      notes: validation.data.notes?.trim()
-        ? truncate(validation.data.notes, 4000)
-        : null,
-      items,
-      missingInfo,
-      clarificationMessage,
-      pricingLibraryEntryId: knownEntryId,
-      rationale: validation.data.rationale?.trim()
-        ? truncate(validation.data.rationale, 600)
-        : null,
-      model: response.model,
-      provider: response.provider,
-      itemsNeedingReview,
-    };
-
-    // Save draft to draft store
-    if (input.inquiryId) {
-      await saveDraft({
-        businessId: input.businessId,
-        userId: input.userId,
-        entityId: input.inquiryId,
-        entityType: "inquiry",
-        taskType,
-        content: draft as unknown as Record<string, unknown>,
-        sourceDataTimestamp: inquiryContext?.inquiry.createdAt ?? new Date(),
-      }).catch((draftError) => {
-        console.warn("[quote-generator] Failed to save draft:", draftError);
-      });
     }
 
     return { ok: true, draft };
@@ -1462,7 +1461,6 @@ export async function generateQuoteDraftForBusiness(
     const latencyMs = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : "AI provider error";
 
-    // Log the failed invocation
     await logAiInvocation({
       userId: input.userId,
       businessId: input.businessId,
@@ -1490,7 +1488,7 @@ export async function generateQuoteDraftForBusiness(
 }
 
 // ---------------------------------------------------------------------------
-// Quote Improvement
+// Quote improvement
 // ---------------------------------------------------------------------------
 
 type GenerateQuoteImprovementInput = {
@@ -1529,7 +1527,6 @@ export async function generateQuoteImprovementForBusiness(
   }
 
   // --- AI Input Sanitization ---
-  // The existingQuoteDraft is user-provided content that goes into the AI prompt.
   if (input.existingQuoteDraft.trim()) {
     const sanitization = await sanitizeAiInput(input.existingQuoteDraft);
 
@@ -1561,7 +1558,7 @@ export async function generateQuoteImprovementForBusiness(
 
   const currency = businessRow.defaultCurrency;
 
-  // Fetch inquiry context
+  // Stage A: inquiry context.
   const inquiryContext = await getInquiryAssistantContextForBusiness({
     businessId: input.businessId,
     inquiryId: input.inquiryId,
@@ -1574,7 +1571,6 @@ export async function generateQuoteImprovementForBusiness(
     };
   }
 
-  // Assemble the inquiry text for pricing retrieval
   const inquiryText = [
     inquiryContext.inquiry.subject ?? "",
     inquiryContext.inquiry.details ?? "",
@@ -1583,94 +1579,38 @@ export async function generateQuoteImprovementForBusiness(
     .filter(Boolean)
     .join(" ");
 
-  // Use pricing retriever to get only relevant pricing blocks (Requirement 3.1)
-  const [pricingResult, memory, relevantContext] = await Promise.all([
-    retrieveRelevantPricing({
-      inquiryText,
-      businessId: input.businessId,
-      currency,
-    }),
-    buildBusinessMemoryContext(input.businessId),
-    retrieveRelevantContext({
-      businessId: input.businessId,
-      searchText: inquiryText,
-      currency,
-      excludeInquiryId: input.inquiryId,
-    }),
-  ]);
-
-  const pricingLibrary = pricingResult.entries;
-
-  const pricingLibraryIds = new Set(pricingLibrary.map((entry) => entry.id));
-  const pastQuoteIds = new Set(
-    (inquiryContext.relatedQuotes ?? []).map((quote) => quote.id),
-  );
-  const libraryNameById = new Map(
-    pricingLibrary.map((entry) => [entry.id, entry.name]),
-  );
-  const libraryIdsByName = new Map(
-    pricingLibrary.map((entry) => [entry.name.toLowerCase(), entry.id]),
-  );
-  const libraryEntryById = new Map(
-    pricingLibrary.map((entry) => [entry.id, entry]),
-  );
-  const libraryEntryByName = new Map(
-    pricingLibrary.map((entry) => [entry.name.toLowerCase(), entry]),
-  );
-  const quoteLabelById = new Map(
-    (inquiryContext.relatedQuotes ?? []).map((quote) => [
-      quote.id,
-      quote.quoteNumber || quote.title,
-    ]),
-  );
-
-  // Format pricing blocks as a string for context
-  const pricingBlocksText = formatPricingLibrary(pricingLibrary, currency);
-
-  // Format business memory summary (≤500 chars as per Requirement 2.3)
-  const businessMemorySummaryText = truncate(formatMemoryLines(memory), 500);
-
-  // Format inquiry text for context (include relevant past data if found)
-  let inquiryContextText = formatInquiryContextLines(inquiryContext, currency);
-
-  // Append relevant past inquiries/quotes from the database
-  if (relevantContext.hasResults) {
-    const pastDataLines: string[] = [];
-    if (relevantContext.pastInquiries) {
-      pastDataLines.push(`\nRelevant past inquiries from this business:\n${relevantContext.pastInquiries}`);
-    }
-    if (relevantContext.pastQuotes) {
-      pastDataLines.push(`\nRelevant past quotes from this business:\n${relevantContext.pastQuotes}`);
-    }
-    if (pastDataLines.length > 0) {
-      inquiryContextText += pastDataLines.join("\n");
-    }
-  }
-
-  // Build context via context builder to enforce character budget (Requirement 2.2, 2.4)
-  const taskType = "quote_improvement" as const;
-  const contextResult = buildTaskContext({
-    taskType,
-    availableData: {
-      inquiryText: inquiryContextText || null,
-      customerName: inquiryContext.inquiry.customerName ?? null,
-      customerEmail: inquiryContext.inquiry.customerEmail ?? null,
-      pricingBlocks: pricingBlocksText,
-      businessMemorySummary: businessMemorySummaryText,
-      existingQuoteDraft: input.existingQuoteDraft,
-    },
+  // Stage B: retrieve knowledge evidence and pricing candidates.
+  const stageB = await retrieveStageB({
+    businessId: input.businessId,
+    queryText: inquiryText,
+    currency,
   });
 
-  // Use the prompt template to build the system prompt
-  const systemInstructions = buildQuoteImprovementPrompt(contextResult.assembledContext);
+  const inquiryContextText = formatInquiryContextLines(inquiryContext, currency);
+  const taskType = "quote_improvement" as const;
+
+  const systemInstructions = buildQuoteImprovementPrompt(
+    buildGroundedContext({
+      inquiryContextText,
+      candidates: stageB.candidates,
+      evidence: stageB.evidence,
+      existingDraftText: input.existingQuoteDraft,
+    }),
+  );
 
   const userMessage = [
     "Improve the existing quote draft based on the context above.",
-    "Remember: only price items that match approved pricing sources. Mark everything else as needs_review or no_pricing_found with unitPriceInCents = 0.",
+    "Return zero prices and select pricing candidate ids only — the server applies the saved prices.",
   ].join("\n");
 
-  const taskConfig = getTaskConfig(taskType);
-  const promptVersionHash = hashPromptVersion(systemInstructions);
+  const taskConfig = {
+    temperature: 0.3,
+    maxOutputTokens: 4000,
+    qualityTier: "balanced" as const,
+    cacheTTL: 3600,
+  };
+
+  const promptVersionHash = contentHash(systemInstructions);
 
   const completionRequest: AiCompletionRequest = {
     model: "",
@@ -1683,127 +1623,102 @@ export async function generateQuoteImprovementForBusiness(
     qualityTier: taskConfig.qualityTier as AiQualityTier,
   };
 
-  // Build source data versions for cache key
-  const sourceDataVersions: Record<string, string | null> = {
-    inquiry: inquiryContext.inquiry.createdAt.toISOString(),
-    pricingLibrary: pricingLibrary.length > 0
-      ? pricingLibrary.map((e) => e.id).sort().join(",")
-      : null,
-    existingDraft: input.existingQuoteDraft.slice(0, 64),
-  };
-
-  // Check cache
   const cacheKey: CacheKeyComponents = {
     businessId: input.businessId,
     userId: input.userId,
     taskType,
-    promptVersion: promptVersionHash,
+    promptVersion: `${GROUNDED_IMPROVEMENT_PROMPT_VERSION}:${promptVersionHash}`,
     modelTier: taskConfig.qualityTier as AiQualityTier,
-    sourceDataVersions,
+    sourceDataVersions: buildCacheSourceDataVersions({
+      inquiryKey: `${inquiryContext.inquiry.id}:${inquiryContext.inquiry.createdAt.toISOString()}`,
+      inquiryText,
+      candidates: stageB.candidates,
+      evidence: stageB.evidence,
+      brief: input.existingQuoteDraft.slice(0, 4000) ?? null,
+      revisionComment: null,
+      currentItems: null,
+      currentItemsData: null,
+    }),
   };
 
   const cachedOutput = await getCachedOutput(cacheKey);
 
   if (cachedOutput) {
-    const cacheStartTime = Date.now();
-
-    await logAiInvocation({
-      userId: input.userId,
-      businessId: input.businessId,
-      taskType,
-      model: cachedOutput.model,
-      provider: cachedOutput.provider,
-      inputTokens: 0,
-      outputTokens: 0,
-      cacheHit: true,
-      latencyMs: Date.now() - cacheStartTime,
-      status: "success",
-    }).catch((logError) => {
-      console.warn("[quote-generator] Failed to log cache hit:", logError);
-    });
-
     const cachedJson = extractJsonObject(cachedOutput.text);
+
     if (cachedJson) {
       try {
         const cachedParsed = JSON.parse(cachedJson);
-        const cachedValidation = quoteDraftResponseSchema.safeParse(cachedParsed);
+        const cachedValidation = groundedDraftResponseSchema.safeParse(cachedParsed);
+
         if (cachedValidation.success) {
-          const cachedItems = expandPackageItems(
-            cachedValidation.data.items
-              .map((item) =>
-                normaliseDraftItem(item, {
-                  pricingLibraryIds,
-                  pastQuoteIds,
-                  libraryNameById,
-                  libraryIdsByName,
-                  quoteLabelById,
-                  hasMemory: memory.memories.length > 0,
-                }),
-              )
-              .filter((item) => item.description.length > 0),
-            { libraryEntryById, libraryEntryByName },
-          ).slice(0, MAX_DRAFT_ITEMS);
+          const cachedDraft = await finalizeDraft({
+            businessId: input.businessId,
+            userId: input.userId,
+            taskType,
+            title: cachedValidation.data.title,
+            notes: cachedValidation.data.notes,
+            rationale: cachedValidation.data.rationale,
+            pricingLibraryEntryId: cachedValidation.data.pricingLibraryEntryId,
+            rawItems: cachedValidation.data.items,
+            rawMissingInfo: cachedValidation.data.missingInfo,
+            rawClarification: cachedValidation.data.clarificationMessage,
+            candidates: stageB.candidates,
+            currency,
+            evidenceById: stageB.evidenceById,
+            currentItemsData: (input as GenerateQuoteDraftInput).currentItemsData ?? null,
+            model: cachedOutput.model,
+            provider: cachedOutput.provider as AiProviderName,
+            taskConfig: { ...taskConfig, cacheTTL: 0 },
+            cacheKey,
+            responseText: cachedOutput.text,
+            responseUsage: cachedOutput.usage,
+            responseModel: cachedOutput.model,
+            responseProvider: cachedOutput.provider,
+            startTime: Date.now(),
+            fromCache: true,
+          });
 
-          if (cachedItems.length > 0) {
-            const cachedMissingInfo = normalizeAiQuoteMissingInfo(cachedValidation.data.missingInfo);
-            const cachedClarification = normalizeAiQuoteClarificationMessage({
-              message: cachedValidation.data.clarificationMessage,
-              missingInfo: cachedMissingInfo,
-            });
-
-            const cachedDraft: AiQuoteDraft = {
-              title: truncate(cachedValidation.data.title, 160),
-              notes: cachedValidation.data.notes?.trim()
-                ? truncate(cachedValidation.data.notes, 4000)
-                : null,
-              items: cachedItems,
-              missingInfo: cachedMissingInfo,
-              clarificationMessage: cachedClarification,
-              pricingLibraryEntryId: cachedValidation.data.pricingLibraryEntryId
-                ? pricingLibrary.find(
-                    (entry) => entry.id === cachedValidation.data.pricingLibraryEntryId && entry.currency === currency,
-                  )?.id ?? null
-                : null,
-              rationale: cachedValidation.data.rationale?.trim()
-                ? truncate(cachedValidation.data.rationale, 600)
-                : null,
+          if (cachedDraft) {
+            const cacheStartTime = Date.now();
+            await logAiInvocation({
+              userId: input.userId,
+              businessId: input.businessId,
+              taskType,
               model: cachedOutput.model,
-              provider: cachedOutput.provider as AiProviderName,
-              itemsNeedingReview: cachedItems.filter(
-                (item) => !PRICED_REVIEW_STATUSES.has(item.reviewStatus),
-              ).length,
-            };
+              provider: cachedOutput.provider,
+              inputTokens: 0,
+              outputTokens: 0,
+              cacheHit: true,
+              latencyMs: Date.now() - cacheStartTime,
+              status: "success",
+            }).catch((logError) => {
+              console.warn("[quote-generator] Failed to log cache hit:", logError);
+            });
 
             return { ok: true, draft: cachedDraft };
           }
         }
       } catch {
-        // Cached data is corrupt — fall through to fresh generation
+        // Corrupt cache — fall through to fresh generation.
       }
     }
   }
 
-  // Cache miss: invoke AI
   const startTime = Date.now();
 
   try {
     const response = await generateWithFallback(completionRequest);
-    const latencyMs = Date.now() - startTime;
-    const inputTokens = response.usage?.promptTokens ?? 0;
-    const outputTokens = response.usage?.completionTokens ?? 0;
 
-    // --- AI Output Filtering ---
     const outputFilterResult = filterAiOutput(response.text, [
       "quote improvement",
-      "approved pricing sources",
-      "needs_review",
-      "no_pricing_found",
+      "pricing candidates",
+      "matchType",
       "unitPriceInCents",
-    ], { canaryToken: generateCanaryToken(input.businessId) });
+    ]);
     if (outputFilterResult.status === "redacted") {
-      const isCanaryLeak = outputFilterResult.redactedPatterns.includes("canary_leak_detected");
       logAiSecurityEvent({
-        eventType: isCanaryLeak ? "canary_leak_detected" : "output_redacted",
+        eventType: "output_redacted",
         patternMatched: outputFilterResult.redactedPatterns.join(", "),
         userId: input.userId,
         businessId: input.businessId,
@@ -1812,136 +1727,46 @@ export async function generateQuoteImprovementForBusiness(
     }
     const filteredResponseText = outputFilterResult.output;
 
-    const rawJson = extractJsonObject(filteredResponseText);
+    const parsed = await parseModelDraftResponse(filteredResponseText);
 
-    if (!rawJson) {
+    if (!parsed) {
       return {
         ok: false,
-        error: "The assistant did not return a valid improved draft. Try again.",
+        error: "The assistant returned an incomplete improved draft. Try again.",
       };
     }
 
-    const parsedJson = parseJsonSafe(rawJson);
-    if (parsedJson === null) {
-      return {
-        ok: false,
-        error: "The assistant returned malformed draft data. Try again.",
-      };
-    }
+    const draft = await finalizeDraft({
+      businessId: input.businessId,
+      userId: input.userId,
+      taskType,
+      title: parsed.title,
+      notes: parsed.notes,
+      rationale: parsed.rationale,
+      pricingLibraryEntryId: parsed.pricingLibraryEntryId,
+      rawItems: parsed.items,
+      rawMissingInfo: parsed.missingInfo,
+      rawClarification: parsed.clarificationMessage,
+      candidates: stageB.candidates,
+      currency,
+      evidenceById: stageB.evidenceById,
+      model: response.model,
+      provider: response.provider as AiProviderName,
+      taskConfig,
+      cacheKey,
+      responseText: response.text,
+      responseUsage: response.usage,
+      responseModel: response.model,
+      responseProvider: response.provider,
+      startTime,
+    });
 
-    const validation = quoteDraftResponseSchema.safeParse(parsedJson);
-
-    if (!validation.success) {
-      return {
-        ok: false,
-        error: "The assistant returned an incomplete draft. Try again.",
-      };
-    }
-
-    const items = expandPackageItems(
-      validation.data.items
-        .map((item) =>
-          normaliseDraftItem(item, {
-                  pricingLibraryIds,
-                  pastQuoteIds,
-                  libraryNameById,
-                  libraryIdsByName,
-                  quoteLabelById,
-                  hasMemory: memory.memories.length > 0,
-                }),
-        )
-        .filter((item) => item.description.length > 0),
-      { libraryEntryById, libraryEntryByName },
-    ).slice(0, MAX_DRAFT_ITEMS);
-
-    if (!items.length) {
+    if (!draft) {
       return {
         ok: false,
         error: "The assistant returned no usable line items. Try again.",
       };
     }
-
-    // Cache the raw AI output
-    if (taskConfig.cacheTTL > 0) {
-      const cachedResult: CachedAiOutput = {
-        text: response.text,
-        model: response.model,
-        provider: response.provider,
-        createdAt: new Date().toISOString(),
-        usage: response.usage,
-      };
-
-      await setCachedOutput(cacheKey, cachedResult, taskConfig.cacheTTL);
-    }
-
-    // Record usage and start cooldown
-    const weight = TASK_WEIGHTS[taskType];
-    await recordUsage(input.userId, input.businessId, taskType, weight);
-    await startCooldown(input.userId, taskType);
-
-    // Log tokens
-    await logAiInvocation({
-      userId: input.userId,
-      businessId: input.businessId,
-      taskType,
-      model: response.model,
-      provider: response.provider,
-      inputTokens,
-      outputTokens,
-      cacheHit: false,
-      latencyMs,
-      status: "success",
-    }).catch((logError) => {
-      console.warn("[quote-generator] Failed to log invocation:", logError);
-    });
-
-    const libraryEntryId = validation.data.pricingLibraryEntryId;
-    const knownEntryId = libraryEntryId
-      ? pricingLibrary.find(
-          (entry) => entry.id === libraryEntryId && entry.currency === currency,
-        )?.id ?? null
-      : null;
-    const missingInfo = normalizeAiQuoteMissingInfo(
-      validation.data.missingInfo,
-    );
-    const clarificationMessage = normalizeAiQuoteClarificationMessage({
-      message: validation.data.clarificationMessage,
-      missingInfo,
-    });
-
-    const itemsNeedingReview = items.filter(
-      (item) => !PRICED_REVIEW_STATUSES.has(item.reviewStatus),
-    ).length;
-
-    const draft: AiQuoteDraft = {
-      title: truncate(validation.data.title, 160),
-      notes: validation.data.notes?.trim()
-        ? truncate(validation.data.notes, 4000)
-        : null,
-      items,
-      missingInfo,
-      clarificationMessage,
-      pricingLibraryEntryId: knownEntryId,
-      rationale: validation.data.rationale?.trim()
-        ? truncate(validation.data.rationale, 600)
-        : null,
-      model: response.model,
-      provider: response.provider,
-      itemsNeedingReview,
-    };
-
-    // Save draft to draft store
-    await saveDraft({
-      businessId: input.businessId,
-      userId: input.userId,
-      entityId: input.inquiryId,
-      entityType: "inquiry",
-      taskType,
-      content: draft as unknown as Record<string, unknown>,
-      sourceDataTimestamp: inquiryContext.inquiry.createdAt,
-    }).catch((draftError) => {
-      console.warn("[quote-generator] Failed to save draft:", draftError);
-    });
 
     return { ok: true, draft };
   } catch (error) {
@@ -1964,7 +1789,7 @@ export async function generateQuoteImprovementForBusiness(
       console.warn("[quote-generator] Failed to log error:", logError);
     });
 
-    console.error("Failed to generate quote improvement.", error);
+    console.error("Failed to improve quote draft.", error);
 
     return {
       ok: false,

@@ -62,7 +62,11 @@ export function normalizeAiQuoteMissingInfo(
       continue;
     }
 
-    normalizedItems.push({ label, question });
+    normalizedItems.push({
+      label,
+      question,
+      critical: item.critical === true,
+    });
     seenKeys.add(key);
 
     if (normalizedItems.length >= MAX_MISSING_INFO_ITEMS) {

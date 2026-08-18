@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash } from "crypto";
 
-import type { AiTaskType } from "@/features/ai/task-registry";
+import type { AiTaskType } from "./types";
 import type { AiQualityTier } from "./types";
 import { cacheLayer } from "@/lib/ai/cache-layer";
 
@@ -12,11 +12,7 @@ import { cacheLayer } from "@/lib/ai/cache-layer";
 // cross-user cache sharing within the same business.
 // ---------------------------------------------------------------------------
 
-export const BUSINESS_SCOPED_TASKS: ReadonlySet<AiTaskType> = new Set([
-  "inquiry_summary",
-  "form_suggestion",
-  "business_memory_summary",
-]);
+export const BUSINESS_SCOPED_TASKS: ReadonlySet<AiTaskType> = new Set([]);
 
 /** Sentinel userId value used in cache keys for business-scoped tasks. */
 const BUSINESS_SCOPE_USER_SENTINEL = "__business__" as const;

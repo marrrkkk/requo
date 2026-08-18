@@ -1,11 +1,9 @@
 import type { InquiryPageTemplate } from "@/features/inquiries/page-config";
 import type { InquirySubmittedFieldSnapshot } from "@/features/inquiries/form-config";
-import type { BusinessMemoryContext } from "@/features/memory/types";
 import type { InquiryStatus } from "@/features/inquiries/types";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import type { FollowUpChannel, FollowUpStatus } from "@/features/follow-ups/types";
 import type {
-  QuotePostAcceptanceStatus,
   QuoteStatus,
 } from "@/features/quotes/types";
 import type { AiProviderName } from "@/lib/ai";
@@ -207,7 +205,6 @@ export type InquiryAssistantContext = {
     totalInCents: number;
     validUntil: string;
     status: QuoteStatus;
-    postAcceptanceStatus: QuotePostAcceptanceStatus;
     sentAt: Date | null;
     acceptedAt: Date | null;
     publicViewedAt: Date | null;
@@ -231,7 +228,6 @@ export type InquiryAssistantContext = {
       actorName: string | null;
     }>;
   }>;
-  memory: BusinessMemoryContext;
   messages: Array<{
     id: string;
     role: "user" | "assistant" | "system";
@@ -257,6 +253,21 @@ export const aiQuoteDraftItemReviewStatuses = [
 
 export type AiQuoteDraftItemReviewStatus =
   (typeof aiQuoteDraftItemReviewStatuses)[number];
+
+export type AiQuoteReadiness = "ready" | "needs_confirmation" | "scope_only";
+
+export type AiQuotePricingStatus =
+  | "verified"
+  | "suggested"
+  | "unpriced"
+  | "owner_set";
+
+export type AiQuoteKnowledgeCitation = {
+  sourceType: "manual_memory" | "uploaded_file";
+  sourceId: string;
+  chunkId: string;
+  title: string;
+};
 
 export const aiQuoteDraftItemPricingSources = [
   "pricing_library_block",
@@ -299,6 +310,22 @@ export type AiQuoteDraftItem = {
   confidence: AiQuoteDraftItemConfidence;
   /** Required review state. Drives the editor warning + send guard. */
   reviewStatus: AiQuoteDraftItemReviewStatus;
+  /**
+   * Grounded pricing state persisted with the quote. `owner_set` when the
+   * owner edited a generated item. Never set by the model — always
+   * determined by server-side hydration/verification.
+   */
+  aiPricingStatus: AiQuotePricingStatus | null;
+  /** Source references behind the item's price, set by deterministic hydration. */
+  aiEvidence: {
+    entryId: string | null;
+    itemId: string | null;
+    sourceLabel: string | null;
+    matchType: "exact" | "suggested" | "none";
+    reason: string;
+  } | null;
+  /** Knowledge citations the item's scope or wording relied on. */
+  aiKnowledgeCitations: AiQuoteKnowledgeCitation[];
   /** Short reason explaining why this item was chosen. */
   reason: string;
 };
@@ -306,6 +333,8 @@ export type AiQuoteDraftItem = {
 export type AiQuoteMissingInfoItem = {
   label: string;
   question: string;
+  /** Critical questions must be resolved or acknowledged before sending. */
+  critical?: boolean;
 };
 
 export type AiQuoteDraft = {
@@ -321,6 +350,17 @@ export type AiQuoteDraft = {
   rationale?: string | null;
   /** Count of items the owner still needs to price before the quote can be sent. */
   itemsNeedingReview: number;
+  /**
+   * Server-computed readiness. Never trusted from the model.
+   * - `ready`: all items verified or owner-set, no critical questions.
+   * - `needs_confirmation`: suggested matches or critical questions remain.
+   * - `scope_only`: required items are unpriced or pricing coverage is missing.
+   */
+  readiness: AiQuoteReadiness;
+  /** Correlation id persisted with the quote for observability. */
+  aiGenerationId: string;
+  /** Knowledge evidence the draft relied on (scope/wording, never pricing). */
+  knowledgeCitations: AiQuoteKnowledgeCitation[];
 };
 
 export type AiQuoteDraftActionState = {

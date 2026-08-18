@@ -1,30 +1,31 @@
 /**
- * Prompt template for the quote_improvement task.
+ * Prompt template for the quote_improvement task — grounded pipeline.
  *
  * Complex task — structured output, system prompt ≤1600 tokens.
- * Context fields: inquiryText, customerName, customerEmail, pricingBlocks,
- *                 businessMemorySummary, existingQuoteDraft
+ * Context is a pre-assembled text block (inquiry, knowledge evidence,
+ * pricing candidates, existing quote draft).
+ *
+ * The model NEVER authors prices. It returns candidate IDs and match types;
+ * the server hydrates actual prices from the pricing library deterministically.
  */
-export function buildQuoteImprovementPrompt(
-  context: Record<string, string>,
-): string {
+export function buildQuoteImprovementPrompt(contextText: string): string {
   const lines = [
-    "Improve the existing quote draft below based on the inquiry context and approved pricing.",
-    "Use a professional tone. All prices in cents (integer). No currency symbols.",
+    "Improve the existing quote draft below based on the inquiry context, knowledge evidence, and pricing candidates.",
+    "Use a professional tone.",
     "",
     "IMPROVEMENT GOALS:",
-    "- Fix pricing errors: match items to approved pricing blocks where possible.",
+    "- Match line items to pricing candidates where the saved draft missed an obvious candidate.",
     "- Improve descriptions: make them clearer and more customer-friendly.",
     "- Add missing items that the inquiry implies but the draft omits.",
     "- Remove irrelevant items not supported by the inquiry.",
     "- Improve structure and ordering for clarity.",
     "",
-    "PRICING RULES:",
-    "- Only include unitPriceInCents > 0 when taken directly from provided pricing blocks or business memory.",
-    "- If no approved pricing exists, set unitPriceInCents to 0 and reviewStatus to \"needs_review\".",
-    "- Never invent, interpolate, or guess prices.",
-    "- For entries marked (package): list EACH line item from the package as a SEPARATE item in the items array. Use the exact unitPriceInCents and quantity from each package line item. Set pricingSource to \"pricing_library_package\" and pricingSourceLabel to the package name. Do NOT create a single summary row for the whole package.",
-    "- For entries marked (block): use the block's price directly. Set pricingSource to \"pricing_library_block\" and pricingSourceLabel to the block name.",
+    "MONETARY RULES (CRITICAL):",
+    "- You NEVER set prices. All unitPriceInCents MUST be 0; the server applies prices from the candidates you select.",
+    "- For each item, select a pricing candidate id from the \"PRICING CANDIDATES\" section or set pricingCandidateId to null.",
+    "- Use matchType \"exact\" only for certain, full coverage. Use \"suggested\" for related-but-uncertain. Use \"none\" when nothing fits.",
+    "- Business knowledge and past quotes are context only — never price sources.",
+    "- For package candidates, list EACH package line item separately with the same candidate id.",
     "",
     "Output JSON matching this shape:",
     `{`,
@@ -36,34 +37,21 @@ export function buildQuoteImprovementPrompt(
     `      "name": "string (≤120 chars)",`,
     `      "description": "string (≤400 chars)",`,
     `      "quantity": "integer ≥ 1",`,
-    `      "unitPriceInCents": "integer ≥ 0",`,
-    `      "pricingSource": "pricing_library_block" | "pricing_library_package" | "past_quote" | "business_memory" | "owner_brief" | "none",`,
-    `      "pricingSourceLabel": "string or null",`,
-    `      "confidence": "high" | "medium" | "low",`,
-    `      "reviewStatus": "matched" | "calculated" | "needs_review" | "no_pricing_found",`,
+    `      "unitPriceInCents": 0 (ALWAYS 0 — the server prices the item)`,
+    `      "pricingCandidateId": "string or null",`,
+    `      "pricingItemId": "string or null",`,
+    `      "matchType": "exact" | "suggested" | "none",`,
+    `      "knowledgeCitationIds": ["chunkId or sourceId strings"],`,
     `      "reason": "string"`,
     `    }`,
     `  ],`,
-    `  "missingInfo": [{ "label": "string", "question": "string" }],`,
+    `  "missingInfo": [{ "label": "string", "question": "string", "critical": true }],`,
     `  "clarificationMessage": "string or null"`,
     `}`,
     "",
     "Do not wrap in markdown. Return JSON only.",
     "",
-    `Customer: ${context.customerName ?? "Unknown"}`,
-    context.customerEmail ? `Email: ${context.customerEmail}` : "",
-    "",
-    "Inquiry:",
-    context.inquiryText ?? "",
-    "",
-    "Existing quote draft:",
-    context.existingQuoteDraft ?? "None.",
-    "",
-    "Approved pricing blocks:",
-    context.pricingBlocks ?? "None available.",
-    "",
-    "Business memory:",
-    context.businessMemorySummary ?? "None available.",
+    contextText.trim(),
   ];
 
   return lines.filter(Boolean).join("\n");

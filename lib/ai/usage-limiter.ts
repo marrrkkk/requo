@@ -1,21 +1,23 @@
 import "server-only";
 
-import { and, eq, gte, sql, sum } from "drizzle-orm";
+import { and, eq, gte, sum } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { aiUsageEvents } from "@/lib/db/schema";
-import type { AiTaskType } from "@/features/ai/task-registry";
+import type { AiTaskType } from "./types";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { getUpgradePlan, planMeta } from "@/lib/plans/plans";
+import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { cacheLayer } from "@/lib/ai/cache-layer";
 
 // ---------------------------------------------------------------------------
 // Usage Limiter — enforces monthly weighted usage limits and per-request cooldown
 //
-// Dual-scope tracking:
-// - User-level: sum of weighted usage across all businesses owned by the user
-// - Business-level: sum of weighted usage for the specific business
-// - Request rejected if either scope meets or exceeds the plan limit
+// Business-scoped tracking:
+// - Monthly weighted usage is summed per business (`aiUsageEvents.businessId`)
+// - Subscriptions are business-scoped, so each subscribed business receives
+//   its own full allowance; an owner's other businesses never consume it
+// - Requests are rejected only when the business's own usage meets the limit
 //
 // Cooldown:
 // - 3-second minimum between consecutive requests (same user + task type)
@@ -26,12 +28,16 @@ import { cacheLayer } from "@/lib/ai/cache-layer";
 
 // ---------------------------------------------------------------------------
 // Plan limits
+//
+// The monthly AI allowance is defined centrally in `lib/plans/usage-limits.ts`
+// (`aiWeightedCreditsPerMonth`). This compatibility constant is derived from
+// that single source of truth.
 // ---------------------------------------------------------------------------
 
 export const PLAN_LIMITS: Record<BusinessPlan, number> = {
-  free: 100,
-  pro: 500,
-  business: 2000,
+  free: getUsageLimit("free", "aiWeightedCreditsPerMonth") ?? 30,
+  pro: getUsageLimit("pro", "aiWeightedCreditsPerMonth") ?? 150,
+  business: getUsageLimit("business", "aiWeightedCreditsPerMonth") ?? 500,
 };
 
 // ---------------------------------------------------------------------------
@@ -39,15 +45,8 @@ export const PLAN_LIMITS: Record<BusinessPlan, number> = {
 // ---------------------------------------------------------------------------
 
 export const TASK_WEIGHTS: Record<AiTaskType, number> = {
-  inquiry_summary: 1,
-  followup_message: 1,
-  form_suggestion: 1,
-  business_memory_summary: 1,
   quote_improvement: 2,
   quote_draft: 3,
-  intent_classification: 1,
-  assistant_message: 1,
-  assistant_tool_call: 1,
 };
 
 // ---------------------------------------------------------------------------
@@ -89,10 +88,6 @@ function getCurrentMonthKey(): string {
   return `${year}-${month}`;
 }
 
-export function getUserUsageCacheKey(userId: string): string {
-  return `ai_usage:user:${userId}:${getCurrentMonthKey()}`;
-}
-
 export function getBusinessUsageCacheKey(businessId: string): string {
   return `ai_usage:business:${businessId}:${getCurrentMonthKey()}`;
 }
@@ -113,10 +108,10 @@ function getStartOfCurrentMonthUTC(): Date {
 /**
  * Checks whether an AI request is allowed based on:
  * 1. Cooldown (3-second minimum between same user + task type)
- * 2. Monthly weighted usage quota (user-level and business-level)
+ * 2. Monthly weighted usage quota (business-level)
  *
  * Uses a cache-first strategy:
- * - Reads cached usage counts from Cache_Layer (Redis + in-memory)
+ * - Reads the cached business usage count from Cache Layer (Redis + in-memory)
  * - On cache miss: falls through to DB SUM aggregate and caches the result
  * - On complete cache unavailability: falls through to DB aggregate
  *
@@ -147,13 +142,9 @@ export async function checkUsageLimit(
 
   // --- Quota check (cache-first with DB fallback) ---
   const limit = PLAN_LIMITS[plan];
+  const businessUsage = await getCachedOrDbBusinessUsage(businessId);
 
-  const { userUsage, businessUsage } = await getCachedOrDbUsage(
-    userId,
-    businessId,
-  );
-
-  if (userUsage >= limit || businessUsage >= limit) {
+  if (businessUsage >= limit) {
     return buildQuotaExceededResult(plan);
   }
 
@@ -161,29 +152,23 @@ export async function checkUsageLimit(
 }
 
 /**
- * Retrieves user-level and business-level monthly usage, using cache-first
- * strategy with DB fallback.
+ * Retrieves business-level monthly usage, using cache-first strategy with
+ * DB fallback.
  *
- * On cache hit: returns cached values immediately.
- * On cache miss: executes DB SUM aggregate and stores results with 60s TTL.
+ * On cache hit: returns the cached value immediately.
+ * On cache miss: executes DB SUM aggregate and stores the result with 60s TTL.
  * On complete cache unavailability: falls through to DB aggregate directly.
  */
-async function getCachedOrDbUsage(
-  userId: string,
+async function getCachedOrDbBusinessUsage(
   businessId: string,
-): Promise<{ userUsage: number; businessUsage: number }> {
-  const userCacheKey = getUserUsageCacheKey(userId);
+): Promise<number> {
   const businessCacheKey = getBusinessUsageCacheKey(businessId);
 
-  // Try cache-first reads for both keys
-  let cachedUserUsage: number | null = null;
+  // Try a cache-first read
   let cachedBusinessUsage: number | null = null;
 
   try {
-    [cachedUserUsage, cachedBusinessUsage] = await Promise.all([
-      cacheLayer.get<number>(userCacheKey),
-      cacheLayer.get<number>(businessCacheKey),
-    ]);
+    cachedBusinessUsage = await cacheLayer.get<number>(businessCacheKey);
   } catch {
     // Complete cache unavailability — fall through to DB
     console.warn(
@@ -191,66 +176,49 @@ async function getCachedOrDbUsage(
     );
   }
 
-  // If both cache hits, return cached values
-  if (cachedUserUsage !== null && cachedBusinessUsage !== null) {
-    return { userUsage: cachedUserUsage, businessUsage: cachedBusinessUsage };
+  if (cachedBusinessUsage !== null) {
+    return cachedBusinessUsage;
   }
 
-  // At least one cache miss — query DB for the missing values
+  // Cache miss — query DB for the missing value
   const monthStart = getStartOfCurrentMonthUTC();
 
   const [usageRow] = await db
-    .select({
-      userTotal: sql<string>`coalesce(sum(case when ${aiUsageEvents.userId} = ${userId} then ${aiUsageEvents.weight} else 0 end), 0)`,
-      businessTotal: sql<string>`coalesce(sum(case when ${aiUsageEvents.businessId} = ${businessId} then ${aiUsageEvents.weight} else 0 end), 0)`,
-    })
+    .select({ businessTotal: sum(aiUsageEvents.weight) })
     .from(aiUsageEvents)
     .where(
       and(
-        sql`(${aiUsageEvents.userId} = ${userId} or ${aiUsageEvents.businessId} = ${businessId})`,
+        eq(aiUsageEvents.businessId, businessId),
         gte(aiUsageEvents.createdAt, monthStart),
       ),
     );
 
-  const userUsage = Number(usageRow?.userTotal ?? 0);
   const businessUsage = Number(usageRow?.businessTotal ?? 0);
 
-  // Cache the values we fetched from DB (non-blocking, ignore failures)
+  // Cache the value we fetched from DB (non-blocking, ignore failures)
   try {
-    const cacheWrites: Promise<void>[] = [];
-    if (cachedUserUsage === null) {
-      cacheWrites.push(
-        cacheLayer.set<number>(userCacheKey, userUsage, USAGE_CACHE_TTL_SECONDS),
-      );
-    }
-    if (cachedBusinessUsage === null) {
-      cacheWrites.push(
-        cacheLayer.set<number>(
-          businessCacheKey,
-          businessUsage,
-          USAGE_CACHE_TTL_SECONDS,
-        ),
-      );
-    }
-    await Promise.all(cacheWrites);
+    await cacheLayer.set<number>(
+      businessCacheKey,
+      businessUsage,
+      USAGE_CACHE_TTL_SECONDS,
+    );
   } catch {
     // Cache write failure is non-critical — next request will re-query DB
     console.warn(
-      "[usage-limiter] Failed to cache usage values after DB fetch",
+      "[usage-limiter] Failed to cache usage value after DB fetch",
     );
   }
 
-  return { userUsage, businessUsage };
+  return businessUsage;
 }
 
 /**
  * Records a usage event in the database. Call this after a successful AI
  * invocation (not on cache hits or cooldown rejections).
  *
- * After the DB insert, atomically increments both the user-level and
- * business-level cached counters by the invocation weight. On increment
- * failure: deletes the cache key and logs a warning without interrupting
- * the caller.
+ * After the DB insert, atomically increments the business-level cached
+ * counter by the invocation weight. On increment failure: deletes the cache
+ * key and logs a warning without interrupting the caller.
  */
 export async function recordUsage(
   userId: string,
@@ -268,14 +236,10 @@ export async function recordUsage(
     weight,
   });
 
-  // Atomically increment cached counters (non-blocking, never interrupts caller)
-  const userCacheKey = getUserUsageCacheKey(userId);
+  // Atomically increment the cached counter (non-blocking, never interrupts caller)
   const businessCacheKey = getBusinessUsageCacheKey(businessId);
 
-  await Promise.all([
-    safeIncrementCache(userCacheKey, weight),
-    safeIncrementCache(businessCacheKey, weight),
-  ]);
+  await safeIncrementCache(businessCacheKey, weight);
 }
 
 /**
@@ -296,11 +260,11 @@ export async function resetCooldown(userId: string, taskType: AiTaskType): Promi
 }
 
 /**
- * Returns the current month's usage for a user (across all businesses)
- * and the plan limit. Used for displaying credit status in the UI.
+ * Returns the current month's usage for a business and the plan limit.
+ * Used for displaying credit status in the UI.
  */
 export async function getMonthlyUsageSummary(
-  userId: string,
+  businessId: string,
   plan: BusinessPlan,
 ): Promise<{ used: number; limit: number }> {
   const monthStart = getStartOfCurrentMonthUTC();
@@ -311,7 +275,7 @@ export async function getMonthlyUsageSummary(
     .from(aiUsageEvents)
     .where(
       and(
-        eq(aiUsageEvents.userId, userId),
+        eq(aiUsageEvents.businessId, businessId),
         gte(aiUsageEvents.createdAt, monthStart),
       ),
     );
@@ -356,15 +320,13 @@ async function safeIncrementCache(
 
 function buildQuotaExceededResult(plan: BusinessPlan): UsageLimitResult {
   const upgradePlan = getUpgradePlan(plan);
-  const currentLabel = planMeta[plan].label;
-
   const upgradeMessage = upgradePlan
-    ? ` Upgrade to ${planMeta[upgradePlan].label} for more AI generations.`
+    ? " Upgrade for more drafts."
     : "";
 
   return {
     allowed: false,
     reason: "quota_exceeded",
-    message: `Monthly AI usage limit reached for the ${currentLabel} plan.${upgradeMessage}`,
+    message: `You've used this month's AI drafting allowance.${upgradeMessage}`,
   };
 }

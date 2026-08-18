@@ -5,7 +5,6 @@ import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { getNormalizedInquirySubmittedFieldSnapshot } from "@/features/inquiries/form-config";
 import { getNormalizedInquiryPageConfig } from "@/features/inquiries/page-config";
 import { normalizeBusinessType } from "@/features/inquiries/business-types";
-import { buildBusinessMemoryContext } from "@/features/memory/queries";
 import type { InquiryAssistantContext } from "@/features/ai/types";
 import { getEffectiveQuoteStatus } from "@/features/quotes/queries";
 import { db } from "@/lib/db/client";
@@ -32,7 +31,7 @@ export async function getInquiryAssistantContextForBusiness({
   businessId,
   inquiryId,
 }: GetInquiryAssistantContextForBusinessInput): Promise<InquiryAssistantContext | null> {
-  const [businessRow, inquiryRow, notes, attachments, activities, quoteRows, memory, messages] =
+  const [businessRow, inquiryRow, notes, attachments, activities, quoteRows, messages] =
     await Promise.all([
     db
       .select({
@@ -151,7 +150,6 @@ export async function getInquiryAssistantContextForBusiness({
         totalInCents: quotes.totalInCents,
         validUntil: quotes.validUntil,
         status: getEffectiveQuoteStatus,
-        postAcceptanceStatus: quotes.postAcceptanceStatus,
         sentAt: quotes.sentAt,
         acceptedAt: quotes.acceptedAt,
         publicViewedAt: quotes.publicViewedAt,
@@ -169,7 +167,6 @@ export async function getInquiryAssistantContextForBusiness({
         ),
       )
       .orderBy(desc(quotes.createdAt)),
-    buildBusinessMemoryContext(businessId),
     db
       .select({
         id: inquiryMessages.id,
@@ -351,7 +348,6 @@ export async function getInquiryAssistantContextForBusiness({
         }),
       ),
     })),
-    memory,
     messages,
   };
 }
