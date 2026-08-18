@@ -32,17 +32,17 @@ const workflowSteps = [
     icon: FileText,
   },
   {
-    title: "Win",
-    subtitle: "They accept, you see it instantly",
+    title: "Follow up",
+    subtitle: "Keep the opportunity moving",
     description:
-      "Track when they open it. Automated follow-ups go out on schedule. The moment they accept, you're notified.",
+      "Track when a quote is viewed and let scheduled reminders keep the next step from being forgotten.",
     icon: BellRing,
   },
   {
-    title: "Deliver",
-    subtitle: "Work done, invoice sent",
+    title: "Won",
+    subtitle: "Accepted and ready for work",
     description:
-      "Accepted quote becomes a job. Track progress with a checklist. When finished, generate the invoice from the same line items.",
+      "See accepted quotes instantly and move the work into a job without re-entering the customer or quote details.",
     icon: Briefcase,
   },
 ] as const;

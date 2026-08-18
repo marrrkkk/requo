@@ -21,11 +21,11 @@ import {
 } from "@/lib/seo/site";
 
 const marketingDescription =
-  "Turn inquiries into quotes before they go cold. Built for owner-led service businesses that prepare custom quotes. Capture every request, respond faster, follow up automatically.";
+  "Capture inquiries, send quotes, and follow up automatically before opportunities go cold. Requo is built for owner-led service businesses.";
 
 export const metadata: Metadata = {
   ...createPageMetadata({
-    absoluteTitle: "Requo | Never Lose the Next Step",
+    absoluteTitle: "Requo | Keep Every Opportunity Moving",
     description: marketingDescription,
     pathname: "/",
   }),

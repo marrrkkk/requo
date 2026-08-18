@@ -69,17 +69,17 @@ export const workflowSteps: readonly {
   },
   {
     title: "Quote",
-    description: "AI drafts, you review. Respond in minutes.",
+    description: "Draft and send a clear quote while the request is still warm.",
     icon: FileSignature,
   },
   {
     title: "Follow up",
-    description: "Automatic reminders keep deals moving.",
+    description: "Automatic reminders keep good opportunities moving.",
     icon: Search,
   },
   {
     title: "Win",
-    description: "Track accepted, rejected, and convert to jobs.",
+    description: "See what was accepted and turn it into the next job step.",
     icon: Send,
   },
 ] as const;
@@ -109,22 +109,10 @@ export const landingFeatureItems: readonly {
       "AI matches line items from your pricing library and past quotes. You review the draft, make adjustments, and send. Professional quotes done faster.",
   },
   {
-    id: "ai",
-    title: "Ask questions, get instant answers.",
-    description:
-      "\"Which quotes are stale?\" \"Show me this week's inquiries.\" Your AI assistant pulls live data, answers in seconds, and suggests next actions.",
-  },
-  {
     id: "followUps",
     title: "Follow-ups run on schedule, automatically.",
     description:
       "Requo creates follow-ups when quotes go quiet and reminds you before they expire. The system handles repetitive tasks so you can focus on closing deals.",
-  },
-  {
-    id: "analytics",
-    title: "Know exactly where deals stall.",
-    description:
-      "Track your pipeline from first inquiry to accepted quote. See conversion rates, response times, and bottlenecks before opportunities go cold.",
   },
 ] as const;
 

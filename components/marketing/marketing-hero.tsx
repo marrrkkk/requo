@@ -1,10 +1,10 @@
-import Link from "next/link";
 import {
   ArrowRight,
   BellRing,
   FileText,
   Inbox,
 } from "lucide-react";
+import Link from "next/link";
 
 import {
   faqItems,
@@ -18,7 +18,7 @@ import { MarketingHeader } from "@/components/marketing/marketing-header";
 import {
   MarketingFeatureRow,
 } from "@/components/marketing/marketing-feature-row";
-import { WorkflowStepper } from "@/components/marketing/workflow-stepper";
+import { WorkflowTabs } from "@/components/marketing/workflow-tabs";
 import {
   ChecklistGraphic,
   IntegrationsGraphic,
@@ -85,7 +85,7 @@ export function MarketingHero() {
       links: [
         { label: "Inquiries", href: "/#inquiries" },
         { label: "Quotes", href: "/#quotes" },
-        { label: "AI Assistant", href: "/#ai" },
+        { label: "Follow-ups", href: "/#workflow" },
         { label: "Analytics", href: "/#analytics" },
       ],
     },
@@ -107,7 +107,7 @@ export function MarketingHero() {
         className="pb-28 lg:pb-40"
         header={<MarketingHeader />}
       >
-      <section className="relative overflow-hidden px-4 pb-24 pt-20 sm:px-6 sm:pb-32 sm:pt-28 lg:px-8 lg:pb-40 lg:pt-36 xl:px-0">
+      <section className="relative overflow-hidden px-4 pb-24 pt-12 sm:px-6 sm:pb-32 sm:pt-16 lg:px-8 lg:pb-40 lg:pt-24 xl:px-0">
         <div className="relative z-10 flex flex-col gap-12 sm:gap-16 lg:gap-20">
           <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-6 text-center">
             <h1 className="font-[var(--font-inter)] text-[3.5rem] font-bold leading-[1.0] tracking-[-0.02em] text-foreground sm:text-[4.5rem] sm:leading-[1.0] lg:text-[5.5rem] lg:leading-[1.0]">
@@ -115,10 +115,10 @@ export function MarketingHero() {
               <span className="text-primary">slow responses</span>.
             </h1>
             <p className="max-w-lg font-[var(--font-inter)] text-[1.05rem] font-normal leading-[1.5] text-muted-foreground sm:text-lg sm:leading-[1.5] lg:text-xl lg:leading-[1.5]">
-              Built for owner-led service businesses. Capture inquiries, send quotes, follow up automatically. Never lose the next step.
+              Capture inquiries, send quotes, and follow up automatically so every opportunity keeps moving.
             </p>
 
-            <div className="flex items-center gap-3 pt-2">
+            <div className="flex flex-col items-center gap-3 pt-2 sm:flex-row">
               <Button asChild size="lg" className="rounded-md bg-primary px-5 font-[var(--font-inter)] text-sm font-medium text-primary-foreground hover:bg-primary/90">
                 <Link href="/signup">
                   Start free
@@ -134,12 +134,13 @@ export function MarketingHero() {
                 <Link href="/pricing">See pricing</Link>
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground">Built for owner-led service businesses.</p>
           </div>
 
-          <div className="mx-auto w-full max-w-5xl">
+          <div className="mx-auto w-full max-w-6xl">
             {/* Device frame */}
             <div
-              className="rounded-lg border border-neutral-200/80 bg-neutral-100 p-0.5 shadow-[0_25px_80px_rgba(0,0,0,0.12),0_8px_24px_rgba(0,0,0,0.06)] sm:rounded-xl sm:p-1 dark:border-neutral-700/80 dark:bg-neutral-800 dark:shadow-[0_25px_80px_rgba(0,0,0,0.6),0_8px_24px_rgba(0,0,0,0.3)]"
+              className="rounded-lg border border-border bg-card p-1 shadow-[0_24px_70px_rgba(0,0,0,0.22)] sm:rounded-xl sm:p-1.5 dark:bg-card/80 dark:shadow-[0_28px_90px_rgba(0,0,0,0.5)]"
               role="img"
               aria-label="Requo quote management dashboard showing inquiry inbox, quote builder, and follow-up schedule for service businesses"
             >
@@ -155,46 +156,20 @@ export function MarketingHero() {
 
       <div className="border-b border-border/70" />
 
-      {/* Product Hunt Badge */}
-      <section className="mx-auto mt-8 flex w-full max-w-6xl justify-center px-4 sm:mt-10 sm:px-6 lg:mt-12 lg:px-8 xl:px-0">
-        <a
-          href="https://www.producthunt.com/products/requo/launches/requo?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-requo"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="transition-opacity hover:opacity-80"
-        >
-          <img
-            alt="Requo - Turn inquiries into accepted quotes. | Product Hunt"
-            width="250"
-            height="54"
-            src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1162277&theme=light&t=1785970135568"
-            className="dark:hidden"
-          />
-          <img
-            alt="Requo - Turn inquiries into accepted quotes. | Product Hunt"
-            width="250"
-            height="54"
-            src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1162277&theme=dark&t=1785970407423"
-            className="hidden dark:block"
-          />
-        </a>
-      </section>
-
-
       <section
         className="mx-auto mt-24 w-full max-w-6xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0"
         id="why-requo"
       >
         <InViewReveal className="grid gap-6 lg:grid-cols-2 lg:gap-12 xl:gap-16">
           <div className="flex flex-col gap-4">
-            <p className="meta-label">WHY REQUO</p>
+            <p className="meta-label !text-primary">WHY REQUO</p>
             <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
-              You&rsquo;re not losing on price.<br className="hidden sm:inline" /> You&rsquo;re losing on <span className="text-primary italic">speed</span>.
+              Every missed inquiry is an opportunity someone else can win.
             </h2>
           </div>
           <div className="flex items-center">
             <p className="text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7 lg:text-lg lg:leading-8">
-              You&rsquo;re busy doing the work. Meanwhile, inquiries go unanswered and warm leads hire someone who responded first.
+              You&rsquo;re busy doing the work. Requo gives every request a clear next step before it gets forgotten.
             </p>
           </div>
         </InViewReveal>
@@ -238,17 +213,17 @@ export function MarketingHero() {
         id="workflow"
       >
         <InViewReveal className="mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
-          <p className="meta-label">HOW IT WORKS</p>
+          <p className="meta-label !text-primary">HOW IT WORKS</p>
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
-            Four steps between inquiry and payment.
+            Keep every opportunity moving.
           </h2>
           <p className="max-w-lg text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7">
-            Request lands, quote goes out, customer accepts, invoice follows. Every step connected.
+            Capture the request, send a quote, follow up on time, and know when it turns into work.
           </p>
         </InViewReveal>
 
         <InViewReveal className="mt-14 sm:mt-16 lg:mt-20">
-          <WorkflowStepper />
+          <WorkflowTabs />
         </InViewReveal>
       </section>
 
@@ -258,13 +233,13 @@ export function MarketingHero() {
       >
         <InViewReveal className="mx-auto grid w-full max-w-6xl gap-4 px-4 sm:gap-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end lg:px-8 xl:px-0">
           <div className="flex flex-col gap-3 sm:gap-4">
-            <p className="meta-label">THE REQUO WORKSPACE</p>
+            <p className="meta-label !text-primary">THE REQUO WORKSPACE</p>
             <h2 className="max-w-3xl font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
-              Everything you need from inquiry to invoice.
+              One connected workflow from inquiry to booked job.
             </h2>
           </div>
           <p className="max-w-md text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7 lg:pb-1">
-            No tool switching. No lost context. One connected workspace for the complete workflow.
+            Capture requests, send professional quotes, and see what needs attention without switching tools.
           </p>
         </InViewReveal>
 
@@ -284,7 +259,7 @@ export function MarketingHero() {
 
       <section className="mx-auto mt-24 w-full max-w-4xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0" id="faq">
         <InViewReveal className="flex flex-col items-start gap-3 sm:gap-4">
-          <p className="meta-label">FAQ</p>
+          <p className="meta-label !text-primary">FAQ</p>
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
             Questions you&rsquo;re probably asking.
           </h2>
@@ -304,7 +279,7 @@ export function MarketingHero() {
                 <span className="font-mono text-[9px] font-semibold text-muted-foreground/60 sm:text-[10px]">
                   0{groupIndex + 1}
                 </span>
-                <p className="meta-label">{group.label}</p>
+                <p className="meta-label text-primary">{group.label}</p>
               </div>
 
               <Accordion
@@ -345,7 +320,7 @@ export function MarketingHero() {
       >
         <section className="flex flex-col items-center gap-6 py-10 text-center sm:gap-8 sm:py-14">
           <h2 className="max-w-3xl font-heading text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl xl:text-6xl">
-            Capture more from the leads you already get.
+            Don&rsquo;t let the next job slip through.
           </h2>
 
           <Button asChild size="lg" className="rounded-full px-6 text-base font-semibold">
@@ -356,7 +331,7 @@ export function MarketingHero() {
           </Button>
 
           <p className="text-xs text-muted-foreground sm:text-sm">
-            Free plan available &bull; No credit card &bull; Set up in minutes
+            Start with the free plan and keep inquiries moving from first contact to booked job.
           </p>
         </section>
       </InViewReveal>
@@ -381,6 +356,16 @@ export function MarketingHero() {
                   <svg className="size-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
                 </a>
               </div>
+              <a
+                href="https://www.producthunt.com/products/requo/launches/requo?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-requo"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-fit items-center gap-2 rounded-md border border-primary-foreground/25 bg-primary-foreground/[0.08] px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-foreground/[0.16]"
+              >
+                <span className="flex size-5 items-center justify-center rounded bg-primary-foreground text-[11px] font-bold text-primary">P</span>
+                Visit us on Product Hunt
+                <ArrowRight className="size-3.5" />
+              </a>
             </div>
 
             {/* Right — Link columns grouped together */}
