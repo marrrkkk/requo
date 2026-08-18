@@ -4,7 +4,6 @@ import * as React from "react";
 import {
   BarChart3,
   Bell,
-  BookOpen,
   BriefcaseBusiness,
   Clock,
   Download,
@@ -24,7 +23,6 @@ import {
   Tags,
   User,
   Users,
-  Workflow,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -306,30 +304,6 @@ export function CommandMenu({
                   <GraduationCap className="mr-2 h-4 w-4" />
                   <span>Replay product tour</span>
                 </CommandItem>
-                {canOperate ? (
-                  <CommandItem
-                    onSelect={() =>
-                      runCommand(() =>
-                        router.push(getBusinessSettingsPath(businessSlug, "knowledge")),
-                      )
-                    }
-                  >
-                    <BookOpen className="mr-2 h-4 w-4" />
-                    <span>Knowledge base</span>
-                  </CommandItem>
-                ) : null}
-                {canOperate ? (
-                  <CommandItem
-                    onSelect={() =>
-                      runCommand(() =>
-                        router.push(getBusinessSettingsPath(businessSlug, "automations")),
-                      )
-                    }
-                  >
-                    <Workflow className="mr-2 h-4 w-4" />
-                    <span>Automations</span>
-                  </CommandItem>
-                ) : null}
                 {isBusinessOwner ? (
                   <CommandItem
                     onSelect={() =>

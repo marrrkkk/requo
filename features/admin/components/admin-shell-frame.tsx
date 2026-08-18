@@ -20,6 +20,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { MobileAdminBottomNav } from "@/features/admin/components/mobile-admin-bottom-nav";
 import {
   Sidebar,
   SidebarContent,
@@ -37,6 +38,7 @@ import { AdminFooterMenu } from "@/features/admin/components/admin-footer-menu";
 import { AdminNav } from "@/features/admin/components/admin-nav";
 import {
   ADMIN_ROOT_PATH,
+  adminNavigation,
   getActiveAdminNavigationItem,
   getAdminBreadcrumbs,
 } from "@/features/admin/navigation";
@@ -74,29 +76,28 @@ export function AdminShellFrame({
         } as CSSProperties
       }
     >
-      <Sidebar collapsible="offcanvas">
-        <SidebarHeader className="gap-0 px-0 py-0">
-          <div className="flex min-h-9 items-center justify-between px-3 py-1.5 sm:py-2">
+      <Sidebar collapsible="icon">
+        <SidebarHeader className="gap-0 p-0">
+          <div className="flex h-13 items-center justify-between border-b border-sidebar-border px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
             <BrandMark
               collapseLabel
-              className="min-w-0 px-2 py-1.5"
+              className="min-w-0 px-2 py-1.5 group-data-[collapsible=icon]:p-0"
               href={ADMIN_ROOT_PATH}
               subtitle="Admin"
             />
-            <SidebarTrigger className="size-7 shrink-0" />
+            <SidebarTrigger className="size-7 shrink-0 group-data-[collapsible=icon]:hidden" />
           </div>
-          <SidebarSeparator />
         </SidebarHeader>
 
-        <SidebarContent className="gap-4 px-1 pb-3">
-          <SidebarGroup className="px-3 pt-3">
+        <SidebarContent className="gap-4 px-1 pb-3 group-data-[collapsible=icon]:px-0">
+          <SidebarGroup className="px-3 pt-3 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:pt-2">
             <AdminNav />
           </SidebarGroup>
         </SidebarContent>
 
         <SidebarSeparator />
 
-        <SidebarFooter className="p-3 pt-2">
+        <SidebarFooter className="p-3 pt-2 group-data-[collapsible=icon]:p-2">
           <AdminFooterMenu />
         </SidebarFooter>
 
@@ -104,11 +105,10 @@ export function AdminShellFrame({
       </Sidebar>
 
       <SidebarInset className="min-h-svh min-w-0">
-        <header className="dashboard-topbar flex items-center">
+        <header className="dashboard-topbar flex h-13 items-center">
           <DesktopSidebarTrigger />
           <div className="dashboard-topbar-inner min-w-0 flex-1">
             <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
-              <SidebarTrigger className="size-8 shrink-0 lg:hidden" />
               <Button
                 asChild
                 className="hidden size-8 shrink-0 lg:inline-flex"
@@ -162,7 +162,7 @@ export function AdminShellFrame({
           </div>
         </header>
         {banner}
-        <div className="flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col pb-16 lg:pb-0">
           <main className="dashboard-main">
             <div className="dashboard-content">
               <div className="flex min-w-0 flex-col gap-6 pb-16 sm:gap-7 xl:pb-24">
@@ -171,6 +171,8 @@ export function AdminShellFrame({
             </div>
           </main>
         </div>
+
+        <MobileAdminBottomNav />
       </SidebarInset>
     </SidebarProvider>
   );

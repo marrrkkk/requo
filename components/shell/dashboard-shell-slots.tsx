@@ -118,17 +118,17 @@ export function BusinessSwitcher({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
         <button
-          className="group/business-switcher w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-accent dark:data-[state=open]:bg-accent"
+          className="group/business-switcher w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-accent dark:data-[state=open]:bg-accent group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none hover:group-data-[collapsible=icon]:bg-sidebar-accent"
           data-tour="business-switcher"
           type="button"
         >
-          <div className="flex items-start gap-3.5">
+          <div className="flex items-start gap-3.5 group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center">
             <BusinessAvatar
               name={business.name}
               logoUrl={business.logoStoragePath ? "/api/business/logo" : null}
-              className="size-14 rounded-[0.9rem] border-sidebar-border shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] dark:border-white/8 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_1px_rgba(0,0,0,0.18)] [&_[data-slot=avatar-image]]:rounded-[0.9rem] [&_[data-slot=avatar-fallback]]:rounded-[0.9rem] [&_[data-slot=avatar-fallback]]:text-sm [&_[data-slot=avatar-fallback]]:tracking-[0.16em] [&_[data-slot=avatar-fallback]]:text-sidebar-foreground"
+              className="size-14 rounded-[0.9rem] border-sidebar-border shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] dark:border-white/8 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_1px_rgba(0,0,0,0.18)] [&_[data-slot=avatar-image]]:rounded-[0.9rem] [&_[data-slot=avatar-fallback]]:rounded-[0.9rem] [&_[data-slot=avatar-fallback]]:text-sm [&_[data-slot=avatar-fallback]]:tracking-[0.16em] [&_[data-slot=avatar-fallback]]:text-sidebar-foreground group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-image]]:group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-fallback]]:group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-fallback]]:group-data-[collapsible=icon]:text-xs"
             />
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
               <div className="flex items-center justify-between gap-3">
                 <p className="meta-label text-sidebar-foreground/60">Business</p>
                 <ChevronsUpDown className="size-4 text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[state=open]/business-switcher:rotate-180" />
@@ -141,7 +141,7 @@ export function BusinessSwitcher({
               </p>
             </div>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-2 group-data-[collapsible=icon]:hidden">
             <PlanBadge plan={business.plan} />
             <Badge
               className="border-sidebar-border bg-background text-sidebar-foreground"
@@ -359,6 +359,7 @@ export function DashboardUserMenu({
             <SidebarMenuButton
               className="data-[state=open]:bg-sidebar-accent"
               size="lg"
+              tooltip={user.name}
             >
               <Avatar className="rounded-lg">
                 {user.avatarSrc ? (
@@ -368,7 +369,7 @@ export function DashboardUserMenu({
                   {getInitials(user.name)}
                 </AvatarFallback>
               </Avatar>
-              <div className="grid min-w-0 flex-1 text-left leading-tight">
+              <div className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
                 <span className="truncate text-sm font-medium text-sidebar-foreground">
                   {user.name}
                 </span>
@@ -376,7 +377,7 @@ export function DashboardUserMenu({
                   {user.email}
                 </span>
               </div>
-              <ChevronsUpDown className="ml-auto text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[state=open]/menu-button:rotate-180" />
+              <ChevronsUpDown className="ml-auto text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[state=open]/menu-button:rotate-180 group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -485,23 +486,393 @@ export function DashboardUserMenu({
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Mobile Top Bar Controls                                                    */
+/* -------------------------------------------------------------------------- */
+
+export function MobileBusinessSwitcher({
+  currentBusiness,
+  memberships,
+  businessQuota,
+}: {
+  currentBusiness: BusinessContext;
+  memberships: BusinessContext[];
+  businessQuota: BusinessQuotaSnapshot;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const businessCheckout = useBusinessCheckout();
+
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<BusinessMemberRole>("staff");
+  const [, inviteFormAction, isInvitePending] = useActionStateWithSonner(
+    createBusinessMemberInviteAction,
+    {},
+  );
+
+  const liveplan =
+    businessCheckout?.businessId === currentBusiness.business.id
+      ? businessCheckout.currentPlan
+      : null;
+
+  const business =
+    liveplan && liveplan !== currentBusiness.business.plan
+      ? { ...currentBusiness.business, plan: liveplan }
+      : currentBusiness.business;
+
+  const shellMemberships = liveplan
+    ? memberships.map((membership) =>
+        membership.business.id === business.id
+          ? { ...membership, business: { ...membership.business, plan: liveplan } }
+          : membership,
+      )
+    : memberships;
+
+  function handleSignOut() {
+    startTransition(async () => {
+      const result = await authClient.signOut();
+      if (result.error) return;
+      window.localStorage.removeItem(themeUserStorageKey);
+      clearPersistedThemePreference();
+      window.location.assign("/login");
+    });
+  }
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-background transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95"
+            aria-label="Switch business"
+            type="button"
+          >
+            <BusinessAvatar
+              name={business.name}
+              logoUrl={business.logoStoragePath ? "/api/business/logo" : null}
+              size="sm"
+              loading="eager"
+            />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="start"
+          className="w-[min(18rem,calc(100vw-2rem))] rounded-xl"
+        >
+          <DropdownMenuLabel className="px-2 py-2.5">
+            Switch business
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            {shellMemberships.map((membership) => {
+              const isCurrent =
+                membership.business.id === currentBusiness.business.id;
+
+              return (
+                <DropdownMenuItem asChild key={membership.membershipId}>
+                  <Link
+                    href={getBusinessDashboardPath(membership.business.slug)}
+                    prefetch={true}
+                  >
+                    <BusinessAvatar
+                      name={membership.business.name}
+                      logoUrl={membership.business.logoStoragePath ? `/api/business/${membership.business.slug}/logo` : null}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {membership.business.name}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        /{membership.business.slug}
+                      </p>
+                    </div>
+                    <span className="text-[0.68rem] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                      {membership.role}
+                    </span>
+                    {membership.business.recordState === "locked" ? (
+                      <Badge variant="outline" className="gap-1">
+                        <Lock className="size-3" />
+                        Locked
+                      </Badge>
+                    ) : null}
+                    {isCurrent ? <Check className="size-4 text-primary" /> : null}
+                  </Link>
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            {businessQuota.allowed ? (
+              <DropdownMenuItem asChild>
+                <Link href="/new" prefetch={true}>
+                  <Plus data-icon="inline-start" />
+                  New business
+                </Link>
+              </DropdownMenuItem>
+            ) : (
+              <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+                <span className="flex items-center gap-2 text-sm text-muted-foreground opacity-60">
+                  <Plus data-icon="inline-start" className="size-4" />
+                  Limit reached ({businessQuota.current}/{businessQuota.limit})
+                </span>
+                <button
+                  type="button"
+                  className="inline-flex h-6 items-center justify-center rounded-md bg-primary px-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                  onClick={() => {
+                    if (businessCheckout) {
+                      businessCheckout.openPlanSelection();
+                    }
+                  }}
+                >
+                  Upgrade
+                </button>
+              </div>
+            )}
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuItem asChild>
+              <Link
+                href={getBusinessSettingsPath(business.slug, "general")}
+                prefetch={true}
+              >
+                <Settings2 data-icon="inline-start" />
+                Business settings
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link
+                href={getBusinessSettingsPath(business.slug, "profile")}
+                prefetch={true}
+              >
+                <User data-icon="inline-start" />
+                Account settings
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                setInviteOpen(true);
+              }}
+            >
+              <UserPlus data-icon="inline-start" />
+              Invite team members
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            disabled={isPending}
+            onSelect={(event) => {
+              event.preventDefault();
+              handleSignOut();
+            }}
+          >
+            {isPending ? (
+              <>
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+                Signing out...
+              </>
+            ) : (
+              <>
+                <LogOut data-icon="inline-start" />
+                Sign out
+              </>
+            )}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <InviteMemberDialog
+        email={inviteEmail}
+        isPending={isInvitePending}
+        onEmailChange={setInviteEmail}
+        onOpenChange={setInviteOpen}
+        onRoleChange={setInviteRole}
+        onSubmit={inviteFormAction}
+        open={inviteOpen}
+        role={inviteRole}
+      />
+    </>
+  );
+}
+
+export function MobileUserMenu({
+  user,
+  businessRole,
+  businessSlug,
+  plan,
+  businessId,
+}: {
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    avatarSrc: string | null;
+  };
+  businessRole: BusinessContext["role"];
+  businessSlug: string;
+  plan: BusinessContext["business"]["plan"];
+  businessId: string;
+}) {
+  const [isPending, startTransition] = useTransition();
+
+  function handleLogout() {
+    startTransition(async () => {
+      const result = await authClient.signOut();
+      if (result.error) return;
+      window.localStorage.removeItem(themeUserStorageKey);
+      clearPersistedThemePreference();
+      window.location.assign("/login");
+    });
+  }
+
+  const canOpenBusinessSettings =
+    canManageOperationalBusinessSettings(businessRole);
+  const businessSettingsHref = getDefaultBusinessSettingsPath(
+    businessSlug,
+    businessRole,
+  );
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-transparent transition-colors hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95"
+          aria-label="User profile menu"
+          type="button"
+        >
+          <Avatar className="size-8 rounded-lg">
+            {user.avatarSrc ? (
+              <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
+            ) : null}
+            <AvatarFallback className="rounded-lg text-xs">
+              {getInitials(user.name)}
+            </AvatarFallback>
+          </Avatar>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="w-[min(16rem,calc(100vw-2rem))] rounded-xl"
+      >
+        <DropdownMenuLabel className="px-2 py-2.5">
+          <div className="flex items-center gap-3">
+            <Avatar className="rounded-lg">
+              {user.avatarSrc ? (
+                <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
+              ) : null}
+              <AvatarFallback className="rounded-lg">
+                {getInitials(user.name)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-foreground">
+                {user.name}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {user.email}
+              </p>
+            </div>
+          </div>
+        </DropdownMenuLabel>
+        {plan !== "business" ? (
+          <>
+            <div className="px-2 py-1.5">
+              <UpgradeButton
+                className="w-full whitespace-nowrap"
+                currentPlan={plan}
+                size="sm"
+                variant="outline"
+                userId={user.id}
+                businessId={businessId}
+                businessSlug={businessSlug}
+              />
+            </div>
+            <DropdownMenuSeparator />
+          </>
+        ) : (
+          <DropdownMenuSeparator />
+        )}
+        <DropdownMenuGroup>
+          <DropdownMenuItem asChild>
+            <Link
+              href={getBusinessSettingsPath(businessSlug, "profile")}
+              prefetch={true}
+            >
+              <User data-icon="inline-start" />
+              User settings
+            </Link>
+          </DropdownMenuItem>
+          {canOpenBusinessSettings ? (
+            <DropdownMenuItem asChild>
+              <Link
+                href={businessSettingsHref}
+                prefetch={true}
+              >
+                <Settings2 data-icon="inline-start" />
+                Business settings
+              </Link>
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem asChild>
+            <Link
+              href={getBusinessSettingsPath(businessSlug, "billing")}
+              prefetch={true}
+            >
+              <BriefcaseBusiness data-icon="inline-start" />
+              Billing
+              <PlanBadge plan={plan} className="ml-auto" />
+            </Link>
+          </DropdownMenuItem>
+          <AppearanceMenuSubmenu userId={user.id} />
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={isPending}
+          onSelect={(event) => {
+            event.preventDefault();
+            handleLogout();
+          }}
+        >
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              Signing out...
+            </>
+          ) : (
+            <>
+              <LogOut data-icon="inline-start" />
+              Sign out
+            </>
+          )}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Skeleton fallbacks for streamed slots                                      */
 /* -------------------------------------------------------------------------- */
 
-export { BusinessSwitcherSkeleton, UserMenuSkeleton };
+export {
+  BusinessSwitcherSkeleton,
+  UserMenuSkeleton,
+  MobileBusinessSwitcherSkeleton,
+  MobileUserMenuSkeleton,
+};
 
 function BusinessSwitcherSkeleton() {
   return (
-    <div className="w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 dark:border-white/8 dark:bg-card/90">
-      <div className="flex items-start gap-3.5">
-        <div className="size-14 shrink-0 animate-pulse rounded-[0.9rem] bg-muted" />
-        <div className="min-w-0 flex-1 space-y-2">
+    <div className="w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 dark:border-white/8 dark:bg-card/90 group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none">
+      <div className="flex items-start gap-3.5 group-data-[collapsible=icon]:gap-0">
+        <div className="size-14 group-data-[collapsible=icon]:size-8 shrink-0 animate-pulse rounded-[0.9rem] group-data-[collapsible=icon]:rounded-lg bg-muted" />
+        <div className="min-w-0 flex-1 space-y-2 group-data-[collapsible=icon]:hidden">
           <div className="h-3 w-14 animate-pulse rounded-md bg-muted" />
           <div className="h-4 w-28 animate-pulse rounded-md bg-muted" />
           <div className="h-3.5 w-20 animate-pulse rounded-md bg-muted" />
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-wrap gap-2 group-data-[collapsible=icon]:hidden">
         <div className="h-5 w-12 animate-pulse rounded-full bg-muted" />
         <div className="h-5 w-10 animate-pulse rounded-full bg-muted" />
       </div>
@@ -511,14 +882,22 @@ function BusinessSwitcherSkeleton() {
 
 function UserMenuSkeleton() {
   return (
-    <div className="flex items-center gap-3 rounded-lg px-2 py-2">
-      <div className="size-9 animate-pulse rounded-lg bg-muted" />
-      <div className="min-w-0 flex-1 space-y-1.5">
+    <div className="flex items-center gap-3 rounded-lg px-2 py-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0">
+      <div className="size-9 group-data-[collapsible=icon]:size-8 animate-pulse rounded-lg bg-muted" />
+      <div className="min-w-0 flex-1 space-y-1.5 group-data-[collapsible=icon]:hidden">
         <div className="h-3.5 w-24 animate-pulse rounded-md bg-muted" />
         <div className="h-3 w-36 animate-pulse rounded-md bg-muted" />
       </div>
     </div>
   );
+}
+
+function MobileBusinessSwitcherSkeleton() {
+  return <div className="size-8 animate-pulse rounded-lg bg-muted" />;
+}
+
+function MobileUserMenuSkeleton() {
+  return <div className="size-8 animate-pulse rounded-lg bg-muted" />;
 }
 
 function getInitials(value: string) {

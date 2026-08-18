@@ -184,54 +184,77 @@ export function DataListToolbar({
 
   return (
     <DashboardToolbar>
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:gap-4">
         <div className="data-list-toolbar-summary">
-          <p className="text-sm leading-6 text-muted-foreground">{description}</p>
-          <p className="data-list-toolbar-count">{resultLabel}</p>
+          <p className="hidden text-sm leading-6 text-muted-foreground sm:block">{description}</p>
+          <div className="flex w-full items-center justify-between sm:w-auto">
+            <p className="data-list-toolbar-count">{resultLabel}</p>
+            {canClear ? (
+              <Button
+                className="h-7 px-2 text-xs sm:hidden"
+                onClick={onClear}
+                type="button"
+                variant="ghost"
+              >
+                <X data-icon="inline-start" className="size-3.5" />
+                Clear
+              </Button>
+            ) : null}
+          </div>
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 sm:gap-4">
           <div className="data-list-toolbar-grid">
-            <Field className="min-w-0 w-full xl:min-w-[10rem] xl:max-w-md xl:flex-1 xl:basis-0">
-              <FieldLabel className="meta-label px-0.5" htmlFor={searchId}>
-                {searchLabel}
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  id={searchId}
-                  value={searchValue}
-                  onChange={(event) => onSearchChange(event.currentTarget.value)}
-                  placeholder={searchPlaceholder}
-                  aria-busy={isPending}
-                />
-              </FieldContent>
-            </Field>
+            <div className="flex min-w-0 w-full items-end gap-2 xl:min-w-[10rem] xl:max-w-md xl:flex-1 xl:basis-0">
+              <Field className="min-w-0 flex-1">
+                <FieldLabel className="meta-label px-0.5" htmlFor={searchId}>
+                  {searchLabel}
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    id={searchId}
+                    value={searchValue}
+                    onChange={(event) => onSearchChange(event.currentTarget.value)}
+                    placeholder={searchPlaceholder}
+                    aria-busy={isPending}
+                  />
+                </FieldContent>
+              </Field>
+
+              {/* Mobile Filter Button alongside search */}
+              <div className="sm:hidden">
+                <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
+                  <SheetTrigger asChild>
+                    <Button
+                      aria-label="Filter records"
+                      className="size-9 shrink-0 px-0"
+                      type="button"
+                      variant="outline"
+                    >
+                      <ListFilter className="size-4" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="bottom">
+                    <SheetHeader>
+                      <SheetTitle>Filters</SheetTitle>
+                      <SheetDescription>
+                        Narrow list results with status, form, and sort options.
+                      </SheetDescription>
+                    </SheetHeader>
+                    <SheetBody className="gap-4">{filterFields}</SheetBody>
+                  </SheetContent>
+                </Sheet>
+              </div>
+            </div>
 
             <div className="hidden sm:contents">{filterFields}</div>
 
-            <DashboardActionsRow className="data-list-toolbar-actions">
-              <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
-                <SheetTrigger asChild>
-                  <Button className="flex-1 sm:hidden" type="button" variant="outline">
-                    <ListFilter data-icon="inline-start" />
-                    Filters
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="bottom">
-                  <SheetHeader>
-                    <SheetTitle>Filters</SheetTitle>
-                    <SheetDescription>
-                      Narrow list results with status, form, and sort options.
-                    </SheetDescription>
-                  </SheetHeader>
-                  <SheetBody className="gap-4">{filterFields}</SheetBody>
-                </SheetContent>
-              </Sheet>
+            <DashboardActionsRow className="data-list-toolbar-actions hidden sm:flex">
               <Button className="shrink-0 sm:w-auto" disabled={!canClear} onClick={onClear} type="button" variant="ghost">
                 <X data-icon="inline-start" />
                 Clear
               </Button>
-              {isPending ? <Spinner className="hidden sm:inline-flex" aria-hidden="true" /> : null}
+              {isPending ? <Spinner className="inline-flex" aria-hidden="true" /> : null}
             </DashboardActionsRow>
           </div>
         </div>
