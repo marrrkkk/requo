@@ -2,7 +2,7 @@
 
 import { updateTag } from "next/cache";
 
-import { getBusinessPricingCacheTags, uniqueCacheTags } from "@/lib/cache/business-tags";
+import { getBusinessProductCacheTags, uniqueCacheTags } from "@/lib/cache/business-tags";
 import { getOperationalBusinessActionContext } from "@/lib/db/business-access";
 import { getUsageLimit, hasFeatureAccess } from "@/lib/plans";
 import { assertPublicActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
@@ -154,7 +154,7 @@ export async function analyzeImportAction(
   }
 
   // Fetch existing count + plan limit so the review UI can show what fits.
-  const limit = getUsageLimit(plan, "pricingEntriesPerBusiness");
+  const limit = getUsageLimit(plan, "productEntriesPerBusiness");
   const existingCount = (
     await getQuoteLibrarySummaryForBusiness(businessContext.business.id)
   ).entryCount;
@@ -175,7 +175,7 @@ export async function analyzeImportAction(
  * manual library creation so currency, cache tags, and activity logging are
  * handled consistently.
  */
-export async function commitPricingImportAction(
+export async function commitProductImportAction(
   payload: unknown,
 ): Promise<ImporterCommitResult> {
   const ownerAccess = await getOperationalBusinessActionContext();
@@ -209,7 +209,7 @@ export async function commitPricingImportAction(
     };
   }
 
-  const limit = getUsageLimit(plan, "pricingEntriesPerBusiness");
+  const limit = getUsageLimit(plan, "productEntriesPerBusiness");
   const existingCount = (
     await getQuoteLibrarySummaryForBusiness(businessContext.business.id)
   ).entryCount;
@@ -249,7 +249,7 @@ export async function commitPricingImportAction(
     }
   }
 
-  updateCacheTags(getBusinessPricingCacheTags(businessContext.business.id));
+  updateCacheTags(getBusinessProductCacheTags(businessContext.business.id));
 
   if (created === 0) {
     return {

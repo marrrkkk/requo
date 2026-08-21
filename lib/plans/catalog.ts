@@ -170,10 +170,10 @@ export const pricingComparison: PricingComparisonCategory[] = [
       },
       { label: "Automatic follow-ups", free: false, pro: true, business: true },
       {
-        label: "Pricing library entries",
-        free: limitCell("free", "pricingEntriesPerBusiness"),
-        pro: limitCell("pro", "pricingEntriesPerBusiness"),
-        business: limitCell("business", "pricingEntriesPerBusiness"),
+        label: "Product library entries",
+        free: limitCell("free", "productEntriesPerBusiness"),
+        pro: limitCell("pro", "productEntriesPerBusiness"),
+        business: limitCell("business", "productEntriesPerBusiness"),
       },
       {
         label: "Knowledge sources",

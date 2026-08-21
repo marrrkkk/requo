@@ -19,7 +19,7 @@ export type PricingLineDraft = {
   unitPriceInCents: number;
 };
 
-export type PricingDraft = {
+export type ProductDraft = {
   draftId: string;
   kind: "block" | "package";
   name: string;
@@ -27,23 +27,23 @@ export type PricingDraft = {
   items: PricingLineDraft[];
 };
 
-type ImporterPricingReviewProps = {
-  entries: PricingDraft[];
-  onChange: (entries: PricingDraft[]) => void;
+type ImporterProductReviewProps = {
+  entries: ProductDraft[];
+  onChange: (entries: ProductDraft[]) => void;
   sourceName: string;
   warnings: string[];
   planContext: ImporterPlanContext;
   overLimitNonce: number;
 };
 
-export function ImporterPricingReview({
+export function ImporterProductReview({
   entries,
   onChange,
   sourceName,
   warnings,
   planContext,
   overLimitNonce,
-}: ImporterPricingReviewProps) {
+}: ImporterProductReviewProps) {
   const { existingCount, limit } = planContext;
   const selectedCount = entries.length;
   const totalAfterImport = existingCount + selectedCount;
@@ -70,7 +70,7 @@ export function ImporterPricingReview({
     lastEntryRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [overLimitNonce, isOverLimit]);
 
-  function updateEntry(draftId: string, patch: Partial<PricingDraft>) {
+  function updateEntry(draftId: string, patch: Partial<ProductDraft>) {
     onChange(
       entries.map((entry) => (entry.draftId === draftId ? normaliseEntry({ ...entry, ...patch }) : entry)),
     );
@@ -319,7 +319,7 @@ export function ImporterPricingReview({
  * and multi-item entries are always packages. This mirrors the validation rule
  * in quote-library-schemas.ts so commits don't fail server-side.
  */
-function normaliseEntry(entry: PricingDraft): PricingDraft {
+function normaliseEntry(entry: ProductDraft): ProductDraft {
   const kind: "block" | "package" = entry.items.length === 1 ? "block" : "package";
 
   return { ...entry, kind };

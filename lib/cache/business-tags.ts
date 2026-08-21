@@ -122,13 +122,13 @@ export function getBusinessFollowUpListCacheTags(businessId: string) {
   ]);
 }
 
-export function getBusinessPricingCacheTags(businessId: string) {
+export function getBusinessProductCacheTags(businessId: string) {
   const scopeTag = getBusinessScopeTag(businessId);
 
   return uniqueCacheTags([
     scopeTag,
     `${scopeTag}:settings`,
-    `${scopeTag}:pricing`,
+    `${scopeTag}:products`,
   ]);
 }
 

@@ -5,13 +5,11 @@ export const newBusinessPath = "/new";
 
 export type BusinessSettingsSection =
   | "general"
-  | "members"
   | "notifications"
   | "profile"
   | "security"
   | "quote"
   | "email"
-  | "pricing"
   | "support"
   | "integrations"
   | "billing"
@@ -170,6 +168,10 @@ export function getBusinessFormsPath(slug: string) {
 
 export function getBusinessMembersPath(slug: string) {
   return `${getBusinessPath(slug)}/members`;
+}
+
+export function getBusinessProductsPath(slug: string) {
+  return `${getBusinessPath(slug)}/products`;
 }
 
 export function getBusinessFormPath(slug: string, formSlug: string) {

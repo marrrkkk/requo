@@ -126,7 +126,7 @@ async function QuoteTemplatesContent() {
         } : undefined}
         createAction={createQuoteLibraryEntryAction}
         deleteAction={deleteQuoteLibraryEntryAction}
-        pricingLimit={getUsageLimit(businessPlan, "pricingEntriesPerBusiness")}
+        pricingLimit={getUsageLimit(businessPlan, "productEntriesPerBusiness")}
         templates={templates}
         totalLibraryCount={quoteLibrary.length}
         updateAction={updateQuoteLibraryEntryAction}

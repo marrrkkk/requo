@@ -256,7 +256,7 @@ export type AiQuoteDraftItemReviewStatus =
 
 export type AiQuoteReadiness = "ready" | "needs_confirmation" | "scope_only";
 
-export type AiQuotePricingStatus =
+export type AiQuoteProductStatus =
   | "verified"
   | "suggested"
   | "unpriced"
@@ -315,7 +315,7 @@ export type AiQuoteDraftItem = {
    * owner edited a generated item. Never set by the model — always
    * determined by server-side hydration/verification.
    */
-  aiPricingStatus: AiQuotePricingStatus | null;
+  aiProductStatus: AiQuoteProductStatus | null;
   /** Source references behind the item's price, set by deterministic hydration. */
   aiEvidence: {
     entryId: string | null;

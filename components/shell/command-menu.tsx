@@ -46,6 +46,7 @@ import {
   getBusinessInquiriesPath,
   getBusinessMembersPath,
   getBusinessNewInquiryPath,
+  getBusinessProductsPath,
   getBusinessQuotesExportPath,
   getBusinessQuotesPath,
   getBusinessPath,
@@ -376,13 +377,13 @@ export function CommandMenu({
                       onSelect={() =>
                         runCommand(() =>
                           router.push(
-                            getBusinessSettingsPath(businessSlug, "pricing"),
+                            getBusinessProductsPath(businessSlug),
                           ),
                         )
                       }
                     >
                       <Tags className="mr-2 h-4 w-4" />
-                      <span>Pricing library</span>
+                      <span>Products</span>
                     </CommandItem>
                     <CommandItem
                       onSelect={() =>

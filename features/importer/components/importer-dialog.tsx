@@ -17,9 +17,9 @@ import {
 } from "@/components/ui/responsive-overlay";
 import { Spinner } from "@/components/ui/spinner";
 import {
-  ImporterPricingReview,
-  type PricingDraft,
-} from "@/features/importer/components/importer-pricing-review";
+  ImporterProductReview,
+  type ProductDraft,
+} from "@/features/importer/components/importer-product-review";
 import type {
   ImporterAnalyzeResult,
   ImporterCommitResult,
@@ -35,8 +35,8 @@ type ImporterDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   analyzeAction: (formData: FormData) => Promise<ImporterAnalyzeResult>;
-  commitPricingAction: (
-    payload: { sourceName: string; entries: PricingDraft[] },
+  commitProductAction: (
+    payload: { sourceName: string; entries: ProductDraft[] },
   ) => Promise<ImporterCommitResult>;
 };
 
@@ -46,7 +46,7 @@ type ReviewState = {
   destination: "pricing";
   sourceName: string;
   warnings: string[];
-  entries: PricingDraft[];
+  entries: ProductDraft[];
   planContext: ImporterPlanContext;
 };
 
@@ -54,7 +54,7 @@ export function ImporterDialog({
   open,
   onOpenChange,
   analyzeAction,
-  commitPricingAction,
+  commitProductAction,
 }: ImporterDialogProps) {
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
@@ -161,7 +161,7 @@ export function ImporterDialog({
     }
 
     startCommitting(async () => {
-      const result = await commitPricingAction({
+      const result = await commitProductAction({
         sourceName: review.sourceName,
         entries: review.entries,
       });
@@ -206,7 +206,7 @@ export function ImporterDialog({
           {isAnalyzing ? <AnalyzingStep /> : null}
 
           {step === "review" && review ? (
-            <ImporterPricingReview
+            <ImporterProductReview
               entries={review.entries}
               onChange={(entries) =>
                 setReview({ ...review, entries })

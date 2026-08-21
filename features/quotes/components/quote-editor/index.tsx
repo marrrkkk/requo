@@ -165,9 +165,9 @@ export function QuoteEditor({
         quantity: item.quantity,
         unitPriceInCents: item.unitPrice,
         aiReview: item.aiReview ?? undefined,
-        aiPricingStatus: item.aiPricingStatus ?? undefined,
-        aiPricingLibraryEntryId: item.aiPricingLibraryEntryId ?? undefined,
-        aiPricingLibraryItemId: item.aiPricingLibraryItemId ?? undefined,
+        aiProductStatus: item.aiProductStatus ?? undefined,
+        aiProductLibraryEntryId: item.aiProductLibraryEntryId ?? undefined,
+        aiProductLibraryItemId: item.aiProductLibraryItemId ?? undefined,
         aiEvidence: item.aiEvidence ?? undefined,
       })),
     [visibleItems],
@@ -373,9 +373,9 @@ export function QuoteEditor({
             };
           }
 
-          nextItem.aiPricingStatus = "owner_set";
-          nextItem.aiPricingLibraryEntryId = null;
-          nextItem.aiPricingLibraryItemId = null;
+          nextItem.aiProductStatus = "owner_set";
+          nextItem.aiProductLibraryEntryId = null;
+          nextItem.aiProductLibraryItemId = null;
           nextItem.aiEvidence = null;
         }
 
@@ -540,9 +540,9 @@ export function QuoteEditor({
               reviewStatus: item.reviewStatus,
               reason: item.reason,
             },
-            aiPricingStatus: item.aiPricingStatus ?? undefined,
-            aiPricingLibraryEntryId: item.aiEvidence?.entryId ?? null,
-            aiPricingLibraryItemId: item.aiEvidence?.itemId ?? null,
+            aiProductStatus: item.aiProductStatus ?? undefined,
+            aiProductLibraryEntryId: item.aiEvidence?.entryId ?? null,
+            aiProductLibraryItemId: item.aiEvidence?.itemId ?? null,
             aiEvidence: item.aiEvidence,
           }),
         )

@@ -30,7 +30,7 @@ vi.mock("@/features/quotes/quote-library-mutations", () => ({
 }));
 
 vi.mock("@/lib/cache/business-tags", () => ({
-  getBusinessPricingCacheTags: () => ["pricing-tag"],
+  getBusinessProductCacheTags: () => ["product-tag"],
   uniqueCacheTags: (tags: string[]) => tags,
 }));
 
@@ -39,7 +39,7 @@ vi.mock("@/lib/rate-limit/redis-rate-limiter", () => ({
 }));
 
 // Import after mocking
-import { commitPricingImportAction } from "@/features/importer/actions";
+import { commitProductImportAction } from "@/features/importer/actions";
 
 const businessContext = {
   business: {
@@ -49,7 +49,7 @@ const businessContext = {
   },
 };
 
-describe("commitPricingImportAction — plan limit enforcement", () => {
+describe("commitProductImportAction — plan limit enforcement", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getOperationalBusinessActionContextMock.mockResolvedValue({
@@ -67,7 +67,7 @@ describe("commitPricingImportAction — plan limit enforcement", () => {
       packageCount: 24,
     });
 
-    const result = await commitPricingImportAction({
+    const result = await commitProductImportAction({
       sourceName: "prices.csv",
       entries: [
         {
@@ -98,7 +98,7 @@ describe("commitPricingImportAction — plan limit enforcement", () => {
     });
     createQuoteLibraryEntryForBusinessMock.mockResolvedValue({ id: "qlib_1" });
 
-    const result = await commitPricingImportAction({
+    const result = await commitProductImportAction({
       sourceName: "prices.csv",
       entries: [
         {

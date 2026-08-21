@@ -11,6 +11,9 @@ import {
   Home,
   Inbox,
   LayoutGrid,
+  Package,
+  Users,
+  Settings,
 } from "lucide-react";
 
 import {
@@ -19,6 +22,8 @@ import {
   getBusinessFollowUpsPath,
   getBusinessFormsPath,
   getBusinessInquiriesPath,
+  getBusinessMembersPath,
+  getBusinessProductsPath,
   getBusinessQuotesPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
@@ -55,6 +60,8 @@ export function MobileBottomNav({
   const quotesHref = getBusinessQuotesPath(businessSlug);
   const followUpsHref = getBusinessFollowUpsPath(businessSlug);
   const formsHref = getBusinessFormsPath(businessSlug);
+  const productsHref = getBusinessProductsPath(businessSlug);
+  const membersHref = getBusinessMembersPath(businessSlug);
   const analyticsHref = getBusinessAnalyticsPath(businessSlug);
   const settingsHref = getBusinessSettingsPath(businessSlug, "general");
 
@@ -63,13 +70,16 @@ export function MobileBottomNav({
   const isQuotesActive = isDashboardNavigationItemActive(pathname, quotesHref);
   const isFollowUpsActive = isDashboardNavigationItemActive(pathname, followUpsHref);
   const isFormsActive = isDashboardNavigationItemActive(pathname, formsHref);
+  const isProductsActive = isDashboardNavigationItemActive(pathname, productsHref);
+  const isMembersActive = isDashboardNavigationItemActive(pathname, membersHref);
   const isAnalyticsActive = canViewBusinessAnalytics(role) && isDashboardNavigationItemActive(pathname, analyticsHref);
 
   const isMoreActive =
     isFormsActive ||
+    isProductsActive ||
+    isMembersActive ||
     isAnalyticsActive ||
-    pathname.includes("/settings") ||
-    pathname.includes("/members");
+    pathname.includes("/settings");
 
   return (
     <>
@@ -199,7 +209,7 @@ export function MobileBottomNav({
           <SheetHeader className="pb-3 text-left">
             <SheetTitle>More</SheetTitle>
             <SheetDescription className="sr-only">
-              Forms, analytics, team members, and settings
+              Forms, products, team members, analytics, and settings
             </SheetDescription>
           </SheetHeader>
 
@@ -221,6 +231,36 @@ export function MobileBottomNav({
                 <span>Forms</span>
               </Link>
 
+              <Link
+                href={productsHref}
+                prefetch={true}
+                onClick={() => setMoreOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  isProductsActive
+                    ? "bg-sidebar-primary/12 text-primary font-semibold"
+                    : "text-foreground hover:bg-muted",
+                )}
+              >
+                <Package className="size-4 shrink-0 text-muted-foreground" />
+                <span>Products</span>
+              </Link>
+
+              <Link
+                href={membersHref}
+                prefetch={true}
+                onClick={() => setMoreOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  isMembersActive
+                    ? "bg-sidebar-primary/12 text-primary font-semibold"
+                    : "text-foreground hover:bg-muted",
+                )}
+              >
+                <Users className="size-4 shrink-0 text-muted-foreground" />
+                <span>Members</span>
+              </Link>
+
               {canViewBusinessAnalytics(role) ? (
                 <Link
                   href={analyticsHref}
@@ -239,32 +279,17 @@ export function MobileBottomNav({
               ) : null}
 
               <Link
-                href={getBusinessSettingsPath(businessSlug, "members")}
-                prefetch={true}
-                onClick={() => setMoreOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  pathname.includes("/members")
-                    ? "bg-sidebar-primary/12 text-primary font-semibold"
-                    : "text-foreground hover:bg-muted",
-                )}
-              >
-                <LayoutGrid className="size-4 shrink-0 text-muted-foreground" />
-                <span>Team members</span>
-              </Link>
-
-              <Link
                 href={settingsHref}
                 prefetch={true}
                 onClick={() => setMoreOpen(false)}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  pathname.includes("/settings") && !pathname.includes("/members")
+                  pathname.includes("/settings")
                     ? "bg-sidebar-primary/12 text-primary font-semibold"
                     : "text-foreground hover:bg-muted",
                 )}
               >
-                <LayoutGrid className="size-4 shrink-0 text-muted-foreground" />
+                <Settings className="size-4 shrink-0 text-muted-foreground" />
                 <span>Settings</span>
               </Link>
             </div>

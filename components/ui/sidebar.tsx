@@ -472,7 +472,7 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button group/menu-button motion-sidebar-panel flex w-full items-center gap-2.5 overflow-hidden rounded-md px-2.5 py-2 text-left text-xs font-medium ring-sidebar-ring outline-hidden transition-[width,height,padding,background-color,color,transform] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:[&>span:last-child]:hidden group-data-[collapsible=icon]:[&>svg+span]:hidden hover:bg-sidebar-accent/80 hover:text-sidebar-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-foreground data-active:bg-sidebar-accent data-active:font-semibold data-active:text-sidebar-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
+  "peer/menu-button group/menu-button motion-sidebar-panel flex w-full items-center gap-2.5 overflow-hidden rounded-md px-2.5 py-2 text-left text-sm font-medium ring-sidebar-ring outline-hidden transition-[width,height,padding,background-color,color,transform] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:[&>span:last-child]:hidden group-data-[collapsible=icon]:[&>svg+span]:hidden hover:bg-sidebar-accent/80 hover:text-sidebar-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-foreground data-active:bg-sidebar-accent data-active:font-semibold data-active:text-sidebar-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate",
   {
     variants: {
       variant: {
@@ -481,9 +481,9 @@ const sidebarMenuButtonVariants = cva(
           "border border-sidebar-border bg-background hover:bg-sidebar-accent hover:text-sidebar-foreground",
       },
       size: {
-        default: "h-9 text-xs",
+        default: "h-10 text-sm",
         sm: "h-8 rounded-md text-xs",
-        lg: "h-11 text-xs group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:p-0!",
+        lg: "h-12 text-sm group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:p-0!",
       },
     },
     defaultVariants: {

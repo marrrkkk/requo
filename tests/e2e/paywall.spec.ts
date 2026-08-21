@@ -93,11 +93,11 @@ test.describe("Paywall & Free Plan Gating", () => {
     ).toBeVisible();
   });
 
-  test("owner sees paywall on pricing settings", async ({ page }) => {
+  test("owner sees paywall on products page", async ({ page }) => {
     await openDemoBusiness(page);
-    await page.goto(`/${demoBusinessSlug}/settings/pricing`);
+    await page.goto(`/${demoBusinessSlug}/products`);
 
-    // PageHeader title is "Pricing" (not "Pricing library").
+    // PageHeader title is "Products".
     await expect(
       page.getByRole("heading", { name: "Pricing", level: 1 }).or(
         page.getByText("Pricing", { exact: true }).first(),

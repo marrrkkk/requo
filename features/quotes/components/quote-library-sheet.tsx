@@ -33,6 +33,7 @@ import type {
 import {
   getBusinessDashboardSlugFromPathname,
   getBusinessSettingsPath,
+  getBusinessProductsPath,
   dashboardPath,
 } from "@/features/businesses/routes";
 import {
@@ -182,11 +183,13 @@ export function QuoteLibrarySheet({
                     <Link
                       href={
                         businessSlug
-                          ? getBusinessSettingsPath(businessSlug, isTemplateMode ? "quote" : "pricing")
+                          ? isTemplateMode
+                            ? getBusinessSettingsPath(businessSlug, "quote")
+                            : getBusinessProductsPath(businessSlug)
                           : dashboardPath
                       }
                     >
-                      {isTemplateMode ? "Open quote settings" : "Open pricing"}
+                      {isTemplateMode ? "Open quote settings" : "Open products"}
                     </Link>
                   </Button>
                 </EmptyContent>
@@ -203,8 +206,8 @@ export function QuoteLibrarySheet({
                   </EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => {
                       setSearch("");
                       if (!isTemplateMode) setTab("all");

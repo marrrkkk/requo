@@ -6,6 +6,8 @@ import {
   FormInput,
   Home,
   Inbox,
+  Package,
+  Users,
 } from "lucide-react";
 
 
@@ -23,6 +25,7 @@ import {
   getBusinessInquiriesPath,
   getBusinessMembersPath,
   getBusinessNewInquiryPath,
+  getBusinessProductsPath,
   getBusinessQuotesPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
@@ -74,6 +77,18 @@ export function getDashboardNavigation(
       description: "Build and manage the forms that capture customer inquiries.",
       icon: FormInput,
     },
+    {
+      href: getBusinessProductsPath(slug),
+      label: "Products",
+      description: "Reusable product blocks and service packages for faster quotes.",
+      icon: Package,
+    },
+    {
+      href: getBusinessMembersPath(slug),
+      label: "Members",
+      description: "Manage team access and roles.",
+      icon: Users,
+    },
     ...(canViewBusinessAnalytics(role)
       ? [
           {
@@ -96,12 +111,12 @@ function resolveDashboardActivePathname(pathname: string) {
 
   const membersPath = getBusinessMembersPath(slug);
 
-  // Top-level members is still available, but the primary nav treats it as setup.
+  // Top-level members is available in main nav, not in settings.
   if (
     pathname === membersPath ||
     pathname.startsWith(`${membersPath}/`)
   ) {
-    return getBusinessSettingsPath(slug, "members");
+    return membersPath;
   }
 
   const legacyDashboardPath = `${getBusinessPath(slug)}/dashboard`;
@@ -208,6 +223,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   const quotesPath = getBusinessQuotesPath(slug);
   const formsPath = getBusinessFormsPath(slug);
   const membersPath = getBusinessMembersPath(slug);
+  const productsPath = getBusinessProductsPath(slug);
   const settingsPath = getBusinessSettingsPath(slug);
 
   if (pathname === dashboardPath) {
@@ -308,6 +324,10 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
     return withDashboardHome(slug, [{ label: "Members" }]);
   }
 
+  if (pathname === productsPath || pathname.startsWith(`${productsPath}/`)) {
+    return withDashboardHome(slug, [{ label: "Products" }]);
+  }
+
   if (pathname === settingsPath) {
     return withDashboardHome(slug, [{ label: "Settings" }]);
   }
@@ -322,7 +342,6 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
       profile: "Your profile",
       inquiry: "Forms",
       quote: "Quote defaults",
-      pricing: "Pricing",
       knowledge: "Knowledge",
     };
     const sectionLabel = sectionLabels[section] ?? formatBreadcrumbLabel(section);

@@ -1,11 +1,4 @@
 import dynamic from "next/dynamic";
-import {
-  BellRing,
-  Bot,
-  ChartNoAxesCombined,
-  FileText,
-  Inbox,
-} from "lucide-react";
 
 import type { LandingFeatureId } from "@/components/marketing/marketing-data";
 import { cn } from "@/lib/utils";
@@ -25,14 +18,6 @@ const featureKickers: Record<LandingFeatureId, string> = {
   analytics: "Improve",
 };
 
-const featureIcons = {
-  inquiries: Inbox,
-  quotes: FileText,
-  ai: Bot,
-  followUps: BellRing,
-  analytics: ChartNoAxesCombined,
-} satisfies Record<LandingFeatureId, typeof Inbox>;
-
 export function MarketingFeatureRow({
   title,
   description,
@@ -44,8 +29,6 @@ export function MarketingFeatureRow({
   featureId: LandingFeatureId;
   reverse?: boolean;
 }) {
-  const Icon = featureIcons[featureId];
-
   return (
     <article
       className="[--page-gutter:1.25rem] overflow-x-clip py-6 sm:[--page-gutter:1.5rem] sm:py-8 lg:[--page-gutter:2rem] lg:py-10 xl:[--page-gutter:max(2rem,calc((100vw-72rem)/2))]"
@@ -66,12 +49,7 @@ export function MarketingFeatureRow({
               reverse ? "lg:ml-auto" : "lg:mr-auto",
             )}
           >
-            <div className="flex items-center gap-2">
-              <span className="flex size-8 items-center justify-center rounded-lg border border-border/70 bg-card text-primary shadow-sm">
-                <Icon aria-hidden="true" className="size-4" />
-              </span>
-              <span className="meta-label">{featureKickers[featureId]}</span>
-            </div>
+            <p className="meta-label !text-primary">{featureKickers[featureId]}</p>
             <h3 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
               {title}
             </h3>

@@ -42,8 +42,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { DashboardEmptyState, DashboardPage } from "@/components/shared/dashboard-layout";
-import { PageHeader } from "@/components/shared/page-header";
+import { DashboardEmptyState } from "@/components/shared/dashboard-layout";
 import {
   completeFollowUpAction,
   skipFollowUpAction,
@@ -241,21 +240,10 @@ export function FollowUpBoard({
   }, [optimisticBoard, searchQuery]);
 
   return (
-    <DashboardPage>
-      <PageHeader
-        title="Follow-ups"
-        description="See who needs contact next and when."
-        actions={createButton}
-      />
-
-      {totalFollowUps === 0 ? (
-        <DashboardEmptyState
-          title="You're all caught up"
-          description="Follow-ups appear here when inquiries or quotes need attention. They're created automatically or manually."
-        />
-      ) : (
-        <>
-          <div className="relative max-w-sm">
+    <>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {totalFollowUps > 0 ? (
+          <div className="relative max-w-sm flex-1">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by customer, title, or reason..."
@@ -264,7 +252,19 @@ export function FollowUpBoard({
               className="pl-9"
             />
           </div>
+        ) : (
+          <div />
+        )}
+        {createButton}
+      </div>
 
+      {totalFollowUps === 0 ? (
+        <DashboardEmptyState
+          title="You're all caught up"
+          description="Follow-ups appear here when inquiries or quotes need attention. They're created automatically or manually."
+        />
+      ) : (
+        <>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {columns.map((column) => (
               <FollowUpColumn
@@ -297,7 +297,7 @@ export function FollowUpBoard({
         onOptimisticRemove={optimisticRemove}
         isPendingKey={isPendingKey}
       />
-    </DashboardPage>
+    </>
   );
 }
 

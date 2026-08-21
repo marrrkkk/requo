@@ -104,21 +104,22 @@ export function MarketingHero() {
       <PublicPageShell
         brandSubtitle={null}
         brandSize="lg"
-        className="pb-28 lg:pb-40"
+        className="pb-28 pt-0 lg:pb-40"
         header={<MarketingHeader />}
       >
-      <section className="relative overflow-hidden px-4 pb-24 pt-12 sm:px-6 sm:pb-32 sm:pt-16 lg:px-8 lg:pb-40 lg:pt-24 xl:px-0">
-        <div className="relative z-10 flex flex-col gap-12 sm:gap-16 lg:gap-20">
-          <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-6 text-center">
-            <h1 className="font-[var(--font-inter)] text-[3.5rem] font-bold leading-[1.0] tracking-[-0.02em] text-foreground sm:text-[4.5rem] sm:leading-[1.0] lg:text-[5.5rem] lg:leading-[1.0]">
-              Stop losing jobs to<br className="hidden sm:inline" />{" "}
-              <span className="text-primary">slow responses</span>.
+      <section className="relative overflow-hidden px-4 pb-20 pt-14 sm:px-6 sm:pb-28 sm:pt-16 lg:px-8 lg:pb-36 lg:pt-24 xl:px-0">
+        <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center gap-8 sm:gap-10 lg:gap-12">
+          <div className="flex w-full max-w-4xl flex-col items-center gap-4 text-center sm:gap-5">
+            <h1 className="font-[var(--font-inter)] text-[2.5rem] font-bold leading-[1.1] tracking-[-0.02em] text-foreground sm:text-[3rem] sm:leading-[1.1] lg:text-[3.5rem] lg:leading-[1.05]">
+              Manage every inquiry.
+              <br />
+              <span className="text-primary">Send every quote.</span>
             </h1>
-            <p className="max-w-lg font-[var(--font-inter)] text-[1.05rem] font-normal leading-[1.5] text-muted-foreground sm:text-lg sm:leading-[1.5] lg:text-xl lg:leading-[1.5]">
-              Capture inquiries, send quotes, and follow up automatically so every opportunity keeps moving.
+            <p className="max-w-lg font-[var(--font-inter)] text-base font-normal leading-[1.5] text-muted-foreground sm:text-[1.05rem] sm:leading-[1.5] lg:text-lg lg:leading-[1.5]">
+              Capture inquiries, send quotes, and follow up automatically, so owner-led service businesses keep every opportunity moving.
             </p>
 
-            <div className="flex flex-col items-center gap-3 pt-2 sm:flex-row">
+            <div className="flex flex-col items-center gap-3 pt-1 sm:flex-row">
               <Button asChild size="lg" className="rounded-md bg-primary px-5 font-[var(--font-inter)] text-sm font-medium text-primary-foreground hover:bg-primary/90">
                 <Link href="/signup">
                   Start free
@@ -134,10 +135,9 @@ export function MarketingHero() {
                 <Link href="/pricing">See pricing</Link>
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">Built for owner-led service businesses.</p>
           </div>
 
-          <div className="mx-auto w-full max-w-6xl">
+          <div className="w-full">
             {/* Device frame */}
             <div
               className="rounded-lg border border-border bg-card p-1 shadow-[0_24px_70px_rgba(0,0,0,0.22)] sm:rounded-xl sm:p-1.5 dark:bg-card/80 dark:shadow-[0_28px_90px_rgba(0,0,0,0.5)]"
@@ -145,7 +145,7 @@ export function MarketingHero() {
               aria-label="Requo quote management dashboard showing inquiry inbox, quote builder, and follow-up schedule for service businesses"
             >
               <div className="overflow-hidden rounded-[5px] bg-background sm:rounded-lg">
-                <div className="flex aspect-[16/9] w-full">
+                <div className="flex aspect-[16/10] w-full">
                   <MarketingDashboardPreview />
                 </div>
               </div>
@@ -183,7 +183,7 @@ export function MarketingHero() {
               <InViewReveal delay={80 + index * 60} key={point.hook}>
                 <article className="surface-card group relative flex h-full flex-col overflow-hidden rounded-2xl transition-shadow duration-200 hover:shadow-[var(--surface-shadow-lg)]">
                   <GraphicComponent />
-                  
+
                   {/* Content */}
                   <div className="flex flex-col gap-5 p-6 sm:p-7">
                     <div className="flex items-center justify-between">
@@ -228,7 +228,7 @@ export function MarketingHero() {
       </section>
 
       <section
-        className="relative left-1/2 mt-24 w-screen -translate-x-1/2 overflow-x-clip border-y border-border/60 bg-muted/20 py-16 sm:mt-32 sm:py-20 lg:mt-40 lg:py-24"
+        className="relative left-1/2 mt-24 w-screen -translate-x-1/2 overflow-x-clip bg-muted/20 py-16 sm:mt-32 sm:py-20 lg:mt-40 lg:py-24"
         id="features"
       >
         <InViewReveal className="mx-auto grid w-full max-w-6xl gap-4 px-4 sm:gap-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end lg:px-8 xl:px-0">
@@ -243,7 +243,7 @@ export function MarketingHero() {
           </p>
         </InViewReveal>
 
-        <div className="mt-10 flex flex-col divide-y divide-border/60 sm:mt-12">
+        <div className="mt-10 flex flex-col sm:mt-12">
           {landingFeatureItems.map((item, index) => (
             <InViewReveal className="w-full" delay={80 + index * 45} key={item.id}>
               <MarketingFeatureRow

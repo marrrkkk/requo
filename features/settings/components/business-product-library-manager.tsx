@@ -40,7 +40,7 @@ import {
 import { DashboardEmptyState } from "@/components/shared/dashboard-layout";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImporterDialog } from "@/features/importer/components/importer-dialog";
-import type { PricingDraft } from "@/features/importer/components/importer-pricing-review";
+import type { ProductDraft } from "@/features/importer/components/importer-product-review";
 import type {
   ImporterAnalyzeResult,
   ImporterCommitResult,
@@ -62,9 +62,9 @@ import type {
 import { useAnimatedList, type MotionState } from "@/hooks/use-animated-list";
 import type { OptimisticActionResult } from "@/hooks/use-optimistic-mutation";
 
-type BusinessPricingLibraryManagerProps = {
+type BusinessProductLibraryManagerProps = {
   quoteLibrary: DashboardQuoteLibraryEntry[];
-  pricingLimit: number | null;
+  productLimit: number | null;
   createAction: (
     state: QuoteLibraryActionState,
     formData: FormData,
@@ -81,9 +81,9 @@ type BusinessPricingLibraryManagerProps = {
   ) => Promise<QuoteLibraryDeleteActionState>;
   importerEnabled: boolean;
   analyzeImportAction: (formData: FormData) => Promise<ImporterAnalyzeResult>;
-  commitPricingImportAction: (payload: {
+  commitProductImportAction: (payload: {
     sourceName: string;
-    entries: PricingDraft[];
+    entries: ProductDraft[];
   }) => Promise<ImporterCommitResult>;
 };
 
@@ -94,23 +94,23 @@ type EditorState =
   | { mode: "edit"; entry: DashboardQuoteLibraryEntry }
   | null;
 
-export function BusinessPricingLibraryManager({
+export function BusinessProductLibraryManager({
   quoteLibrary,
-  pricingLimit,
+  productLimit,
   createAction,
   updateAction,
   deleteAction,
   importerEnabled,
   analyzeImportAction,
-  commitPricingImportAction,
-}: BusinessPricingLibraryManagerProps) {
+  commitProductImportAction,
+}: BusinessProductLibraryManagerProps) {
   const [filter, setFilter] = useState<FilterTab>("all");
   const [editorState, setEditorState] = useState<EditorState>(null);
   const [deleteTarget, setDeleteTarget] =
     useState<DashboardQuoteLibraryEntry | null>(null);
   const [importerOpen, setImporterOpen] = useState(false);
   const totalCount = quoteLibrary.length;
-  const isAtLimit = pricingLimit !== null && totalCount >= pricingLimit;
+  const isAtLimit = productLimit !== null && totalCount >= productLimit;
 
   const blockCount = quoteLibrary.filter((e) => e.kind === "block").length;
   const packageCount = quoteLibrary.filter((e) => e.kind === "package").length;
@@ -158,7 +158,7 @@ export function BusinessPricingLibraryManager({
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard
           icon={Layers}
-          label="Pricing blocks"
+          label="Product blocks"
           value={blockCount}
           description="Reusable line items"
         />
@@ -171,7 +171,7 @@ export function BusinessPricingLibraryManager({
         <StatCard
           icon={Layers}
           label="Plan usage"
-          value={`${totalCount}/${pricingLimit ?? "∞"}`}
+          value={`${totalCount}/${productLimit ?? "∞"}`}
           description={isAtLimit ? "Limit reached" : "Entries used"}
         />
       </div>
@@ -251,8 +251,8 @@ export function BusinessPricingLibraryManager({
             filter === "package"
               ? "Create your first package to bundle services together."
               : filter === "block"
-                ? "Create your first pricing block to speed up quoting."
-                : "Add your first pricing block or service package to get started."
+                ? "Create your first product block to speed up quoting."
+                : "Add your first product block or service package to get started."
           }
           icon={filter === "package" ? Package : Layers}
           title={
@@ -299,14 +299,14 @@ export function BusinessPricingLibraryManager({
                         ) : editorState.kind === "template" ? (
                           "Create quote template"
                         ) : (
-                          "Create pricing block"
+                          "Create product block"
                         )
                       ) : editorState.entry.kind === "package" ? (
                         "Edit service package"
                       ) : editorState.entry.kind === "template" ? (
                         "Edit quote template"
                       ) : (
-                        "Edit pricing block"
+                        "Edit product block"
                       )}
                     </ResponsiveOverlayTitle>
                     <ResponsiveOverlayDescription>
@@ -317,7 +317,7 @@ export function BusinessPricingLibraryManager({
                             editorState.kind === "template"
                           ? "A full quote blueprint that pre-fills title, notes, terms, validity, and line items."
                           : editorState.mode === "create"
-                            ? "A reusable line item you can drop into any quote with one click."
+                            ? "A reusable product line item you can drop into any quote with one click."
                             : "Update the details and line items."}
                     </ResponsiveOverlayDescription>
                   </div>
@@ -401,7 +401,7 @@ export function BusinessPricingLibraryManager({
       {importerEnabled ? (
         <ImporterDialog
           analyzeAction={analyzeImportAction}
-          commitPricingAction={commitPricingImportAction}
+          commitProductAction={commitProductImportAction}
           onOpenChange={setImporterOpen}
           open={importerOpen}
         />
@@ -591,7 +591,7 @@ function DeleteConfirmDialogInner({
           <AlertDialogTitle>Delete {kindLabel}?</AlertDialogTitle>
           <AlertDialogDescription>
             This permanently removes &ldquo;{entry.name}&rdquo; from your
-            pricing library. Quotes already using this {kindLabel} are not
+            product library. Quotes already using this {kindLabel} are not
             affected.
           </AlertDialogDescription>
         </AlertDialogHeader>
