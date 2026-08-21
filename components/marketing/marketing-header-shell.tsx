@@ -43,14 +43,12 @@ export function MarketingHeaderShell({
 
   return (
     <header className="sticky top-0 z-50 w-full bg-[#ffffff] dark:bg-[#161616]">
-      <div className="mx-auto grid w-full grid-cols-[1fr_auto_1fr] items-center gap-6 px-5 py-2.5 sm:px-8 sm:py-3 lg:px-10">
-        {/* Left: brand */}
-        <div className="flex items-center justify-self-start">
-          <BrandMark subtitle={null} size="lg" />
+      <div className="relative mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-2.5 sm:px-6 sm:py-3 lg:px-8">
+        <div className="flex items-center">
+          <BrandMark subtitle={null} size="default" />
         </div>
 
-        {/* Center: nav */}
-        <nav className="public-page-header-nav justify-self-center">
+        <nav className="public-page-header-nav absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 lg:flex">
           {navItems.map((item) => (
             <Link
               className={navLinkClass}
@@ -64,8 +62,7 @@ export function MarketingHeaderShell({
           <MarketingResourcesNav triggerClassName={navLinkClass} />
         </nav>
 
-        {/* Right: actions */}
-        <div className="flex shrink-0 items-center justify-self-end gap-2 sm:gap-2.5">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
           <div className="hidden items-center gap-2 sm:flex sm:gap-2.5">
             {actions}
           </div>
@@ -87,7 +84,7 @@ export function MarketingHeaderShell({
             >
               <SheetHeader className="border-b border-border/70">
                 <SheetTitle className="sr-only">Navigation</SheetTitle>
-                <BrandMark subtitle={null} size="lg" />
+                <BrandMark subtitle={null} size="default" />
               </SheetHeader>
 
               <SheetBody className="gap-1">
