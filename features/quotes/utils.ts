@@ -159,9 +159,9 @@ export function createQuoteEditorLineItemValue(
     quantity: string;
     unitPrice: string;
     aiReview: QuoteEditorLineItemValue["aiReview"];
-    aiPricingStatus: QuoteEditorLineItemValue["aiPricingStatus"];
-    aiPricingLibraryEntryId: QuoteEditorLineItemValue["aiPricingLibraryEntryId"];
-    aiPricingLibraryItemId: QuoteEditorLineItemValue["aiPricingLibraryItemId"];
+    aiProductStatus: QuoteEditorLineItemValue["aiProductStatus"];
+    aiProductLibraryEntryId: QuoteEditorLineItemValue["aiProductLibraryEntryId"];
+    aiProductLibraryItemId: QuoteEditorLineItemValue["aiProductLibraryItemId"];
     aiEvidence: QuoteEditorLineItemValue["aiEvidence"];
   }>,
 ): QuoteEditorLineItemValue {
@@ -171,9 +171,9 @@ export function createQuoteEditorLineItemValue(
     quantity: value?.quantity ?? "1",
     unitPrice: value?.unitPrice ?? "",
     aiReview: value?.aiReview,
-    aiPricingStatus: value?.aiPricingStatus,
-    aiPricingLibraryEntryId: value?.aiPricingLibraryEntryId,
-    aiPricingLibraryItemId: value?.aiPricingLibraryItemId,
+    aiProductStatus: value?.aiProductStatus,
+    aiProductLibraryEntryId: value?.aiProductLibraryEntryId,
+    aiProductLibraryItemId: value?.aiProductLibraryItemId,
     aiEvidence: value?.aiEvidence,
   };
 }

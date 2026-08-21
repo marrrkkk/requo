@@ -46,16 +46,16 @@ function getNextQuoteNumberFromSequence(sequence: number | null | undefined) {
  * downgraded to `owner_set` and its library references are cleared — the
  * server never accepts stale AI provenance for a line the owner changed.
  */
-function resolveItemAiPricingStatus(
+function resolveItemAiProductStatus(
   item: QuoteEditorInput["items"][number],
 ) {
   const ownerEdited = item.aiReview?.pricingSource === "owner_brief";
 
   if (ownerEdited) {
     return {
-      aiPricingStatus: "owner_set" as const,
-      aiPricingLibraryEntryId: null,
-      aiPricingLibraryItemId: null,
+      aiProductStatus: "owner_set" as const,
+      aiProductLibraryEntryId: null,
+      aiProductLibraryItemId: null,
       aiEvidence: null,
     };
   }
@@ -63,9 +63,9 @@ function resolveItemAiPricingStatus(
   const evidence = item.aiEvidence;
 
   return {
-    aiPricingStatus: item.aiPricingStatus ?? null,
-    aiPricingLibraryEntryId: item.aiPricingLibraryEntryId ?? null,
-    aiPricingLibraryItemId: item.aiPricingLibraryItemId ?? null,
+    aiProductStatus: item.aiProductStatus ?? null,
+    aiProductLibraryEntryId: item.aiProductLibraryEntryId ?? null,
+    aiProductLibraryItemId: item.aiProductLibraryItemId ?? null,
     aiEvidence: evidence
       ? {
           entryId: evidence.entryId ?? null,
@@ -100,7 +100,7 @@ function calculateQuoteTotals(input: QuoteEditorInput) {
     unitPriceInCents: item.unitPriceInCents,
     lineTotalInCents: item.quantity * item.unitPriceInCents,
     position: index,
-    ...resolveItemAiPricingStatus(item),
+    ...resolveItemAiProductStatus(item),
   }));
   const subtotalInCents = items.reduce(
     (sum, item) => sum + item.lineTotalInCents,
@@ -513,9 +513,9 @@ export async function createQuoteForBusiness({
             unitPriceInCents: item.unitPriceInCents,
             lineTotalInCents: item.lineTotalInCents,
             position: item.position,
-            aiPricingStatus: item.aiPricingStatus,
-            aiPricingLibraryEntryId: item.aiPricingLibraryEntryId,
-            aiPricingLibraryItemId: item.aiPricingLibraryItemId,
+            aiProductStatus: item.aiProductStatus,
+            aiProductLibraryEntryId: item.aiProductLibraryEntryId,
+            aiProductLibraryItemId: item.aiProductLibraryItemId,
             aiEvidence: item.aiEvidence,
             createdAt: now,
             updatedAt: now,
@@ -664,9 +664,9 @@ export async function updateQuoteForBusiness({
         unitPriceInCents: item.unitPriceInCents,
         lineTotalInCents: item.lineTotalInCents,
         position: item.position,
-        aiPricingStatus: item.aiPricingStatus,
-        aiPricingLibraryEntryId: item.aiPricingLibraryEntryId,
-        aiPricingLibraryItemId: item.aiPricingLibraryItemId,
+        aiProductStatus: item.aiProductStatus,
+        aiProductLibraryEntryId: item.aiProductLibraryEntryId,
+        aiProductLibraryItemId: item.aiProductLibraryItemId,
         aiEvidence: item.aiEvidence,
         createdAt: now,
         updatedAt: now,

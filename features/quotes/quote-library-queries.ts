@@ -9,7 +9,7 @@ import {
   quoteLibraryEntryItems,
 } from "@/lib/db/schema";
 import {
-  getBusinessPricingCacheTags,
+  getBusinessProductCacheTags,
   settingsBusinessCacheLife,
 } from "@/lib/cache/business-tags";
 import type {
@@ -23,7 +23,7 @@ export async function getQuoteLibraryForBusiness(
   "use cache";
 
   cacheLife(settingsBusinessCacheLife);
-  cacheTag(...getBusinessPricingCacheTags(businessId));
+  cacheTag(...getBusinessProductCacheTags(businessId));
 
   const entries = await db
     .select({
@@ -119,7 +119,7 @@ export async function getQuoteLibrarySummaryForBusiness(
   "use cache";
 
   cacheLife(settingsBusinessCacheLife);
-  cacheTag(...getBusinessPricingCacheTags(businessId));
+  cacheTag(...getBusinessProductCacheTags(businessId));
 
   const [entrySummary] = await db
     .select({

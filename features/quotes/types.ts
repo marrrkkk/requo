@@ -45,7 +45,7 @@ import type { BusinessPlan } from "@/lib/plans/plans";
 import type {
   AiQuoteDraftItem,
   AiQuoteMissingInfoItem,
-  AiQuotePricingStatus,
+  AiQuoteProductStatus,
   AiQuoteReadiness,
 } from "@/features/ai/types";
 
@@ -291,10 +291,10 @@ export type QuoteEditorLineItemValue = {
    * edited a generated line item — the server never accepts any other value
    * from the model or the client as authoritative for a changed line.
    */
-  aiPricingStatus?: AiQuotePricingStatus;
-  /** Pricing library entry/item behind a generated price (null once owner-edited). */
-  aiPricingLibraryEntryId?: string | null;
-  aiPricingLibraryItemId?: string | null;
+  aiProductStatus?: AiQuoteProductStatus;
+  /** Product library entry/item behind a generated price (null once owner-edited). */
+  aiProductLibraryEntryId?: string | null;
+  aiProductLibraryItemId?: string | null;
   /** Grounded pricing evidence set by server-side hydration/verification. */
   aiEvidence?: AiQuoteDraftItem["aiEvidence"] | null;
 };

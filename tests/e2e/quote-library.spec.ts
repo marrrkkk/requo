@@ -34,7 +34,7 @@ test("owner can save a pricing block and insert it into a new quote", async ({
 
   await signIn(page);
 
-  await page.goto(`${businessBasePath}/settings/pricing`);
+  await page.goto(`${businessBasePath}/products`);
   await page.waitForLoadState("networkidle");
 
   await page.getByRole("textbox", { name: "Name", exact: true }).fill(entryName);

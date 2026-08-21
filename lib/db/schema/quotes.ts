@@ -46,7 +46,7 @@ export const aiQuoteReadinessEnum = pgEnum("ai_quote_readiness", [
   "scope_only",
 ]);
 
-export const aiQuotePricingStatusEnum = pgEnum("ai_pricing_status", [
+export const aiQuoteProductStatusEnum = pgEnum("ai_product_status", [
   "verified",
   "suggested",
   "unpriced",
@@ -232,11 +232,11 @@ export const quoteItems = pgTable(
      * How the item's price was established. `null` for manual/historical items.
      * Cleared to `owner_set` when the owner edits a generated item.
      */
-    aiPricingStatus: aiQuotePricingStatusEnum("ai_pricing_status"),
-    /** Pricing-library entry that authorized a verified/suggested price. */
-    aiPricingLibraryEntryId: text("ai_pricing_library_entry_id"),
-    /** Pricing-library item that authorized a verified/suggested price. */
-    aiPricingLibraryItemId: text("ai_pricing_library_item_id"),
+    aiProductStatus: aiQuoteProductStatusEnum("ai_product_status"),
+    /** Product-library entry that authorized a verified/suggested price. */
+    aiProductLibraryEntryId: text("ai_product_library_entry_id"),
+    /** Product-library item that authorized a verified/suggested price. */
+    aiProductLibraryItemId: text("ai_product_library_item_id"),
     /** Source references and reason behind the item's price status. */
     aiEvidence: jsonb("ai_evidence").$type<AiQuoteItemEvidence | null>().default(null),
     createdAt: timestamp("created_at", { withTimezone: true })

@@ -87,9 +87,9 @@ test("manager can access operational settings but not members", async ({
 }) => {
   await signIn(page, demoManagerEmail, demoManagerPassword);
 
-  await page.goto(`/${demoBusinessSlug}/settings/pricing`);
+  await page.goto(`/${demoBusinessSlug}/products`);
   await expect(page).toHaveURL(
-    new RegExp(`/${demoBusinessSlug}/settings/pricing$`),
+    new RegExp(`/${demoBusinessSlug}/products$`),
     { timeout: 20_000 },
   );
   await expect(
@@ -99,7 +99,7 @@ test("manager can access operational settings but not members", async ({
     }),
   ).toBeVisible();
 
-  await page.goto(`/${demoBusinessSlug}/settings/members`);
+  await page.goto(`/${demoBusinessSlug}/members`);
   await expect(page).toHaveURL(
     new RegExp(`/${demoBusinessSlug}/home$`),
     { timeout: 20_000 },
@@ -124,7 +124,7 @@ test("staff can access inquiry work but not forms or operational settings", asyn
     { timeout: 20_000 },
   );
 
-  await page.goto(`/${demoBusinessSlug}/settings/pricing`);
+  await page.goto(`/${demoBusinessSlug}/products`);
   await expect(page).toHaveURL(
     new RegExp(`/${demoBusinessSlug}/home$`),
     { timeout: 20_000 },
@@ -154,7 +154,7 @@ test("non-members cannot open another business dashboard @smoke", async ({ page 
 
 test("owner can change a member role and remove them safely", async ({ page }) => {
   await signIn(page, demoOwnerEmail, demoOwnerPassword);
-  await page.goto(`/${demoBusinessSlug}/settings/members`);
+  await page.goto(`/${demoBusinessSlug}/members`);
   await page.waitForLoadState("networkidle");
 
   const ownerRow = page

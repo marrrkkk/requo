@@ -42,7 +42,6 @@ export function getUnifiedSettingsNavigation(
       label: "Business",
       items: [
         { href: `/${slug}/settings/general`, label: "General", icon: "building" },
-        { href: `/${slug}/settings/members`, label: "Members", icon: "users" },
         {
           href: `/${slug}/settings/billing`,
           label: "Billing",
@@ -54,7 +53,6 @@ export function getUnifiedSettingsNavigation(
           icon: "file-text",
         },
         { href: `/${slug}/settings/email`, label: "Email", icon: "mail" },
-        { href: `/${slug}/settings/pricing`, label: "Pricing", icon: "tag" },
         {
           href: `/${slug}/settings/support`,
           label: "Support",
@@ -149,11 +147,6 @@ export function getBusinessSettingsNavigation(
               href: getBusinessSettingsPath(slug, "email"),
               label: "Email",
               icon: "email" as const,
-            },
-            {
-              href: getBusinessSettingsPath(slug, "pricing"),
-              label: "Pricing",
-              icon: "pricing" as const,
             },
           ],
         }

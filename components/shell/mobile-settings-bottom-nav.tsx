@@ -14,6 +14,7 @@ import {
 
 import {
   getBusinessDashboardPath,
+  getBusinessMembersPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 import {
@@ -44,7 +45,7 @@ export function MobileSettingsBottomNav({
   const dashboardPath = getBusinessDashboardPath(businessSlug);
   const generalPath = getBusinessSettingsPath(businessSlug, "general");
   const billingPath = getBusinessSettingsPath(businessSlug, "billing");
-  const membersPath = getBusinessSettingsPath(businessSlug, "members");
+  const membersPath = getBusinessMembersPath(businessSlug);
 
   const primaryTabs = [
     {
@@ -64,12 +65,6 @@ export function MobileSettingsBottomNav({
       label: "Billing",
       icon: BriefcaseBusiness,
       isActive: pathname.startsWith(billingPath),
-    },
-    {
-      href: membersPath,
-      label: "Members",
-      icon: Users,
-      isActive: pathname.startsWith(membersPath),
     },
   ];
 

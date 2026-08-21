@@ -101,7 +101,7 @@ function isValidDateInput(value: string) {
   );
 }
 
-const aiQuotePricingStatusValues = [
+const aiQuoteProductStatusValues = [
   "verified",
   "suggested",
   "unpriced",
@@ -172,9 +172,9 @@ const quoteFormLineItemSchema = z.object({
       .max(100_000_000, "Unit price is too large."),
   ),
   aiReview: quoteFormAiReviewSchema,
-  aiPricingStatus: z.enum(aiQuotePricingStatusValues).optional(),
-  aiPricingLibraryEntryId: z.string().trim().max(128).optional(),
-  aiPricingLibraryItemId: z.string().trim().max(128).optional(),
+  aiProductStatus: z.enum(aiQuoteProductStatusValues).optional(),
+  aiProductLibraryEntryId: z.string().trim().max(128).optional(),
+  aiProductLibraryItemId: z.string().trim().max(128).optional(),
   aiEvidence: quoteFormAiEvidenceSchema,
 });
 

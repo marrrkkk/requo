@@ -250,9 +250,9 @@ describe("features/quotes/mutations workflow", () => {
             description: "Verified item",
             quantity: 1,
             unitPriceInCents: 10000,
-            aiPricingStatus: "verified",
-            aiPricingLibraryEntryId: "entry_1",
-            aiPricingLibraryItemId: "item_1",
+            aiProductStatus: "verified",
+            aiProductLibraryEntryId: "entry_1",
+            aiProductLibraryItemId: "item_1",
             aiEvidence: {
               entryId: "entry_1",
               itemId: "item_1",
@@ -266,9 +266,9 @@ describe("features/quotes/mutations workflow", () => {
             description: "Suggested item",
             quantity: 1,
             unitPriceInCents: 9000,
-            aiPricingStatus: "suggested",
-            aiPricingLibraryEntryId: "entry_2",
-            aiPricingLibraryItemId: "item_2",
+            aiProductStatus: "suggested",
+            aiProductLibraryEntryId: "entry_2",
+            aiProductLibraryItemId: "item_2",
             aiEvidence: {
               entryId: "entry_2",
               itemId: "item_2",
@@ -299,9 +299,9 @@ describe("features/quotes/mutations workflow", () => {
 
     expect(storedItems[0]).toEqual(
       expect.objectContaining({
-        aiPricingStatus: "verified",
-        aiPricingLibraryEntryId: "entry_1",
-        aiPricingLibraryItemId: "item_1",
+        aiProductStatus: "verified",
+        aiProductLibraryEntryId: "entry_1",
+        aiProductLibraryItemId: "item_1",
         aiEvidence: expect.objectContaining({
           entryId: "entry_1",
           matchType: "exact",
@@ -310,8 +310,8 @@ describe("features/quotes/mutations workflow", () => {
     );
     expect(storedItems[1]).toEqual(
       expect.objectContaining({
-        aiPricingStatus: "suggested",
-        aiPricingLibraryEntryId: "entry_2",
+        aiProductStatus: "suggested",
+        aiProductLibraryEntryId: "entry_2",
       }),
     );
 
@@ -331,9 +331,9 @@ describe("features/quotes/mutations workflow", () => {
             description: "Verified item",
             quantity: 1,
             unitPriceInCents: 10000,
-            aiPricingStatus: "verified",
-            aiPricingLibraryEntryId: "entry_1",
-            aiPricingLibraryItemId: "item_1",
+            aiProductStatus: "verified",
+            aiProductLibraryEntryId: "entry_1",
+            aiProductLibraryItemId: "item_1",
             aiEvidence: {
               entryId: "entry_1",
               itemId: "item_1",
@@ -347,9 +347,9 @@ describe("features/quotes/mutations workflow", () => {
             description: "Suggested item (owner price)",
             quantity: 1,
             unitPriceInCents: 12000,
-            aiPricingStatus: "suggested",
-            aiPricingLibraryEntryId: "entry_2",
-            aiPricingLibraryItemId: "item_2",
+            aiProductStatus: "suggested",
+            aiProductLibraryEntryId: "entry_2",
+            aiProductLibraryItemId: "item_2",
             aiEvidence: {
               entryId: "entry_2",
               itemId: "item_2",
@@ -381,16 +381,16 @@ describe("features/quotes/mutations workflow", () => {
     expect(afterUpdateItems[1]).toEqual(
       expect.objectContaining({
         description: "Suggested item (owner price)",
-        aiPricingStatus: "owner_set",
-        aiPricingLibraryEntryId: null,
-        aiPricingLibraryItemId: null,
+        aiProductStatus: "owner_set",
+        aiProductLibraryEntryId: null,
+        aiProductLibraryItemId: null,
         aiEvidence: null,
       }),
     );
     expect(afterUpdateItems[0]).toEqual(
       expect.objectContaining({
-        aiPricingStatus: "verified",
-        aiPricingLibraryEntryId: "entry_1",
+        aiProductStatus: "verified",
+        aiProductLibraryEntryId: "entry_1",
       }),
     );
   }, 15_000);

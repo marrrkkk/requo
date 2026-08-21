@@ -15,7 +15,7 @@ describe("business plan access", () => {
     expect(getUsageLimit("free", "requoQuoteEmailsPerDay")).toBe(3);
     expect(getUsageLimit("free", "requoQuoteEmailsPerMonth")).toBe(15);
     expect(getUsageLimit("free", "customFieldsPerForm")).toBe(3);
-    expect(getUsageLimit("free", "pricingEntriesPerBusiness")).toBe(10);
+    expect(getUsageLimit("free", "productEntriesPerBusiness")).toBe(10);
     expect(getUsageLimit("free", "knowledgeSourcesPerBusiness")).toBe(5);
     expect(getUsageLimit("free", "liveFormsPerBusiness")).toBe(1);
     expect(getUsageLimit("free", "membersPerBusiness")).toBe(1);
@@ -38,7 +38,7 @@ describe("business plan access", () => {
     expect(getUsageLimit("pro", "requoQuoteEmailsPerDay")).toBe(20);
     expect(getUsageLimit("pro", "aiWeightedCreditsPerMonth")).toBe(150);
     expect(getUsageLimit("pro", "liveFormsPerBusiness")).toBe(5);
-    expect(getUsageLimit("pro", "pricingEntriesPerBusiness")).toBe(50);
+    expect(getUsageLimit("pro", "productEntriesPerBusiness")).toBe(50);
     expect(getUsageLimit("pro", "knowledgeSourcesPerBusiness")).toBe(25);
     expect(getUsageLimit("pro", "customFieldsPerForm")).toBe(10);
     expect(getUsageLimit("pro", "publicInquiryAttachmentMaxBytes")).toBe(
@@ -70,7 +70,7 @@ describe("business plan access", () => {
     expect(getUsageLimit("business", "publicInquiryAttachmentMaxBytes")).toBe(
       50 * 1024 * 1024,
     );
-    expect(getUsageLimit("business", "pricingEntriesPerBusiness")).toBeNull();
+    expect(getUsageLimit("business", "productEntriesPerBusiness")).toBeNull();
   });
 
   it("leaves core records and manual follow-ups uncapped", () => {
