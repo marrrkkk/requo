@@ -18,7 +18,7 @@ import {
   type AiQuoteDraftItemReviewStatus,
   type AiQuoteKnowledgeCitation,
   type AiQuoteMissingInfoItem,
-  type AiQuotePricingStatus,
+  type AiQuoteProductStatus,
   type AiQuoteReadiness,
   type InquiryAssistantContext,
 } from "@/features/ai/types";
@@ -422,7 +422,7 @@ function hydrateDraftItem(
 
   let reviewStatus: AiQuoteDraftItemReviewStatus = "needs_review";
   let unitPriceInCents = 0;
-  let aiPricingStatus: AiQuotePricingStatus = "unpriced";
+  let aiProductStatus: AiQuoteProductStatus = "unpriced";
   let pricingSource: AiQuoteDraftItemPricingSource = "none";
   let pricingSourceLabel: string | null = null;
   let confidence: AiQuoteDraftItemConfidence = "low";
@@ -446,7 +446,7 @@ function hydrateDraftItem(
       // The saved price — never the model's price.
       unitPriceInCents = clampPrice(resolution.item?.unitPriceInCents ?? 0);
       reviewStatus = "matched";
-      aiPricingStatus = "verified";
+      aiProductStatus = "verified";
       aiEvidence = {
         entryId: resolution.entry.entryId,
         itemId: resolution.item?.itemId ?? null,
@@ -458,7 +458,7 @@ function hydrateDraftItem(
       // Suggested: candidate price shown, owner confirmation required.
       unitPriceInCents = clampPrice(resolution.item.unitPriceInCents);
       reviewStatus = "needs_review";
-      aiPricingStatus = "suggested";
+      aiProductStatus = "suggested";
       aiEvidence = {
         entryId: resolution.entry.entryId,
         itemId: resolution.item.itemId,
@@ -468,7 +468,7 @@ function hydrateDraftItem(
       };
     } else {
       reviewStatus = "needs_review";
-      aiPricingStatus = "unpriced";
+      aiProductStatus = "unpriced";
       aiEvidence = {
         entryId: resolution.entry.entryId,
         itemId: null,
@@ -491,7 +491,7 @@ function hydrateDraftItem(
     pricingSourceLabel,
     confidence,
     reviewStatus,
-    aiPricingStatus,
+    aiProductStatus,
     aiEvidence,
     aiKnowledgeCitations: citations,
     reason,
@@ -554,7 +554,7 @@ function expandPackageItemsFromCandidates(
             pricingSourceLabel: candidate.name,
             confidence: "high",
             reviewStatus: "matched",
-            aiPricingStatus: "verified",
+            aiProductStatus: "verified",
             aiEvidence: {
               entryId: candidate.entryId,
               itemId: packageItem.itemId,
@@ -591,15 +591,15 @@ function verifyGroundedDraft(
   for (const item of items) {
     if (item.unitPriceInCents > 0) {
       if (
-        item.aiPricingStatus !== "verified" &&
-        item.aiPricingStatus !== "suggested" &&
-        item.aiPricingStatus !== "owner_set"
+        item.aiProductStatus !== "verified" &&
+        item.aiProductStatus !== "suggested" &&
+        item.aiProductStatus !== "owner_set"
       ) {
         errors.push(`Item "${item.description}" has a price without an authorized pricing status.`);
       }
     }
 
-    if (item.aiPricingStatus === "verified") {
+    if (item.aiProductStatus === "verified") {
       if (!item.aiEvidence?.entryId || !item.aiEvidence.itemId) {
         errors.push(`Item "${item.description}" is verified but lacks source entry/item ids.`);
       }
@@ -631,16 +631,16 @@ function repairGroundedDraft(items: AiQuoteDraftItem[], businessCurrency: string
 
   // Repair pass: zero out every unauthorized price and demote to needs_review.
   const repaired = items.map((item) => {
-    if (item.unitPriceInCents > 0 && item.aiPricingStatus !== "owner_set") {
+    if (item.unitPriceInCents > 0 && item.aiProductStatus !== "owner_set") {
       const unauthorized =
-        item.aiPricingStatus !== "verified" && item.aiPricingStatus !== "suggested";
+        item.aiProductStatus !== "verified" && item.aiProductStatus !== "suggested";
 
       if (unauthorized || !item.aiEvidence?.entryId || !item.aiEvidence.itemId) {
         return {
           ...item,
           unitPriceInCents: 0,
           reviewStatus: "needs_review" as const,
-          aiPricingStatus: "unpriced" as const,
+          aiProductStatus: "unpriced" as const,
           aiEvidence: item.aiEvidence
             ? { ...item.aiEvidence, matchType: "none" as const, reason: "Verifier rejected the source; price reset for owner review." }
             : item.aiEvidence,
@@ -668,9 +668,9 @@ function computeQuoteReadiness(
   missingInfo: AiQuoteMissingInfoItem[],
 ): AiQuoteReadiness {
   const hasUnpriced = items.some(
-    (item) => item.aiPricingStatus === "unpriced" || item.aiPricingStatus === null,
+    (item) => item.aiProductStatus === "unpriced" || item.aiProductStatus === null,
   );
-  const hasSuggested = items.some((item) => item.aiPricingStatus === "suggested");
+  const hasSuggested = items.some((item) => item.aiProductStatus === "suggested");
   const hasCriticalQuestions = missingInfo.some((item) => item.critical === true);
 
   if (hasUnpriced) {
@@ -827,7 +827,7 @@ function resolveCarriedOverItem(
           pricingSourceLabel: candidate.name,
           confidence: "high",
           reviewStatus: "matched",
-          aiPricingStatus: "verified",
+          aiProductStatus: "verified",
           aiEvidence: {
             entryId: candidate.entryId,
             itemId: item.itemId,
@@ -852,7 +852,7 @@ function resolveCarriedOverItem(
           pricingSourceLabel: candidate.name,
           confidence: "high",
           reviewStatus: "matched",
-          aiPricingStatus: "verified",
+          aiProductStatus: "verified",
           aiEvidence: {
             entryId: candidate.entryId,
             itemId: candidateItem.itemId,
@@ -878,7 +878,7 @@ function resolveCarriedOverItem(
     pricingSourceLabel: null,
     confidence: "high",
     reviewStatus: "matched",
-    aiPricingStatus: "owner_set",
+    aiProductStatus: "owner_set",
     aiEvidence: {
       entryId: null,
       itemId: null,
