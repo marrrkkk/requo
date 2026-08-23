@@ -135,21 +135,17 @@ npm run db:migrate
 ### 3. Seed demo data
 
 ```bash
-npm run db:seed-demo
+npm run db:seed
 ```
 
-Default demo values:
-
-- Owner name: `Morgan Lee`
-- Owner email: `demo@requo.local`
-- Owner password: `ChangeMe123456!`
+The seed prints the generated account emails and the default password (`12345678`) when it finishes. The primary account uses `user@email.com`; additional Free, Pro, and Business accounts are created for plan testing.
 - Business name: `BrightSide Print Studio`
 - Business slug: `brightside-print-studio`
-- Demo sent quote token: `demoquote1002senttoken`
-- Demo expired quote token: `demoquote1005expiredtoken`
-- Demo voided quote token: `demoquote1006voidedtoken`
+- Sent quote token: `demoquote1002senttoken`
+- Expired quote token: `demoquote1005expiredtoken`
+- Voided quote token: `demoquote1006voidedtoken`
 
-The seed also adds two extra sample businesses, three inquiry forms per business, and several hundred inquiries and quotes while keeping the primary BrightSide demo business stable for local testing.
+The seed creates deterministic sample accounts for Free, Pro, and Business plans, multiple businesses, inquiry forms, inquiries, quotes, follow-ups, notifications, and billing records.
 
 The seed supports overriding these values through the `DEMO_*` env variables in `.env`.
 
@@ -201,12 +197,12 @@ Use one canonical route set in docs and tests:
 - Members: `/<slug>/members`
 - Settings hub: `/<slug>/settings`
 - Settings sections:
-  - General: `/settings/general`
-  - Profile: `/settings/profile`
-  - Quote defaults: `/settings/quote`
-  - Pricing library: `/settings/pricing`
-  - Knowledge base: `/settings/knowledge`
-  - Billing: `/businesses/<businessSlug>/settings/billing`
+  - General: `/<slug>/settings/general`
+  - Profile: `/<slug>/settings/profile`
+  - Quote defaults: `/<slug>/settings/quote`
+  - Products: `/<slug>/products`
+  - Knowledge files: managed from the inquiry and quote workflows when enabled
+  - Billing: `/<slug>/settings/billing`
 
 ### Product Notes
 
@@ -218,4 +214,4 @@ Use one canonical route set in docs and tests:
   - `General Service Business`
 - Public inquiry pages can include supporting cards, optional showcase images, and editable intro copy.
 
-Legacy aliases under settings are kept only as redirects for backward compatibility. Do not use alias paths in new docs or tests.
+Products and Members are main dashboard destinations. Do not document the removed settings pricing or settings members routes.

@@ -26,15 +26,16 @@ branching.
 
 ```text
 app/
-  (marketing)/
-  (auth)/
-  (public)/
-  account/
-  businesses/
-  invite/
-  onboarding/
-  verify-email/
-  api/
+  (marketing)/       Landing page, pricing, legal pages
+  (auth)/            Signup, login, password reset
+  (public)/          Public business, inquiry, and quote pages
+  (business)/        Business creation and `/<businessSlug>` dashboard routes
+  (checkout)/        Account billing checkout
+  admin/              Admin console and subdomain-routed admin pages
+  invite/             Team invite acceptance
+  onboarding/         First-business onboarding
+  verify-email/       Email verification handler
+  api/                Better Auth, business, public, billing, cron, and Inngest handlers
 
 components/
   ui/
@@ -51,7 +52,6 @@ features/
   billing/
   businesses/
   business-members/
-  calendar/
   customers/
   follow-ups/
   inquiries/
@@ -69,8 +69,8 @@ lib/
   cache/
   db/
     schema/
-  navigation/
-  realtime/
+  inngest/
+  notifications/
   resend/
   supabase/
   env.ts
@@ -140,22 +140,21 @@ docs/
 
 Feature responsibilities:
 
-- `features/account`: profile, security, and account-owned asset flows.
+- `features/account`: profile, security, and account-owned asset flows where present.
 - `features/ai`: AI router, prompts, message surfaces, and provider fallback behavior.
-- `features/analytics`: conversion analytics, workflow analytics, and public page view tracking.
+- `features/analytics`: conversion analytics, workflow analytics, scheduled reports, and public page view tracking.
 - `features/audit`: audit log writes and business audit queries.
 - `features/auth`: auth forms, validation, and client UX.
 - `features/billing`: checkout UI, billing status, upgrade/cancel actions, and business billing queries.
 - `features/businesses`: business creation, guided starter templates, hub queries, and business overview composition.
 - `features/business-members`: business role and invite flows.
-- `features/calendar`: calendar event target authorization and related scheduling helpers.
 - `features/customers`: customer presentation and customer-related utilities.
 - `features/follow-ups`: follow-up scheduling, rescheduling, completion, skipping, and reminder workflows.
 - `features/inquiries`: public intake, inquiry page presentation, inbox listing, notes, attachments, forms, and status changes.
 - `features/memory`: business memory and knowledge items used by AI-assisted drafting.
 - `features/notifications`: notification data and UI.
 - `features/onboarding`: first-business onboarding flow and starter-template selection.
-- `features/quotes`: quote editor, calculations, manual/Requo delivery, status transitions, public quote pages, response tracking, and post-acceptance state.
+- `features/quotes`: quote editor, calculations, Products/library data, Requo delivery, status transitions, public quote pages, response tracking, and exports.
 - `features/settings`: business identity, logo, notifications, public inquiry settings, inquiry page or form defaults, and other workflow settings.
 - `features/theme`: product theme concerns.
 
@@ -175,7 +174,7 @@ Feature responsibilities:
 
 - Supabase: storage, uploads or downloads, and realtime-backed notification plumbing.
 - Email: transactional delivery is centralized in `lib/email`, with Resend first and Mailtrap/Brevo fallback for retryable provider failures.
-- AI providers: Groq, Gemini, and OpenRouter are routed server-side through `lib/ai`.
+- AI providers: Groq, Cerebras, Gemini, Mistral, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter are routed server-side through `lib/ai`.
 - Better Auth: sessions, password flows, and user lifecycle hooks.
 - Polar: recurring card subscriptions in USD, hosted checkout, customer self-service portal, and refunds (merchant of record).
 

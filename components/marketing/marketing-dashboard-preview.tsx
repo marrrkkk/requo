@@ -135,7 +135,7 @@ export function MarketingDashboardPreview() {
       className="flex h-full w-full bg-background text-left"
     >
       {/* Sidebar */}
-      <aside className="hidden w-[180px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar sm:flex">
+      <aside className="flex w-[180px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
         {/* Brand */}
         <div className="flex h-11 items-center gap-2 px-3.5">
           <RequoIcon className="size-5 text-primary" />
@@ -209,7 +209,7 @@ export function MarketingDashboardPreview() {
           <div className="flex min-w-0 flex-1 items-center gap-1.5 text-[0.72rem] text-muted-foreground">
             <span className="font-medium text-foreground">Home</span>
           </div>
-          <div className="hidden items-center gap-1.5 rounded-lg border border-border/60 bg-muted/20 px-2.5 py-1 text-[0.62rem] text-muted-foreground/70 md:flex">
+          <div className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/20 px-2.5 py-1 text-[0.62rem] text-muted-foreground/70">
             <Search className="size-3" />
             <span>Search…</span>
           </div>
@@ -220,10 +220,10 @@ export function MarketingDashboardPreview() {
 
         {/* Content */}
         <div className="flex-1 overflow-hidden">
-          <div className="mx-auto flex max-w-3xl flex-col gap-4 p-4 sm:gap-5 sm:p-5">
+          <div className="mx-auto flex max-w-3xl flex-col gap-5 p-5">
             {/* Greeting */}
             <div className="flex flex-col gap-1">
-              <h1 className="font-heading text-base font-semibold tracking-tight text-foreground sm:text-lg">
+              <h1 className="font-heading text-lg font-semibold tracking-tight text-foreground">
                 Good morning, Jamie
               </h1>
               <p className="text-[0.72rem] text-muted-foreground">
@@ -242,7 +242,7 @@ export function MarketingDashboardPreview() {
                   <ArrowRight className="size-2.5" />
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="grid grid-cols-4 gap-2">
                 {statCards.map((card) => {
                   const Icon = card.icon;
                   return (
@@ -358,7 +358,7 @@ export function MarketingDashboardPreview() {
                           </p>
                         </div>
                       </div>
-                      <span className="hidden shrink-0 text-[0.6rem] font-semibold text-primary/95 sm:inline">
+                      <span className="shrink-0 text-[0.6rem] font-semibold text-primary/95">
                         {row.actionLabel}
                       </span>
                     </div>

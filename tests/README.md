@@ -103,9 +103,9 @@ Unit, component, integration, and local smoke runs all complete successfully wit
 
 `DATABASE_URL` must point at a reachable Postgres instance. `npm run test:integration` and the local path of `npm run test:e2e:smoke` both short-circuit through `scripts/test/check-db.mjs` (integration) and `scripts/test/check-db-if-local.mjs` (smoke), which exit non-zero with a message naming `DATABASE_URL` when the host is unreachable within 10 seconds.
 
-### Required only for demo seeding (`npm run db:seed-demo`)
+### Required only for demo seeding (`npm run db:seed`)
 
-The demo seed reads the same `DATABASE_URL` plus whatever additional configuration `scripts/seed-demo.ts` documents for production-like data (AI keys, email sender identities, billing provider credentials). See [`scripts/seed-demo.ts`](../scripts/seed-demo.ts) for the canonical list; test runs do not need these set.
+The development seed reads `DATABASE_URL` and the normal application environment values. See [`scripts/seed.ts`](../scripts/seed.ts); test runs do not need seed-only provider credentials.
 
 ### Optional for Playwright preview runs
 

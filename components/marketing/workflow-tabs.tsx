@@ -46,7 +46,7 @@ export function WorkflowTabs() {
       <div className="grid grid-cols-4 border-b border-border" role="tablist" aria-label="How Requo works">
         {steps.map(([label, , , StepIcon], index) => (
           <button key={label} type="button" role="tab" aria-selected={index === active} onClick={() => setActive(index)} className={cn("relative flex min-w-0 items-center justify-center gap-2 px-2 py-3.5 text-xs font-medium sm:px-4 sm:py-4 sm:text-sm", index === active ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
-            <StepIcon className="size-4" /><span className="truncate">{label}</span>{index === active ? <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary" /> : null}
+            <StepIcon className="hidden size-4 sm:block" /><span className="truncate">{label}</span>{index === active ? <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary" /> : null}
           </button>
         ))}
       </div>
