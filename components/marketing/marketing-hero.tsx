@@ -107,20 +107,20 @@ export function MarketingHero() {
         className="pb-28 pt-0 lg:pb-40"
         header={<MarketingHeader />}
       >
-      <section className="relative overflow-hidden px-4 pb-20 pt-14 sm:px-6 sm:pb-28 sm:pt-16 lg:px-8 lg:pb-36 lg:pt-24 xl:px-0">
+      <section className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 sm:pb-28 sm:pt-16 lg:px-8 lg:pb-36 lg:pt-24 xl:px-0">
         <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center gap-8 sm:gap-10 lg:gap-12">
           <div className="flex w-full max-w-4xl flex-col items-center gap-4 text-center sm:gap-5">
-            <h1 className="font-[var(--font-inter)] text-[2.5rem] font-bold leading-[1.1] tracking-[-0.04em] text-foreground sm:text-[3rem] sm:leading-[1.1] lg:text-[3.5rem] lg:leading-[1.05]">
+            <h1 className="font-[var(--font-inter)] text-[1.75rem] font-bold leading-[1.15] tracking-[-0.04em] text-foreground sm:text-[3rem] sm:leading-[1.1] lg:text-[3.5rem] lg:leading-[1.05]">
               Manage every inquiry.
               <br />
               <span className="text-primary">Send every quote.</span>
             </h1>
-            <p className="max-w-lg font-[var(--font-inter)] text-base font-normal leading-[1.5] text-muted-foreground sm:text-[1.05rem] sm:leading-[1.5] lg:text-lg lg:leading-[1.5]">
+            <p className="max-w-lg font-[var(--font-inter)] text-[0.875rem] font-normal leading-[1.4] text-muted-foreground sm:text-[1.05rem] sm:leading-[1.5] lg:text-lg lg:leading-[1.5]">
               Capture inquiries, send quotes, and follow up automatically, so owner-led service businesses keep every opportunity moving.
             </p>
 
-            <div className="flex flex-col items-center gap-3 pt-1 sm:flex-row">
-              <Button asChild size="lg" className="rounded-md bg-primary px-5 font-[var(--font-inter)] text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            <div className="flex w-full flex-col items-center gap-3 pt-1 sm:w-auto sm:flex-row">
+              <Button asChild size="lg" className="w-full rounded-md bg-primary px-5 font-[var(--font-inter)] text-sm font-medium text-primary-foreground hover:bg-primary/90 sm:w-auto">
                 <Link href="/signup">
                   Start free
                   <ArrowRight data-icon="inline-end" />
@@ -130,7 +130,7 @@ export function MarketingHero() {
                 asChild
                 size="lg"
                 variant="outline"
-                className="rounded-md border-border px-5 font-[var(--font-inter)] text-sm font-medium"
+                className="w-full rounded-md border-border px-5 font-[var(--font-inter)] text-sm font-medium sm:w-auto"
               >
                 <Link href="/pricing">See pricing</Link>
               </Button>
