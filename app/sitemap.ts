@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-
+import { cacheLife } from "next/cache";
 
 import { listPublicInquirySitemapEntries } from "@/features/inquiries/queries";
 
@@ -68,11 +68,9 @@ const staticPages = [
 
 /** Regenerate sitemap periodically; dynamic URLs also refresh on each build of this route. */
 
-export const revalidate = 3600;
-
-
-
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  "use cache";
+  cacheLife("hours");
 
   const lastModified = new Date();
 
