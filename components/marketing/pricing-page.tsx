@@ -35,7 +35,7 @@ export function PricingPage({
     >
       {/* Hero */}
       <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-5 px-5 pb-6 pt-4 text-center sm:px-6 sm:pb-8 sm:pt-6 lg:px-8">
-        <h1 className="max-w-2xl font-heading text-4xl font-semibold leading-[0.94] tracking-tight text-balance sm:text-5xl xl:text-[3.5rem]">
+        <h1 className="max-w-2xl font-heading text-4xl font-semibold leading-[0.94] tracking-tighter text-balance sm:text-5xl xl:text-[3.5rem]">
           Simple pricing. No surprises.
         </h1>
         <p className="max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg sm:leading-8">

@@ -110,7 +110,7 @@ export function MarketingHero() {
       <section className="relative overflow-hidden px-4 pb-20 pt-14 sm:px-6 sm:pb-28 sm:pt-16 lg:px-8 lg:pb-36 lg:pt-24 xl:px-0">
         <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center gap-8 sm:gap-10 lg:gap-12">
           <div className="flex w-full max-w-4xl flex-col items-center gap-4 text-center sm:gap-5">
-            <h1 className="font-[var(--font-inter)] text-[2.5rem] font-bold leading-[1.1] tracking-[-0.02em] text-foreground sm:text-[3rem] sm:leading-[1.1] lg:text-[3.5rem] lg:leading-[1.05]">
+            <h1 className="font-[var(--font-inter)] text-[2.5rem] font-bold leading-[1.1] tracking-[-0.04em] text-foreground sm:text-[3rem] sm:leading-[1.1] lg:text-[3.5rem] lg:leading-[1.05]">
               Manage every inquiry.
               <br />
               <span className="text-primary">Send every quote.</span>
@@ -319,7 +319,7 @@ export function MarketingHero() {
         delay={120}
       >
         <section className="flex flex-col items-center gap-6 py-10 text-center sm:gap-8 sm:py-14">
-          <h2 className="max-w-3xl font-heading text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl xl:text-6xl">
+          <h2 className="max-w-3xl font-heading text-3xl font-bold tracking-tighter text-foreground sm:text-4xl lg:text-5xl xl:text-6xl">
             Don&rsquo;t let the next job slip through.
           </h2>
 
