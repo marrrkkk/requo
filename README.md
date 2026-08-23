@@ -4,92 +4,68 @@
 
 <h1 align="center">Requo</h1>
 
-<p align="center">
-  <strong>Inquiry-to-quote software for owner-led service businesses.</strong>
-</p>
+<p align="center"><strong>Inquiry-to-quote software for owner-led service businesses.</strong></p>
 
-<p align="center">
-  Capture requests, send clear quotes, follow up on time, and keep accepted work moving.
-</p>
+<p align="center">Capture requests, build clear quotes, share them professionally, and follow up consistently.</p>
 
-<p align="center">
-  <a href="#features">Features</a> &bull;
-  <a href="#tech-stack">Tech Stack</a> &bull;
-  <a href="#getting-started">Getting Started</a> &bull;
-  <a href="#development">Development</a> &bull;
-  <a href="#documentation">Documentation</a>
-</p>
+## What Requo Does
 
----
+Requo supports the workflow from a new customer request to a quote response:
 
-## Features
+- Public inquiry pages and configurable inquiry forms, plus manual inquiry entry
+- Business-scoped inboxes with qualification, duplicate detection, notes, attachments, and status tracking
+- Quote editor with reusable Products, line items, revisions, public quote pages, and response tracking
+- Quote delivery by public link or Requo email, with configurable email templates
+- Manual and automatic follow-ups with reminders and AI-assisted message drafting
+- Conversion and workflow analytics, CSV exports, notifications, audit logs, and business members
+- AI-assisted quote drafting grounded in business knowledge files and the Products library
+- Business onboarding templates, multi-business accounts, and Polar subscriptions with Free, Pro, and Business plans
 
-Requo keeps the customer-request workflow in one place:
+Requo is intentionally focused on owner-led service workflows. It does not currently include jobs, invoices, calendar scheduling, a mobile app, marketplace features, or a general-purpose AI chat product.
 
-- **Inquiry Capture** - Public inquiry forms, custom fields, file uploads, and manual entry for calls, referrals, and direct messages
-- **Quote Management** - Draft, customize, send, and share professional quotes with public response pages
-- **Response Tracking** - Track viewed, accepted, rejected, expired, and voided quote states
-- **Follow-ups** - Schedule reminders and keep quiet opportunities from being forgotten
-- **Workflow Automation** - Connect inquiry, quote, follow-up, and response events with automation rules
-- **Business Workspaces** - Keep data scoped to each business, with role-aware team access and billing
-- **AI-Assisted Drafting** - Use business context and pricing knowledge to speed up quote and follow-up writing
-- **Analytics** - Understand conversion, response time, and pipeline movement
+## Stack
 
-## Tech Stack
+- Next.js 16.2 App Router, React 19, TypeScript
+- Tailwind CSS v4, shadcn/ui, Radix UI
+- PostgreSQL with Drizzle ORM
+- Better Auth for authentication
+- Supabase for storage and realtime notification plumbing
+- Resend with Mailtrap/Brevo fallbacks for transactional email
+- Vercel AI SDK with Groq, Cerebras, Gemini, Mistral, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter routing
+- Inngest for background jobs
+- Polar for subscriptions and checkout
 
-- **Framework:** Next.js 16 App Router, React 19, TypeScript
-- **Styling:** Tailwind CSS v4, shadcn/ui, Radix UI
-- **Database:** PostgreSQL with Drizzle ORM
-- **Auth:** Better Auth
-- **Storage and Realtime:** Supabase
-- **Email:** Resend with Mailtrap and Brevo fallbacks
-- **AI:** Vercel AI SDK with Groq, Cerebras, Gemini, Mistral, and OpenRouter providers
-- **Background Jobs:** Inngest
-- **Billing:** Polar
+## Quick Start
 
-## Getting Started
-
-### Prerequisites
-
-- Node.js 22 or newer
-- PostgreSQL database
-- Service credentials configured in `.env.local` (see `.env.example`)
-
-### Quick Start
+Prerequisites: Node.js 22+, npm, PostgreSQL, and environment values from `.env.example`.
 
 ```bash
 npm install
 npm run db:migrate
-npm run db:seed-demo
+npm run db:seed
 npm run dev:app
 ```
 
-Use `npm run dev` when you also need the local Inngest server and ngrok for webhook testing.
+`npm run db:seed` resets application data and creates deterministic local accounts and businesses. It is for development only. The seed prints the account emails and password at completion; do not use these credentials outside a local environment.
 
-### Demo Credentials
+Run `npm run dev` when you also need the local Inngest server and an ngrok tunnel for webhook testing.
 
-After seeding demo data:
+## Useful Commands
 
-- **Email:** `demo@requo.local`
-- **Password:** `ChangeMe123456!`
+| Command | Purpose |
+| --- | --- |
+| `npm run dev:app` | Start the Next.js development server |
+| `npm run dev:inngest` | Start the local Inngest Dev Server |
+| `npm run check` | Lint, typecheck, and repository audits |
+| `npm run test` | Unit and component tests |
+| `npm run test:integration` | Postgres-backed integration tests |
+| `npm run test:e2e:smoke` | Playwright smoke journeys |
+| `npm run build` | Production build |
+| `npm run db:migrate` | Apply Drizzle migrations |
+| `npm run db:seed` | Reset and seed local demo data |
+| `npm run db:studio` | Open Drizzle Studio |
 
-## Development
-
-### Common Scripts
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev:app` | Start the Next.js app |
-| `npm run dev:inngest` | Start the local Inngest server |
-| `npm run build` | Create a production build |
-| `npm run check` | Run lint, typecheck, and repository audits |
-| `npm run test` | Run unit and component tests |
-| `npm run test:integration` | Run database-backed integration tests |
-| `npm run test:e2e:smoke` | Run Playwright smoke tests |
-| `npm run db:migrate` | Apply database migrations |
-| `npm run db:seed-demo` | Seed local demo data |
-
-### Project Structure
+## Project Layout
 
 ```text
 app/           Routes, layouts, pages, and API handlers
@@ -98,11 +74,20 @@ features/      Product logic, queries, actions, and feature UI
 lib/           Auth, database, providers, caching, and utilities
 scripts/       Migrations, seeders, audits, and operational tools
 tests/         Unit, component, integration, and end-to-end tests
+docs/          Setup, architecture, billing, and support documentation
 ```
 
-### Verification
+## Documentation
 
-For a full local verification pass:
+- [Local setup](./docs/setup/local.md)
+- [Deployment](./docs/setup/deployment.md)
+- [Billing](./docs/setup/billing.md)
+- [Architecture](./docs/architecture/requo-architecture.md)
+- [Design system](./DESIGN.md)
+- [Testing](./tests/README.md)
+- [Agent guide](./AGENTS.md)
+
+## Verification
 
 ```bash
 npm run check
@@ -111,17 +96,3 @@ npm run test:integration
 npm run build
 npm run test:e2e:smoke
 ```
-
-## Documentation
-
-- [Agent Guide](./AGENTS.md) - Working conventions and architecture
-- [Design System](./DESIGN.md) - UI tokens and component patterns
-- [Local Setup](./docs/setup/local.md) - Detailed environment setup
-- [Deployment](./docs/setup/deployment.md) - Production deployment guide
-- [Architecture](./docs/architecture/requo-architecture.md) - System architecture
-
----
-
-<p align="center">
-  Built for owner-led service businesses that handle inbound inquiries and custom quotes.
-</p>
