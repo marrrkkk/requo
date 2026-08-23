@@ -145,8 +145,25 @@ export function MarketingHero() {
               aria-label="Requo quote management dashboard showing inquiry inbox, quote builder, and follow-up schedule for service businesses"
             >
               <div className="overflow-hidden rounded-[5px] bg-background sm:rounded-lg">
-                <div className="flex aspect-[16/10] w-full">
-                  <MarketingDashboardPreview />
+                <div className="@container w-full">
+                  <div
+                    className="w-full overflow-hidden"
+                    style={{
+                      height: "calc(720px * min(1, tan(atan2(100cqw, 1152px))))",
+                    }}
+                  >
+                    <div
+                      className="origin-top-left"
+                      style={{
+                        width: "1152px",
+                        height: "720px",
+                        transform:
+                          "scale(min(1, tan(atan2(100cqw, 1152px))))",
+                      }}
+                    >
+                      <MarketingDashboardPreview />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
