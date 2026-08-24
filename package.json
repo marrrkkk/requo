@@ -8,6 +8,9 @@
     "firefox 111",
     "safari 16.4"
   ],
+  "overrides": {
+    "uuid": "^11.1.1"
+  },
   "scripts": {
     "dev": "tsx scripts/dev-health-check.ts && concurrently \"npm run dev:app\" \"npm run dev:inngest\" \"ngrok http 3000\"",
     "dev:check": "tsx scripts/dev-health-check.ts",
@@ -34,6 +37,7 @@
     "test:e2e": "npm run test:e2e:full",
     "test:e2e:smoke": "node scripts/test/check-db-if-local.mjs && playwright test --grep \"@smoke\"",
     "test:e2e:full": "playwright test",
+    "screenshots": "playwright test --config playwright.screenshots.config.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --conditions=react-server scripts/migrate.ts",
     "db:migrate:strict": "tsx --conditions=react-server scripts/migrate.ts --strict",
@@ -85,7 +89,7 @@
     "lucide-react": "^1.16.0",
     "marked": "^18.0.4",
     "motion": "^12.40.0",
-    "next": "16.2.3",
+    "next": "16.3.2",
     "pdf-lib": "^1.17.1",
     "postgres": "^3.4.8",
     "qrcode.react": "^4.2.0",
@@ -130,7 +134,7 @@
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
-    "eslint-config-next": "16.2.2",
+    "eslint-config-next": "16.3.2",
     "fast-check": "^4.6.0",
     "jsdom": "^29.0.2",
     "ngrok": "^5.0.0-beta.2",

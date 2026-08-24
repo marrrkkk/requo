@@ -26,6 +26,11 @@ vi.mock("node:child_process", () => ({
   spawnSync: vi.fn().mockReturnValue({ status: 1, error: new Error("mocked") }),
 }));
 
+vi.mock("next/cache", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  cacheLife: vi.fn(),
+}));
+
 // ---------------------------------------------------------------------------
 // 1. Property 16 & 17: metadataBase fallback ladder (Task 1.3)
 // ---------------------------------------------------------------------------
@@ -416,12 +421,15 @@ describe("Sitemap", () => {
     expect(urls).not.toContain("/inquire");
   });
 
-  it("revalidate === 3600", async () => {
+  it("caches with the hourly cacheLife profile", async () => {
     vi.resetModules();
     process.env.BETTER_AUTH_URL = "https://example.com";
 
+    const { cacheLife } = await import("next/cache");
     const sitemapModule = await import("@/app/sitemap");
-    expect(sitemapModule.revalidate).toBe(3600);
+    await sitemapModule.default();
+
+    expect(vi.mocked(cacheLife)).toHaveBeenCalledWith("hours");
   });
 
   it("root entry has images array", async () => {
