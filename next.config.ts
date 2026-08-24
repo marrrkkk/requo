@@ -73,7 +73,6 @@ const nextConfig: NextConfig = {
     remotePatterns: [],
   },
   experimental: {
-    instantNavigationDevToolsToggle: true,
     serverActions: {
       bodySizeLimit: "7mb",
     },
