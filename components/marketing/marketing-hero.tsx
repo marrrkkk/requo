@@ -13,6 +13,7 @@ import {
   navItems,
 } from "@/components/marketing/marketing-data";
 import { MarketingDashboardPreview } from "@/components/marketing/marketing-dashboard-preview";
+import { ScaledDashboardStage } from "@/components/marketing/scaled-dashboard-stage";
 import { InViewReveal } from "@/components/marketing/in-view-reveal";
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import {
@@ -145,26 +146,9 @@ export function MarketingHero() {
               aria-label="Requo quote management dashboard showing inquiry inbox, quote builder, and follow-up schedule for service businesses"
             >
               <div className="overflow-hidden rounded-[5px] bg-background sm:rounded-lg">
-                <div className="@container w-full">
-                  <div
-                    className="w-full overflow-hidden"
-                    style={{
-                      height: "calc(720px * min(1, tan(atan2(100cqw, 1152px))))",
-                    }}
-                  >
-                    <div
-                      className="origin-top-left"
-                      style={{
-                        width: "1152px",
-                        height: "720px",
-                        transform:
-                          "scale(min(1, tan(atan2(100cqw, 1152px))))",
-                      }}
-                    >
-                      <MarketingDashboardPreview />
-                    </div>
-                  </div>
-                </div>
+                <ScaledDashboardStage>
+                  <MarketingDashboardPreview />
+                </ScaledDashboardStage>
               </div>
             </div>
           </div>
