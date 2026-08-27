@@ -69,6 +69,12 @@ export const account = pgTable(
     id: text("id").primaryKey(),
     accountId: text("account_id").notNull(),
     providerId: text("provider_id").notNull(),
+    /**
+     * Added in Better Auth 1.7.x. Identifies the issuer of the account
+     * (e.g. `local:oauth:google` for Google OAuth, `local:credential` for
+     * email/password). Used together with `accountId` as the new unique key.
+     */
+    issuer: text("issuer").notNull(),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -92,8 +98,8 @@ export const account = pgTable(
   },
   (table) => [
     index("account_user_id_idx").on(table.userId),
-    uniqueIndex("account_provider_account_unique").on(
-      table.providerId,
+    uniqueIndex("account_issuer_account_id_unique").on(
+      table.issuer,
       table.accountId,
     ),
   ],
