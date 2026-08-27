@@ -99,6 +99,20 @@
       "when": 1786971350353,
       "tag": "0013_grounded_quote_knowledge",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1787000000000,
+      "tag": "0014_rename_pricing_to_product_library",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1787100000000,
+      "tag": "0015_add_account_issuer",
+      "breakpoints": true
     }
   ]
 }
