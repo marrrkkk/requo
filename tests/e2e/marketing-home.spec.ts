@@ -14,7 +14,7 @@ test("marketing homepage highlights the signup-first workflow", async ({
 
   await expect(
     page.getByRole("heading", {
-      name: /Stop losing jobs to slow responses\./,
+      name: /Manage every inquiry\./,
     }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "Start free" }).first()).toBeVisible();
@@ -57,7 +57,7 @@ test("marketing homepage stays readable on a narrow viewport", async ({
 
   const mobileMenu = page.getByRole("button", { name: "Open navigation" });
   const primaryCta = page.getByRole("link", { name: "Start free" }).first();
-  const secondaryCta = page.getByRole("link", { name: "See pricing" });
+  const secondaryCta = page.getByRole("button", { name: "Book a demo" }).first();
 
   await expect(mobileMenu).toBeVisible();
   await expect(primaryCta).toBeVisible();

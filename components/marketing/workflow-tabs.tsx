@@ -4,7 +4,12 @@ import { useState } from "react";
 import { ArrowRight, BellRing, CheckCircle2, FileText, Inbox } from "lucide-react";
 import Link from "next/link";
 
-import { MarketingFeatureMock } from "@/components/marketing/marketing-feature-mocks";
+import {
+  MarketingFeatureMock,
+  MarketingMockFrame,
+} from "@/components/marketing/marketing-feature-mocks";
+import { Button } from "@/components/ui/button";
+import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import { cn } from "@/lib/utils";
 
 const steps = [
@@ -16,17 +21,43 @@ const steps = [
 
 function AcceptedPreview() {
   return (
-    <div className="bg-background">
-      <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
-        <div><p className="text-[0.55rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">Quote Q-1042</p><p className="text-sm font-semibold">Kitchen remodel</p></div>
-        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[0.6rem] font-medium text-primary"><CheckCircle2 className="size-3" /> Accepted</span>
+    <MarketingMockFrame title="Quote Q-1048">
+      <div className="flex min-h-0 flex-1 flex-col justify-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-4">
+        <div className="flex items-center gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <CheckCircle2 className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold tracking-tight text-foreground">
+              Sarah accepted your quote
+            </p>
+            <p className="mt-0.5 truncate text-sm text-muted-foreground">
+              Kitchen remodel · Today
+            </p>
+          </div>
+        </div>
       </div>
-      <div className="flex flex-col gap-3 p-4">
-        <div className="rounded-xl border border-primary/20 bg-primary/[0.05] p-4"><div className="flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground"><CheckCircle2 className="size-4" /></span><div><p className="text-[0.72rem] font-semibold">Sarah accepted your quote</p><p className="text-[0.62rem] text-muted-foreground">Today at 10:42 AM</p></div></div></div>
-        <div className="grid grid-cols-2 gap-3"><div className="rounded-xl border border-border/60 p-3"><p className="text-[0.58rem] text-muted-foreground">Quote total</p><p className="mt-1 text-lg font-semibold">$7,560</p></div><div className="rounded-xl border border-border/60 p-3"><p className="text-[0.58rem] text-muted-foreground">Status</p><p className="mt-1 text-[0.72rem] font-semibold text-primary">Accepted</p></div></div>
-        <div className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2.5"><span className="text-[0.65rem] text-muted-foreground">Customer and line items are ready</span><ArrowRight className="size-3.5 text-primary" /></div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="soft-panel px-4 py-3">
+          <p className="meta-label">Quote total</p>
+          <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
+            $8,220
+          </p>
+        </div>
+        <div className="soft-panel flex flex-col justify-between px-4 py-3">
+          <p className="meta-label">Status</p>
+          <div className="mt-2">
+            <QuoteStatusBadge status="accepted" />
+          </div>
+        </div>
       </div>
-    </div>
+      <div className="flex justify-end">
+        <Button size="sm" tabIndex={-1} type="button">
+          View quote
+          <ArrowRight data-icon="inline-end" />
+        </Button>
+      </div>
+    </MarketingMockFrame>
   );
 }
 

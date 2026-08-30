@@ -18,6 +18,22 @@ const featureKickers: Record<LandingFeatureId, string> = {
   analytics: "Improve",
 };
 
+const featureAnchorIds: Record<LandingFeatureId, string> = {
+  inquiries: "inquiries",
+  quotes: "quotes",
+  ai: "ai",
+  followUps: "follow-ups",
+  analytics: "analytics",
+};
+
+const featureAltAnchorIds: Record<LandingFeatureId, string[]> = {
+  inquiries: ["inquiry"],
+  quotes: ["quote"],
+  ai: ["assist"],
+  followUps: ["followUps", "follow-up", "followup"],
+  analytics: ["improve"],
+};
+
 export function MarketingFeatureRow({
   title,
   description,
@@ -29,11 +45,17 @@ export function MarketingFeatureRow({
   featureId: LandingFeatureId;
   reverse?: boolean;
 }) {
+  const primaryId = featureAnchorIds[featureId] ?? featureId;
+  const altIds = featureAltAnchorIds[featureId] ?? [];
+
   return (
     <article
-      className="[--page-gutter:1.25rem] overflow-x-clip py-6 sm:[--page-gutter:1.5rem] sm:py-8 lg:[--page-gutter:2rem] lg:py-10 xl:[--page-gutter:max(2rem,calc((100vw-72rem)/2))]"
-      id={featureId}
+      className="[--page-gutter:1.25rem] scroll-mt-24 overflow-x-clip py-6 sm:[--page-gutter:1.5rem] sm:py-8 lg:[--page-gutter:2rem] lg:py-10 xl:[--page-gutter:max(2rem,calc((100vw-72rem)/2))]"
+      id={primaryId}
     >
+      {altIds.map((id) => (
+        <span key={id} id={id} className="scroll-mt-24 sr-only" aria-hidden="true" />
+      ))}
       <div className="grid gap-8 lg:grid-cols-2 lg:items-center lg:gap-14">
         <div
           className={cn(

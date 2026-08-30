@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 
 import { resourceLinks } from "@/components/marketing/marketing-data";
 import {
@@ -81,9 +81,10 @@ export function MarketingResourcesNav({
           <Link
             key={link.href}
             href={link.href}
-            className="flex items-center rounded-md px-2.5 py-2 text-[0.84rem] font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground"
+            className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[0.9rem] font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground"
             onClick={() => setOpen(false)}
           >
+            <ExternalLink className="size-4 shrink-0 text-primary/70" />
             {link.label}
           </Link>
         ))}
@@ -91,3 +92,4 @@ export function MarketingResourcesNav({
     </Popover>
   );
 }
+

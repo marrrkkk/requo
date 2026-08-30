@@ -6,6 +6,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+import { BookDemoDialog } from "@/components/marketing/book-demo-dialog";
+
 import {
   faqItems,
   getMarketingNavHref,
@@ -86,7 +88,7 @@ export function MarketingHero() {
       links: [
         { label: "Inquiries", href: "/#inquiries" },
         { label: "Quotes", href: "/#quotes" },
-        { label: "Follow-ups", href: "/#workflow" },
+        { label: "Follow-ups", href: "/#follow-ups" },
         { label: "Analytics", href: "/#analytics" },
       ],
     },
@@ -109,43 +111,44 @@ export function MarketingHero() {
         header={<MarketingHeader />}
       >
       <section className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 sm:pb-28 sm:pt-16 lg:px-8 lg:pb-36 lg:pt-24 xl:px-0">
-        <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center gap-8 sm:gap-10 lg:gap-12">
-          <div className="flex w-full max-w-4xl flex-col items-center gap-4 text-center sm:gap-5">
-            <h1 className="font-[var(--font-inter)] text-[1.75rem] font-bold leading-[1.15] tracking-[-0.04em] text-foreground sm:text-[3rem] sm:leading-[1.1] lg:text-[3.5rem] lg:leading-[1.05]">
+        <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-start gap-8 sm:gap-10 lg:gap-12">
+          <div className="flex w-full max-w-4xl flex-col items-start gap-4 text-left sm:gap-5">
+            <h1 className="font-sans text-[2.5rem] font-normal leading-[1.1] tracking-[-0.035em] text-foreground sm:text-[3.75rem] sm:leading-[1.08] lg:text-[4.75rem] lg:leading-[1.05]">
               Manage every inquiry.
               <br />
               <span className="text-primary">Send every quote.</span>
             </h1>
-            <p className="max-w-lg font-[var(--font-inter)] text-[0.875rem] font-normal leading-[1.4] text-muted-foreground sm:text-[1.05rem] sm:leading-[1.5] lg:text-lg lg:leading-[1.5]">
-              Capture inquiries, send quotes, and follow up automatically, so owner-led service businesses keep every opportunity moving.
+            <p className="max-w-xl font-sans text-[0.95rem] font-normal leading-relaxed text-muted-foreground sm:text-base lg:text-lg lg:leading-relaxed">
+              Requo helps service businesses capture inquiries, send quotes, and follow up automatically — so you never miss an opportunity.
             </p>
 
-            <div className="flex w-full flex-col items-center gap-3 pt-1 sm:w-auto sm:flex-row">
-              <Button asChild size="lg" className="w-full rounded-md bg-primary px-5 font-[var(--font-inter)] text-sm font-medium text-primary-foreground hover:bg-primary/90 sm:w-auto">
+            <div className="flex flex-row items-center gap-3 pt-2">
+              <Button asChild size="lg" className="rounded-lg bg-primary px-6 font-mono text-xs font-medium uppercase tracking-wider text-primary-foreground hover:bg-primary/90">
                 <Link href="/signup">
                   Start free
                   <ArrowRight data-icon="inline-end" />
                 </Link>
               </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="w-full rounded-md border-border px-5 font-[var(--font-inter)] text-sm font-medium sm:w-auto"
-              >
-                <Link href="/pricing">See pricing</Link>
-              </Button>
+              <BookDemoDialog>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="rounded-lg border-border/80 bg-secondary/30 px-6 font-mono text-xs font-medium uppercase tracking-wider text-foreground hover:bg-secondary/60"
+                >
+                  Book a demo
+                </Button>
+              </BookDemoDialog>
             </div>
           </div>
 
           <div className="w-full">
             {/* Device frame */}
             <div
-              className="rounded-lg border border-border bg-card p-1 shadow-[0_24px_70px_rgba(0,0,0,0.22)] sm:rounded-xl sm:p-1.5 dark:bg-card/80 dark:shadow-[0_28px_90px_rgba(0,0,0,0.5)]"
+              className="rounded-xl border border-border/80 bg-card/40 p-1.5 shadow-[0_24px_70px_rgba(0,0,0,0.22)] sm:rounded-2xl sm:p-2 dark:border-border/60 dark:bg-card/30 dark:shadow-[0_30px_100px_rgba(0,0,0,0.7)]"
               role="img"
               aria-label="Requo quote management dashboard showing inquiry inbox, quote builder, and follow-up schedule for service businesses"
             >
-              <div className="overflow-hidden rounded-[5px] bg-background sm:rounded-lg">
+              <div className="overflow-hidden rounded-lg bg-background sm:rounded-xl">
                 <ScaledDashboardStage>
                   <MarketingDashboardPreview />
                 </ScaledDashboardStage>
@@ -324,7 +327,7 @@ export function MarketingHero() {
             Don&rsquo;t let the next job slip through.
           </h2>
 
-          <Button asChild size="lg" className="rounded-full px-6 text-base font-semibold">
+          <Button asChild size="lg" className="rounded-full px-6 font-mono text-xs font-semibold uppercase tracking-wider">
             <Link href="/signup">
               Start free
               <ArrowRight data-icon="inline-end" />

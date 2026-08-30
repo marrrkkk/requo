@@ -69,9 +69,9 @@ export function PricingIntervalToggle({
   const period = interval === "monthly" ? "mo" : "yr";
 
   return (
-    <section className="mx-auto w-full max-w-7xl px-5 py-10 sm:px-6 lg:px-8 lg:py-14">
+    <section className="mx-auto w-full max-w-7xl px-5 pt-2 pb-10 sm:px-6 lg:px-8 lg:pt-3 lg:pb-14">
       {/* Toggle */}
-      <div className="mb-12 flex justify-center">
+      <div className="mb-8 flex justify-center">
         <div className="inline-flex rounded-full border border-border/70 bg-muted/25 p-1">
           <button
             className={cn(
@@ -120,7 +120,7 @@ export function PricingIntervalToggle({
             The full inquiry-to-quote loop for a single business. No time limit.
           </p>
 
-          <Button asChild variant="outline" size="lg" className="mt-6 w-full">
+          <Button asChild variant="outline" size="lg" className="mt-6 w-full font-mono text-xs uppercase tracking-wider">
             <Link href="/home">Start with inquiries</Link>
           </Button>
 
@@ -160,7 +160,7 @@ export function PricingIntervalToggle({
           </p>
 
           <Button
-            className="mt-6 w-full"
+            className="mt-6 w-full font-mono text-xs uppercase tracking-wider"
             disabled={isPending}
             onClick={() => handleSubscribe("pro")}
             size="lg"
@@ -210,7 +210,7 @@ export function PricingIntervalToggle({
           </p>
 
           <Button
-            className="mt-6 w-full"
+            className="mt-6 w-full font-mono text-xs uppercase tracking-wider"
             disabled={isPending}
             onClick={() => handleSubscribe("business")}
             size="lg"
