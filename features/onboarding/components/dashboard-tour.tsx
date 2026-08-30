@@ -4,13 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 
 import { completeDashboardTourAction } from "@/features/onboarding/tour-actions";
 import {
-  AutomationsPreview,
+  AiDraftingPreview,
+  AnalyticsPreview,
   FollowUpsPreview,
   FormsPreview,
   HomeOverviewPreview,
   InquiriesPreview,
-  InvoicesPreview,
-  JobsPreview,
+  ProductsPreview,
   QuotesPreview,
   TourModal,
   type TourModalStep,
@@ -48,22 +48,22 @@ const tourSteps: TourModalStep[] = [
     preview: <FollowUpsPreview />,
   },
   {
-    title: "Run the job",
+    title: "Draft with AI",
     description:
-      "When a quote is accepted, create a job to track delivery from start to finish.",
-    preview: <JobsPreview />,
+      "Turn an inquiry into a polished quote in seconds — Requo suggests line items from your Products and business memory, and drafts follow-up messages too.",
+    preview: <AiDraftingPreview />,
   },
   {
-    title: "Invoice and get paid",
+    title: "Reuse your Products",
     description:
-      "Generate invoices from completed work, send them to customers, and track sent and paid status.",
-    preview: <InvoicesPreview />,
+      "Save reusable items and pricing in your Products library so every quote comes together faster.",
+    preview: <ProductsPreview />,
   },
   {
-    title: "Automate repeat work",
+    title: "Track what works",
     description:
-      "Set rules for quote viewed, accepted, and more — follow-ups and status updates run on their own.",
-    preview: <AutomationsPreview />,
+      "See inquiry-to-quote conversion, which quotes get viewed and accepted, and where leads go quiet.",
+    preview: <AnalyticsPreview />,
   },
   {
     title: "Publish inquiry forms",

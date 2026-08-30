@@ -5,14 +5,12 @@ import {
   ArrowRight,
   BarChart3,
   BellRing,
-  ClipboardList,
   FileText,
   FormInput,
   Home,
   Inbox,
-  Receipt,
+  Package,
   Sparkles,
-  Workflow,
   type LucideIcon,
 } from "lucide-react";
 
@@ -234,10 +232,8 @@ function PreviewSidebar({ highlight }: { highlight?: string }) {
     { icon: Inbox, label: "Inquiries" },
     { icon: FileText, label: "Quotes" },
     { icon: BellRing, label: "Follow-ups" },
-    { icon: ClipboardList, label: "Jobs" },
-    { icon: Receipt, label: "Invoices" },
-    { icon: Workflow, label: "Automations" },
     { icon: FormInput, label: "Forms" },
+    { icon: Package, label: "Products" },
     { icon: BarChart3, label: "Analytics" },
   ];
 
@@ -483,34 +479,35 @@ export function FollowUpsPreview() {
   );
 }
 
-export function JobsPreview() {
+export function AiDraftingPreview() {
   return (
     <div className="flex gap-3">
-      <PreviewSidebar highlight="Jobs" />
+      <PreviewSidebar highlight="Quotes" />
       <div className="flex flex-1 flex-col gap-2">
         <div className="rounded-lg border border-border/50 bg-background p-3">
-          <p className="text-[11px] font-medium text-foreground">Jobs</p>
+          <p className="text-[11px] font-medium text-foreground">Draft with AI</p>
           <p className="mt-0.5 text-[10px] text-muted-foreground">
-            Turn accepted quotes into work you can track.
+            Turn an inquiry into a polished quote in seconds.
           </p>
-          <div className="mt-2 flex flex-col divide-y divide-border/50">
-            <div className="flex items-center gap-2.5 py-2">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                <ClipboardList className="size-3 text-primary" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[11px] font-semibold text-foreground">Kitchen remodel</p>
-                <p className="truncate text-[10px] text-muted-foreground">Sarah Jenkins · In progress</p>
-              </div>
+          <div className="mt-2 flex items-center gap-2.5 rounded-md border border-primary/15 bg-primary/[0.04] px-2.5 py-2">
+            <Sparkles className="size-4 shrink-0 text-primary" />
+            <div className="min-w-0">
+              <p className="truncate text-[10px] font-medium text-foreground">
+                Build a quote from this inquiry
+              </p>
+              <p className="truncate text-[9px] text-muted-foreground">
+                Uses your Products and business memory for context
+              </p>
             </div>
-            <div className="flex items-center gap-2.5 py-2">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted">
-                <ClipboardList className="size-3 text-muted-foreground" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[11px] font-semibold text-foreground">Tile repair</p>
-                <p className="truncate text-[10px] text-muted-foreground">Leo Park · Scheduled</p>
-              </div>
+          </div>
+          <div className="mt-1.5 flex flex-col gap-1.5">
+            <div className="rounded-md border border-border/50 px-2.5 py-2">
+              <p className="text-[10px] font-medium text-foreground">Line items suggested from Products</p>
+              <p className="text-[9px] text-muted-foreground">Edit, add, or remove before sending</p>
+            </div>
+            <div className="rounded-md border border-border/50 px-2.5 py-2">
+              <p className="text-[10px] font-medium text-foreground">Follow-up message drafted for you</p>
+              <p className="text-[9px] text-muted-foreground">Ready to send when a quote goes quiet</p>
             </div>
           </div>
         </div>
@@ -519,36 +516,37 @@ export function JobsPreview() {
   );
 }
 
-export function InvoicesPreview() {
+export function ProductsPreview() {
   return (
     <div className="flex gap-3">
-      <PreviewSidebar highlight="Invoices" />
+      <PreviewSidebar highlight="Products" />
       <div className="flex flex-1 flex-col gap-2">
         <div className="rounded-lg border border-border/50 bg-background p-3">
-          <p className="text-[11px] font-medium text-foreground">Invoices</p>
+          <p className="text-[11px] font-medium text-foreground">Products</p>
           <p className="mt-0.5 text-[10px] text-muted-foreground">
-            Bill for completed work and track payment status.
+            Save reusable items so quotes come together fast.
           </p>
-          <div className="mt-2 flex flex-col divide-y divide-border/50">
-            <div className="flex items-center gap-2.5 py-2">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                <Receipt className="size-3 text-primary" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[11px] font-semibold text-foreground">INV-1048</p>
-                <p className="truncate text-[10px] text-muted-foreground">Studio fit-out · $12,200</p>
-              </div>
-              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[8px] font-medium text-primary">Sent</span>
+          <div className="mt-2 space-y-1.5">
+            <div className="flex items-center justify-between rounded-md border border-border/50 px-2.5 py-2">
+              <span className="flex min-w-0 items-center gap-2">
+                <Package className="size-3.5 shrink-0 text-primary" />
+                <span className="truncate text-[10px] font-medium text-foreground">Design consultation</span>
+              </span>
+              <span className="text-[9px] text-muted-foreground">$150</span>
             </div>
-            <div className="flex items-center gap-2.5 py-2">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted">
-                <Receipt className="size-3 text-muted-foreground" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[11px] font-semibold text-foreground">INV-1042</p>
-                <p className="truncate text-[10px] text-muted-foreground">Tile repair · $1,350</p>
-              </div>
-              <span className="rounded-full border border-border/60 bg-muted/50 px-1.5 py-0.5 text-[8px] font-medium text-muted-foreground">Paid</span>
+            <div className="flex items-center justify-between rounded-md border border-border/50 px-2.5 py-2">
+              <span className="flex min-w-0 items-center gap-2">
+                <Package className="size-3.5 shrink-0 text-primary" />
+                <span className="truncate text-[10px] font-medium text-foreground">Standard install</span>
+              </span>
+              <span className="text-[9px] text-muted-foreground">$850</span>
+            </div>
+            <div className="flex items-center justify-between rounded-md border border-border/50 px-2.5 py-2">
+              <span className="flex min-w-0 items-center gap-2">
+                <Package className="size-3.5 shrink-0 text-primary" />
+                <span className="truncate text-[10px] font-medium text-foreground">Monthly retainer</span>
+              </span>
+              <span className="text-[9px] text-muted-foreground">$2,400</span>
             </div>
           </div>
         </div>
@@ -557,25 +555,33 @@ export function InvoicesPreview() {
   );
 }
 
-export function AutomationsPreview() {
+export function AnalyticsPreview() {
   return (
     <div className="flex gap-3">
-      <PreviewSidebar highlight="Automations" />
+      <PreviewSidebar highlight="Analytics" />
       <div className="flex flex-1 flex-col gap-2">
         <div className="rounded-lg border border-border/50 bg-background p-3">
-          <p className="text-[11px] font-medium text-foreground">Automations</p>
+          <p className="text-[11px] font-medium text-foreground">Analytics</p>
           <p className="mt-0.5 text-[10px] text-muted-foreground">
-            Event-driven rules that run your follow-ups for you.
+            See conversion and where leads drop off.
           </p>
-          <div className="mt-2 flex flex-col gap-1.5">
-            <div className="rounded-md border border-border/50 px-2.5 py-2">
-              <p className="text-[10px] font-medium text-foreground">Quote viewed → follow up in 3 days</p>
-              <p className="text-[9px] text-muted-foreground">Runs when a customer opens the link</p>
+          <div className="mt-2 grid grid-cols-3 gap-1.5">
+            <div className="rounded-md border border-border/50 px-2 py-2 text-center">
+              <p className="text-[13px] font-semibold text-foreground">68%</p>
+              <p className="text-[9px] text-muted-foreground">Quote rate</p>
             </div>
-            <div className="rounded-md border border-border/50 px-2.5 py-2">
-              <p className="text-[10px] font-medium text-foreground">Quote accepted → create job</p>
-              <p className="text-[9px] text-muted-foreground">Keeps delivery moving without manual steps</p>
+            <div className="rounded-md border border-border/50 px-2 py-2 text-center">
+              <p className="text-[13px] font-semibold text-foreground">41%</p>
+              <p className="text-[9px] text-muted-foreground">Accepted</p>
             </div>
+            <div className="rounded-md border border-border/50 px-2 py-2 text-center">
+              <p className="text-[13px] font-semibold text-foreground">2.1d</p>
+              <p className="text-[9px] text-muted-foreground">Response</p>
+            </div>
+          </div>
+          <div className="mt-1.5 rounded-md border border-border/50 px-2.5 py-2">
+            <p className="text-[10px] font-medium text-foreground">Where leads stall</p>
+            <p className="text-[9px] text-muted-foreground">Quotes viewed but not replied — nudge with a follow-up</p>
           </div>
         </div>
       </div>

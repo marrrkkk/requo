@@ -1417,7 +1417,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .public-page-header-link {
-    @apply relative inline-flex items-center rounded-lg px-3 py-1.5 text-[0.86rem] font-medium text-foreground/75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring;
+    @apply relative inline-flex items-center rounded-lg px-3.5 py-2 font-mono text-xs font-medium uppercase tracking-wider text-foreground/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring;
     transition: color 150ms ease;
   }
 

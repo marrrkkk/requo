@@ -52,7 +52,7 @@ function AdminNavItem({ isActive, item }: AdminNavItemProps) {
     >
       <SidebarMenuButton
         asChild
-        className="min-h-10 rounded-lg border border-transparent px-3 py-2 data-[active=true]:border-sidebar-primary/12 data-[active=true]:bg-sidebar-primary/12 data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+        className="min-h-9.5 h-9.5 rounded-lg border border-transparent px-3 py-2 text-[0.925rem] data-[active=true]:border-sidebar-primary/12 data-[active=true]:bg-sidebar-primary/12 data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
         isActive={isActive}
         tooltip={item.label}
       >
@@ -67,7 +67,7 @@ function AdminNavItem({ isActive, item }: AdminNavItemProps) {
         >
           <Icon
             className={cn(
-              "text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
+              "size-4.5 text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
               isActive && "text-primary",
             )}
           />

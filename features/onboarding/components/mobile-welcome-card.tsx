@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ArrowRight,
+  BarChart3,
   BellRing,
   FileText,
   Inbox,
-  Workflow,
+  Package,
+  Sparkles,
   X,
 } from "lucide-react";
 
@@ -37,9 +39,19 @@ const features = [
     description: "Never miss a reply",
   },
   {
-    icon: Workflow,
-    title: "Automations",
-    description: "Automate repeat work",
+    icon: Sparkles,
+    title: "AI drafting",
+    description: "Draft quotes in seconds",
+  },
+  {
+    icon: Package,
+    title: "Products",
+    description: "Reuse your price book",
+  },
+  {
+    icon: BarChart3,
+    title: "Analytics",
+    description: "Track what converts",
   },
 ];
 

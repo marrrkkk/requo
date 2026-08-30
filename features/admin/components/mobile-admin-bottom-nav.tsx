@@ -28,7 +28,7 @@ export function MobileAdminBottomNav() {
               href={item.href}
               prefetch={true}
               className={cn(
-                "flex h-full flex-col items-center justify-center gap-1 py-1 text-[0.68rem] transition-colors",
+                "flex h-full flex-col items-center justify-center gap-1 py-1 text-[0.74rem] transition-colors",
                 isActive
                   ? "text-primary font-semibold"
                   : "text-muted-foreground hover:text-foreground active:text-foreground font-medium",

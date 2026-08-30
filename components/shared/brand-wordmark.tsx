@@ -6,8 +6,8 @@ type BrandWordmarkProps = {
 };
 
 const sizeStyles: Record<NonNullable<BrandWordmarkProps["size"]>, string> = {
-  default: "text-[1.12rem] leading-[1.04] tracking-[-0.02em]",
-  hero: "text-[3.1rem] leading-[1.03] tracking-[-0.045em] sm:text-[3.65rem]",
+  default: "text-[1.32rem] leading-[1.04] tracking-[-0.02em]",
+  hero: "text-[3.4rem] leading-[1.03] tracking-[-0.045em] sm:text-[4rem]",
 };
 
 export function BrandWordmark({

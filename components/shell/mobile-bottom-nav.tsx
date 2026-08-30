@@ -93,7 +93,7 @@ export function MobileBottomNav({
             href={homeHref}
             prefetch={true}
             className={cn(
-              "flex h-full flex-col items-center justify-center gap-0.5 py-1 text-[0.65rem] transition-colors active:scale-95",
+              "flex h-full flex-col items-center justify-center gap-0.5 py-1 text-[0.72rem] transition-colors active:scale-95",
               isHomeActive
                 ? "text-primary font-semibold"
                 : "text-muted-foreground hover:text-foreground active:text-foreground font-medium",
@@ -115,7 +115,7 @@ export function MobileBottomNav({
             href={inquiriesHref}
             prefetch={true}
             className={cn(
-              "flex h-full flex-col items-center justify-center gap-0.5 py-1 text-[0.65rem] transition-colors active:scale-95",
+              "flex h-full flex-col items-center justify-center gap-0.5 py-1 text-[0.72rem] transition-colors active:scale-95",
               isInquiriesActive
                 ? "text-primary font-semibold"
                 : "text-muted-foreground hover:text-foreground active:text-foreground font-medium",
@@ -137,7 +137,7 @@ export function MobileBottomNav({
             href={quotesHref}
             prefetch={true}
             className={cn(
-              "flex h-full flex-col items-center justify-center gap-0.5 py-1 text-[0.65rem] transition-colors active:scale-95",
+              "flex h-full flex-col items-center justify-center gap-0.5 py-1 text-[0.72rem] transition-colors active:scale-95",
               isQuotesActive
                 ? "text-primary font-semibold"
                 : "text-muted-foreground hover:text-foreground active:text-foreground font-medium",
@@ -159,7 +159,7 @@ export function MobileBottomNav({
             href={followUpsHref}
             prefetch={true}
             className={cn(
-              "flex h-full flex-col items-center justify-center gap-0.5 py-1 text-[0.65rem] transition-colors active:scale-95",
+              "flex h-full flex-col items-center justify-center gap-0.5 py-1 text-[0.72rem] transition-colors active:scale-95",
               isFollowUpsActive
                 ? "text-primary font-semibold"
                 : "text-muted-foreground hover:text-foreground active:text-foreground font-medium",
@@ -181,7 +181,7 @@ export function MobileBottomNav({
             type="button"
             onClick={() => setMoreOpen(true)}
             className={cn(
-              "flex h-full flex-col items-center justify-center gap-0.5 py-1 text-[0.65rem] transition-colors active:scale-95",
+              "flex h-full flex-col items-center justify-center gap-0.5 py-1 text-[0.72rem] transition-colors active:scale-95",
               isMoreActive || moreOpen
                 ? "text-primary font-semibold"
                 : "text-muted-foreground hover:text-foreground active:text-foreground font-medium",
