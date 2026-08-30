@@ -34,14 +34,10 @@ export function PricingPage({
       header={<MarketingHeader />}
     >
       {/* Hero */}
-      <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-5 px-5 pb-6 pt-4 text-center sm:px-6 sm:pb-8 sm:pt-6 lg:px-8">
-        <h1 className="max-w-2xl font-heading text-4xl font-semibold leading-[0.94] tracking-tighter text-balance sm:text-5xl xl:text-[3.5rem]">
+      <div className="mx-auto flex w-full max-w-3xl flex-col items-center px-5 pb-0 pt-10 text-center sm:px-6 sm:pb-0 sm:pt-14 lg:px-8">
+        <h1 className="whitespace-nowrap font-heading text-4xl font-semibold leading-[0.94] tracking-tighter sm:text-5xl xl:text-[3.5rem]">
           Simple pricing. No surprises.
         </h1>
-        <p className="max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg sm:leading-8">
-          Start free and run the complete inquiry-to-quote workflow. Upgrade when you
-          want Requo to handle more of the follow-up, drafting, and presentation work.
-        </p>
       </div>
 
       {/* Plan cards with toggle */}
@@ -170,7 +166,7 @@ export function PricingPage({
           </div>
 
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-            <Button asChild className="w-full sm:w-auto" size="lg">
+            <Button asChild className="w-full font-mono text-xs uppercase tracking-wider sm:w-auto" size="lg">
               <Link href="/signup">
                 Start free
                 <ArrowRight data-icon="inline-end" />
@@ -178,7 +174,7 @@ export function PricingPage({
             </Button>
             <Button
               asChild
-              className="w-full sm:w-auto"
+              className="w-full font-mono text-xs uppercase tracking-wider sm:w-auto"
               size="lg"
               variant="outline"
             >

@@ -1,18 +1,19 @@
 import {
-  ArrowRight,
-  Bot,
-  Check,
-  Clock3,
-  FileText,
-  Inbox,
-  Mail,
-  Search,
-  Send,
+  CheckCircle2,
+  Plus,
+  ReceiptText,
+  SendHorizontal,
   Sparkles,
   TrendingUp,
 } from "lucide-react";
+import type { ReactNode } from "react";
 
 import type { LandingFeatureId } from "@/components/marketing/marketing-data";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { FollowUpDueBadge } from "@/features/follow-ups/components/follow-up-status-badge";
+import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
+import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import { cn } from "@/lib/utils";
 
 export function MarketingFeatureMock({
@@ -22,154 +23,335 @@ export function MarketingFeatureMock({
 }) {
   if (featureId === "inquiries") return <InquiriesPreviewMock />;
   if (featureId === "quotes") return <QuotePreviewMock />;
-  if (featureId === "ai") return <AIChatPreviewMock />;
   if (featureId === "followUps") return <FollowUpsPreviewMock />;
+  if (featureId === "ai") return <AIDraftPreviewMock />;
   return <AnalyticsPreviewMock />;
 }
 
-function PreviewHeader({
-  eyebrow,
+export function MarketingMockFrame({
   title,
   action,
+  children,
 }: {
-  eyebrow: string;
   title: string;
-  action?: React.ReactNode;
+  action?: ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
-      <div className="min-w-0">
-        <p className="text-[0.55rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          {eyebrow}
+    <div
+      aria-hidden="true"
+      className="pointer-events-none flex h-[20.5rem] w-full flex-col bg-background text-left font-sans select-none sm:h-[22rem]"
+      inert
+    >
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
+        <p className="truncate text-base font-semibold tracking-tight text-foreground">
+          {title}
         </p>
-        <p className="truncate text-sm font-semibold tracking-tight text-foreground">{title}</p>
+        {action ? (
+          <div className="flex shrink-0 items-center gap-2">{action}</div>
+        ) : null}
       </div>
-      {action}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">{children}</div>
     </div>
+  );
+}
+
+function MockButton({
+  children,
+  variant = "default",
+  size = "sm",
+}: {
+  children: ReactNode;
+  variant?: "default" | "outline" | "secondary" | "ghost";
+  size?: "xs" | "sm" | "default";
+}) {
+  return (
+    <Button size={size} tabIndex={-1} type="button" variant={variant}>
+      {children}
+    </Button>
   );
 }
 
 function InquiriesPreviewMock() {
-  const rows = [
-    ["Sarah Jenkins", "Kitchen remodel", "New"],
-    ["Leo Park", "Tile repair", "Quoted"],
-    ["Maya Fields", "Custom cabinetry", "Follow up"],
-  ] as const;
+  const inquiries = [
+    {
+      name: "Sarah Jenkins",
+      service: "Kitchen remodel",
+      time: "2m ago",
+      status: "new" as const,
+      selected: true,
+    },
+    {
+      name: "Leo Park",
+      service: "Custom bookshelves",
+      time: "1h ago",
+      status: "quoted" as const,
+      selected: false,
+    },
+    {
+      name: "Maya Fields",
+      service: "Hardwood refinishing",
+      time: "Yesterday",
+      status: "waiting" as const,
+      selected: false,
+    },
+  ];
 
   return (
-    <div className="bg-background">
-      <PreviewHeader
-        eyebrow="Inbox"
-        title="Customer requests"
-        action={<span className="rounded-full bg-primary/10 px-2 py-1 text-[0.6rem] font-medium text-primary">6 new</span>}
-      />
-      <div className="flex flex-col gap-3 p-4">
-        <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/25 px-3 py-2 text-[0.7rem] text-muted-foreground">
-          <Search className="size-3.5" />
-          <span className="flex-1">Search customers or services</span>
-          <span className="rounded-md bg-card px-1.5 py-0.5 text-[0.55rem]">All</span>
-        </div>
-        <div className="overflow-hidden rounded-xl border border-border/60">
-          <div className="grid grid-cols-[1.35fr_1fr_auto] gap-3 border-b border-border/60 bg-muted/30 px-3 py-2 text-[0.55rem] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-            <span>Customer</span><span>Service</span><span>Status</span>
-          </div>
-          {rows.map(([name, service, status], index) => (
-            <div className="grid grid-cols-[1.35fr_1fr_auto] items-center gap-3 border-b border-border/50 px-3 py-3 last:border-0" key={name}>
-              <div className="min-w-0">
-                <p className="truncate text-[0.72rem] font-medium text-foreground">{name}</p>
-                <p className="truncate text-[0.6rem] text-muted-foreground">{index === 0 ? "Contact form · 2 min ago" : "Manual entry · Today"}</p>
-              </div>
-              <span className="truncate text-[0.65rem] text-muted-foreground">{service}</span>
-              <span className={cn("rounded-full px-2 py-1 text-[0.56rem] font-medium", index === 0 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>{status}</span>
+    <MarketingMockFrame
+      action={
+        <MockButton>
+          <Plus data-icon="inline-start" />
+          Quick-add inquiry
+        </MockButton>
+      }
+      title="Inquiries"
+    >
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/80 bg-card">
+        {inquiries.map((inquiry, index) => (
+          <div
+            className={cn(
+              "flex flex-1 items-center justify-between gap-3 px-4 py-3",
+              index > 0 && "border-t border-border/70",
+              inquiry.selected && "bg-primary/5",
+            )}
+            key={inquiry.name}
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold tracking-tight text-foreground">
+                {inquiry.name}
+              </p>
+              <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                {inquiry.service}
+                <span aria-hidden="true" className="text-muted-foreground/40">
+                  {" "}
+                  ·{" "}
+                </span>
+                {inquiry.time}
+              </p>
             </div>
-          ))}
-        </div>
-        <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/[0.05] px-3 py-2.5">
-          <Inbox className="size-3.5 text-primary" />
-          <p className="flex-1 text-[0.65rem] text-foreground"><span className="font-semibold">Sarah is ready to quote.</span> Turn this request into a draft.</p>
-          <ArrowRight className="size-3.5 text-primary" />
-        </div>
+            <InquiryStatusBadge status={inquiry.status} />
+          </div>
+        ))}
       </div>
-    </div>
+    </MarketingMockFrame>
   );
 }
 
 function QuotePreviewMock() {
-  const items = [["Cabinets & hardware", "$2,400"], ["Quartz countertop", "$1,200"], ["Installation labor", "$3,400"]] as const;
-  return (
-    <div className="bg-background">
-      <PreviewHeader
-        eyebrow="Quote Q-1042"
-        title="Kitchen remodel"
-        action={<span className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-[0.6rem] font-semibold text-primary-foreground"><Sparkles className="size-3" /> Generate with AI</span>}
-      />
-      <div className="flex flex-col gap-3 p-4">
-        <div className="flex items-center justify-between rounded-lg bg-muted/35 px-3 py-2">
-          <div><p className="text-[0.58rem] uppercase tracking-[0.12em] text-muted-foreground">Prepared for</p><p className="text-[0.7rem] font-medium text-foreground">Sarah Jenkins</p></div>
-          <span className="text-[0.6rem] text-muted-foreground">Valid until Sep 4</span>
-        </div>
-        <div className="overflow-hidden rounded-xl border border-border/60">
-          <div className="flex items-center justify-between border-b border-border/60 bg-muted/25 px-3 py-2"><span className="text-[0.58rem] font-medium uppercase tracking-[0.12em] text-muted-foreground">Line items</span><span className="text-[0.6rem] font-medium text-primary">+ Add item</span></div>
-          {items.map(([item, price]) => <div className="flex items-center gap-2 border-b border-border/50 px-3 py-2.5 last:border-0" key={item}><span className="size-1.5 rounded-full bg-primary" /><span className="flex-1 text-[0.68rem] font-medium text-foreground">{item}</span><span className="text-[0.68rem] font-semibold text-foreground">{price}</span></div>)}
-        </div>
-        <div className="ml-auto grid w-48 grid-cols-2 gap-y-1.5 text-[0.65rem]"><span className="text-muted-foreground">Subtotal</span><span className="text-right text-foreground">$7,000</span><span className="text-muted-foreground">Tax (8%)</span><span className="text-right text-foreground">$560</span><span className="border-t border-border pt-1.5 font-semibold text-foreground">Total</span><span className="border-t border-border pt-1.5 text-right font-semibold text-foreground">$7,560</span></div>
-      </div>
-    </div>
-  );
-}
+  const lineItems = [
+    { description: "Maple cabinets", total: "$4,480" },
+    { description: "Quartz countertop", total: "$3,740" },
+  ] as const;
 
-function AIChatPreviewMock() {
   return (
-    <div className="bg-background">
-      <PreviewHeader eyebrow="Assistant" title="Ask Requo anything" action={<Bot className="size-4 text-primary" />} />
-      <div className="flex flex-col gap-3 p-4">
-        <div className="self-end rounded-xl rounded-br-sm bg-primary px-3 py-2.5 text-[0.7rem] text-primary-foreground">Which quotes need a follow-up?</div>
-        <div className="max-w-[92%] rounded-xl rounded-bl-sm border border-border/60 bg-muted/25 p-3">
-          <div className="flex items-center gap-1.5 text-[0.62rem] font-semibold text-foreground"><Sparkles className="size-3 text-primary" /> 3 quotes need attention</div>
-          <div className="mt-2 flex flex-col gap-1.5">
-            {["Kitchen remodel · viewed 4 days ago", "Deck rebuild · sent last week", "Flooring estimate · no response"].map((quote) => <div className="flex items-center gap-2 rounded-lg bg-card px-2.5 py-2" key={quote}><FileText className="size-3 text-muted-foreground" /><span className="flex-1 text-[0.62rem] text-foreground">{quote}</span><ArrowRight className="size-3 text-primary" /></div>)}
-          </div>
+    <MarketingMockFrame
+      action={
+        <MockButton>
+          <SendHorizontal data-icon="inline-start" />
+          Send quote
+        </MockButton>
+      }
+      title="Quote Q-1048"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold tracking-tight text-foreground">
+            Sarah Jenkins
+          </p>
+          <p className="mt-0.5 truncate text-sm text-muted-foreground">
+            Kitchen remodel
+          </p>
         </div>
-        <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-card px-3 py-2.5 text-[0.65rem] text-muted-foreground"><span className="flex-1">Ask about your pipeline…</span><span className="flex size-5 items-center justify-center rounded-md bg-primary text-primary-foreground"><Send className="size-3" /></span></div>
+        <QuoteStatusBadge status="draft" />
       </div>
-    </div>
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/80 bg-card">
+        {lineItems.map((item, index) => (
+          <div
+            className={cn(
+              "flex flex-1 items-center justify-between gap-3 px-4 py-3",
+              index > 0 && "border-t border-border/70",
+            )}
+            key={item.description}
+          >
+            <p className="truncate text-sm font-medium text-foreground">
+              {item.description}
+            </p>
+            <p className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+              {item.total}
+            </p>
+          </div>
+        ))}
+        <div className="flex items-center justify-between gap-3 border-t border-border/80 bg-muted/30 px-4 py-3">
+          <p className="text-sm text-muted-foreground">Total</p>
+          <p className="text-base font-semibold tabular-nums tracking-tight text-foreground">
+            $8,220
+          </p>
+        </div>
+      </div>
+    </MarketingMockFrame>
   );
 }
 
 function FollowUpsPreviewMock() {
-  const rows = [
-    { icon: FileText, label: "Q-0041 viewed", detail: "Sarah Jenkins · Due today", chip: "Today" },
-    { icon: Inbox, label: "Inquiry reply", detail: "Leo Park · Due tomorrow", chip: "Tomorrow" },
-    { icon: Clock3, label: "Auto-created: quote viewed", detail: "Maya Fields · Created 3 days ago", chip: "Done" },
-  ] as const;
+  const followUps = [
+    {
+      title: "Follow up on kitchen quote",
+      customer: "Sarah Jenkins",
+      bucket: "today" as const,
+      primary: true,
+    },
+    {
+      title: "Check in on bookshelves",
+      customer: "Leo Park",
+      bucket: "upcoming" as const,
+      primary: false,
+    },
+  ];
+
   return (
-    <div className="bg-background">
-      <PreviewHeader
-        eyebrow="Follow-ups"
-        title="Today's follow-ups"
-        action={<span className="inline-flex items-center gap-1 rounded-lg border border-border/70 bg-card px-2 py-1 text-[0.58rem] font-medium text-muted-foreground"><Mail className="size-3" /> Remind me</span>}
-      />
-      <div className="flex flex-col gap-2 p-4">
-        {rows.map(({ icon: Icon, label, detail, chip }) => (
-          <div className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-card p-3" key={label}>
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Icon className="size-3.5" /></span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[0.7rem] font-medium text-foreground">{label}</p>
-              <p className="truncate text-[0.6rem] text-muted-foreground">{detail}</p>
+    <MarketingMockFrame title="Follow-ups">
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        {followUps.map((item) => (
+          <div
+            className={cn(
+              "flex min-h-0 flex-1 flex-col justify-center gap-3 rounded-xl border px-4 py-3",
+              item.primary
+                ? "border-border/80 bg-primary/5"
+                : "border-border/80 bg-card",
+            )}
+            key={item.title}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold tracking-tight text-foreground">
+                  {item.title}
+                </p>
+                <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                  {item.customer}
+                </p>
+              </div>
+              <FollowUpDueBadge bucket={item.bucket} />
             </div>
-            <span className="rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 text-[0.55rem] font-medium text-muted-foreground">{chip}</span>
+            <div className="flex justify-end">
+              <MockButton variant={item.primary ? "default" : "outline"}>
+                <CheckCircle2 data-icon="inline-start" />
+                Mark done
+              </MockButton>
+            </div>
           </div>
         ))}
-        <div className="flex items-center gap-2 rounded-lg bg-primary/[0.06] px-3 py-2.5">
-          <Sparkles className="size-3.5 text-primary" />
-          <p className="text-[0.62rem] text-foreground"><span className="font-semibold">Auto-created</span> when quotes are viewed or go quiet — you just close the deal.</p>
-        </div>
       </div>
-    </div>
+    </MarketingMockFrame>
+  );
+}
+
+function AIDraftPreviewMock() {
+  const lineItems = [
+    { description: "Maple cabinets", total: "$4,480" },
+    { description: "Quartz countertop", total: "$3,740" },
+  ] as const;
+
+  return (
+    <MarketingMockFrame
+      action={
+        <MockButton>
+          <Sparkles data-icon="inline-start" />
+          Generate with AI
+        </MockButton>
+      }
+      title="Draft with AI"
+    >
+      <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+        <Sparkles className="size-4 shrink-0 text-primary" />
+        <p className="truncate text-sm text-foreground">
+          <span className="font-semibold">Sarah Jenkins</span>
+          <span className="text-muted-foreground"> · Kitchen remodel</span>
+        </p>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/80 bg-card">
+        {lineItems.map((item, index) => (
+          <div
+            className={cn(
+              "flex flex-1 items-center justify-between gap-3 px-4 py-3",
+              index > 0 && "border-t border-border/70",
+            )}
+            key={item.description}
+          >
+            <p className="truncate text-sm font-medium text-foreground">
+              {item.description}
+            </p>
+            <p className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+              {item.total}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex justify-end">
+        <MockButton>
+          <ReceiptText data-icon="inline-start" />
+          Apply draft
+        </MockButton>
+      </div>
+    </MarketingMockFrame>
   );
 }
 
 function AnalyticsPreviewMock() {
-  const bars = [45, 68, 53, 82, 74, 96, 88];
-  return <div className="bg-background"><PreviewHeader eyebrow="Analytics" title="Pipeline performance" action={<span className="rounded-lg border border-border/60 px-2 py-1 text-[0.58rem] text-muted-foreground">Last 30 days</span>} /><div className="flex flex-col gap-3 p-4"><div className="grid grid-cols-3 gap-2">{[["Inquiries", "24"], ["Quotes sent", "16"], ["Won", "9"]].map(([label, value]) => <div className="rounded-lg border border-border/60 bg-muted/20 p-2.5" key={label}><p className="text-[0.56rem] text-muted-foreground">{label}</p><p className="mt-1 text-lg font-semibold tracking-tight text-foreground">{value}</p></div>)}</div><div className="rounded-xl border border-border/60 p-3"><div className="flex items-center justify-between"><div><p className="text-[0.68rem] font-medium text-foreground">Quote views</p><p className="text-[0.58rem] text-muted-foreground">Up 18% from last month</p></div><TrendingUp className="size-4 text-primary" /></div><div className="mt-4 flex h-20 items-end gap-2">{bars.map((height, index) => <span className="flex-1 rounded-t-sm bg-primary/15" key={index} style={{ height: `${height}%` }}><span className="block size-full rounded-t-sm bg-primary" style={{ height: index === 5 ? "100%" : "60%" }} /></span>)}</div></div><div className="flex items-center gap-2 rounded-lg bg-primary/[0.06] px-3 py-2.5"><TrendingUp className="size-3.5 text-primary" /><p className="text-[0.62rem] text-foreground"><span className="font-semibold">Best conversion:</span> Quotes sent within 1 hour.</p></div></div></div>;
+  const metrics = [
+    { label: "Inquiries", value: "24" },
+    { label: "Quotes sent", value: "16" },
+    { label: "Accepted", value: "11" },
+  ] as const;
+
+  const funnel = [
+    { label: "Inquiries", value: 24, width: "100%" },
+    { label: "Quoted", value: 16, width: "67%" },
+    { label: "Accepted", value: 11, width: "46%" },
+  ] as const;
+
+  return (
+    <MarketingMockFrame
+      action={
+        <Badge variant="secondary">
+          <TrendingUp data-icon="inline-start" />
+          Last 30 days
+        </Badge>
+      }
+      title="Analytics"
+    >
+      <div className="grid grid-cols-3 gap-3">
+        {metrics.map((metric) => (
+          <div className="soft-panel px-3 py-3" key={metric.label}>
+            <p className="meta-label">{metric.label}</p>
+            <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
+              {metric.value}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col justify-center gap-3 rounded-xl border border-border/80 bg-card px-4 py-3">
+        {funnel.map((step) => (
+          <div className="flex flex-col gap-1.5" key={step.label}>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium text-foreground">{step.label}</p>
+              <p className="text-sm font-semibold tabular-nums text-foreground">
+                {step.value}
+              </p>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted/50">
+              <div
+                className="h-full rounded-full bg-primary/80"
+                style={{ width: step.width }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </MarketingMockFrame>
+  );
 }

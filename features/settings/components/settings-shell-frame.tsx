@@ -126,7 +126,7 @@ export function SettingsShellFrame({
     >
       <Sidebar collapsible="icon">
         <SidebarHeader className="gap-0 p-0">
-          <div className="flex h-13 items-center justify-between border-b border-sidebar-border px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-3.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
             <BrandMark
               collapseLabel
               className="min-w-0 px-2 py-1.5 group-data-[collapsible=icon]:p-0"
@@ -143,7 +143,7 @@ export function SettingsShellFrame({
         <SidebarContent className="gap-0 px-1 pb-3 group-data-[collapsible=icon]:px-0">
           {groups.map((group) => (
             <SidebarGroup key={group.label} className="px-3 pt-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:pt-2">
-              <span className="meta-label px-3 pb-1.5 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+              <span className="meta-label px-3 pb-1.5 text-[0.78rem] text-muted-foreground group-data-[collapsible=icon]:hidden">
                 {group.label}
               </span>
               <SidebarMenu>
@@ -264,15 +264,15 @@ const SettingsNavigationItem = memo(function SettingsNavigationItem({
     <SidebarMenuItem>
       <SidebarMenuButton
         asChild
-        className="min-h-10 rounded-lg border border-transparent px-3 py-2 data-[active=true]:border-sidebar-primary/12 data-[active=true]:bg-sidebar-primary/12 data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+        className="min-h-9.5 h-9.5 rounded-lg border border-transparent px-3 py-2 text-[0.925rem] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-black/8 data-[active=true]:font-medium data-[active=true]:text-sidebar-foreground dark:data-[active=true]:bg-white/10"
         isActive={isActive}
         tooltip={label}
       >
         <Link href={href} prefetch={true} onClick={handleClick}>
           <Icon
             className={cn(
-              "text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
-              isActive && "text-primary",
+              "size-4.5 transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
+              isActive ? "text-foreground" : "text-muted-foreground",
             )}
           />
           <span className="group-data-[collapsible=icon]:hidden">{label}</span>

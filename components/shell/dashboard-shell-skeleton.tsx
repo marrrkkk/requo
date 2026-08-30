@@ -24,11 +24,11 @@ export function DashboardShellSkeleton() {
         >
           <div className="flex size-full flex-col bg-sidebar">
             {/* Real brand mark */}
-            <div className="flex min-h-9 items-center px-5 py-1.5 sm:py-2">
+            <div className="flex h-14 items-center border-b border-sidebar-border px-3.5">
               <BrandMark collapseLabel className="min-w-0 px-2 py-1.5" subtitle={null} />
             </div>
             {/* Business switcher skeleton */}
-            <div className="border-t border-sidebar-border px-3 py-3">
+            <div className="px-3 py-3">
               <div className="w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5">
                 <div className="flex items-start gap-3.5">
                   <Skeleton className="size-14 shrink-0 rounded-[0.9rem]" />

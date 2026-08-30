@@ -78,7 +78,7 @@ export function AdminShellFrame({
     >
       <Sidebar collapsible="icon">
         <SidebarHeader className="gap-0 p-0">
-          <div className="flex h-13 items-center justify-between border-b border-sidebar-border px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-3.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
             <BrandMark
               collapseLabel
               className="min-w-0 px-2 py-1.5 group-data-[collapsible=icon]:p-0"

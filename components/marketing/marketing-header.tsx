@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
+import { BookDemoDialog } from "@/components/marketing/book-demo-dialog";
 import { MarketingHeaderShell } from "@/components/marketing/marketing-header-shell";
 import { Button } from "@/components/ui/button";
 import { SheetClose } from "@/components/ui/sheet";
@@ -32,7 +33,7 @@ function DesktopActions() {
 
   if (session?.user) {
     return (
-      <Button asChild size="sm">
+      <Button asChild size="sm" className="font-mono text-xs uppercase tracking-wider">
         <Link href={dashboardPath}>
           Dashboard
           <ArrowRight data-icon="inline-end" />
@@ -43,10 +44,12 @@ function DesktopActions() {
 
   return (
     <>
-      <Button asChild size="sm" variant="ghost">
-        <Link href="/login">Log in</Link>
-      </Button>
-      <Button asChild size="sm">
+      <BookDemoDialog>
+        <Button size="sm" variant="outline" className="border-border/80 bg-background/50 font-mono text-xs uppercase tracking-wider hover:bg-accent">
+          Book a demo
+        </Button>
+      </BookDemoDialog>
+      <Button asChild size="sm" className="bg-primary font-mono text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90">
         <Link href="/signup">
           Start free
           <ArrowRight data-icon="inline-end" />
@@ -59,10 +62,10 @@ function DesktopActions() {
 function DesktopActionsFallback() {
   return (
     <>
-      <Button size="sm" variant="ghost" disabled>
-        Log in
+      <Button size="sm" variant="outline" disabled className="font-mono text-xs uppercase tracking-wider">
+        Book a demo
       </Button>
-      <Button size="sm" disabled>
+      <Button size="sm" disabled className="font-mono text-xs uppercase tracking-wider">
         Start free
         <ArrowRight data-icon="inline-end" />
       </Button>
@@ -80,7 +83,7 @@ function MobileActions() {
   if (session?.user) {
     return (
       <SheetClose asChild>
-        <Button asChild className="w-full" size="lg">
+        <Button asChild className="w-full font-mono text-xs uppercase tracking-wider" size="lg">
           <Link href={dashboardPath}>
             Go to dashboard
             <ArrowRight data-icon="inline-end" />
@@ -93,17 +96,29 @@ function MobileActions() {
   return (
     <>
       <SheetClose asChild>
-        <Button asChild className="w-full" size="lg" variant="outline">
-          <Link href="/login">Log in</Link>
-        </Button>
+        <div>
+          <BookDemoDialog>
+            <Button className="w-full font-mono text-xs uppercase tracking-wider" size="lg" variant="outline">
+              Book a demo
+            </Button>
+          </BookDemoDialog>
+        </div>
       </SheetClose>
       <SheetClose asChild>
-        <Button asChild className="w-full" size="lg">
+        <Button asChild className="w-full bg-primary font-mono text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90" size="lg">
           <Link href="/signup">
             Start free
             <ArrowRight data-icon="inline-end" />
           </Link>
         </Button>
+      </SheetClose>
+      <SheetClose asChild>
+        <Link
+          href="/login"
+          className="text-center text-xs font-medium text-muted-foreground hover:text-foreground"
+        >
+          Already have an account? Log in
+        </Link>
       </SheetClose>
     </>
   );
@@ -112,10 +127,10 @@ function MobileActions() {
 function MobileActionsFallback() {
   return (
     <>
-      <Button className="w-full" size="lg" variant="outline" disabled>
-        Log in
+      <Button className="w-full font-mono text-xs uppercase tracking-wider" size="lg" variant="outline" disabled>
+        Book a demo
       </Button>
-      <Button className="w-full" size="lg" disabled>
+      <Button className="w-full font-mono text-xs uppercase tracking-wider" size="lg" disabled>
         Start free
         <ArrowRight data-icon="inline-end" />
       </Button>

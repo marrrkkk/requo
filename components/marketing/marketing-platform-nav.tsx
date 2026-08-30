@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
-import { ChevronDown, ExternalLink } from "lucide-react";
+import { BellRing, ChevronDown, FileSignature, Inbox } from "lucide-react";
 
-import { resourceLinks } from "@/components/marketing/marketing-data";
 import {
   Popover,
   PopoverContent,
@@ -14,7 +13,25 @@ import { cn } from "@/lib/utils";
 
 const defaultTriggerClass = "public-page-header-link";
 
-export function MarketingResourcesNav({
+const platformLinks = [
+  {
+    href: "/#inquiries",
+    label: "Inquiry",
+    icon: Inbox,
+  },
+  {
+    href: "/#quotes",
+    label: "Quote",
+    icon: FileSignature,
+  },
+  {
+    href: "/#follow-ups",
+    label: "Follow-up",
+    icon: BellRing,
+  },
+] as const;
+
+export function MarketingPlatformNav({
   triggerClassName,
 }: {
   triggerClassName?: string;
@@ -59,7 +76,7 @@ export function MarketingResourcesNav({
         onMouseEnter={handleOpen}
         onMouseLeave={handleClose}
       >
-        Resources
+        Platform
         <span className="nav-underline" aria-hidden="true" />
         <ChevronDown
           aria-hidden="true"
@@ -69,7 +86,7 @@ export function MarketingResourcesNav({
       <PopoverContent
         align="center"
         sideOffset={4}
-        className="w-52 gap-0 p-1"
+        className="w-44 gap-0 p-1"
         onOpenAutoFocus={(event) => event.preventDefault()}
         onCloseAutoFocus={(event) => event.preventDefault()}
         onMouseEnter={handleContentEnter}
@@ -77,17 +94,20 @@ export function MarketingResourcesNav({
         onPointerDownOutside={() => setOpen(false)}
         onEscapeKeyDown={() => setOpen(false)}
       >
-        {resourceLinks.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[0.9rem] font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground"
-            onClick={() => setOpen(false)}
-          >
-            <ExternalLink className="size-4 shrink-0 text-primary/70" />
-            {link.label}
-          </Link>
-        ))}
+        {platformLinks.map((link) => {
+          const Icon = link.icon;
+          return (
+            <Link
+              key={link.label}
+              href={link.href}
+              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[0.9rem] font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground"
+              onClick={() => setOpen(false)}
+            >
+              <Icon className="size-4 shrink-0 text-primary/70" />
+              {link.label}
+            </Link>
+          );
+        })}
       </PopoverContent>
     </Popover>
   );

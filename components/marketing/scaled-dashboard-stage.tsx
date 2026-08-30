@@ -5,7 +5,7 @@ import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 const STAGE_WIDTH = 1152;
-const STAGE_HEIGHT = 720;
+const STAGE_HEIGHT = 540;
 
 export function ScaledDashboardStage({ children }: { children: ReactNode }) {
   const containerRef = useRef<HTMLDivElement | null>(null);

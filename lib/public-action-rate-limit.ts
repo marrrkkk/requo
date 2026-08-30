@@ -10,6 +10,7 @@ import { publicActionEvents } from "@/lib/db/schema";
 type AssertPublicActionRateLimitInput = {
   action:
     | "ai-file-import"
+    | "demo-request"
     | "public-inquiry-submit"
     | "public-quote-respond"
     | "public-quote-revision";

@@ -14,21 +14,21 @@ type BrandMarkProps = {
 };
 
 const logoSizeClass: Record<BrandMarkSize, string> = {
-  default: "size-6",
-  lg: "size-8",
-  xl: "size-12",
+  default: "size-7.5",
+  lg: "size-9.5",
+  xl: "size-14",
 };
 
 const wordmarkSizeClass: Record<BrandMarkSize, string> = {
-  default: "",
-  lg: "text-[1.35rem] tracking-[-0.02em] sm:text-[1.45rem]",
-  xl: "text-[1.75rem] tracking-[-0.02em] sm:text-[2rem]",
+  default: "text-[1.26rem] tracking-[-0.02em]",
+  lg: "text-[1.52rem] tracking-[-0.02em] sm:text-[1.65rem]",
+  xl: "text-[1.95rem] tracking-[-0.02em] sm:text-[2.25rem]",
 };
 
 const wordmarkNoSubtitleSizeClass: Record<BrandMarkSize, string> = {
-  default: "text-[1.1rem] tracking-[-0.025em]",
-  lg: "text-[1.45rem] tracking-[-0.025em] sm:text-[1.55rem]",
-  xl: "text-[1.85rem] tracking-[-0.025em] sm:text-[2.1rem]",
+  default: "text-[1.32rem] tracking-[-0.025em]",
+  lg: "text-[1.62rem] tracking-[-0.025em] sm:text-[1.78rem]",
+  xl: "text-[2.15rem] tracking-[-0.025em] sm:text-[2.45rem]",
 };
 
 export function BrandMark({
@@ -64,7 +64,7 @@ export function BrandMark({
       >
         <BrandWordmark className={cn("truncate", subtitle !== null ? wordmarkSizeClass[size] : wordmarkNoSubtitleSizeClass[size])} />
         {subtitle !== null ? (
-          <span className="mt-0.5 truncate text-[0.6rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="mt-0.5 truncate text-[0.68rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             {subtitle}
           </span>
         ) : null}
