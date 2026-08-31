@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, Check, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -29,6 +29,7 @@ import type {
   PaidPlan,
 } from "@/lib/billing/types";
 import { planMeta, type BusinessPlan } from "@/lib/plans/plans";
+import { cn } from "@/lib/utils";
 
 type SelectBusinessDialogProps = {
   open: boolean;
@@ -52,7 +53,6 @@ export function SelectBusinessDialog({
   const [startingBusinessId, setStartingBusinessId] = useState<string | null>(
     null,
   );
-  const [, startTransition] = useTransition();
 
   useEffect(() => {
     if (!open) return;
@@ -80,38 +80,36 @@ export function SelectBusinessDialog({
     };
   }, [open]);
 
-  function handleSelectBusiness(business: UpgradeEligibleBusiness) {
+  async function handleSelectBusiness(business: UpgradeEligibleBusiness) {
     if (startingBusinessId) return;
 
     setStartingBusinessId(business.id);
     const returnTo = getBusinessDashboardPath(business.slug);
 
-    startTransition(async () => {
-      try {
-        const result = await startPolarCheckout({
-          businessId: business.id,
-          plan: targetPlan,
-          interval,
-          returnTo,
-        });
+    try {
+      const result = await startPolarCheckout({
+        businessId: business.id,
+        plan: targetPlan,
+        interval,
+        returnTo,
+      });
 
-        if (!result.ok) {
-          if (result.reason === "already_subscribed") {
-            toast.info(result.message);
-          } else {
-            toast.error(result.message);
-          }
-          setStartingBusinessId(null);
-          return;
+      if (!result.ok) {
+        if (result.reason === "already_subscribed") {
+          toast.info(result.message);
+        } else {
+          toast.error(result.message);
         }
-
-        onOpenChange(false);
-      } catch (error) {
-        console.error("Failed to start checkout", error);
-        toast.error("An unexpected error occurred while starting checkout.");
         setStartingBusinessId(null);
+        return;
       }
-    });
+
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Failed to start checkout", error);
+      toast.error("An unexpected error occurred while starting checkout.");
+      setStartingBusinessId(null);
+    }
   }
 
   const targetPlanLabel = planMeta[targetPlan].label;
@@ -133,7 +131,7 @@ export function SelectBusinessDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-[60vh] overflow-y-auto p-6 pt-3">
+        <div className="max-h-[60vh] overflow-y-auto p-6 pt-4">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-10 gap-3">
               <Spinner className="size-6 text-primary" />
@@ -163,11 +161,62 @@ export function SelectBusinessDialog({
                 const isHigherPlan =
                   targetPlan === "pro" && business.plan === "business";
                 const isStarting = startingBusinessId === business.id;
+                const isClickable =
+                  !isCurrentPlan && !isHigherPlan && !Boolean(startingBusinessId);
+
+                if (isCurrentPlan || isHigherPlan) {
+                  return (
+                    <div
+                      key={business.id}
+                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-border/50 bg-muted/20 p-3.5 text-left opacity-75"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <BusinessAvatar
+                          name={business.name}
+                          logoUrl={business.logoUrl}
+                          size="default"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {business.name}
+                            </p>
+                            <PlanBadge plan={business.plan as BusinessPlan} />
+                          </div>
+                          <p className="truncate text-xs text-muted-foreground font-mono">
+                            /{business.slug}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0">
+                        {isCurrentPlan ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground px-2.5 py-1 rounded-md bg-muted/60 border border-border/50">
+                            <Check className="size-3 text-emerald-500" />
+                            Current plan
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground px-2.5 py-1 rounded-md bg-muted/60 border border-border/50">
+                            Business tier
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
 
                 return (
-                  <div
+                  <button
                     key={business.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/60 p-3.5 transition-colors hover:bg-accent/40"
+                    type="button"
+                    disabled={!isClickable}
+                    onClick={() => handleSelectBusiness(business)}
+                    className={cn(
+                      "group relative flex w-full items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/70 p-3.5 text-left transition-all",
+                      "hover:border-primary/50 hover:bg-primary/[0.04] hover:shadow-sm cursor-pointer active:scale-[0.99]",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      isStarting && "opacity-90 pointer-events-none",
+                    )}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <BusinessAvatar
@@ -177,7 +226,7 @@ export function SelectBusinessDialog({
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="truncate text-sm font-medium text-foreground">
+                          <p className="truncate text-sm font-medium text-foreground group-hover:text-primary transition-colors">
                             {business.name}
                           </p>
                           <PlanBadge plan={business.plan as BusinessPlan} />
@@ -189,38 +238,21 @@ export function SelectBusinessDialog({
                     </div>
 
                     <div className="shrink-0">
-                      {isCurrentPlan ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground px-2.5 py-1 rounded-md bg-muted/40 border border-border/50">
-                          <Check className="size-3 text-emerald-500" />
-                          Current plan
-                        </span>
-                      ) : isHigherPlan ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground px-2.5 py-1 rounded-md bg-muted/40 border border-border/50">
-                          Business tier
-                        </span>
-                      ) : (
-                        <Button
-                          size="sm"
-                          className="font-mono text-xs uppercase tracking-wider"
-                          disabled={isStarting || Boolean(startingBusinessId)}
-                          onClick={() => handleSelectBusiness(business)}
-                          type="button"
-                        >
-                          {isStarting ? (
-                            <>
-                              <Spinner data-icon="inline-start" aria-hidden="true" />
-                              Checkout…
-                            </>
-                          ) : (
-                            <>
-                              Upgrade
-                              <ArrowUpRight data-icon="inline-end" />
-                            </>
-                          )}
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-mono font-medium uppercase tracking-wider text-primary-foreground transition-all group-hover:bg-primary/90">
+                        {isStarting ? (
+                          <>
+                            <Spinner className="size-3.5 text-primary-foreground" aria-hidden="true" />
+                            Checkout…
+                          </>
+                        ) : (
+                          <>
+                            Upgrade
+                            <ArrowUpRight className="size-3.5" />
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
