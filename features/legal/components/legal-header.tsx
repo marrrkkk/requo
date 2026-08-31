@@ -30,7 +30,7 @@ export function LegalHeader() {
           <nav className="public-page-header-nav">
             {legalNavItems.map((item) => (
               <Link
-                className="public-page-header-link"
+                className="public-page-header-link font-mono text-xs font-medium uppercase tracking-wider"
                 href={item.href}
                 key={item.href}
               >

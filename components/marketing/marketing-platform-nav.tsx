@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-const defaultTriggerClass = "public-page-header-link";
+const defaultTriggerClass =
+  "public-page-header-link font-mono text-xs font-medium uppercase tracking-wider";
 
 const platformLinks = [
   {

@@ -23,7 +23,8 @@ import {
 } from "@/components/ui/sheet";
 
 /** Shared nav-link class for public/marketing headers. */
-const navLinkClass = "public-page-header-link";
+const navLinkClass =
+  "public-page-header-link font-mono text-xs font-medium uppercase tracking-wider";
 
 type MarketingHeaderShellProps = {
   /** Auth-aware CTA cluster for desktop (rendered as a Suspense slot). */

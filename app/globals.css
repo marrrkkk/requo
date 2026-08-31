@@ -1418,6 +1418,12 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   .public-page-header-link {
     @apply relative inline-flex items-center rounded-lg px-3.5 py-2 font-mono text-xs font-medium uppercase tracking-wider text-foreground/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring;
+    font-family: var(--font-geist-mono), var(--font-mono), monospace;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     transition: color 150ms ease;
   }
 
