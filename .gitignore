@@ -14,6 +14,9 @@
 /coverage
 /playwright-report
 /test-results
+/screenshots/
+/tests/screenshots/
+playwright.screenshots.config.ts
 # Generated test reports — regenerated on every run, and Playwright's JSON reporter even
 # serializes process.env (secrets) into its metadata. Never track them.
 /reports/
