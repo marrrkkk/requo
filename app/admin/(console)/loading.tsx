@@ -8,7 +8,7 @@ export default function AdminLoading() {
   return (
     <div className="min-h-svh w-full bg-background">
       <div className="fixed inset-y-0 left-0 z-20 hidden w-[17.5rem] border-r border-sidebar-border bg-sidebar lg:block">
-        <div className="flex min-h-9 items-center justify-between px-3 py-1.5 sm:py-2">
+        <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-3.5">
           <BrandMark
             className="min-w-0 px-2 py-1.5"
             collapseLabel
@@ -17,7 +17,6 @@ export default function AdminLoading() {
           />
           <Skeleton className="size-7 shrink-0 rounded-md" />
         </div>
-        <div className="border-t border-sidebar-border" />
         <nav className="flex flex-col gap-1 px-4 pt-4">
           {[
             "Dashboard",
