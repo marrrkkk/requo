@@ -178,7 +178,7 @@ export function SettingsShellFrame({
         />
 
         {/* Desktop topbar (lg and above) */}
-        <div className="sticky top-0 z-30 hidden h-13 items-stretch border-b border-border/70 bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/80 lg:flex">
+        <div className="sticky top-0 z-30 hidden h-14 items-stretch border-b border-border/70 bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/80 lg:flex">
           <header className="flex min-w-0 flex-1 items-center">
             <DesktopSidebarTrigger />
             <div className="dashboard-topbar-inner min-w-0 flex-1">

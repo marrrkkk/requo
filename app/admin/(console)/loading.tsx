@@ -39,7 +39,7 @@ export default function AdminLoading() {
       </div>
 
       <div className="lg:pl-[17.5rem]">
-        <header className="dashboard-topbar flex items-center">
+        <header className="dashboard-topbar flex h-14 items-center">
           <div className="dashboard-topbar-inner min-w-0 flex-1">
             <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
               <Skeleton className="size-8 shrink-0 rounded-md lg:hidden" />

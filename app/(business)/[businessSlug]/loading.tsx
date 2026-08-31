@@ -68,7 +68,7 @@ export default function BusinessSlugLoading() {
       {/* Main content area */}
       <main className="relative flex min-w-0 flex-1 flex-col bg-transparent">
         {/* Topbar — structural frame with minimal skeletons */}
-        <header className="dashboard-topbar">
+        <header className="dashboard-topbar flex h-14 items-center">
           <div className="dashboard-topbar-inner">
             <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-3 md:flex-nowrap">
               <Skeleton className="size-10 shrink-0 rounded-lg" />
