@@ -1,20 +1,20 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Check } from "lucide-react";
-import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { SelectBusinessDialog } from "@/components/marketing/select-business-dialog";
 import { cn } from "@/lib/utils";
 import {
   getYearlySavingsPercent,
   getMonthlyEquivalentLabel,
   getPlanPriceLabel,
 } from "@/lib/billing/plans";
-import { startPolarCheckout } from "@/features/billing/start-checkout";
 import { dashboardPath } from "@/features/businesses/routes";
 import { authClient } from "@/lib/auth/client";
 import { getAuthPathWithNext } from "@/lib/auth/redirects";
@@ -29,24 +29,45 @@ export function PricingIntervalToggle({
 }: {
   currency: BillingCurrency;
 }) {
+  const searchParams = useSearchParams();
   const [interval, setInterval] = useState<BillingInterval>("monthly");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<PaidPlan>("pro");
   const [pendingPlan, setPendingPlan] = useState<PaidPlan | null>(null);
   const [isPending, startTransition] = useTransition();
   const { data: session } = authClient.useSession();
   const savingsPercent = getYearlySavingsPercent("pro", currency);
 
+  useEffect(() => {
+    const planParam = searchParams.get("plan");
+    const intervalParam = searchParams.get("interval");
+
+    if (intervalParam === "yearly" || intervalParam === "monthly") {
+      setInterval(intervalParam);
+    }
+
+    if (
+      (planParam === "pro" || planParam === "business") &&
+      session?.user
+    ) {
+      setSelectedPlan(planParam);
+      setDialogOpen(true);
+    }
+  }, [searchParams, session?.user]);
+
   function handleSubscribe(plan: PaidPlan) {
     if (isPending) return;
 
     if (session?.user) {
-      window.location.assign(dashboardPath);
+      setSelectedPlan(plan);
+      setDialogOpen(true);
       return;
     }
 
     setPendingPlan(plan);
     startTransition(async () => {
       // Business-scoped billing requires a specific business context to start checkout.
-      // From the marketing pricing page, route visitors through login / onboarding first.
+      // From the marketing pricing page, route visitors through login first.
       const next = `/pricing?plan=${plan}&interval=${interval}`;
       window.location.assign(getAuthPathWithNext("/login", next));
     });
@@ -121,7 +142,9 @@ export function PricingIntervalToggle({
           </p>
 
           <Button asChild variant="outline" size="lg" className="mt-6 w-full font-mono text-xs uppercase tracking-wider">
-            <Link href="/home">Start with inquiries</Link>
+            <Link href={session?.user ? dashboardPath : "/signup"}>
+              {session?.user ? "Go to dashboard" : "Start with inquiries"}
+            </Link>
           </Button>
 
           <ul className="mt-7 flex flex-col gap-2.5 border-t border-border/50 pt-6">
@@ -169,7 +192,7 @@ export function PricingIntervalToggle({
             {isPending && pendingPlan === "pro" ? (
               <>
                 <Spinner data-icon="inline-start" aria-hidden="true" />
-                Opening checkout…
+                Redirecting…
               </>
             ) : (
               "Start with Pro"
@@ -220,7 +243,7 @@ export function PricingIntervalToggle({
             {isPending && pendingPlan === "business" ? (
               <>
                 <Spinner data-icon="inline-start" aria-hidden="true" />
-                Opening checkout…
+                Redirecting…
               </>
             ) : (
               "Start with Business"
@@ -240,6 +263,14 @@ export function PricingIntervalToggle({
           </ul>
         </div>
       </div>
+
+      <SelectBusinessDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        targetPlan={selectedPlan}
+        interval={interval}
+        currency={currency}
+      />
     </section>
   );
 }

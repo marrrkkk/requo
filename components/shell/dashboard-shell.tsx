@@ -282,7 +282,7 @@ export function DashboardShell({
       </Sidebar>
 
       <SidebarInset className="min-h-svh min-w-0">
-        <header className="dashboard-topbar flex h-13 items-center">
+        <header className="dashboard-topbar flex h-14 items-center">
           <DesktopSidebarTrigger />
           <div className="dashboard-topbar-inner min-w-0 flex-1">
             <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">

@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight, Check, Minus } from "lucide-react";
 import { Fragment } from "react";
@@ -16,6 +18,8 @@ import {
   pricingComparison,
   aiDraftingClarification,
 } from "@/lib/plans/catalog";
+import { authClient } from "@/lib/auth/client";
+import { dashboardPath } from "@/features/businesses/routes";
 
 /*──────────────────────────────────────────────────────────────────────────────
  * Component
@@ -166,20 +170,7 @@ export function PricingPage({
           </div>
 
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-            <Button asChild className="w-full font-mono text-xs uppercase tracking-wider sm:w-auto" size="lg">
-              <Link href="/signup">
-                Start free
-                <ArrowRight data-icon="inline-end" />
-              </Link>
-            </Button>
-            <Button
-              asChild
-              className="w-full font-mono text-xs uppercase tracking-wider sm:w-auto"
-              size="lg"
-              variant="outline"
-            >
-              <Link href="/login">Log in</Link>
-            </Button>
+            <PricingCtaActions />
           </div>
         </div>
 
@@ -255,3 +246,38 @@ function MobileCell({ value }: { value: string | boolean | number }) {
     </span>
   );
 }
+
+function PricingCtaActions() {
+  const { data: session } = authClient.useSession();
+
+  if (session?.user) {
+    return (
+      <Button asChild className="w-full font-mono text-xs uppercase tracking-wider sm:w-auto" size="lg">
+        <Link href={dashboardPath}>
+          Go to dashboard
+          <ArrowRight data-icon="inline-end" />
+        </Link>
+      </Button>
+    );
+  }
+
+  return (
+    <>
+      <Button asChild className="w-full font-mono text-xs uppercase tracking-wider sm:w-auto" size="lg">
+        <Link href="/signup">
+          Start free
+          <ArrowRight data-icon="inline-end" />
+        </Link>
+      </Button>
+      <Button
+        asChild
+        className="w-full font-mono text-xs uppercase tracking-wider sm:w-auto"
+        size="lg"
+        variant="outline"
+      >
+        <Link href="/login">Log in</Link>
+      </Button>
+    </>
+  );
+}
+

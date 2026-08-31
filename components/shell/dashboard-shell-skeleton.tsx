@@ -66,7 +66,8 @@ export function DashboardShellSkeleton() {
 
       {/* Main content area */}
       <main className="relative flex min-w-0 flex-1 flex-col bg-transparent">
-        <header className="dashboard-topbar">
+        {/* Topbar — structural frame with minimal skeletons */}
+        <header className="dashboard-topbar flex h-14 items-center">
           <div className="dashboard-topbar-inner">
             <div className="flex min-h-9 min-w-0 flex-wrap items-center gap-2.5 md:flex-nowrap">
               <Skeleton className="size-8 shrink-0 rounded-lg" />
