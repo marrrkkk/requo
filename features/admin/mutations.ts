@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { revalidateTag } from "next/cache";
 import { headers } from "next/headers";
 
@@ -18,17 +18,21 @@ import {
 } from "@/features/admin/constants";
 import {
   adminDeleteUserSchema,
+  adminDemoteUserSchema,
   adminForceCancelSubscriptionSchema,
   adminForceVerifyEmailSchema,
   adminManualPlanOverrideSchema,
+  adminPromoteUserSchema,
   adminRevokeAllSessionsSchema,
   adminStartImpersonationSchema,
   adminSuspendUserSchema,
   adminUnsuspendUserSchema,
   type AdminDeleteUserInput,
+  type AdminDemoteUserInput,
   type AdminForceCancelSubscriptionInput,
   type AdminForceVerifyEmailInput,
   type AdminManualPlanOverrideInput,
+  type AdminPromoteUserInput,
   type AdminRevokeAllSessionsInput,
   type AdminStartImpersonationInput,
   type AdminSuspendUserInput,
@@ -800,6 +804,195 @@ export async function deleteUserAction(
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
+ * Role management mutations (promote/demote admin)
+ * ────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Promotes a user to role = "admin", granting access to the admin
+ * console. Requires a password re-confirmation token. Self-promotion is
+ * a no-op for already-admin users (the UI hides the action), but the
+ * self-target guard keeps the server-side invariant explicit.
+ */
+export async function promoteToAdminAction(
+  input: AdminPromoteUserInput,
+): Promise<AdminActionResult> {
+  const { session: authSession, user: admin } = await requireAdminUser();
+  const auditContext = resolveAuditContext(admin, authSession);
+
+  const parsed = adminPromoteUserSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "We couldn't verify that request. Refresh and try again.",
+      fieldErrors: mapZodFieldErrors(parsed.error.issues),
+    };
+  }
+
+  const { targetUserId, confirmToken } = parsed.data;
+
+  const selfGuard = guardAgainstSelfTarget(admin.id, targetUserId);
+  if (selfGuard) {
+    return selfGuard;
+  }
+
+  const tokenResult = await processConfirmToken(
+    auditContext,
+    confirmToken,
+    "user.promote_admin",
+    targetUserId,
+  );
+  if (!tokenResult.ok) {
+    return tokenResult;
+  }
+
+  const target = await loadTargetUserSummary(targetUserId);
+  if (!target) {
+    return { ok: false, error: "That user no longer exists." };
+  }
+
+  try {
+    await runAdminMutationWithAudit(
+      auditContext,
+      {
+        action: "user.promote_admin",
+        targetType: "user",
+        targetId: target.id,
+        metadata: {
+          targetEmail: target.email,
+        },
+      },
+      async (tx) => {
+        await tx
+          .update(user)
+          .set({ role: "admin", updatedAt: new Date() })
+          .where(eq(user.id, target.id));
+      },
+    );
+  } catch (error) {
+    console.error("Failed to promote user to admin.", error);
+    return {
+      ok: false,
+      error: "We couldn't promote that user right now. Try again.",
+    };
+  }
+
+  revalidateUserManagementTags();
+
+  return {
+    ok: true,
+    message: `Promoted ${target.email} to admin.`,
+  };
+}
+
+/**
+ * Demotes a user from role = "admin" back to "user". Requires a
+ * password re-confirmation token and enforces a last-admin guard so the
+ * final remaining admin can never be removed via this path, preventing
+ * lockout.
+ */
+export async function demoteFromAdminAction(
+  input: AdminDemoteUserInput,
+): Promise<AdminActionResult> {
+  const { session: authSession, user: admin } = await requireAdminUser();
+  const auditContext = resolveAuditContext(admin, authSession);
+
+  const parsed = adminDemoteUserSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "We couldn't verify that request. Refresh and try again.",
+      fieldErrors: mapZodFieldErrors(parsed.error.issues),
+    };
+  }
+
+  const { targetUserId, confirmToken } = parsed.data;
+
+  const selfGuard = guardAgainstSelfTarget(admin.id, targetUserId);
+  if (selfGuard) {
+    return selfGuard;
+  }
+
+  const tokenResult = await processConfirmToken(
+    auditContext,
+    confirmToken,
+    "user.demote_admin",
+    targetUserId,
+  );
+  if (!tokenResult.ok) {
+    return tokenResult;
+  }
+
+  const target = await loadTargetUserSummary(targetUserId);
+  if (!target) {
+    return { ok: false, error: "That user no longer exists." };
+  }
+
+  // Last-admin guard: refuse to demote the final remaining admin.
+  const [adminCountRow] = await db
+    .select({ count: count() })
+    .from(user)
+    .where(and(eq(user.role, "admin"), eq(user.banned, false)));
+
+  const adminCount = Number(adminCountRow?.count ?? 0);
+
+  if (adminCount <= 1) {
+    try {
+      await writeAdminAuditLog({
+        context: auditContext,
+        action: "user.demote_admin",
+        targetType: "user",
+        targetId: target.id,
+        metadata: {
+          failed: true,
+          reason: "last_admin_guard",
+          targetEmail: target.email,
+        },
+      });
+    } catch (auditError) {
+      console.error("Failed to write blocked demote admin audit log.", auditError);
+    }
+
+    return {
+      ok: false,
+      error: "You can't remove the last remaining admin.",
+    };
+  }
+
+  try {
+    await runAdminMutationWithAudit(
+      auditContext,
+      {
+        action: "user.demote_admin",
+        targetType: "user",
+        targetId: target.id,
+        metadata: {
+          targetEmail: target.email,
+        },
+      },
+      async (tx) => {
+        await tx
+          .update(user)
+          .set({ role: "user", updatedAt: new Date() })
+          .where(eq(user.id, target.id));
+      },
+    );
+  } catch (error) {
+    console.error("Failed to demote user from admin.", error);
+    return {
+      ok: false,
+      error: "We couldn't demote that user right now. Try again.",
+    };
+  }
+
+  revalidateUserManagementTags();
+
+  return {
+    ok: true,
+    message: `Removed admin access from ${target.email}.`,
+  };
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
  * Subscription override mutations (Req 7.1 – 7.4)
  *
  * IMPORTANT transaction boundary note:
@@ -1218,14 +1411,12 @@ export async function forceCancelSubscriptionAction(
  *   restores the admin's original session cookie (the plugin stashes it
  *   on an `admin_session` cookie during impersonation).
  *
- * Because the plugin's `impersonateUser` endpoint gates on its own
- * role-based `hasPermission` check (which we intentionally disabled by
- * passing `adminRoles: []` to the plugin — our env allow-list is
- * authoritative), we additionally include the current admin's id in
- * `adminUserIds` at call time via `auth.api.impersonateUser`'s options
- * being evaluated from the plugin's configured options object. That
- * config-time registration is already handled — at call time we simply
- * forward the request.
+ * The plugin is configured with `adminRoles: ["admin"]`, so
+ * `impersonateUser` and the other admin endpoints gate on
+ * `user.role === "admin"` (the same source of truth enforced by
+ * `requireAdminUser()`). `allowImpersonatingAdmins: false` disallows
+ * impersonating another admin server-side; we additionally reject
+ * self-targeting administratively before reaching the plugin.
  *
  * Self-target rejection and the password-confirm gate run BEFORE we
  * call the plugin so a refused attempt never touches Better Auth's

@@ -4,6 +4,8 @@ import {
   CheckCircle2,
   LogOut,
   OctagonMinus,
+  ShieldCheck,
+  ShieldX,
   Trash2,
   UserCog,
   UserRoundCheck,
@@ -22,7 +24,9 @@ import {
 import { ConfirmPasswordDialog } from "@/features/admin/components/confirm-password-dialog";
 import {
   deleteUserAction,
+  demoteFromAdminAction,
   forceVerifyEmailAction,
+  promoteToAdminAction,
   revokeAllSessionsAction,
   suspendUserAction,
   unsuspendUserAction,
@@ -44,6 +48,14 @@ type AdminUserActionsProps = {
   targetIsSuspended: boolean;
   /** Whether the target user's email is already verified. */
   targetEmailVerified: boolean;
+  /** Whether the target user already has admin role. */
+  targetIsAdmin: boolean;
+  /**
+   * Whether demoting the target is allowed (false when the target is
+   * the last remaining admin). Passed from the server after a count
+   * check so the button can be disabled preemptively.
+   */
+  canDemoteTarget: boolean;
   /** Admin user id — the acting admin's id from the session. */
   adminUserId: string;
 };
@@ -59,7 +71,9 @@ type QueuedActionId =
   | "suspend"
   | "unsuspend"
   | "delete"
-  | "impersonate";
+  | "impersonate"
+  | "promote"
+  | "demote";
 
 type QueuedAction = {
   id: QueuedActionId;
@@ -90,6 +104,8 @@ export function AdminUserActions({
   targetEmail,
   targetIsSuspended,
   targetEmailVerified,
+  targetIsAdmin,
+  canDemoteTarget,
   adminUserId,
 }: AdminUserActionsProps) {
   const router = useProgressRouter();
@@ -181,6 +197,22 @@ export function AdminUserActions({
             }
             return;
           }
+          case "promote": {
+            const result = await promoteToAdminAction({
+              targetUserId,
+              confirmToken: token,
+            });
+            handleResult(result, `Promoted ${targetEmail} to admin.`);
+            return;
+          }
+          case "demote": {
+            const result = await demoteFromAdminAction({
+              targetUserId,
+              confirmToken: token,
+            });
+            handleResult(result, `Removed admin access from ${targetEmail}.`);
+            return;
+          }
         }
       });
     },
@@ -255,6 +287,43 @@ export function AdminUserActions({
               })
             }
             selfBlocked={isSelf}
+            variant="outline"
+          />
+        )}
+
+        {targetIsAdmin ? (
+          <ActionButton
+            disabled={isPending || !canDemoteTarget}
+            disabledReason={
+              canDemoteTarget ? undefined : "This is the last remaining admin."
+            }
+            icon={ShieldX}
+            label="Remove admin"
+            onClick={() =>
+              openConfirm({
+                id: "demote",
+                label: "Remove admin access",
+                description: `Revoke admin console access for ${targetEmail}. They keep their normal Requo account.`,
+                confirmLabel: "Remove admin",
+              })
+            }
+            selfBlocked={isSelf}
+            variant="outline"
+          />
+        ) : (
+          <ActionButton
+            disabled={isPending}
+            icon={ShieldCheck}
+            label="Promote to admin"
+            onClick={() =>
+              openConfirm({
+                id: "promote",
+                label: "Promote to admin",
+                description: `Grant ${targetEmail} access to the admin console.`,
+                confirmLabel: "Promote to admin",
+              })
+            }
+            selfBlocked={false}
             variant="outline"
           />
         )}

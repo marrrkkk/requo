@@ -25,6 +25,7 @@ export type AdminUserRow = {
   emailVerified: boolean;
   banned: boolean;
   banReason: string | null;
+  role: string | null;
   createdAt: Date;
   lastSessionAt: Date | null;
 };
@@ -50,6 +51,11 @@ export type AdminUserDetail = AdminUserRow & {
   ownedBusinesses: AdminUserDetailBusiness[];
   activeSessionCount: number;
   recentAuditLogs: AdminAuditLogRow[];
+  /**
+   * Whether the target (if an admin) is safe to demote — false when the
+   * target is the last remaining admin, guarding against lockout.
+   */
+  canDemoteTarget: boolean;
 };
 
 /** Row shape rendered by `AdminBusinessesTable`. */

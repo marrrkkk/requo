@@ -241,6 +241,7 @@ async function listAdminUsersInner(
         emailVerified: user.emailVerified,
         banned: user.banned,
         banReason: user.banReason,
+        role: user.role,
         createdAt: user.createdAt,
         lastSessionAt: lastSessionSql,
       })
@@ -264,6 +265,7 @@ async function listAdminUsersInner(
         emailVerified: row.emailVerified,
         banned: row.banned,
         banReason: row.banReason,
+        role: row.role ?? null,
         createdAt: row.createdAt,
         lastSessionAt: row.lastSessionAt ?? null,
       }),
@@ -300,6 +302,7 @@ async function getAdminUserDetailInner(
       emailVerified: user.emailVerified,
       banned: user.banned,
       banReason: user.banReason,
+      role: user.role,
       createdAt: user.createdAt,
     })
     .from(user)
@@ -320,6 +323,7 @@ async function getAdminUserDetailInner(
     activeSessionRows,
     lastSessionRows,
     recentAuditRows,
+    adminCountRows,
   ] = await Promise.all([
     db
       .select({
@@ -375,6 +379,10 @@ async function getAdminUserDetailInner(
       )
       .orderBy(desc(adminAuditLogs.createdAt), desc(adminAuditLogs.id))
       .limit(10),
+    db
+      .select({ count: count() })
+      .from(user)
+      .where(and(eq(user.role, "admin"), eq(user.banned, false))),
   ]);
 
   const subscriptionRow = subscriptionRows[0] ?? null;
@@ -408,6 +416,8 @@ async function getAdminUserDetailInner(
     createdAt: row.createdAt,
   }));
 
+  const adminCount = Number(adminCountRows[0]?.count ?? 0);
+
   return {
     id: userRow.id,
     email: userRow.email,
@@ -415,12 +425,14 @@ async function getAdminUserDetailInner(
     emailVerified: userRow.emailVerified,
     banned: userRow.banned,
     banReason: userRow.banReason,
+    role: userRow.role ?? null,
     createdAt: userRow.createdAt,
     lastSessionAt: lastSessionRows[0]?.lastSessionAt ?? null,
     subscription,
     ownedBusinesses,
     activeSessionCount: Number(activeSessionRows[0]?.count ?? 0),
     recentAuditLogs,
+    canDemoteTarget: userRow.role === "admin" && adminCount > 1,
   };
 }
 
