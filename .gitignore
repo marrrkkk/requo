@@ -58,3 +58,7 @@ next-env.d.ts
 
 # Remotion video project
 /requo-video/
+
+# Claude Code skills junction -> .agents/skills (avoid tracking a second copy)
+.claude/skills
+.claude/settings.local.json
