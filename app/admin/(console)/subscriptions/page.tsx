@@ -13,7 +13,24 @@ import {
 } from "@/features/admin/components/admin-subscriptions-list-sections";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const unstable_instant = false;
+export const unstable_instant = {
+  prefetch: "static",
+  samples: [
+    {
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+      searchParams: {
+        page: null,
+        perPage: null,
+        status: null,
+        plan: null,
+        q: null,
+      },
+    },
+  ],
+};
 
 export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "Subscriptions - Requo admin",

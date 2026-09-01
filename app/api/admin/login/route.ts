@@ -1,41 +1,16 @@
 import { NextResponse } from "next/server";
 
-import {
-  createAdminSession,
-  validateAdminCredentials,
-} from "@/lib/admin/auth";
-
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { username, password } = body;
-
-    if (
-      typeof username !== "string" ||
-      typeof password !== "string" ||
-      !username.trim() ||
-      !password.trim()
-    ) {
-      return NextResponse.json(
-        { error: "Username and password are required." },
-        { status: 400 },
-      );
-    }
-
-    if (!validateAdminCredentials(username, password)) {
-      return NextResponse.json(
-        { error: "Invalid credentials." },
-        { status: 401 },
-      );
-    }
-
-    await createAdminSession();
-
-    return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json(
-      { error: "Something went wrong." },
-      { status: 500 },
-    );
-  }
+/**
+ * @deprecated This endpoint has been removed. Admin login now uses
+ * Better Auth's standard `/api/auth/sign-in/email` flow. Admin access
+ * is gated by `user.role === "admin"` in the Better Auth session.
+ */
+export async function POST() {
+  return NextResponse.json(
+    {
+      error:
+        "This endpoint has been removed. Please use the standard login flow.",
+    },
+    { status: 410 },
+  );
 }

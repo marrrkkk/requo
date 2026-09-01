@@ -13,7 +13,24 @@ import {
 } from "@/features/admin/components/admin-users-list-sections";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const unstable_instant = false;
+export const unstable_instant = {
+  prefetch: "static",
+  samples: [
+    {
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+      searchParams: {
+        page: null,
+        perPage: null,
+        role: null,
+        status: null,
+        q: null,
+      },
+    },
+  ],
+};
 
 export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "Users - Requo admin",

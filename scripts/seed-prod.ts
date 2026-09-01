@@ -52,7 +52,12 @@ async function main() {
       .limit(1);
 
     if (existing) {
-      console.log(`  ✓ ${email} — already exists (skipped)`);
+      // Ensure existing users have the admin role set (idempotent).
+      await db
+        .update(user)
+        .set({ role: "admin", updatedAt: new Date() })
+        .where(eq(user.id, existing.id));
+      console.log(`  ✓ ${email} — already exists (role ensured)`);
       continue;
     }
 
@@ -70,10 +75,10 @@ async function main() {
         continue;
       }
 
-      // Mark email as verified
+      // Mark email as verified and set admin role
       await db
         .update(user)
-        .set({ emailVerified: true, updatedAt: new Date() })
+        .set({ emailVerified: true, role: "admin", updatedAt: new Date() })
         .where(eq(user.id, result.user.id));
 
       // Create profile

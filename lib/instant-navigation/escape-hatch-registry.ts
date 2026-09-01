@@ -22,56 +22,12 @@ import type { EscapeHatchEntry } from "./escape-hatches";
  * 3. Update `.kiro/specs/instant-navigation-rollout/escape-hatches.md` to
  *    keep the human-readable record in sync.
  *
- * Phase 4 review (admin, onboarding, new-business, businesses hub):
- * Admin console pages use a custom JWT cookie-based auth pattern
- * (`verifyAdminSession` via `cookies()`) that always redirects
- * unauthenticated requests. Since `redirect()` propagates through Suspense
- * boundaries, instant validation cannot render the static shell during build.
- * The structural Suspense pattern is already applied; validation will be
- * enabled once Next.js supports cookie-sample-based validation or after
- * refactoring admin auth to use `headers()`-based session resolution.
+ * Admin console pages previously required an escape hatch because their auth
+ * used a custom JWT cookie (`verifyAdminSession` via `cookies()`) that always
+ * redirected during instant validation. That auth was replaced with
+ * database-backed Better Auth role authorization, which resolves the session
+ * via `headers()` like every other authenticated dashboard route. The six
+ * admin console routes now ship `unstable_instant` config blocks with
+ * `samples` and no longer require an exemption.
  */
-export const escapeHatchRegistry: EscapeHatchEntry[] = [
-  {
-    route: "app/admin/(console)/page.tsx",
-    reason:
-      "Admin cookie-based auth (verifyAdminSession) always redirects during instant validation; redirect() propagates through Suspense and prevents static shell render.",
-    targetReviewDate: "2026-08-01",
-    active: true,
-  },
-  {
-    route: "app/admin/(console)/system/page.tsx",
-    reason:
-      "Admin cookie-based auth (verifyAdminSession) always redirects during instant validation; redirect() propagates through Suspense and prevents static shell render.",
-    targetReviewDate: "2026-08-01",
-    active: true,
-  },
-  {
-    route: "app/admin/(console)/users/page.tsx",
-    reason:
-      "Admin cookie-based auth (verifyAdminSession) always redirects during instant validation; redirect() propagates through Suspense and prevents static shell render.",
-    targetReviewDate: "2026-08-01",
-    active: true,
-  },
-  {
-    route: "app/admin/(console)/subscriptions/page.tsx",
-    reason:
-      "Admin cookie-based auth (verifyAdminSession) always redirects during instant validation; redirect() propagates through Suspense and prevents static shell render.",
-    targetReviewDate: "2026-08-01",
-    active: true,
-  },
-  {
-    route: "app/admin/(console)/audit-logs/page.tsx",
-    reason:
-      "Admin cookie-based auth (verifyAdminSession) always redirects during instant validation; redirect() propagates through Suspense and prevents static shell render.",
-    targetReviewDate: "2026-08-01",
-    active: true,
-  },
-  {
-    route: "app/admin/(console)/businesses/page.tsx",
-    reason:
-      "Admin cookie-based auth (verifyAdminSession) always redirects during instant validation; redirect() propagates through Suspense and prevents static shell render.",
-    targetReviewDate: "2026-08-01",
-    active: true,
-  },
-];
+export const escapeHatchRegistry: EscapeHatchEntry[] = [];

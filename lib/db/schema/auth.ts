@@ -18,11 +18,10 @@ export const user = pgTable(
     emailVerified: boolean("email_verified").notNull().default(false),
     image: text("image"),
     /**
-     * Required by the Better Auth admin plugin (`better-auth/plugins/admin`).
-     * We keep it nullable because the env-driven `ADMIN_EMAILS` allow-list is
-     * the authoritative admin signal; the plugin still stamps a default role
-     * string on every signup via its `user.create.before` hook, so the
-     * column must exist.
+     * Admin role column. Better Auth's admin plugin uses this to gate
+     * admin console access and /api/auth/admin/* endpoints. Users with
+     * role = "admin" can access the admin console. The plugin stamps
+     * "user" on signup via databaseHooks.user.create.before.
      */
     role: text("role"),
     banned: boolean("banned").notNull().default(false),

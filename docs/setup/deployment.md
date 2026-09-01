@@ -30,8 +30,7 @@ views plus customer responses from one place.
 
 - `NEXT_PUBLIC_BETTER_AUTH_URL`
 - `ADMIN_SUBDOMAIN_HOST`
-- `ADMIN_USERNAME`
-- `ADMIN_PASSWORD`
+- `ADMIN_EMAILS`
 - `VERCEL_URL`
 - `RESEND_API_KEY`
 - `MAILTRAP_API_TOKEN`
@@ -174,16 +173,18 @@ rewritten to the `/admin` route tree by the proxy. To make it accessible in prod
    `BETTER_AUTH_URL` is configured. If unset, the host is derived from
    `BETTER_AUTH_URL` (e.g., `https://requo.app` → `admin.requo.app`).
 
-4. **Set admin credentials.**
+4. **Bootstrap admin access.**
+   Admin access is role-based: a user with `role = "admin"` can sign in
+   normally and use the admin console. Promote the first admins from the
+   `ADMIN_EMAILS` allowlist:
    ```
-   ADMIN_USERNAME=<chosen-username>
-   ADMIN_PASSWORD=<strong-password>
+   npx tsx scripts/bootstrap-admin.ts
    ```
-   These are checked by the `/api/admin/login` route handler.
+   Re-runs are idempotent.
 
 5. **Verify.**
-   Visit `https://admin.requo.app` — you should see the admin login page.
-   After signing in, the admin dashboard should load.
+   Visit `https://admin.requo.app` — sign in with a promoted admin's Requo
+   account. Non-admins are redirected to `/login`.
 
 ## Current Operational Gaps
 

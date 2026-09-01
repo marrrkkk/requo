@@ -10,7 +10,17 @@ import { createNoIndexMetadata } from "@/lib/seo/site";
 
 import AdminLoading from "./loading";
 
-export const unstable_instant = false;
+export const unstable_instant = {
+  prefetch: "static",
+  samples: [
+    {
+      headers: [
+        ["rsc", "1"],
+        ["next-action", null],
+      ],
+    },
+  ],
+};
 
 export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "Admin - Requo",
