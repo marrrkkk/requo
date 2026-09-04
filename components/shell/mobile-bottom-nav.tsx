@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Astroid,
   BarChart3,
   BellRing,
   FileText,
@@ -18,6 +19,7 @@ import {
 
 import {
   getBusinessAnalyticsPath,
+  getBusinessAssistantPath,
   getBusinessDashboardPath,
   getBusinessFollowUpsPath,
   getBusinessFormsPath,
@@ -64,6 +66,7 @@ export function MobileBottomNav({
   const membersHref = getBusinessMembersPath(businessSlug);
   const analyticsHref = getBusinessAnalyticsPath(businessSlug);
   const settingsHref = getBusinessSettingsPath(businessSlug, "general");
+  const assistantHref = getBusinessAssistantPath(businessSlug);
 
   const isHomeActive = isDashboardNavigationItemActive(pathname, homeHref);
   const isInquiriesActive = isDashboardNavigationItemActive(pathname, inquiriesHref);
@@ -73,12 +76,14 @@ export function MobileBottomNav({
   const isProductsActive = isDashboardNavigationItemActive(pathname, productsHref);
   const isMembersActive = isDashboardNavigationItemActive(pathname, membersHref);
   const isAnalyticsActive = canViewBusinessAnalytics(role) && isDashboardNavigationItemActive(pathname, analyticsHref);
+  const isAssistantActive = isDashboardNavigationItemActive(pathname, assistantHref);
 
   const isMoreActive =
     isFormsActive ||
     isProductsActive ||
     isMembersActive ||
     isAnalyticsActive ||
+    isAssistantActive ||
     pathname.includes("/settings");
 
   return (
@@ -216,6 +221,20 @@ export function MobileBottomNav({
           <div className="flex flex-col gap-4">
             {/* Secondary Navigation */}
             <div className="flex flex-col gap-1 rounded-xl border border-border/70 bg-muted/20 p-2">
+              <Link
+                href={assistantHref}
+                prefetch={true}
+                onClick={() => setMoreOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  isAssistantActive
+                    ? "bg-sidebar-primary/12 text-primary font-semibold"
+                    : "text-foreground hover:bg-muted",
+                )}
+              >
+                <Astroid className="size-4 shrink-0 text-muted-foreground" />
+                <span>Assistant</span>
+              </Link>
               <Link
                 href={formsHref}
                 prefetch={true}

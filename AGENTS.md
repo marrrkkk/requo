@@ -184,6 +184,8 @@ Next.js middleware; keep it to routing and headers only (no auth checks or heavy
 - **Framework:** Next.js 16.3 App Router, React 19, TypeScript (strict)
 - **Styling:** Tailwind CSS v4 + shadcn/ui + radix-ui
 - **Database:** Drizzle ORM 0.45 + PostgreSQL (Supabase)
+  - Customer agent: `ai_agent_sessions`, `ai_agent_messages`, `ai_agent_runs`
+  - Owner assistant: `owner_assistant_sessions`, `owner_assistant_messages`
 - **Auth:** Better Auth 1.6
 - **Storage/Realtime:** Supabase
 - **Email:** Resend (primary), Mailtrap + Brevo (fallback)
@@ -293,7 +295,7 @@ When adding a plan-gated feature: add the key + label + description to `entitlem
 ### Database & Migrations
 
 - Drizzle ORM with sequential SQL migrations in `drizzle/`; one migration history across all environments.
-- Schema source of truth: `lib/db/schema/index.ts` (barrel over 21 domain modules): activity, admin, ai, analytics, audit, auth, business-inquiry-forms, businesses, compliance, email, follow-ups, inquiries, knowledge-files, memories, notifications, public-actions, push-subscriptions, quote-library, quotes, reply-snippets, subscriptions.
+- Schema source of truth: `lib/db/schema/index.ts` (barrel over 22 domain modules): activity, admin, ai, ai-agent, owner-assistant, analytics, audit, auth, business-inquiry-forms, businesses, compliance, email, follow-ups, inquiries, knowledge-files, memories, notifications, public-actions, push-subscriptions, quote-library, quotes, reply-snippets, subscriptions.
 - Runtime uses `DATABASE_URL` (pooler). Migrations use `DATABASE_MIGRATION_URL` (direct connection, port 5432); `drizzle.config.ts` and `scripts/migrate.ts` reject pooler URLs.
 - **Dev:** edit schema → `npm run db:generate -- --name descriptive_name` → `npm run db:migrate` → commit migration + schema together.
 - **Prod:** `vercel-build` runs `db:migrate:strict && next build` (apply only). Never `db:generate`/`db:push` against production. Never edit a committed migration — always add a new one.

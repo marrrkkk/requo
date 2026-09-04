@@ -1,3 +1,5 @@
+export type { BusinessMemoryCategory } from "@/lib/db/schema/memories";
+export type { KnowledgeFileStatus } from "@/lib/db/schema/knowledge-files";
 import type { BusinessMemoryCategory } from "@/lib/db/schema/memories";
 import type { KnowledgeFileStatus } from "@/lib/db/schema/knowledge-files";
 

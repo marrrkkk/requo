@@ -790,6 +790,12 @@ export const inquiryListFiltersSchema = z.object({
       z.enum(["newest", "oldest"]),
     )
     .catch("newest"),
+  escalated: z
+    .preprocess((value) => {
+      const first = firstString(value);
+      return first === "1" || first === "true";
+    }, z.boolean())
+    .catch(false),
   page: coercePositiveInteger("Page").catch(1),
 });
 

@@ -41,22 +41,45 @@ export function getUnifiedSettingsNavigation(
     {
       label: "Business",
       items: [
-        { href: `/${slug}/settings/general`, label: "General", icon: "building" },
         {
-          href: `/${slug}/settings/billing`,
-          label: "Billing",
-          icon: "receipt",
+          href: `/${slug}/settings/general`,
+          label: "Profile",
+          icon: "building",
         },
         {
           href: `/${slug}/settings/quote`,
           label: "Quotes",
           icon: "file-text",
         },
-        { href: `/${slug}/settings/email`, label: "Email", icon: "mail" },
         {
-          href: `/${slug}/settings/support`,
-          label: "Support",
-          icon: "life-buoy",
+          href: `/${slug}/settings/quote-templates`,
+          label: "Templates",
+          icon: "tag",
+        },
+        {
+          href: `/${slug}/settings/email`,
+          label: "Email templates",
+          icon: "mail",
+        },
+        {
+          href: `/${slug}/settings/ai`,
+          label: "Assistant",
+          icon: "astroid",
+        },
+        {
+          href: `/${slug}/settings/knowledge-base`,
+          label: "Knowledge base",
+          icon: "book",
+        },
+      ],
+    },
+    {
+      label: "Account",
+      items: [
+        {
+          href: `/${slug}/settings/billing`,
+          label: "Billing",
+          icon: "receipt",
         },
         {
           href: `/${slug}/settings/audit-log`,
@@ -101,11 +124,12 @@ export function getDefaultBusinessSettingsPath(
   slug: string,
   role: BusinessMemberRole,
 ) {
-  if (!canManageOperationalBusinessSettings(role)) {
-    return getBusinessSettingsPath(slug, "profile");
+  // Owners land on Business › Profile (general); staff land on Personal › Profile.
+  if (canManageBusinessAdministration(role)) {
+    return getBusinessSettingsPath(slug, "general");
   }
 
-  return getBusinessSettingsPath(slug, getDefaultBusinessSettingsSection(role));
+  return getBusinessSettingsPath(slug, "profile");
 }
 
 export function getBusinessSettingsNavigation(

@@ -2,8 +2,13 @@ import { Bot, Copy, FileText, PenLine } from "lucide-react";
 import type { MotionState } from "@/hooks/use-animated-list";
 import { MobileRecordRow } from "@/components/shared/mobile-record-row";
 import type { DashboardInquiryListItem } from "@/features/inquiries/types";
-import { formatInquiryDate } from "@/features/inquiries/utils";
+import {
+  AI_AGENT_SOURCES,
+  formatInquiryDate,
+  getInquirySourceLabel,
+} from "@/features/inquiries/utils";
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
+import { InquiryEscalatedBadge } from "@/features/inquiries/components/inquiry-escalated-badge";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
 
@@ -11,8 +16,8 @@ function getInquiryChannelDisplay(inquiry: DashboardInquiryListItem) {
   if (inquiry.inquiryFormName) {
     return { label: inquiry.inquiryFormName, icon: FileText };
   }
-  if (inquiry.source === "ai") {
-    return { label: "AI", icon: Bot };
+  if (inquiry.source && AI_AGENT_SOURCES.has(inquiry.source)) {
+    return { label: getInquirySourceLabel(inquiry.source), icon: Bot };
   }
   return { label: "Manual", icon: PenLine };
 }
@@ -69,9 +74,12 @@ export function InquiryListCards({
             }
             statusBadge={<InquiryStatusBadge status={inquiry.status} />}
             stateBadge={
-              inquiry.recordState !== "active" ? (
-                <InquiryRecordStateBadge state={inquiry.recordState} />
-              ) : null
+              <>
+                {inquiry.escalated ? <InquiryEscalatedBadge /> : null}
+                {inquiry.recordState !== "active" ? (
+                  <InquiryRecordStateBadge state={inquiry.recordState} />
+                ) : null}
+              </>
             }
             metadata={
               <>

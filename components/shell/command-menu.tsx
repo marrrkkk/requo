@@ -2,27 +2,24 @@
 
 import * as React from "react";
 import {
-  BarChart3,
-  Bell,
-  BriefcaseBusiness,
+  BookOpen,
+  Bot,
+  Building2,
   Clock,
-  Download,
   FileText,
   GraduationCap,
-  Home,
   Inbox,
   LayoutGrid,
-  Link2,
-  LogOut,
-  MessagesSquare,
+  Lock,
+  Monitor,
   Moon,
-  PanelsTopLeft,
-  Plus,
   Search,
+  Sparkles,
   Sun,
   Tags,
-  User,
-  Users,
+  Upload,
+  UserPlus,
+  Zap,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -34,65 +31,79 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
 } from "@/components/ui/command";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import {
-  getBusinessAnalyticsPath,
-  getBusinessDashboardPath,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   getBusinessFollowUpsPath,
   getBusinessFormsPath,
-  getBusinessInquiriesExportPath,
-  getBusinessInquiriesPath,
+  getBusinessKnowledgeBaseSettingsPath,
   getBusinessMembersPath,
   getBusinessNewInquiryPath,
+  getBusinessNewQuotePath,
   getBusinessProductsPath,
-  getBusinessQuotesExportPath,
-  getBusinessQuotesPath,
-  getBusinessPath,
-  getBusinessSettingsPath,
+  getBusinessPublicChatPath,
+  getBusinessAssistantPath,
+  newBusinessPath,
 } from "@/features/businesses/routes";
-import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { useTheme } from "@/components/theme-provider";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
-import { clearPersistedThemePreference } from "@/features/theme/persistence";
-import { themeUserStorageKey } from "@/features/theme/types";
-import { authClient } from "@/lib/auth/client";
 import {
-  canManageBusinessAdministration,
   canManageBusinessMembers,
   canManageOperationalBusinessSettings,
-  canViewBusinessAnalytics,
   type BusinessMemberRole,
 } from "@/lib/business-members";
-import { hasFeatureAccess } from "@/lib/plans/entitlements";
+import { hasFeatureAccess, type PlanFeature } from "@/lib/plans/entitlements";
+import {
+  getRequiredPlanLabel,
+  getUpgradeDescription,
+} from "@/features/paywall/lib/utils";
+import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import {
   clearDashboardTourLocalStorage,
   DASHBOARD_TOUR_DEV_SHOW_EVENT,
 } from "@/features/onboarding/tour-keys";
+import { getBusinessDashboardPath } from "@/features/businesses/routes";
 
 type CommandMenuProps = {
   businessSlug: string;
   businessId: string;
+  userId: string;
   role: BusinessMemberRole;
   plan: plan;
+};
+
+type CreateAction = {
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  navigate: () => void;
+  /** Plan feature that gates this action, if any. */
+  feature?: PlanFeature;
+  /** Whether the current role is allowed to see this action. */
+  visible: boolean;
 };
 
 export function CommandMenu({
   businessSlug,
   businessId,
+  userId,
   role,
   plan,
 }: CommandMenuProps) {
   const [open, setOpen] = React.useState(false);
+  const [lockedAction, setLockedAction] = React.useState<CreateAction | null>(
+    null,
+  );
   const router = useRouter();
   const { setTheme } = useTheme();
 
   const canOperate = canManageOperationalBusinessSettings(role);
-  const canSeeAnalytics = canViewBusinessAnalytics(role);
   const canManageMembers = canManageBusinessMembers(role);
-  const isBusinessOwner = canManageBusinessAdministration(role);
-  const canExport = hasFeatureAccess(plan, "exports");
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -111,39 +122,15 @@ export function CommandMenu({
     command();
   }, []);
 
-  const publicInquiryPath = getBusinessPublicInquiryUrl(businessSlug);
+  function publicChatUrl() {
+    return `${window.location.origin}${getBusinessPublicChatPath(businessSlug)}`;
+  }
 
-  function copyPublicInquiryLink() {
-    const url = `${window.location.origin}${publicInquiryPath}`;
-    void navigator.clipboard.writeText(url).then(
-      () => toast.success("Public inquiry link copied"),
+  function copyPublicChatLink() {
+    void navigator.clipboard.writeText(publicChatUrl()).then(
+      () => toast.success("AI assistant link copied"),
       () => toast.error("Could not copy link"),
     );
-  }
-
-  async function handleSignOut() {
-    const result = await authClient.signOut();
-
-    if (result.error) {
-      toast.error("Could not sign out");
-      return;
-    }
-
-    window.localStorage.removeItem(themeUserStorageKey);
-    clearPersistedThemePreference();
-
-    window.location.assign("/login");
-  }
-
-  function handleExport(path: string) {
-    if (!canExport) {
-      toast.info("Export is a Pro feature.", {
-        description: "Upgrade to Pro to download quote and inquiry CSV exports.",
-      });
-      return;
-    }
-
-    window.location.assign(path);
   }
 
   function handleReplayTour() {
@@ -155,6 +142,86 @@ export function CommandMenu({
     }, 500);
     toast.success("Product tour restarted");
   }
+
+  function selectCreate(action: CreateAction) {
+    if (!action.feature || hasFeatureAccess(plan, action.feature)) {
+      runCommand(action.navigate);
+      return;
+    }
+    setOpen(false);
+    setLockedAction(action);
+  }
+
+  const createActions: CreateAction[] = [
+    {
+      label: "Ask Assistant",
+      icon: Sparkles,
+      navigate: () => router.push(getBusinessAssistantPath(businessSlug)),
+      visible: true,
+    },
+    {
+      label: "New quote",
+      icon: FileText,
+      navigate: () => router.push(getBusinessNewQuotePath(businessSlug)),
+      visible: true,
+    },
+    {
+      label: "New inquiry",
+      icon: Inbox,
+      navigate: () => router.push(getBusinessNewInquiryPath(businessSlug)),
+      visible: true,
+    },
+    {
+      label: "New follow-up",
+      icon: Clock,
+      navigate: () => router.push(getBusinessFollowUpsPath(businessSlug)),
+      feature: "followUps",
+      visible: true,
+    },
+    {
+      label: "Invite team member",
+      icon: UserPlus,
+      navigate: () => router.push(getBusinessMembersPath(businessSlug)),
+      feature: "members",
+      visible: canManageMembers,
+    },
+    {
+      label: "New product",
+      icon: Tags,
+      navigate: () => router.push(getBusinessProductsPath(businessSlug)),
+      feature: "quoteLibrary",
+      visible: canOperate,
+    },
+    {
+      label: "Create inquiry form",
+      icon: LayoutGrid,
+      navigate: () => router.push(getBusinessFormsPath(businessSlug)),
+      visible: canOperate,
+    },
+    {
+      label: "Import products (AI)",
+      icon: Upload,
+      navigate: () => router.push(getBusinessProductsPath(businessSlug)),
+      feature: "aiQuoteDrafting",
+      visible: canOperate,
+    },
+    {
+      label: "Add knowledge base entry",
+      icon: BookOpen,
+      navigate: () =>
+        router.push(getBusinessKnowledgeBaseSettingsPath(businessSlug)),
+      feature: "knowledgeBase",
+      visible: canOperate,
+    },
+    {
+      label: "Create new business",
+      icon: Building2,
+      navigate: () => router.push(newBusinessPath),
+      visible: true,
+    },
+  ];
+
+  const visibleCreateActions = createActions.filter((action) => action.visible);
 
   return (
     <>
@@ -180,246 +247,37 @@ export function CommandMenu({
         >
           <DialogTitle className="sr-only">Quick actions</DialogTitle>
           <DialogDescription className="sr-only">
-            Create records, navigate sections, copy links, toggle theme, and more.
+            Create records, copy links, and toggle theme.
           </DialogDescription>
           <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
             <CommandInput placeholder="Search actions…" />
-            <CommandList>
+            <CommandList className="no-scrollbar max-h-72 overflow-y-auto">
               <CommandEmpty>No matching actions.</CommandEmpty>
 
-              {/* Create */}
               <CommandGroup heading="Create">
-                <CommandItem
-                  onSelect={() =>
-                    runCommand(() =>
-                      router.push(getBusinessNewInquiryPath(businessSlug)),
-                    )
-                  }
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  <span>New inquiry</span>
-                </CommandItem>
-                <CommandItem
-                  onSelect={() =>
-                    runCommand(() =>
-                      router.push(`${getBusinessQuotesPath(businessSlug)}/new`),
-                    )
-                  }
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  <span>New quote</span>
-                </CommandItem>
+                {visibleCreateActions.map((action) => {
+                  const Icon = action.icon;
+                  const locked =
+                    action.feature && !hasFeatureAccess(plan, action.feature);
+                  return (
+                    <CommandItem
+                      key={action.label}
+                      onSelect={() => selectCreate(action)}
+                    >
+                      <Icon className="mr-2 h-4 w-4" />
+                      <span>{action.label}</span>
+                      {locked ? (
+                        <span className="ml-auto flex items-center gap-1 text-xs font-medium text-muted-foreground opacity-70">
+                          <Lock className="size-3" aria-hidden="true" />
+                          {getRequiredPlanLabel(action.feature!)}
+                        </span>
+                      ) : null}
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
 
-              <CommandSeparator />
-
-              {/* Navigate */}
-              <CommandGroup heading="Go to">
-                <CommandItem
-                  onSelect={() =>
-                    runCommand(() =>
-                      router.push(getBusinessDashboardPath(businessSlug)),
-                    )
-                  }
-                >
-                  <Home className="mr-2 h-4 w-4" />
-                  <span>Home</span>
-                </CommandItem>
-                <CommandItem
-                  onSelect={() =>
-                    runCommand(() =>
-                      router.push(getBusinessInquiriesPath(businessSlug)),
-                    )
-                  }
-                >
-                  <Inbox className="mr-2 h-4 w-4" />
-                  <span>Inquiries</span>
-                </CommandItem>
-                <CommandItem
-                  onSelect={() =>
-                    runCommand(() =>
-                      router.push(getBusinessQuotesPath(businessSlug)),
-                    )
-                  }
-                >
-                  <FileText className="mr-2 h-4 w-4" />
-                  <span>Quotes</span>
-                </CommandItem>
-                <CommandItem
-                  onSelect={() =>
-                    runCommand(() =>
-                      router.push(getBusinessFollowUpsPath(businessSlug)),
-                    )
-                  }
-                >
-                  <Clock className="mr-2 h-4 w-4" />
-                  <span>Follow-ups</span>
-                </CommandItem>
-                {canOperate ? (
-                  <CommandItem
-                    onSelect={() =>
-                      runCommand(() =>
-                        router.push(getBusinessFormsPath(businessSlug)),
-                      )
-                    }
-                  >
-                    <LayoutGrid className="mr-2 h-4 w-4" />
-                    <span>Inquiry forms</span>
-                  </CommandItem>
-                ) : null}
-                {canSeeAnalytics ? (
-                  <CommandItem
-                    onSelect={() =>
-                      runCommand(() =>
-                        router.push(getBusinessAnalyticsPath(businessSlug)),
-                      )
-                    }
-                  >
-                    <BarChart3 className="mr-2 h-4 w-4" />
-                    <span>Analytics</span>
-                  </CommandItem>
-                ) : null}
-                {canManageMembers ? (
-                  <CommandItem
-                    onSelect={() =>
-                      runCommand(() =>
-                        router.push(getBusinessMembersPath(businessSlug)),
-                      )
-                    }
-                  >
-                    <Users className="mr-2 h-4 w-4" />
-                    <span>Team members</span>
-                  </CommandItem>
-                ) : null}
-              </CommandGroup>
-
-              <CommandSeparator />
-
-              {/* Quick Links */}
-              <CommandGroup heading="Quick links">
-                <CommandItem onSelect={() => runCommand(copyPublicInquiryLink)}>
-                  <Link2 className="mr-2 h-4 w-4" />
-                  <span>Copy inquiry form link</span>
-                </CommandItem>
-                <CommandItem onSelect={() => runCommand(handleReplayTour)}>
-                  <GraduationCap className="mr-2 h-4 w-4" />
-                  <span>Replay product tour</span>
-                </CommandItem>
-                {isBusinessOwner ? (
-                  <CommandItem
-                    onSelect={() =>
-                      runCommand(() =>
-                        router.push(getBusinessSettingsPath(businessSlug, "billing")),
-                      )
-                    }
-                  >
-                    <BriefcaseBusiness className="mr-2 h-4 w-4" />
-                    <span>Billing & plan</span>
-                  </CommandItem>
-                ) : null}
-              </CommandGroup>
-
-              <CommandSeparator />
-
-              {/* Export */}
-              <CommandGroup heading="Export">
-                <CommandItem
-                  onSelect={() =>
-                    runCommand(() =>
-                      handleExport(getBusinessQuotesExportPath(businessSlug)),
-                    )
-                  }
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  <span>Download quotes (CSV)</span>
-                </CommandItem>
-                <CommandItem
-                  onSelect={() =>
-                    runCommand(() =>
-                      handleExport(getBusinessInquiriesExportPath(businessSlug)),
-                    )
-                  }
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  <span>Download inquiries (CSV)</span>
-                </CommandItem>
-              </CommandGroup>
-
-              {canOperate ? (
-                <>
-                  <CommandSeparator />
-                  <CommandGroup heading="Settings">
-                    <CommandItem
-                      onSelect={() =>
-                        runCommand(() =>
-                          router.push(
-                            getBusinessSettingsPath(businessSlug, "general"),
-                          ),
-                        )
-                      }
-                    >
-                      <FileText className="mr-2 h-4 w-4" />
-                      <span>Business settings</span>
-                    </CommandItem>
-                    <CommandItem
-                      onSelect={() =>
-                        runCommand(() =>
-                          router.push(
-                            getBusinessSettingsPath(businessSlug, "quote"),
-                          ),
-                        )
-                      }
-                    >
-                      <FileText className="mr-2 h-4 w-4" />
-                      <span>Quote defaults</span>
-                    </CommandItem>
-                    <CommandItem
-                      onSelect={() =>
-                        runCommand(() =>
-                          router.push(
-                            getBusinessProductsPath(businessSlug),
-                          ),
-                        )
-                      }
-                    >
-                      <Tags className="mr-2 h-4 w-4" />
-                      <span>Products</span>
-                    </CommandItem>
-                    <CommandItem
-                      onSelect={() =>
-                        runCommand(() =>
-                          router.push(
-                            getBusinessSettingsPath(businessSlug, "email"),
-                          ),
-                        )
-                      }
-                    >
-                      <MessagesSquare className="mr-2 h-4 w-4" />
-                      <span>Email template</span>
-                    </CommandItem>
-                    <CommandItem
-                      onSelect={() =>
-                        runCommand(() =>
-                          router.push(
-                            getBusinessSettingsPath(
-                              businessSlug,
-                              "notifications",
-                            ),
-                          ),
-                        )
-                      }
-                    >
-                      <Bell className="mr-2 h-4 w-4" />
-                      <span>Notifications</span>
-                    </CommandItem>
-                  </CommandGroup>
-                </>
-              ) : null}
-
-              <CommandSeparator />
-
-              {/* Theme */}
-              <CommandGroup heading="Theme">
+              <CommandGroup heading="Other">
                 <CommandItem onSelect={() => runCommand(() => setTheme("light"))}>
                   <Sun className="mr-2 h-4 w-4" />
                   <span>Light</span>
@@ -429,43 +287,55 @@ export function CommandMenu({
                   <span>Dark</span>
                 </CommandItem>
                 <CommandItem onSelect={() => runCommand(() => setTheme("system"))}>
-                  <LayoutGrid className="mr-2 h-4 w-4" />
+                  <Monitor className="mr-2 h-4 w-4" />
                   <span>System</span>
                 </CommandItem>
-              </CommandGroup>
-
-              <CommandSeparator />
-
-              {/* Workspace / Account */}
-              <CommandGroup heading="Workspace">
-                <CommandItem
-                  onSelect={() =>
-                    runCommand(() => router.push(getBusinessPath(businessSlug)))
-                  }
-                >
-                  <PanelsTopLeft className="mr-2 h-4 w-4" />
-                  <span>Business overview</span>
+                <CommandItem onSelect={() => runCommand(copyPublicChatLink)}>
+                  <Bot className="mr-2 h-4 w-4" />
+                  <span>Copy AI assistant link</span>
                 </CommandItem>
-                <CommandItem
-                  onSelect={() =>
-                    runCommand(() => router.push(getBusinessSettingsPath(businessSlug, "profile")))
-                  }
-                >
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Account settings</span>
-                </CommandItem>
-                <CommandItem
-                  onSelect={() => {
-                    setOpen(false);
-                    void handleSignOut();
-                  }}
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign out</span>
+                <CommandItem onSelect={() => runCommand(handleReplayTour)}>
+                  <GraduationCap className="mr-2 h-4 w-4" />
+                  <span>Replay product tour</span>
                 </CommandItem>
               </CommandGroup>
             </CommandList>
           </Command>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={lockedAction !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setLockedAction(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            {lockedAction ? (
+              <>
+                <DialogTitle className="flex items-center gap-2">
+                  {getRequiredPlanLabel(lockedAction.feature!)} Plan
+                </DialogTitle>
+                <DialogDescription>
+                  {getUpgradeDescription(lockedAction.feature!)}
+                </DialogDescription>
+              </>
+            ) : null}
+          </DialogHeader>
+          <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+            <UpgradeButton
+              userId={userId}
+              businessId={businessId}
+              businessSlug={businessSlug}
+              currentPlan={plan}
+            >
+              <Zap data-icon="inline-start" />
+              Upgrade
+            </UpgradeButton>
+          </div>
         </DialogContent>
       </Dialog>
     </>

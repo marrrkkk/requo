@@ -58,7 +58,9 @@ import {
   unarchiveInquiryAction,
 } from "@/features/inquiries/actions";
 import { CopyEmailButton } from "@/features/inquiries/components/copy-email-button";
+import { AgentTranscriptSection } from "@/features/inquiries/components/agent-transcript-section";
 import { InquiryDuplicateBanner } from "@/features/inquiries/components/inquiry-duplicate-banner";
+import { InquiryEscalatedBadge } from "@/features/inquiries/components/inquiry-escalated-badge";
 import { InquiryNoteForm } from "@/features/inquiries/components/inquiry-note-form";
 import { InquiryQuoteActions } from "@/features/inquiries/components/inquiry-quote-actions";
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
@@ -243,6 +245,7 @@ async function InquiryDetailRegion({
         meta={
           <>
             <InquiryStatusBadge status={inquiry.status} />
+            {inquiry.escalated ? <InquiryEscalatedBadge /> : null}
             {inquiry.recordState !== "active" ? (
               <InquiryRecordStateBadge state={inquiry.recordState} />
             ) : null}
@@ -651,6 +654,15 @@ async function InquiryDetailRegion({
               />
             )}
           </DashboardSection>
+
+          <RegionErrorBoundary fallback={null}>
+            <Suspense fallback={null}>
+              <AgentTranscriptSection
+                businessId={businessContext.business.id}
+                inquiryId={inquiry.id}
+              />
+            </Suspense>
+          </RegionErrorBoundary>
 
 
 

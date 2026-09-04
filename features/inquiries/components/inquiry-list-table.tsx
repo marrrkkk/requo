@@ -16,9 +16,12 @@ import {
 } from "@/components/ui/table";
 import type { DashboardInquiryListItem } from "@/features/inquiries/types";
 import {
+  AI_AGENT_SOURCES,
   formatInquiryDate,
+  getInquirySourceLabel,
 } from "@/features/inquiries/utils";
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
+import { InquiryEscalatedBadge } from "@/features/inquiries/components/inquiry-escalated-badge";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
 import { Copy } from "lucide-react";
@@ -27,8 +30,8 @@ function getInquiryChannelDisplay(inquiry: DashboardInquiryListItem) {
   if (inquiry.inquiryFormName) {
     return { label: inquiry.inquiryFormName, icon: FileText };
   }
-  if (inquiry.source === "ai") {
-    return { label: "AI", icon: Bot };
+  if (inquiry.source && AI_AGENT_SOURCES.has(inquiry.source)) {
+    return { label: getInquirySourceLabel(inquiry.source), icon: Bot };
   }
   return { label: "Manual", icon: PenLine };
 }
@@ -154,6 +157,7 @@ export function InquiryListTable({
                     prefetch={true}
                   >
                     <InquiryStatusBadge status={inquiry.status} />
+                    {inquiry.escalated ? <InquiryEscalatedBadge /> : null}
                     {inquiry.recordState !== "active" ? (
                       <InquiryRecordStateBadge state={inquiry.recordState} />
                     ) : null}

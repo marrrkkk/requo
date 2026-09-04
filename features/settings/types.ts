@@ -47,6 +47,8 @@ export type BusinessSettingsView = {
   notifyInAppOnFollowUpReminder: boolean;
   notifyInAppOnQuoteExpiring: boolean;
   defaultCurrency: string;
+  aiAgentEnabled: boolean;
+  aiAgentTone: "friendly" | "professional" | "casual";
   updatedAt: Date;
 };
 
@@ -90,6 +92,20 @@ export type BusinessNotificationSettingsActionState = {
   error?: string;
   success?: string;
   fieldErrors?: BusinessNotificationSettingsFieldErrors;
+};
+
+export type BusinessAiAgentSettingsFieldName =
+  | "aiAgentEnabled"
+  | "tone";
+
+export type BusinessAiAgentSettingsFieldErrors = Partial<
+  Record<BusinessAiAgentSettingsFieldName, string[] | undefined>
+>;
+
+export type BusinessAiAgentSettingsActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: BusinessAiAgentSettingsFieldErrors;
 };
 
 export type BusinessQuoteSettingsFieldName =

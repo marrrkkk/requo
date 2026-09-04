@@ -17,6 +17,7 @@ import {
   type NeedsAttentionItemData,
   type NeedsAttentionIconName,
 } from "@/features/businesses/components/needs-attention-tabs";
+import { OwnerAssistantHomeWidget } from "@/features/owner-assistant/components/owner-assistant-home-widget";
 import {
   getBusinessOverviewData,
   getBusinessDashboardSummaryData,
@@ -84,6 +85,13 @@ export default function DashboardOverviewPage({
         </Suspense>
       </section>
 
+      {/* Owner Assistant Widget */}
+      <section className="home-entrance-section w-full max-w-5xl mx-auto mt-6">
+        <Suspense fallback={null}>
+          <OwnerAssistantWidgetRegion params={params} />
+        </Suspense>
+      </section>
+
       {/* Activation launchpad (shows when welcome=1 or until activation complete) */}
       <section className="home-entrance-section w-full max-w-5xl mx-auto mt-4">
         <Suspense fallback={null}>
@@ -146,6 +154,16 @@ async function GreetingRegion({
       summary={summary}
     />
   );
+}
+
+async function OwnerAssistantWidgetRegion({
+  params,
+}: {
+  params: Promise<{ businessSlug: string }>;
+}) {
+  const { businessSlug } = await params;
+  
+  return <OwnerAssistantHomeWidget businessSlug={businessSlug} />;
 }
 
 async function ActivationLaunchpadRegion({

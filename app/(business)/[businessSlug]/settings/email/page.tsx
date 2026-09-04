@@ -13,7 +13,7 @@ import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
 
 export const metadata: Metadata = createNoIndexMetadata({
-  title: "Email",
+  title: "Email templates",
   description: "Edit the email templates Requo sends on behalf of this business.",
 });
 
@@ -41,7 +41,7 @@ export default function BusinessEmailTemplateSettingsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Quotes"
+        eyebrow="Settings"
         title="Email templates"
         description="Customize the automated email sent with your quotes."
       />

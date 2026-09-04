@@ -17,6 +17,7 @@ import {
   getNormalizedInquiryPageConfig,
 } from "@/features/inquiries/page-config";
 import type {
+  BusinessAiAgentSettingsInput,
   BusinessDeleteInput,
   BusinessEmailTemplateSettingsInput,
   BusinessGeneralSettingsInput,
@@ -61,6 +62,12 @@ type UpdateBusinessNotificationSettingsInput = {
   businessId: string;
   actorUserId: string;
   values: BusinessNotificationSettingsInput;
+};
+
+type UpdateBusinessAiAgentSettingsInput = {
+  businessId: string;
+  actorUserId: string;
+  values: BusinessAiAgentSettingsInput;
 };
 
 type UpdateBusinessEmailTemplateSettingsInput = {
@@ -649,6 +656,63 @@ export async function updateBusinessNotificationSettings({
         notifyPushOnMemberInviteResponse: values.notifyPushOnMemberInviteResponse,
         notifyInAppOnFollowUpReminder: values.notifyInAppOnFollowUpReminder,
         notifyInAppOnQuoteExpiring: values.notifyInAppOnQuoteExpiring,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+
+  return {
+    ok: true,
+    previousSlug: business.slug,
+    nextSlug: business.slug,
+  };
+}
+
+export async function updateBusinessAiAgentSettings({
+  businessId,
+  actorUserId,
+  values,
+}: UpdateBusinessAiAgentSettingsInput): Promise<UpdateBusinessSettingsResult> {
+  const [business] = await db
+    .select({
+      id: businesses.id,
+      slug: businesses.slug,
+    })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  if (!business) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(businesses)
+      .set({
+        aiAgentEnabled: values.aiAgentEnabled,
+        aiAgentConfig: {
+          tone: values.tone,
+        },
+        updatedAt: now,
+      })
+      .where(eq(businesses.id, businessId));
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      actorUserId,
+      type: "business.ai_agent_settings_updated",
+      summary: "AI agent settings updated.",
+      metadata: {
+        aiAgentEnabled: values.aiAgentEnabled,
+        tone: values.tone,
       },
       createdAt: now,
       updatedAt: now,

@@ -9,11 +9,15 @@ export type BusinessSettingsSection =
   | "profile"
   | "security"
   | "quote"
+  | "quote-templates"
   | "email"
   | "support"
   | "integrations"
   | "billing"
-  | "audit-log";
+  | "audit-log"
+  | "agent"
+  | "ai"
+  | "knowledge-base";
 
 export function getBusinessPath(slug: string) {
   return `/${slug}`;
@@ -158,6 +162,26 @@ export function getBusinessSettingsPath(
   return section ? `${basePath}/${section}` : basePath;
 }
 
+export function getBusinessAiSettingsPath(slug: string) {
+  return `${getBusinessPath(slug)}/settings/ai`;
+}
+
+export function getBusinessAiAssistantSettingsPath(slug: string) {
+  return `${getBusinessAiSettingsPath(slug)}/assistant`;
+}
+
+export function getBusinessAiKnowledgeSettingsPath(slug: string) {
+  return `${getBusinessAiSettingsPath(slug)}/knowledge`;
+}
+
+export function getBusinessKnowledgeBaseSettingsPath(slug: string) {
+  return `${getBusinessPath(slug)}/settings/knowledge-base`;
+}
+
+export function getBusinessQuoteTemplatesSettingsPath(slug: string) {
+  return `${getBusinessPath(slug)}/settings/quote-templates`;
+}
+
 export function getBusinessMemberInvitePath(token: string) {
   return `/invite/${token}`;
 }
@@ -170,12 +194,32 @@ export function getBusinessMembersPath(slug: string) {
   return `${getBusinessPath(slug)}/members`;
 }
 
+export function getBusinessNotificationsPath(slug: string) {
+  return `${getBusinessPath(slug)}/notifications`;
+}
+
 export function getBusinessProductsPath(slug: string) {
   return `${getBusinessPath(slug)}/products`;
 }
 
 export function getBusinessFormPath(slug: string, formSlug: string) {
   return `${getBusinessFormsPath(slug)}/${formSlug}`;
+}
+
+export function getBusinessAssistantPath(slug: string) {
+  return `${getBusinessPath(slug)}/assistant`;
+}
+
+export function getBusinessAssistantSettingsPath(slug: string) {
+  return `${getBusinessAssistantPath(slug)}/settings`;
+}
+
+export function getBusinessPublicChatPath(slug: string) {
+  return `/b/${slug}/chat`;
+}
+
+export function getBusinessPublicInquirePath(slug: string) {
+  return `/b/${slug}/inquire`;
 }
 
 export function getBusinessInquiryFormsPath(slug: string) {

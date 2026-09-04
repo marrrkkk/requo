@@ -1180,7 +1180,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .dashboard-topbar-inner {
-    @apply mx-auto w-full max-w-[92rem] px-3 py-1.5 sm:px-6 sm:py-2 xl:px-8;
+    @apply mx-auto w-full max-w-[92rem] pl-1 pr-3 py-1.5 sm:pl-3 sm:pr-6 sm:py-2 xl:pl-4 xl:pr-8;
   }
 
   .dashboard-main {

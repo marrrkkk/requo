@@ -27,14 +27,12 @@ describe("getUnifiedSettingsNavigation", () => {
   it("Business group contains all current business settings items", () => {
     const [, business] = getUnifiedSettingsNavigation("acme");
 
-    expect(business.items).toHaveLength(8);
     expect(business.items.map((i) => i.label)).toEqual([
       "General",
-      "Members",
       "Billing",
       "Quotes",
       "Email",
-      "Pricing",
+      "AI",
       "Support",
       "Audit log",
     ]);

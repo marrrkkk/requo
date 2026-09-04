@@ -104,6 +104,7 @@ type BusinessSeed = {
   quoteRatio: number;
   defaultFormName?: string;
   defaultFormSlug?: string;
+  aiAgentEnabled?: boolean;
 };
 
 type AccountSeed = {
@@ -140,6 +141,7 @@ const primaryAccount: AccountSeed = {
       quoteRatio: 0.58,
       defaultFormName: "Project request",
       defaultFormSlug: "project-request",
+      aiAgentEnabled: true,
     },
   ],
   teamMembers: [
@@ -981,6 +983,7 @@ async function createBusiness(
     customerContactChannel: business.customerContactChannel,
     contactEmail: business.contactEmail,
     publicInquiryEnabled: true,
+    aiAgentEnabled: business.aiAgentEnabled ?? false,
     inquiryHeadline: `Tell ${business.name} what you need quoted.`,
     inquiryFormConfig,
     inquiryPageConfig,

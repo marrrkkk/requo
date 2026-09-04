@@ -347,6 +347,15 @@ export type BusinessEmailTemplateSettingsInput = z.infer<
   typeof businessEmailTemplateSettingsSchema
 >;
 
+export const businessAiAgentSettingsSchema = z.object({
+  aiAgentEnabled: formBoolean().default(false),
+  tone: z.enum(["friendly", "professional", "casual"]).default("friendly"),
+});
+
+export type BusinessAiAgentSettingsInput = z.infer<
+  typeof businessAiAgentSettingsSchema
+>;
+
 export const businessDeleteSchema = z.object({
   confirmation: z
     .string()

@@ -12,6 +12,7 @@ import {
   UserCheck,
   UserX,
 } from "lucide-react";
+import Link from "next/link";
 
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { useProgressRouter } from "@/hooks/use-progress-router";
@@ -61,6 +62,7 @@ import {
 import {
   getBusinessDashboardPath,
   getBusinessInquiryPath,
+  getBusinessNotificationsPath,
   getBusinessQuotePath,
 } from "@/features/businesses/routes";
 import { cn } from "@/lib/utils";
@@ -706,6 +708,20 @@ export function DashboardNotificationBell({
             </Empty>
           </div>
         )}
+      </div>
+      <Separator />
+      <div className="px-4 py-3">
+        <Button
+          asChild
+          className="w-full"
+          onClick={() => setIsOpen(false)}
+          size="sm"
+          variant="ghost"
+        >
+          <Link href={getBusinessNotificationsPath(businessSlug)}>
+            View all notifications
+          </Link>
+        </Button>
       </div>
     </>
   );

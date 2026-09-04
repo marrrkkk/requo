@@ -489,6 +489,10 @@ function getInquiryListConditions({
     conditions.push(eq(businessInquiryForms.slug, filters.form));
   }
 
+  if (filters.escalated) {
+    conditions.push(eq(inquiries.escalated, true));
+  }
+
   return conditions;
 }
 
@@ -570,6 +574,7 @@ export async function getInquiryListPageForBusiness({
           recordState: getInquiryRecordState,
           subject: inquiries.subject,
           archivedAt: inquiries.archivedAt,
+          escalated: inquiries.escalated,
           pendingFollowUpCount: sql<number>`(
             select count(*)::int
             from ${followUps}
@@ -706,6 +711,7 @@ export async function getInquiryDetailForBusiness({
       status: getEffectiveInquiryStatus,
       recordState: getInquiryRecordState,
       archivedAt: inquiries.archivedAt,
+      escalated: inquiries.escalated,
       submittedAt: inquiries.submittedAt,
       createdAt: inquiries.createdAt,
       submittedFieldSnapshot: inquiries.submittedFieldSnapshot,

@@ -1,6 +1,15 @@
 import "server-only";
 
 import { cacheLayer } from "@/lib/ai/cache-layer";
+import {
+  isGroqConfigured,
+  isCerebrasConfigured,
+  isGeminiConfigured,
+  isOpenRouterConfigured,
+  isMistralConfigured,
+  isCloudflareAiConfigured,
+  isNvidiaNimConfigured,
+} from "@/lib/env";
 
 // ---------------------------------------------------------------------------
 // Capacity-Aware Model Selector
@@ -173,10 +182,36 @@ async function getLoadRatio(cap: ModelCapacity): Promise<number> {
 export async function selectModels(criteria: SelectionCriteria): Promise<`${string}:${string}`[]> {
   const { needsTools, minQuality = 1, preferProviders } = criteria;
 
+  // Providers that are actually configured (have an API key). Models from
+  // unconfigured providers must never be selected, otherwise registry lookups
+  // fail with NoSuchProvider.
+  const configuredProvider = (provider: string): boolean => {
+    switch (provider) {
+      case "groq":
+        return isGroqConfigured;
+      case "cerebras":
+        return isCerebrasConfigured;
+      case "google":
+        return isGeminiConfigured;
+      case "openrouter":
+        return isOpenRouterConfigured;
+      case "mistral":
+        return isMistralConfigured;
+      case "cloudflare":
+        return isCloudflareAiConfigured;
+      case "nvidia":
+        return isNvidiaNimConfigured;
+      default:
+        return false;
+    }
+  };
+
   // Filter eligible models
   let eligible = MODEL_CAPACITIES.filter((cap) => {
     if (needsTools && !cap.toolCapable) return false;
     if (cap.quality < minQuality) return false;
+    const provider = cap.modelId.split(":")[0];
+    if (!configuredProvider(provider)) return false;
     return true;
   });
 

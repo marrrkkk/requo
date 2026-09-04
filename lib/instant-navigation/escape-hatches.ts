@@ -60,6 +60,7 @@ export const IN_SCOPE_ROUTES: ReadonlySet<string> = new Set([
   "app/(business)/[businessSlug]/(main)/members/page.tsx",
   "app/(business)/[businessSlug]/(main)/forms/page.tsx",
   "app/(business)/[businessSlug]/(main)/forms/[formSlug]/page.tsx",
+  "app/(business)/[businessSlug]/(main)/notifications/page.tsx",
 
   // Settings routes
   "app/(business)/[businessSlug]/settings/page.tsx",
@@ -67,10 +68,13 @@ export const IN_SCOPE_ROUTES: ReadonlySet<string> = new Set([
   "app/(business)/[businessSlug]/settings/profile/page.tsx",
   "app/(business)/[businessSlug]/settings/notifications/page.tsx",
   "app/(business)/[businessSlug]/settings/quote/page.tsx",
+  "app/(business)/[businessSlug]/settings/quote-templates/page.tsx",
   "app/(business)/[businessSlug]/settings/email/page.tsx",
   "app/(business)/[businessSlug]/settings/support/page.tsx",
   "app/(business)/[businessSlug]/settings/billing/page.tsx",
   "app/(business)/[businessSlug]/settings/audit-log/page.tsx",
+  "app/(business)/[businessSlug]/settings/ai/page.tsx",
+  "app/(business)/[businessSlug]/settings/knowledge-base/page.tsx",
   "app/(business)/[businessSlug]/settings/forms/page.tsx",
   "app/(business)/[businessSlug]/settings/forms/[formSlug]/page.tsx",
 

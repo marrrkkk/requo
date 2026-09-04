@@ -9,12 +9,10 @@ import {
   Menu,
   Sliders,
   User,
-  Users,
 } from "lucide-react";
 
 import {
   getBusinessDashboardPath,
-  getBusinessMembersPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 import {
@@ -45,7 +43,6 @@ export function MobileSettingsBottomNav({
   const dashboardPath = getBusinessDashboardPath(businessSlug);
   const generalPath = getBusinessSettingsPath(businessSlug, "general");
   const billingPath = getBusinessSettingsPath(businessSlug, "billing");
-  const membersPath = getBusinessMembersPath(businessSlug);
 
   const primaryTabs = [
     {
@@ -56,7 +53,7 @@ export function MobileSettingsBottomNav({
     },
     {
       href: generalPath,
-      label: "General",
+      label: "Business",
       icon: Sliders,
       isActive: pathname === generalPath || pathname === getBusinessSettingsPath(businessSlug),
     },

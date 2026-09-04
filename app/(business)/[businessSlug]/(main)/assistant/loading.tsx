@@ -1,19 +1,23 @@
-import { Sparkles } from "lucide-react";
+import { DashboardPage } from "@/components/shared/dashboard-layout";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /**
- * Structural loading state for the assistant route.
- * Renders the chat page container frame with a minimal centered loading indicator,
- * matching the chat loading pattern since both are AI conversation interfaces.
+ * Loading skeleton for the Assistant section.
+ * Mirrors the page structure: header plus conversation area.
  */
 export default function AssistantLoading() {
   return (
-    <div className="chat-page-container">
-      <div className="flex h-full flex-col items-center justify-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-full bg-primary/10">
-          <Sparkles className="size-5 text-primary animate-pulse" />
+    <DashboardPage>
+      {/* Header skeleton */}
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-8 w-44 rounded-lg" />
+          <Skeleton className="h-4 w-96 rounded-md" />
         </div>
-        <p className="text-sm text-muted-foreground">Loading assistant…</p>
       </div>
-    </div>
+
+      {/* Conversation area skeleton */}
+      <Skeleton className="h-96 w-full rounded-xl" />
+    </DashboardPage>
   );
 }

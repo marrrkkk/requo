@@ -2,51 +2,24 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-const {
-  assignMock,
-  routerPushMock,
-  signOutMock,
-  toastErrorMock,
-  toastInfoMock,
-  toastSuccessMock,
-} = vi.hoisted(() => ({
+const { assignMock, pushMock, toastErrorMock } = vi.hoisted(() => ({
   assignMock: vi.fn(),
-  routerPushMock: vi.fn(),
-  signOutMock: vi.fn(),
   toastErrorMock: vi.fn(),
-  toastInfoMock: vi.fn(),
-  toastSuccessMock: vi.fn(),
+  pushMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: routerPushMock,
+    push: pushMock,
   }),
-}));
-
-vi.mock("@/lib/auth/client", () => ({
-  authClient: {
-    signOut: signOutMock,
-  },
 }));
 
 vi.mock("sonner", () => ({
   toast: {
     error: toastErrorMock,
-    info: toastInfoMock,
-    success: toastSuccessMock,
   },
 }));
 
-vi.mock("@/components/theme-provider", () => ({
-  useTheme: () => ({
-    resolvedTheme: "light",
-    setTheme: vi.fn(),
-    theme: "system",
-  }),
-}));
-
-import { CommandMenu } from "@/components/shell/command-menu";
 import { SendQuoteDialog } from "@/features/quotes/components/send-quote-dialog";
 
 const quoteForSend = {
@@ -100,11 +73,7 @@ describe("paywalled export actions", () => {
 
   beforeEach(() => {
     assignMock.mockReset();
-    routerPushMock.mockReset();
-    signOutMock.mockReset();
     toastErrorMock.mockReset();
-    toastInfoMock.mockReset();
-    toastSuccessMock.mockReset();
   });
 
   it("shows a Pro notice instead of a PDF link in the send quote dialog", async () => {
@@ -126,48 +95,5 @@ describe("paywalled export actions", () => {
     expect(
       await screen.findByText("PDF is a Pro feature."),
     ).toBeVisible();
-  });
-
-  it("does not navigate command-menu exports on the free plan", async () => {
-    const user = userEvent.setup();
-
-    render(
-      <CommandMenu
-        businessSlug="demo-business"
-        businessId="biz_test123"
-        role="owner"
-        plan="free"
-        
-      />,
-    );
-
-    await user.click(screen.getByRole("button", { name: /quick actions/i }));
-    await user.click(await screen.findByText("Download quotes (CSV)"));
-
-    expect(assignMock).not.toHaveBeenCalled();
-    expect(toastInfoMock).toHaveBeenCalledWith("Export is a Pro feature.", {
-      description: "Upgrade to Pro to download quote and inquiry CSV exports.",
-    });
-  });
-
-  it("keeps command-menu exports available on paid plans", async () => {
-    const user = userEvent.setup();
-
-    render(
-      <CommandMenu
-        businessSlug="demo-business"
-        businessId="biz_test123"
-        role="owner"
-        plan="pro"
-        
-      />,
-    );
-
-    await user.click(screen.getByRole("button", { name: /quick actions/i }));
-    await user.click(await screen.findByText("Download quotes (CSV)"));
-
-    expect(assignMock).toHaveBeenCalledWith(
-      "/api/business/demo-business/quotes/export",
-    );
   });
 });

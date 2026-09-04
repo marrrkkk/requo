@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
 import { createNoIndexMetadata } from "@/lib/seo/site";
+import { getBusinessSettingsPageContext } from "./_lib/page-context";
 
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Settings",
@@ -40,6 +42,11 @@ async function SettingsRedirect({
   params: Promise<{ businessSlug: string }>;
 }) {
   const { businessSlug } = await params;
-  redirect(`/${businessSlug}/settings/profile`);
+  const { businessContext } = await getBusinessSettingsPageContext(businessSlug);
+  const destination = getDefaultBusinessSettingsPath(
+    businessSlug,
+    businessContext.role,
+  );
+  redirect(destination);
   return null as never;
 }

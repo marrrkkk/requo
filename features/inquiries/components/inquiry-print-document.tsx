@@ -14,6 +14,7 @@ import {
   formatFileSize,
   formatInquiryBudget,
   formatInquiryDateTime,
+  getInquirySourceLabel,
 } from "@/features/inquiries/utils";
 import { formatQuoteMoney } from "@/features/quotes/utils";
 
@@ -54,7 +55,7 @@ export function InquiryPrintDocument({
               <Badge variant="secondary" className="text-foreground">
                 Ref {inquiry.id}
               </Badge>
-              <Badge variant="outline">{inquiry.inquiryFormName ?? inquiry.source ?? "Manual"}</Badge>
+              <Badge variant="outline">{inquiry.inquiryFormName ?? getInquirySourceLabel(inquiry.source)}</Badge>
               <Badge variant="outline">
                 {formatInquiryDateTime(inquiry.submittedAt)}
               </Badge>
@@ -99,7 +100,7 @@ export function InquiryPrintDocument({
                 label={systemFieldDefaultLabels.serviceCategory}
                 value={inquiry.serviceCategory}
               />
-              <InfoTile label="Channel" value={inquiry.inquiryFormName ?? inquiry.source ?? "Manual"} />
+              <InfoTile label="Channel" value={inquiry.inquiryFormName ?? getInquirySourceLabel(inquiry.source)} />
               <InfoTile
                 label={systemFieldDefaultLabels.budgetText}
                 value={formatInquiryBudget(inquiry.budgetText)}

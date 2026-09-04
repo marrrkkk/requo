@@ -334,6 +334,7 @@ export function DashboardShell({
                   <CommandMenu
                     businessSlug={business.slug}
                     businessId={business.id}
+                    userId={user.id}
                     role={businessContext.role}
                     plan={business.plan}
                   />

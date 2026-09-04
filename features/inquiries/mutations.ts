@@ -8,6 +8,7 @@ import {
 } from "@/lib/files";
 import {
   activityLogs,
+  aiAgentSessions,
   businesses,
   inquiries,
   inquiryAttachments,
@@ -51,6 +52,9 @@ type CreateInquirySubmissionInput = {
     summary: string;
   };
   notifyInAppOnNewInquiry: boolean;
+  /** Attribution + routing flags for AI-assisted creation paths. */
+  aiAssisted?: boolean;
+  escalated?: boolean;
 };
 
 type CreatePublicInquirySubmissionResult = {
@@ -74,13 +78,15 @@ function normalizeLegacyArchivedInquiryStatus(status: InquiryStatus) {
   return status === "archived" ? "waiting" : status;
 }
 
-async function createInquirySubmission({
+export async function createInquirySubmission({
   business,
   submission,
   actorUserId,
   source,
   activity,
   notifyInAppOnNewInquiry,
+  aiAssisted = false,
+  escalated = false,
 }: CreateInquirySubmissionInput): Promise<CreatePublicInquirySubmissionResult> {
   const inquiryId = createId("inq");
   const activityId = createId("act");
@@ -140,6 +146,8 @@ async function createInquirySubmission({
         details: submission.details,
         submittedFieldSnapshot: submission.submittedFieldSnapshot,
         source,
+        aiAssisted,
+        escalated,
         quoteRequested: true,
         submittedAt: now,
         createdAt: now,
@@ -321,6 +329,148 @@ export async function createManualInquirySubmission({
           : "Inquiry created manually from the dashboard.",
     },
     notifyInAppOnNewInquiry: false,
+  });
+}
+
+/**
+ * Shared submission path for the customer-facing Agent surface.
+ *
+ * Preserves AI attribution (`source: "ai_agent"`, `aiAssisted: true`) while
+ * reusing intake behaviour (form linkage, activity, notifications,
+ * acknowledgement email, qualification) identically to the public path.
+ */
+export async function createAgentInquirySubmission({
+  business,
+  submission,
+  sessionId,
+}: {
+  business: InquirySubmissionBusinessRef;
+  submission: PublicInquirySubmissionInput;
+  sessionId?: string;
+}): Promise<CreatePublicInquirySubmissionResult> {
+  const result = await createInquirySubmission({
+    business,
+    submission,
+    actorUserId: null,
+    source: "ai_agent",
+    activity: {
+      type: "inquiry.submitted_ai_agent",
+      summary: "Inquiry submitted through AI agent conversation.",
+    },
+    notifyInAppOnNewInquiry: true,
+    aiAssisted: true,
+  });
+
+  if (sessionId) {
+    // Attribute the originating session without blocking on failure.
+    try {
+      const [current] = await db
+        .select()
+        .from(aiAgentSessions)
+        .where(eq(aiAgentSessions.id, sessionId))
+        .limit(1);
+      const existingMetadata =
+        (current?.metadata as Record<string, unknown> | null) ?? {};
+      const createdInquiryIds = Array.isArray(
+        (existingMetadata as { createdInquiryIds?: unknown }).createdInquiryIds,
+      )
+        ? [
+            ...(existingMetadata as { createdInquiryIds: string[] })
+              .createdInquiryIds,
+          ]
+        : [];
+      await db
+        .update(aiAgentSessions)
+        .set({
+          inquiryId: result.inquiryId,
+          metadata: {
+            ...existingMetadata,
+            lastCreatedInquiryId: result.inquiryId,
+            createdInquiryIds: [...createdInquiryIds, result.inquiryId],
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(aiAgentSessions.id, sessionId));
+    } catch (error) {
+      console.error("[inquiries] Failed to link agent session.", error);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Shared submission path for Agent escalation to a human.
+ *
+ * Files an Inquiry carrying the details the customer actually provided and
+ * flags it for the inbox escalated queue.
+ */
+export async function createAgentHandoffSubmission({
+  business,
+  submission,
+  sessionId,
+}: {
+  business: InquirySubmissionBusinessRef;
+  submission: PublicInquirySubmissionInput;
+  sessionId?: string;
+}): Promise<CreatePublicInquirySubmissionResult> {
+  const result = await createInquirySubmission({
+    business,
+    submission,
+    actorUserId: null,
+    source: "ai_agent_handoff",
+    activity: {
+      type: "inquiry.submitted_ai_agent",
+      summary: "Customer escalated to a human from the AI agent conversation.",
+    },
+    notifyInAppOnNewInquiry: true,
+    aiAssisted: true,
+    escalated: true,
+  });
+
+  if (sessionId) {
+    try {
+      await db
+        .update(aiAgentSessions)
+        .set({
+          inquiryId: result.inquiryId,
+          updatedAt: new Date(),
+        })
+        .where(eq(aiAgentSessions.id, sessionId));
+    } catch (error) {
+      console.error("[inquiries] Failed to link handoff session.", error);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Shared submission path for the owner-facing Assistant surface.
+ *
+ * Same intake behaviour as a manual dashboard creation, attributed as
+ * AI-assisted and to the acting member.
+ */
+export async function createAssistantInquirySubmission({
+  business,
+  submission,
+  actorUserId,
+}: {
+  business: InquirySubmissionBusinessRef;
+  submission: PublicInquirySubmissionInput;
+  actorUserId: string;
+}): Promise<CreatePublicInquirySubmissionResult> {
+  return createInquirySubmission({
+    business,
+    submission,
+    actorUserId,
+    source: inquirySources.manualDashboard,
+    activity: {
+      type: "inquiry.created_manual",
+      summary: "Inquiry created by the business Assistant.",
+    },
+    notifyInAppOnNewInquiry: false,
+    aiAssisted: true,
   });
 }
 

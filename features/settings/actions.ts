@@ -13,6 +13,7 @@ import {
   uniqueCacheTags,
 } from "@/lib/cache/business-tags";
 import {
+  businessAiAgentSettingsSchema,
   businessEmailTemplateSettingsSchema,
   businessGeneralSettingsSchema,
   businessInquiryFormCreateSchema,
@@ -24,6 +25,7 @@ import {
   businessQuoteSettingsSchema,
 } from "@/features/settings/schemas";
 import type {
+  BusinessAiAgentSettingsActionState,
   BusinessEmailTemplateActionState,
   BusinessInquiryFormActionState,
   BusinessInquiryFormDangerActionState,
@@ -42,6 +44,7 @@ import {
   setBusinessInquiryFormPublicState,
   applyBusinessInquiryFormPreset,
   setDefaultBusinessInquiryForm,
+  updateBusinessAiAgentSettings,
   updateBusinessEmailTemplateSettings,
   updateBusinessInquiryFormSettings,
   updateBusinessInquiryPageSettings,
@@ -66,6 +69,7 @@ import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
 
 function getLiveFormLimitMessage(plan: BusinessPlan): string {
   const limit = getUsageLimit(plan, "liveFormsPerBusiness");
@@ -266,6 +270,69 @@ export async function updateBusinessNotificationSettingsAction(
 
   return {
     success: "Notification settings saved.",
+  };
+}
+
+export async function updateBusinessAiAgentSettingsAction(
+  _prevState: BusinessAiAgentSettingsActionState,
+  formData: FormData,
+): Promise<BusinessAiAgentSettingsActionState> {
+  const ownerAccess = await getOperationalBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+
+  if (
+    !hasFeatureAccess(businessContext.business.plan, "aiAgent")
+  ) {
+    return {
+      error: "Your plan does not include the AI agent. Upgrade to enable it.",
+    };
+  }
+
+  const validationResult = businessAiAgentSettingsSchema.safeParse({
+    aiAgentEnabled: formData.get("aiAgentEnabled") === "on",
+    tone: formData.get("tone"),
+  });
+
+  if (!validationResult.success) {
+    return getValidationActionState(
+      validationResult.error,
+      "Check the AI agent settings and try again.",
+    );
+  }
+
+  try {
+    const result = await updateBusinessAiAgentSettings({
+      businessId: businessContext.business.id,
+      actorUserId: user.id,
+      values: validationResult.data,
+    });
+
+    if (!result.ok) {
+      return {
+        error: "That business could not be found.",
+      };
+    }
+
+    updateCacheTags(getBusinessSettingsCacheTags(businessContext.business.id));
+
+    revalidatePath(`/b/${businessContext.business.slug}/chat`);
+  } catch (error) {
+    console.error("Failed to update AI agent settings.", error);
+
+    return {
+      error: "We couldn't save the AI agent settings right now.",
+    };
+  }
+
+  return {
+    success: "AI agent settings saved.",
   };
 }
 

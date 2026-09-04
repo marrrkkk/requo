@@ -4,6 +4,7 @@ import Link from "next/link";
 import { memo, type CSSProperties, type ReactNode, useTransition } from "react";
 import {
   ArrowLeft,
+  Astroid,
   Bell,
   BookOpen,
   Building2,
@@ -67,6 +68,7 @@ export const settingsIcons: Record<string, LucideIcon> = {
   palette: Palette,
   bell: Bell,
   building: Building2,
+  astroid: Astroid,
   users: Users,
   receipt: Receipt,
   "file-text": FileText,
@@ -163,6 +165,21 @@ export function SettingsShellFrame({
         <SidebarSeparator />
 
         <SidebarFooter className="p-3 pt-2 group-data-[collapsible=icon]:p-2">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                className="min-h-9.5 h-9.5 rounded-lg border border-transparent px-3 py-2 text-[0.925rem] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground group-data-[collapsible=icon]:justify-center"
+                tooltip="Help & Support"
+              >
+                <Link href={`/${businessSlug}/settings/support`} prefetch={true}>
+                  <LifeBuoy className="size-4.5 shrink-0 text-muted-foreground" />
+                  <span className="group-data-[collapsible=icon]:hidden">Help & Support</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+          <SidebarSeparator className="my-1 group-data-[collapsible=icon]:hidden" />
           {userMenuSlot ?? (user ? <SettingsUserMenu user={user} businessSlug={businessSlug} /> : null)}
         </SidebarFooter>
 

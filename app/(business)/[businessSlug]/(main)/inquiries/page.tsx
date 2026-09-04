@@ -129,6 +129,7 @@ async function InquiriesControlsRegion({
         status: "all" as const,
         form: "all",
         sort: "newest" as const,
+        escalated: false,
         page: 1,
       };
   const baseFilters = {
@@ -137,6 +138,7 @@ async function InquiriesControlsRegion({
     status: filters.status,
     form: filters.form,
     sort: filters.sort,
+    escalated: filters.escalated ?? false,
   };
 
   const canExport = hasFeatureAccess(
@@ -153,7 +155,7 @@ async function InquiriesControlsRegion({
   );
   const archivedItemsPromise = getInquiryListPageForBusiness({
     businessId: businessContext.business.id,
-    filters: { view: "archived", status: "all", form: "all", sort: "newest" },
+    filters: { view: "archived", status: "all", form: "all", sort: "newest", escalated: false },
     page: 1,
     pageSize: 50,
   });
@@ -195,6 +197,7 @@ async function InquiriesListRegion({
         status: "all" as const,
         form: "all",
         sort: "newest" as const,
+        escalated: false,
         page: 1,
       };
   const baseFilters = {
@@ -203,6 +206,7 @@ async function InquiriesListRegion({
     status: filters.status,
     form: filters.form,
     sort: filters.sort,
+    escalated: filters.escalated ?? false,
   };
 
   const inquiryCountPromise = getInquiryListCountForBusiness({
@@ -241,7 +245,8 @@ async function InquiriesListRegion({
     baseFilters.q ||
       baseFilters.status !== "all" ||
       baseFilters.form !== "all" ||
-      baseFilters.sort !== "newest",
+      baseFilters.sort !== "newest" ||
+      baseFilters.escalated,
   );
   const clearFiltersPath = (() => {
     const params = new URLSearchParams();

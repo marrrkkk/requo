@@ -175,6 +175,12 @@ export const businesses = pgTable(
     quoteViewedFollowUpDelayDays: integer("quote_viewed_follow_up_delay_days")
       .notNull()
       .default(3),
+    /** Enable AI agent for conversational inquiry collection. */
+    aiAgentEnabled: boolean("ai_agent_enabled").notNull().default(false),
+    /** AI agent configuration (tone, handoff triggers, etc.). */
+    aiAgentConfig: jsonb("ai_agent_config").notNull().default("{}"),
+    /** Enable the new AI assistant UX beta (customer-facing panel) for this business. */
+    aiAssistantBetaEnabled: boolean("ai_assistant_beta_enabled").notNull().default(false),
     industryCategory: text("industry_category"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     archivedBy: text("archived_by").references(() => user.id, {
@@ -212,6 +218,7 @@ export const businesses = pgTable(
       table.ownerUserId,
       table.lockedAt,
     ),
+    index("businesses_ai_assistant_beta_idx").on(table.aiAssistantBetaEnabled),
     check("businesses_slug_format", sql`${table.slug} ~ '^[a-z0-9-]+$'`),
     check(
       "businesses_country_code_format",

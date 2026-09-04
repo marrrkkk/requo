@@ -59,6 +59,7 @@ export async function GET(
         status: "all" as const,
         form: "all",
         sort: "newest" as const,
+        escalated: false,
         page: 1,
       };
 
@@ -78,6 +79,7 @@ export async function GET(
       status: filters.status,
       form: filters.form,
       sort: filters.sort,
+      escalated: filters.escalated ?? false,
     },
     from,
     to,

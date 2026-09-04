@@ -233,6 +233,7 @@ export function DashboardShellFrame({
                       <CommandMenu
                         businessSlug={businessSlug}
                         businessId=""
+                        userId=""
                         role="owner"
                         plan="free"
                       />

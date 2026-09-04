@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Astroid,
   Bell,
   BookOpen,
   Building2,
@@ -37,6 +38,7 @@ const unifiedSettingsIcons: Record<string, typeof User> = {
   book: BookOpen,
   plug: Plug,
   scroll: ScrollText,
+  astroid: Astroid,
 };
 
 export function UnifiedSettingsSidebar({ groups }: UnifiedSettingsSidebarProps) {

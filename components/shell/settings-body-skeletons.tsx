@@ -324,3 +324,69 @@ export function ManagerBodySkeleton() {
     </div>
   );
 }
+
+export function AiSettingsBodySkeleton() {
+  return (
+    <div className="flex flex-col gap-8">
+      {/* Top settings card skeleton */}
+      <div className="rounded-xl border border-border/75 bg-card/97 p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <Skeleton className="size-11 rounded-lg" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-5 w-32 rounded-md" />
+              <Skeleton className="h-4 w-72 max-w-full rounded-md" />
+            </div>
+          </div>
+          <Skeleton className="h-6 w-14 rounded-full" />
+        </div>
+      </div>
+
+      {/* Knowledge stats skeleton */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div
+            className="flex items-start gap-3 rounded-xl border border-border/75 bg-card/97 p-4"
+            key={i}
+          >
+            <Skeleton className="size-8 rounded-lg" />
+            <div className="min-w-0 flex-1 space-y-2 py-0.5">
+              <Skeleton className="h-3 w-16 rounded-md" />
+              <Skeleton className="h-6 w-12 rounded-md" />
+              <Skeleton className="h-3 w-20 rounded-md" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Toolbar skeleton */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Skeleton className="h-10 w-48 rounded-lg" />
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-32 rounded-md" />
+          <Skeleton className="h-9 w-28 rounded-md" />
+        </div>
+      </div>
+
+      {/* List skeleton */}
+      <div className="overflow-hidden rounded-xl border border-border/75">
+        <div className="divide-y divide-border/60">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              className="flex items-center gap-4 px-5 py-4"
+              key={index}
+            >
+              <Skeleton className="size-8 rounded-lg" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-40 rounded-md" />
+                <Skeleton className="h-3 w-64 rounded-md" />
+              </div>
+              <Skeleton className="size-8 rounded-md" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+

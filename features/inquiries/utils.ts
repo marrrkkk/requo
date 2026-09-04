@@ -107,3 +107,17 @@ export function formatFileSize(bytes: number) {
 
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+export const AI_AGENT_SOURCES = new Set(["ai", "ai_agent", "ai_agent_handoff"]);
+
+/**
+ * Returns a human-readable channel label for a dashboard inquiry source.
+ * Falls back to "Manual" when the source is unknown. Agent-collected
+ * inquiries (ai_agent / ai_agent_handoff) are labeled "AI agent".
+ */
+export function getInquirySourceLabel(source: string | null | undefined): string {
+  if (source && AI_AGENT_SOURCES.has(source)) {
+    return "AI agent";
+  }
+  return "Manual";
+}
