@@ -38,7 +38,7 @@ export function AdminSystemStatusBanner({ report }: AdminSystemStatusBannerProps
   return (
     <div
       className={cn(
-        "section-panel flex flex-col gap-5 border-l-4 p-5 sm:p-6",
+ "section-panel flex flex-col gap-5 border-l-4",
         config.borderClass,
       )}
     >
@@ -103,7 +103,7 @@ export function AdminSystemStatusBanner({ report }: AdminSystemStatusBannerProps
                 <p className="text-xs font-medium text-foreground">
                   {systemCategoryLabels[category]}
                 </p>
-                <p className="truncate text-[0.68rem] uppercase tracking-[0.12em] text-muted-foreground">
+                <p className="truncate text-xs uppercase tracking-[0.12em] text-muted-foreground">
                   {status}
                 </p>
               </div>

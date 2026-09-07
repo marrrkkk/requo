@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Check } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -24,43 +24,94 @@ import type {
   PaidPlan,
 } from "@/lib/billing/types";
 
+/**
+ * Outer wrapper: the URL is the source of truth for both the billing
+ * interval and the deep-linked upgrade dialog. Interval and dialog state are
+ * derived from search params during render; clicks update the URL via
+ * `router.replace`. Deep links like /pricing?plan=pro&interval=yearly
+ * preselect the interval and, for signed-in visitors, open the dialog with
+ * no effect-driven setState anywhere.
+ */
 export function PricingIntervalToggle({
   currency,
 }: {
   currency: BillingCurrency;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [interval, setInterval] = useState<BillingInterval>("monthly");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<PaidPlan>("pro");
+  const { data: session } = authClient.useSession();
+
+  const planParam = searchParams.get("plan");
+  const intervalParam = searchParams.get("interval");
+  const interval: BillingInterval =
+    intervalParam === "yearly" ? "yearly" : "monthly";
+
+  // Dialog opens only for a valid plan param while signed in; closing it
+  // removes the param, which derives the open state back to false.
+  const dialogPlan: PaidPlan | null =
+    (planParam === "pro" || planParam === "business") && session?.user
+      ? planParam
+      : null;
+
+  function updateUrlParam(key: "plan" | "interval", value: string | null) {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (value === null) {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
+
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  return (
+    <section className="mx-auto w-full max-w-7xl px-5 pt-2 pb-10 sm:px-6 lg:px-8 lg:pt-3 lg:pb-14">
+      <PricingPlans
+        currency={currency}
+        dialogOpen={dialogPlan !== null}
+        dialogPlan={dialogPlan}
+        interval={interval}
+        onDialogClose={() => updateUrlParam("plan", null)}
+        onIntervalChange={(nextInterval) =>
+          updateUrlParam("interval", nextInterval)
+        }
+        onOpenDialog={updateUrlParam}
+        sessionUserId={session?.user ? session.user.id : null}
+      />
+    </section>
+  );
+}
+
+function PricingPlans({
+  currency,
+  dialogOpen,
+  dialogPlan,
+  interval,
+  onDialogClose,
+  onIntervalChange,
+  onOpenDialog,
+  sessionUserId,
+}: {
+  currency: BillingCurrency;
+  dialogOpen: boolean;
+  dialogPlan: PaidPlan | null;
+  interval: BillingInterval;
+  onDialogClose: () => void;
+  onIntervalChange: (interval: BillingInterval) => void;
+  onOpenDialog: (key: "plan", plan: PaidPlan) => void;
+  sessionUserId: string | null;
+}) {
   const [pendingPlan, setPendingPlan] = useState<PaidPlan | null>(null);
   const [isPending, startTransition] = useTransition();
-  const { data: session } = authClient.useSession();
   const savingsPercent = getYearlySavingsPercent("pro", currency);
-
-  useEffect(() => {
-    const planParam = searchParams.get("plan");
-    const intervalParam = searchParams.get("interval");
-
-    if (intervalParam === "yearly" || intervalParam === "monthly") {
-      setInterval(intervalParam);
-    }
-
-    if (
-      (planParam === "pro" || planParam === "business") &&
-      session?.user
-    ) {
-      setSelectedPlan(planParam);
-      setDialogOpen(true);
-    }
-  }, [searchParams, session?.user]);
 
   function handleSubscribe(plan: PaidPlan) {
     if (isPending) return;
 
-    if (session?.user) {
-      setSelectedPlan(plan);
-      setDialogOpen(true);
+    if (sessionUserId) {
+      onOpenDialog("plan", plan);
       return;
     }
 
@@ -90,7 +141,7 @@ export function PricingIntervalToggle({
   const period = interval === "monthly" ? "mo" : "yr";
 
   return (
-    <section className="mx-auto w-full max-w-7xl px-5 pt-2 pb-10 sm:px-6 lg:px-8 lg:pt-3 lg:pb-14">
+    <>
       {/* Toggle */}
       <div className="mb-8 flex justify-center">
         <div className="inline-flex rounded-full border border-border/70 bg-muted/25 p-1">
@@ -101,7 +152,7 @@ export function PricingIntervalToggle({
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
             )}
-            onClick={() => setInterval("monthly")}
+            onClick={() => onIntervalChange("monthly")}
             type="button"
           >
             Monthly
@@ -113,7 +164,7 @@ export function PricingIntervalToggle({
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
             )}
-            onClick={() => setInterval("yearly")}
+            onClick={() => onIntervalChange("yearly")}
             type="button"
           >
             Yearly
@@ -142,20 +193,18 @@ export function PricingIntervalToggle({
           </p>
 
           <Button asChild variant="outline" size="lg" className="mt-6 w-full font-mono text-xs uppercase tracking-wider">
-            <Link href={session?.user ? dashboardPath : "/signup"}>
-              {session?.user ? "Go to dashboard" : "Start with inquiries"}
+            <Link href={sessionUserId ? dashboardPath : "/signup"}>
+              {sessionUserId ? "Go to dashboard" : "Start with inquiries"}
             </Link>
           </Button>
 
           <ul className="mt-7 flex flex-col gap-2.5 border-t border-border/50 pt-6">
-            <Feature>Unlimited inquiries</Feature>
-            <Feature>30 quotes / month</Feature>
-            <Feature>3 active follow-ups</Feature>
-            <Feature>Customer history</Feature>
-            <Feature>Conversion analytics</Feature>
-            <Feature>Public pages for inquiries & quotes</Feature>
-            <Feature>3 custom fields per form</Feature>
-            <Feature>5 MB uploads</Feature>
+            <Feature>Complete inquiry-to-quote workflow</Feature>
+            <Feature>Unlimited inquiries, quotes, and manual sharing</Feature>
+            <Feature>About 10 AI quote drafts per month</Feature>
+            <Feature>15 Requo email sends per month</Feature>
+            <Feature>One live inquiry form</Feature>
+            <Feature>Inquiry and quote CSV exports</Feature>
           </ul>
         </div>
 
@@ -179,7 +228,7 @@ export function PricingIntervalToggle({
               : "Cancel anytime"}
           </p>
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-            More quotes, AI drafts, multiple forms, and advanced branding for growing operators.
+            Automatic follow-ups, more AI drafts, multiple forms, and custom branding for growing operators.
           </p>
 
           <Button
@@ -200,15 +249,12 @@ export function PricingIntervalToggle({
           </Button>
 
           <ul className="mt-7 flex flex-col gap-2.5 border-t border-border/50 pt-6">
-            <Feature>Unlimited quotes & follow-ups</Feature>
-            <Feature>AI assistant: 100 generations / mo</Feature>
-            <Feature>Workflow analytics</Feature>
-            <Feature>5 inquiry forms, 5 businesses</Feature>
-            <Feature>Page customization & branding</Feature>
-            <Feature>Email templates & quote library</Feature>
-            <Feature>Knowledge base (10 items)</Feature>
-            <Feature>Data exports</Feature>
-            <Feature>25 MB uploads</Feature>
+            <Feature>Automatic follow-ups</Feature>
+            <Feature>Custom email templates and Requo branding removal</Feature>
+            <Feature>About 50 AI quote drafts per month</Feature>
+            <Feature>200 Requo email sends per month</Feature>
+            <Feature>5 live inquiry forms</Feature>
+            <Feature>Advanced analytics and scheduled reports</Feature>
           </ul>
         </div>
 
@@ -229,7 +275,7 @@ export function PricingIntervalToggle({
               : "Cancel anytime"}
           </p>
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-            Team roles, higher AI and email caps, audit logs, and priority support.
+            Team roles, higher AI and email caps, and audit logs.
           </p>
 
           <Button
@@ -252,26 +298,34 @@ export function PricingIntervalToggle({
 
           <ul className="mt-7 flex flex-col gap-2.5 border-t border-border/50 pt-6">
             <Feature>Everything in Pro</Feature>
-            <Feature>Team members: up to 25</Feature>
-            <Feature>500 AI generations / mo</Feature>
-            <Feature>500 Requo email sends / mo</Feature>
-            <Feature>Multiple businesses & forms</Feature>
-            <Feature>Knowledge base (50 items)</Feature>
+            <Feature>Up to 5 members with roles</Feature>
+            <Feature>About 165 AI quote drafts per month</Feature>
+            <Feature>500 Requo email sends per month</Feature>
+            <Feature>10 live inquiry forms</Feature>
+            <Feature>Unlimited pricing library</Feature>
             <Feature>Audit logs</Feature>
-            <Feature>50 MB uploads</Feature>
-            <Feature>Priority support</Feature>
           </ul>
         </div>
       </div>
 
+      <p className="mx-auto mt-8 max-w-2xl text-center text-sm leading-relaxed text-muted-foreground">
+        Subscriptions are billed per business. Free includes one free business;
+        additional businesses need their own paid subscription. Annual billing
+        includes two months free.
+      </p>
+
       <SelectBusinessDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        targetPlan={selectedPlan}
-        interval={interval}
         currency={currency}
+        interval={interval}
+        onOpenChange={(open) => {
+          if (!open) {
+            onDialogClose();
+          }
+        }}
+        open={dialogOpen}
+        targetPlan={dialogPlan ?? "pro"}
       />
-    </section>
+    </>
   );
 }
 

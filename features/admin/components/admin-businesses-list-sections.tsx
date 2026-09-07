@@ -3,7 +3,6 @@ import { Briefcase } from "lucide-react";
 import { DataListPagination } from "@/components/shared/data-list-pagination";
 import {
   DashboardEmptyState,
-  DashboardTableContainer,
 } from "@/components/shared/dashboard-layout";
 import { AdminBusinessesFilters } from "@/features/admin/components/admin-businesses-filters";
 import { AdminBusinessesListCards } from "@/features/admin/components/admin-businesses-list-cards";
@@ -48,16 +47,18 @@ export async function AdminBusinessesListContentSection({
 
   if (items.length === 0) {
     return (
-      <DashboardEmptyState
-        description={
-          hasFilters
-            ? "No businesses match these filters. Try clearing the search or plan filter."
-            : "No businesses have been created yet."
-        }
-        icon={Briefcase}
-        title={hasFilters ? "No matching businesses" : "No businesses yet"}
-        variant="list"
-      />
+      <div className="p-4">
+        <DashboardEmptyState
+          description={
+            hasFilters
+              ? "No businesses match these filters. Try clearing the search or plan filter."
+              : "No businesses have been created yet."
+          }
+          icon={Briefcase}
+          title={hasFilters ? "No matching businesses" : "No businesses yet"}
+          variant="list"
+        />
+      </div>
     );
   }
 
@@ -65,16 +66,16 @@ export async function AdminBusinessesListContentSection({
   const lastItemIndex = Math.min(currentPage * filters.pageSize, total);
 
   return (
-    <div className="flex flex-col gap-5">
+    <>
       <AdminBusinessesListCards items={items} />
-      <DashboardTableContainer className="hidden xl:block">
+      <div className="hidden overflow-x-auto no-scrollbar xl:block">
         <AdminBusinessesTableBody
           firstItemIndex={firstItemIndex}
           items={items}
           lastItemIndex={lastItemIndex}
           totalItems={total}
         />
-      </DashboardTableContainer>
+      </div>
       <DataListPagination
         currentPage={currentPage}
         pageSize={filters.pageSize}
@@ -83,7 +84,7 @@ export async function AdminBusinessesListContentSection({
         totalItems={total}
         totalPages={totalPages}
       />
-    </div>
+    </>
   );
 }
 

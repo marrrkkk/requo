@@ -37,7 +37,7 @@ export function DetailsPanel({
   title: string;
 }) {
   return (
-    <div className="soft-panel px-5 py-6 shadow-none sm:p-8">
+    <div data-padding="none" className="soft-panel px-5 py-6 shadow-none sm:p-8">
       <div className="space-y-1.5">
         <p className="meta-label">{eyebrow}</p>
         <p className="font-heading text-lg font-semibold tracking-tight text-foreground">
@@ -70,7 +70,7 @@ export function DisclosureSection({
         type="button"
       >
         <div className="min-w-0 space-y-0.5">
-          <p className="text-[0.95rem] font-semibold tracking-tight text-foreground">
+          <p className="text-sm font-semibold tracking-tight text-foreground">
             {label}
           </p>
           {description ? (
@@ -119,6 +119,7 @@ export function OptionTile({
   const tile = (
     <button
       aria-pressed={isSelected}
+      data-padding="none"
       className={cn(
         "soft-panel flex min-h-24 w-full flex-col items-start justify-between gap-3 px-4 py-3 text-left shadow-none transition-[border-color,background-color,box-shadow]",
         isSelected
@@ -188,9 +189,9 @@ export function SectionVisibilityToggle({
   );
 
   return (
-    <label className="soft-panel flex flex-col gap-5 px-5 py-5 shadow-none sm:flex-row sm:items-center sm:justify-between sm:p-7">
+    <label data-padding="none" className="soft-panel flex flex-col gap-5 px-5 py-5 shadow-none sm:flex-row sm:items-center sm:justify-between sm:p-7">
       <div className="min-w-0 space-y-1.5">
-        <p className="text-[0.95rem] font-semibold text-foreground">{label}</p>
+        <p className="text-sm font-semibold text-foreground">{label}</p>
         <p className="text-sm leading-6 text-muted-foreground">{description}</p>
       </div>
       {locked && plan ? (

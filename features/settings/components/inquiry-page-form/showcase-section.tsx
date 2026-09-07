@@ -250,11 +250,11 @@ function ShowcaseImageEditorPreview({
   const trimmedUrl = url.trim();
 
   return (
-    <div className="soft-panel h-full px-4 py-4 shadow-none sm:px-5">
+ <div className="soft-panel h-full shadow-none">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <p className="meta-label">Preview</p>
-          <p className="text-[0.95rem] font-semibold tracking-tight text-foreground">
+          <p className="text-sm font-semibold tracking-tight text-foreground">
             Showcase image
           </p>
           <p className="text-sm leading-6 text-muted-foreground">
@@ -290,7 +290,7 @@ function ShowcaseImageEditorPreview({
             url={trimmedUrl}
           />
         ) : (
-          <div className="flex min-h-52 items-center justify-center rounded-[1.5rem] border border-dashed border-border/70 bg-background/70 px-6 text-center">
+          <div className="flex min-h-52 items-center justify-center rounded-3xl border border-dashed border-border/70 bg-background/70 px-6 text-center">
             <p className="text-sm leading-6 text-muted-foreground">
               Add an image URL to show a preview here.
             </p>

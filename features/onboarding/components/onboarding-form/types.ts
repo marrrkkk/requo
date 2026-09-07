@@ -1,3 +1,4 @@
+import type { BusinessPlan } from "@/lib/plans/plans";
 import type { OnboardingDraft } from "@/features/onboarding/helpers";
 import type {
   OnboardingActionState,
@@ -5,6 +6,7 @@ import type {
 } from "@/features/onboarding/types";
 import {
   onboardingBusinessBasicsSchema,
+  onboardingServiceEntrySchema,
   onboardingStartingWorkflowSchema,
 } from "@/features/onboarding/schemas";
 
@@ -14,6 +16,8 @@ export type OnboardingFormProps = {
     formData: FormData,
   ) => Promise<OnboardingActionState>;
   detectedCountryCode?: string;
+  /** Resolved plan for the business being created; drives the service cap UI. */
+  plan?: BusinessPlan;
   initialProfile?: {
     firstName: string;
     lastName: string;
@@ -21,7 +25,7 @@ export type OnboardingFormProps = {
   };
 };
 
-export type OnboardingStepId = "business" | "workflow";
+export type OnboardingStepId = "business" | "workflow" | "services";
 
 export const onboardingSteps = [
   {
@@ -46,9 +50,19 @@ export const onboardingSteps = [
     label: "Workflow",
     description: "Choose your starting inquiry workflow.",
     title: "How do you usually sell the work?",
-    body: "We'll set up your inquiry form based on how you typically work. You can customize everything later.",
+    body: "We'll set up your services based on how you typically work. You can customize everything later.",
     fields: [
       "starterWorkflow",
+    ] as const satisfies readonly OnboardingFieldName[],
+  },
+  {
+    id: "services" as const,
+    label: "Services",
+    description: "Name what you sell.",
+    title: "Which services do you offer?",
+    body: "Each service gets its own public page and inbox. Add the ones you want to take inquiries for — you can add more later.",
+    fields: [
+      "services",
     ] as const satisfies readonly OnboardingFieldName[],
   },
 ] satisfies ReadonlyArray<{
@@ -132,6 +146,25 @@ export function getFieldValidationError(
         );
       return result.success ? undefined : result.error.issues[0]?.message;
     }
+    case "services": {
+      // Strict naming: the first row is always kept (it pre-fills), extra
+      // rows must carry a name or are dropped silently at submit.
+      const keptServices = draft.services.filter(
+        (service, index) => index === 0 || service.name.trim().length > 0,
+      );
+
+      for (const service of keptServices) {
+        const result = onboardingServiceEntrySchema.shape.name.safeParse(
+          service.name,
+        );
+
+        if (!result.success) {
+          return result.error.issues[0]?.message;
+        }
+      }
+
+      return undefined;
+    }
     case "jobTitle":
     case "companySize":
     case "referralSource":
@@ -162,7 +195,19 @@ export function sanitizeDraft(
     }
   }
 
+  const services = Array.isArray(value.services)
+    ? value.services
+        .slice(0, 10)
+        .map((service) => ({
+          name:
+            service && typeof service === "object" && typeof (service as { name?: unknown }).name === "string"
+              ? (service as { name: string }).name
+              : "",
+        }))
+    : [{ name: "" }];
+
   return {
+    services,
     firstName: typeof value.firstName === "string" ? value.firstName : "",
     lastName: typeof value.lastName === "string" ? value.lastName : "",
     jobTitle: typeof value.jobTitle === "string" ? value.jobTitle : "",

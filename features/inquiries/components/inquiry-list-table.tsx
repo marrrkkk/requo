@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Bot, FileText, PenLine } from "lucide-react";
+import { Briefcase, PenLine } from "lucide-react";
+import { RequoIcon } from "@/components/shared/requo-icon";
 import type { MotionState } from "@/hooks/use-animated-list";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { DashboardTableContainer } from "@/components/shared/dashboard-layout";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import {
   Table,
@@ -16,7 +16,9 @@ import {
 } from "@/components/ui/table";
 import type { DashboardInquiryListItem } from "@/features/inquiries/types";
 import {
+  AI_AGENT_SOURCES,
   formatInquiryDate,
+  getInquirySourceLabel,
 } from "@/features/inquiries/utils";
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
@@ -25,10 +27,10 @@ import { Copy } from "lucide-react";
 
 function getInquiryChannelDisplay(inquiry: DashboardInquiryListItem) {
   if (inquiry.inquiryFormName) {
-    return { label: inquiry.inquiryFormName, icon: FileText };
+    return { label: inquiry.inquiryFormName, icon: Briefcase };
   }
-  if (inquiry.source === "ai") {
-    return { label: "AI", icon: Bot };
+  if (inquiry.source && AI_AGENT_SOURCES.has(inquiry.source)) {
+    return { label: getInquirySourceLabel(inquiry.source), icon: RequoIcon };
   }
   return { label: "Manual", icon: PenLine };
 }
@@ -55,7 +57,7 @@ export function InquiryListTable({
   getMotionState,
 }: InquiryListTableProps) {
   return (
-    <DashboardTableContainer className="hidden xl:block">
+    <div className="hidden overflow-x-auto no-scrollbar xl:block">
       <Table className="min-w-[69rem] table-fixed">
         <TableCaption className="sr-only">Newest inquiries appear first.</TableCaption>
         <TableHeader>
@@ -68,8 +70,8 @@ export function InquiryListTable({
               />
             </TableHead>
             <TableHead className="w-[17rem]">Customer</TableHead>
-            <TableHead className="w-[13rem]">Channel</TableHead>
             <TableHead className="w-[13rem]">Service</TableHead>
+            <TableHead className="w-[13rem]">Category</TableHead>
             <TableHead className="w-[8rem]">Created</TableHead>
             <TableHead className="w-[8.75rem]">Status</TableHead>
           </TableRow>
@@ -164,6 +166,6 @@ export function InquiryListTable({
           })}
         </TableBody>
       </Table>
-    </DashboardTableContainer>
+    </div>
   );
 }

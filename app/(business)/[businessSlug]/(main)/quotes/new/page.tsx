@@ -32,18 +32,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Draft a new quote for a customer, optionally linked to an inquiry.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * New quote page — returns the structural shell synchronously.
@@ -75,7 +64,7 @@ function NewQuoteEditorSkeleton() {
         title="Create a new quote"
       />
       <div className="flex flex-col gap-6">
-        <div className="section-panel animate-pulse p-5 sm:p-6">
+ <div className="section-panel animate-pulse">
           <div className="flex flex-col gap-5">
             <div className="h-6 w-32 rounded-md bg-muted" />
             <div className="grid gap-5 sm:grid-cols-2">

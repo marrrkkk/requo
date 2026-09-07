@@ -3,11 +3,12 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 
-import { Fragment, memo, type CSSProperties, type ReactNode, useMemo } from "react";
+import { Fragment, memo, type ReactNode, useMemo } from "react";
 import { Home as HomeIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { BrandMark } from "@/components/shared/brand-mark";
+import { NavLinkStatus } from "@/components/shell/nav-link-status";
 import {
   getActiveDashboardNavigationItem,
   getDashboardBreadcrumbs,
@@ -41,7 +42,10 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import {
+  getBusinessAssistantPath,
+  getBusinessDashboardPath,
+} from "@/features/businesses/routes";
 import { cn } from "@/lib/utils";
 
 import { MobileTopBar } from "@/components/shell/mobile-top-bar";
@@ -123,23 +127,18 @@ export function DashboardShellFrame({
 
   const currentPageLabel = breadcrumbs.at(-1)?.label ?? "Home";
   const dashboardPath = getBusinessDashboardPath(businessSlug);
+  const assistantPath = getBusinessAssistantPath(businessSlug);
+  const isAssistantPaneRoute =
+    pathname === assistantPath || pathname.startsWith(`${assistantPath}/chat/`);
   const activeNavItem = getActiveDashboardNavigationItem(pathname);
   const ActiveIcon = activeNavItem?.icon ?? HomeIcon;
 
   return (
-    <SidebarProvider
-      defaultOpen
-      style={
-        {
-          "--sidebar-width": "17.5rem",
-          "--sidebar-width-icon": "4.25rem",
-        } as CSSProperties
-      }
-    >
+    <SidebarProvider defaultOpen>
       {themeSyncSlot}
       <Sidebar collapsible="icon">
         <SidebarHeader className="gap-0 p-0">
-          <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-3.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <div className="flex h-12 items-center justify-between border-b border-sidebar-border px-3.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
             <BrandMark
               collapseLabel
               className="min-w-0 px-2 py-1.5 group-data-[collapsible=icon]:p-0"
@@ -177,7 +176,10 @@ export function DashboardShellFrame({
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset className="min-h-svh min-w-0">
+      <SidebarInset
+        className="min-h-svh min-w-0"
+        data-assistant-route={isAssistantPaneRoute || undefined}
+      >
         {/* Mobile top app bar (below lg) */}
         <MobileTopBar
           businessControl={mobileBusinessSwitcherSlot}
@@ -187,7 +189,7 @@ export function DashboardShellFrame({
         />
 
         {/* Desktop Topbar row (lg and above) */}
-        <div className="sticky top-0 z-30 hidden h-14 items-stretch border-b border-border/70 bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/80 lg:flex">
+        <div className="sticky top-0 z-30 hidden h-12 items-stretch border-b border-border/70 bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/80 lg:flex">
           <header className="flex min-w-0 flex-1 items-center">
             <DesktopSidebarTrigger />
             <div className="dashboard-topbar-inner min-w-0 flex-1">
@@ -233,6 +235,7 @@ export function DashboardShellFrame({
                       <CommandMenu
                         businessSlug={businessSlug}
                         businessId=""
+                        userId=""
                         role="owner"
                         plan="free"
                       />
@@ -302,7 +305,7 @@ const DashboardNavigationItem = memo(function DashboardNavigationItem({
     >
       <SidebarMenuButton
         asChild
-        className="min-h-9.5 h-9.5 rounded-lg border border-transparent px-3 py-2 text-[0.925rem] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-black/8 data-[active=true]:font-medium data-[active=true]:text-sidebar-foreground dark:data-[active=true]:bg-white/10"
+        className="rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-black/8 data-[active=true]:font-medium data-[active=true]:text-sidebar-foreground dark:data-[active=true]:bg-white/10"
         isActive={isActive}
         tooltip={item.label}
       >
@@ -313,11 +316,12 @@ const DashboardNavigationItem = memo(function DashboardNavigationItem({
         >
           <Icon
             className={cn(
-              "size-4.5 transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
+              "size-4 transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
               isActive ? "text-foreground" : "text-muted-foreground",
             )}
           />
           <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+          <NavLinkStatus className="ml-auto group-data-[collapsible=icon]:hidden" />
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>

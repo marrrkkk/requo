@@ -8,7 +8,7 @@ import type { StarterWorkflowKey } from "@/features/businesses/starter-workflows
 import { getStarterTemplateDefinition } from "@/features/businesses/starter-templates";
 import { assertBusinessQuotaAvailableForUser } from "@/features/businesses/quota";
 import type { BusinessType } from "@/features/inquiries/business-types";
-import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
+import { createInquiryFormPreset, normalizeInquiryFormSlug } from "@/features/inquiries/inquiry-forms";
 import {
   createInquiryFormConfigDefaults,
   type InquiryFormConfig,
@@ -24,7 +24,9 @@ import {
   businesses,
   } from "@/lib/db/schema";
 import { appendRandomSlugSuffix, slugifyPublicName } from "@/lib/slugs";
+import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { validateBusinessSlug } from "@/features/businesses/validation";
+import { isLowEmailMode } from "@/lib/env";
 
 type CreateBusinessForUserInput = {
   user: {
@@ -41,6 +43,12 @@ type CreateBusinessForUserInput = {
   countryCode?: string | null;
   shortDescription?: string | null;
   customerContactChannel?: string | null;
+  /**
+   * Named services created during onboarding. The first becomes the default
+   * service; extras get their own slug. Empty/absent falls back to the
+   * type-derived preset service. The caller trims to the plan's live limit.
+   */
+  onboardingServices?: Array<{ name: string }>;
   inquiryFormConfigOverride?: InquiryFormConfig;
   plan?: plan;
   activitySource?: string;
@@ -81,6 +89,42 @@ type CreateBusinessRecordForUserInput = CreateBusinessForUserInput & {
   now?: Date;
 };
 
+/**
+ * Deduplicates a service slug within a new business's services. Runs inside
+ * the business-creation transaction, so earlier inserts in this transaction
+ * (the default service and any prior extras) are already visible to the
+ * collision check. Mirrors the settings create path's random-suffix fallback.
+ */
+async function getAvailableOnboardingServiceSlug(
+  tx: DatabaseTransaction,
+  businessId: string,
+  baseSlug: string,
+) {
+  const normalizedBaseSlug = normalizeInquiryFormSlug(baseSlug);
+  let candidate = normalizedBaseSlug;
+
+  while (true) {
+    const [existingForm] = await tx
+      .select({ id: businessInquiryForms.id })
+      .from(businessInquiryForms)
+      .where(
+        and(
+          eq(businessInquiryForms.businessId, businessId),
+          eq(businessInquiryForms.slug, candidate),
+        ),
+      )
+      .limit(1);
+
+    if (!existingForm) {
+      return candidate;
+    }
+
+    candidate = appendRandomSlugSuffix(normalizedBaseSlug, {
+      fallback: "inquiry",
+    });
+  }
+}
+
 export async function createBusinessRecordForUser({
   tx,
   businessId,
@@ -93,6 +137,7 @@ export async function createBusinessRecordForUser({
   countryCode = null,
   shortDescription,
   customerContactChannel = null,
+  onboardingServices,
   inquiryFormConfigOverride,
   plan = "free",
   activitySource = "business-hub",
@@ -132,6 +177,15 @@ export async function createBusinessRecordForUser({
     inquiryFormConfigOverride ??
     createInquiryFormConfigDefaults({ businessType, starterWorkflow });
 
+  /**
+   * The form config actually written to the default service row. This now
+   * honors the starter workflow so the public page matches what the owner
+   * picked (previously the row silently used the type-derived preset while
+   * `businesses.inquiryFormConfig` was workflow-aware, so the AI Agent and
+   * the public page disagreed for recurring/consultation businesses).
+   */
+  const defaultFormRowConfig = inquiryFormConfigOverride ?? resolvedFormConfig;
+
   await tx.insert(businesses).values({
     id: businessId,
     ownerUserId: user.id,
@@ -151,23 +205,74 @@ export async function createBusinessRecordForUser({
     defaultQuoteNotes: starterTemplate.defaultQuoteNotes,
     defaultQuoteValidityDays: starterTemplate.defaultQuoteValidityDays,
     defaultCurrency,
+    // Low-email deployments default optional operational email off while
+    // keeping in-app notifications on. Owners can re-enable per business
+    // once low-email mode is off. Explicit quote delivery is unaffected.
+    ...(isLowEmailMode
+      ? {
+          sendInquiryAckEmail: false,
+          notifyOnFollowUpReminder: false,
+          analyticsDigestEnabled: false,
+        }
+      : {}),
     createdAt: now,
     updatedAt: now,
   });
 
+  // One service per named entry; first wins the default slot and the bare
+  // /inquire/{slug} URL. Names are pre-validated upstream (trim + length),
+  // blank extras are dropped before this point.
+  const namedServices = (onboardingServices ?? [])
+    .map((service) => service.name.trim())
+    .filter((name) => name.length > 0)
+    .map((name) => name.slice(0, 80));
+  const firstServiceName = namedServices[0] ?? defaultInquiryForm.name;
+
   await tx.insert(businessInquiryForms).values({
     id: createId("ifm"),
     businessId,
-    name: defaultInquiryForm.name,
+    name: firstServiceName,
     slug: defaultInquiryForm.slug,
     businessType: defaultInquiryForm.businessType,
     isDefault: true,
     publicInquiryEnabled: defaultInquiryForm.publicInquiryEnabled,
-    inquiryFormConfig: inquiryFormConfigOverride ?? defaultInquiryForm.inquiryFormConfig,
+    inquiryFormConfig: defaultFormRowConfig,
     inquiryPageConfig: defaultInquiryForm.inquiryPageConfig,
     createdAt: now,
     updatedAt: now,
   });
+
+  for (const serviceName of namedServices.slice(1)) {
+    const formSlug = await getAvailableOnboardingServiceSlug(
+      tx,
+      businessId,
+      serviceName,
+    );
+
+    await tx.insert(businessInquiryForms).values({
+      id: createId("ifm"),
+      businessId,
+      name: serviceName,
+      slug: formSlug,
+      businessType,
+      isDefault: false,
+      publicInquiryEnabled: true,
+      inquiryFormConfig: createInquiryFormConfigDefaults({
+        businessType,
+        starterWorkflow,
+      }),
+      inquiryPageConfig: {
+        ...createInquiryPageConfigDefaults({
+          businessName: trimmedName,
+          businessType,
+          plan: plan,
+        }),
+        formTitle: serviceName,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
 
   await tx.insert(businessMembers).values({
     id: createId("bm"),
@@ -223,12 +328,19 @@ export async function createBusinessForUser({
   starterWorkflow,
   countryCode,
   shortDescription,
+  customerContactChannel,
+  onboardingServices,
   activitySource,
   activitySummary,
   plan,
 }: CreateBusinessForUserInput) {
   await ensureProfileForUser(user);
   const resolvedPlan = plan ?? ("free" as plan);
+  const liveFormLimit = getUsageLimit(resolvedPlan, "liveFormsPerBusiness");
+  const trimmedServices =
+    liveFormLimit === null
+      ? (onboardingServices ?? [])
+      : (onboardingServices ?? []).slice(0, liveFormLimit);
 
   return db.transaction(async (tx) =>
     createBusinessRecordForUser({
@@ -241,6 +353,8 @@ export async function createBusinessForUser({
       starterWorkflow,
       countryCode,
       shortDescription,
+      customerContactChannel,
+      onboardingServices: trimmedServices,
       activitySource,
       activitySummary,
       plan: resolvedPlan,

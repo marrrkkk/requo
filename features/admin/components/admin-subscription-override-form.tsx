@@ -188,7 +188,7 @@ export function AdminSubscriptionOverrideForm({
 
   return (
     <>
-      <section className="section-panel p-6">
+ <section className="section-panel">
         <div className="flex flex-col gap-6">
           <header className="flex flex-col gap-1.5">
             <h2 className="font-heading text-lg font-semibold tracking-tight text-foreground">

@@ -201,6 +201,58 @@ async function checkEnvironment(): Promise<AdminHealthCheckResult> {
   };
 }
 
+async function checkAdminAccess(): Promise<AdminHealthCheckResult> {
+  const databaseUrl = getEnv("DATABASE_URL");
+  if (!databaseUrl) {
+    return {
+      name: "Admin access",
+      status: "warn",
+      message: "Cannot verify admins without a database connection",
+      hint: "Set DATABASE_URL to enable the admin presence check.",
+      category: "core",
+    };
+  }
+
+  const client = postgres(databaseUrl, {
+    connect_timeout: 8,
+    max: 1,
+    prepare: false,
+    ssl: isLocalUrl(databaseUrl) ? false : "require",
+  });
+
+  try {
+    const [rows, duration] = await timed(async () => {
+      return await client`select count(*)::int as count from "user" where "role" = 'admin' and "banned" = false`;
+    });
+    const adminCount = Number(rows?.[0]?.count ?? 0);
+    return {
+      name: "Admin access",
+      status: adminCount > 0 ? "pass" : "fail",
+      message:
+        adminCount > 0
+          ? `${adminCount} admin user(s) in database`
+          : "No admin users in database",
+      duration,
+      hint:
+        adminCount > 0
+          ? undefined
+          : "Run scripts/bootstrap-admin.ts to promote users to admin.",
+      category: "core",
+    };
+  } catch (err) {
+    const error = err as Error;
+    return {
+      name: "Admin access",
+      status: "fail",
+      message: error.message.split("\n")[0],
+      hint: "Check database connectivity.",
+      category: "core",
+    };
+  } finally {
+    await client.end();
+  }
+}
+
 async function checkDatabase(): Promise<AdminHealthCheckResult> {
   const databaseUrl = getEnv("DATABASE_URL");
   if (!databaseUrl) {
@@ -594,6 +646,7 @@ export async function runAdminHealthChecks(): Promise<AdminHealthReport> {
     redisResult,
     inngestResult,
     pushResult,
+    adminAccessResult,
   ] = await Promise.all([
     checkDatabase(),
     checkSupabase(),
@@ -605,6 +658,7 @@ export async function runAdminHealthChecks(): Promise<AdminHealthReport> {
     checkRedis(),
     checkInngest(),
     checkPushNotifications(),
+    checkAdminAccess(),
   ]);
 
   const results: AdminHealthCheckResult[] = [
@@ -619,6 +673,7 @@ export async function runAdminHealthChecks(): Promise<AdminHealthReport> {
     redisResult,
     inngestResult,
     pushResult,
+    adminAccessResult,
   ];
 
   const critical = results.filter((r) => r.status === "fail").length;
@@ -707,8 +762,8 @@ export function getAdminConfigMatrix(): AdminConfigMatrixRow[] {
     },
     {
       integration: "Admin access",
-      configured: Boolean(getEnv("ADMIN_USERNAME") && getEnv("ADMIN_PASSWORD")),
-      notes: "JWT admin console credentials",
+      configured: Boolean(getEnv("ADMIN_EMAILS")),
+      notes: "DB role-based (user.role = admin). Admin emails are bootstrap-only.",
     },
   ];
 }

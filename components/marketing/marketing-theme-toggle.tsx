@@ -5,6 +5,7 @@ import { Moon, Sun } from "lucide-react";
 
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
+import { themeUserStorageKey } from "@/features/theme/types";
 import { cn } from "@/lib/utils";
 
 const emptySubscribe = () => () => {};
@@ -18,6 +19,10 @@ export function MarketingThemeToggle({ className }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme();
 
   const toggleTheme = () => {
+    // The marketing toggle is an explicit choice that should be promoted to
+    // the profile when the dashboard mounts, even for an already signed-in
+    // visitor whose previous dashboard preference is cached locally.
+    window.localStorage.removeItem(themeUserStorageKey);
     setTheme(resolvedTheme === "dark" ? "light" : "dark");
   };
 

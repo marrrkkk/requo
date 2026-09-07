@@ -7,8 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function AdminLoading() {
   return (
     <div className="min-h-svh w-full bg-background">
-      <div className="fixed inset-y-0 left-0 z-20 hidden w-[17.5rem] border-r border-sidebar-border bg-sidebar lg:block">
-        <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-3.5">
+      <div className="fixed inset-y-0 left-0 z-20 hidden w-(--sidebar-width) border-r border-sidebar-border bg-sidebar lg:block">
+        <div className="flex h-12 items-center justify-between border-b border-sidebar-border px-3.5">
           <BrandMark
             className="min-w-0 px-2 py-1.5"
             collapseLabel
@@ -27,7 +27,7 @@ export default function AdminLoading() {
             "Audit",
           ].map((label) => (
             <div
-              className="flex h-10 items-center gap-3 rounded-lg px-3 text-sm text-sidebar-foreground/70"
+              className="flex h-8 items-center gap-3 rounded-md px-3 text-sm text-sidebar-foreground/70"
               key={label}
             >
               <Skeleton className="size-4 shrink-0 rounded" />
@@ -37,10 +37,10 @@ export default function AdminLoading() {
         </nav>
       </div>
 
-      <div className="lg:pl-[17.5rem]">
-        <header className="dashboard-topbar flex h-14 items-center">
+      <div className="lg:pl-(--sidebar-width)">
+        <header className="dashboard-topbar flex h-12 items-center">
           <div className="dashboard-topbar-inner min-w-0 flex-1">
-            <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
+            <div className="flex min-h-8 min-w-0 items-center gap-2 md:gap-2.5">
               <Skeleton className="size-8 shrink-0 rounded-md lg:hidden" />
               <span
                 aria-hidden="true"
@@ -56,7 +56,7 @@ export default function AdminLoading() {
 
         <main className="dashboard-main">
           <div className="dashboard-content">
-            <div className="flex min-w-0 flex-col gap-6 pb-16 sm:gap-7 xl:pb-24">
+            <div className="flex min-w-0 flex-col gap-6 pb-16 xl:pb-24">
               {/* Page header */}
               <div className="flex flex-col gap-3">
                 <Skeleton className="h-3 w-12 rounded" />
@@ -65,7 +65,7 @@ export default function AdminLoading() {
               </div>
 
               {/* Health banner */}
-              <div className="section-panel border-l-4 border-l-border px-5 py-5 sm:px-6 sm:py-6">
+ <div className="section-panel border-l-4 border-l-border">
                 <div className="flex items-center gap-4">
                   <Skeleton className="size-11 shrink-0 rounded-xl" />
                   <div className="flex flex-col gap-2">
@@ -85,7 +85,7 @@ export default function AdminLoading() {
                 <Skeleton className="h-3 w-16 rounded" />
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   {Array.from({ length: 4 }).map((_, i) => (
-                    <div className="section-panel flex flex-col gap-4 px-5 py-5" key={`stat-${i}`}>
+ <div className="section-panel flex flex-col gap-4" key={`stat-${i}`}>
                       <div className="flex items-center gap-3">
                         <Skeleton className="size-9 rounded-lg" />
                         <Skeleton className="h-4 w-24 rounded" />
@@ -104,7 +104,7 @@ export default function AdminLoading() {
                 <Skeleton className="h-3 w-32 rounded" />
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   {Array.from({ length: 2 }).map((_, i) => (
-                    <div className="section-panel flex flex-col gap-4 px-5 py-5" key={`act-${i}`}>
+ <div className="section-panel flex flex-col gap-4" key={`act-${i}`}>
                       <div className="flex items-center gap-3">
                         <Skeleton className="size-9 rounded-lg" />
                         <Skeleton className="h-4 w-24 rounded" />
@@ -123,7 +123,7 @@ export default function AdminLoading() {
                 <Skeleton className="h-3 w-20 rounded" />
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <div className="soft-panel flex items-start gap-4 px-4 py-4" key={`quick-${i}`}>
+ <div className="soft-panel flex items-start gap-4" key={`quick-${i}`}>
                       <Skeleton className="size-9 shrink-0 rounded-lg" />
                       <div className="flex flex-col gap-1.5">
                         <Skeleton className="h-4 w-28 rounded" />

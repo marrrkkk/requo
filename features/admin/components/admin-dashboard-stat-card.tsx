@@ -35,7 +35,7 @@ export function AdminDashboardStatCard({
       href={href}
       prefetch={true}
       className={cn(
-        "group section-panel flex flex-col gap-4 px-5 py-5",
+ "group section-panel flex flex-col gap-4",
         "transition-[border-color,box-shadow,transform]",
         "[transition-duration:var(--motion-duration-fast)]",
         "[transition-timing-function:var(--motion-ease-standard)]",

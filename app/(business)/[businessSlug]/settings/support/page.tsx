@@ -44,18 +44,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Get help with onboarding, billing, troubleshooting, and product usage.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * Support settings page — non-blocking structural shell.

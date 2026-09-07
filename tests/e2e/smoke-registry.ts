@@ -24,6 +24,8 @@ export const SMOKE_REGISTRY = {
   "public-inquiry.spec.ts": ["public inquiry submission"],
   "dashboard-workflows.spec.ts": ["quote creation and sending"],
   "public-quote.spec.ts": ["public quote response"],
+  "ai-agent-conversation.spec.ts": ["AI agent conversation"],
+  "assistant-conversation.spec.ts": ["assistant conversation"],
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 
 /** Basename of a spec file allowed to use the `@smoke` tag. */

@@ -6,11 +6,12 @@ import {
   BarChart3,
   BellRing,
   FileText,
-  FormInput,
   Home,
   Inbox,
   Package,
+  PencilRuler,
   Sparkles,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -232,8 +233,10 @@ function PreviewSidebar({ highlight }: { highlight?: string }) {
     { icon: Inbox, label: "Inquiries" },
     { icon: FileText, label: "Quotes" },
     { icon: BellRing, label: "Follow-ups" },
-    { icon: FormInput, label: "Forms" },
+    { icon: Sparkles, label: "Assistant" },
+    { icon: PencilRuler, label: "Services" },
     { icon: Package, label: "Products" },
+    { icon: Users, label: "Members" },
     { icon: BarChart3, label: "Analytics" },
   ];
 
@@ -516,6 +519,43 @@ export function AiDraftingPreview() {
   );
 }
 
+export function AssistantPreview() {
+  return (
+    <div className="flex gap-3">
+      <PreviewSidebar highlight="Assistant" />
+      <div className="flex flex-1 flex-col gap-2">
+        <div className="rounded-lg border border-border/50 bg-background p-3">
+          <p className="text-[11px] font-medium text-foreground">Assistant</p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">
+            Ask about your business — it can search, draft, and run operations.
+          </p>
+          <div className="mt-2 flex flex-col gap-1.5">
+            <div className="rounded-md border border-border/50 px-2.5 py-2">
+              <p className="text-[10px] font-medium text-foreground">
+                You: Which quotes are waiting on a response?
+              </p>
+            </div>
+            <div className="rounded-md border border-primary/15 bg-primary/[0.04] px-2.5 py-2">
+              <div className="flex items-start gap-2">
+                <Sparkles className="mt-0.5 size-3 shrink-0 text-primary" />
+                <p className="text-[10px] text-muted-foreground">
+                  3 sent quotes haven&apos;t been viewed yet — want me to draft
+                  follow-ups?
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
+            <span className="text-[10px] text-muted-foreground">
+              Ask your assistant…
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ProductsPreview() {
   return (
     <div className="flex gap-3">
@@ -547,6 +587,53 @@ export function ProductsPreview() {
                 <span className="truncate text-[10px] font-medium text-foreground">Monthly retainer</span>
               </span>
               <span className="text-[9px] text-muted-foreground">$2,400</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function MembersPreview() {
+  return (
+    <div className="flex gap-3">
+      <PreviewSidebar highlight="Members" />
+      <div className="flex flex-1 flex-col gap-2">
+        <div className="rounded-lg border border-border/50 bg-background p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-medium text-foreground">Members</p>
+            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary">Invite</span>
+          </div>
+          <div className="mt-2 flex flex-col divide-y divide-border/50">
+            <div className="flex items-center gap-2.5 py-2">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[9px] font-bold text-primary">
+                AJ
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11px] font-semibold text-foreground">Alex Johnson</p>
+                <p className="truncate text-[10px] text-muted-foreground">alex@acme.co</p>
+              </div>
+              <span className="rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase text-primary">Owner</span>
+            </div>
+            <div className="flex items-center gap-2.5 py-2">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-[9px] font-bold text-blue-500">
+                SM
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11px] font-semibold text-foreground">Sam Morgan</p>
+                <p className="truncate text-[10px] text-muted-foreground">sam@acme.co</p>
+              </div>
+              <span className="rounded-full border border-border/60 bg-muted/50 px-1.5 py-0.5 text-[8px] font-medium text-muted-foreground">Member</span>
+            </div>
+            <div className="flex items-center gap-2.5 py-2">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-border/60 text-muted-foreground">
+                <span className="text-[9px]">+</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11px] font-medium text-muted-foreground">Invite a teammate</p>
+                <p className="truncate text-[10px] text-muted-foreground">They&apos;ll get an email invitation</p>
+              </div>
             </div>
           </div>
         </div>
@@ -589,23 +676,23 @@ export function AnalyticsPreview() {
   );
 }
 
-export function FormsPreview() {
+export function ServicesPreview() {
   return (
     <div className="flex gap-3">
-      <PreviewSidebar highlight="Forms" />
+      <PreviewSidebar highlight="Services" />
       <div className="flex flex-1 flex-col gap-2">
         <div className="rounded-lg border border-border/50 bg-background p-3">
-          <p className="text-[11px] font-medium text-foreground">Inquiry forms</p>
+          <p className="text-[11px] font-medium text-foreground">Services</p>
           <p className="mt-0.5 text-[10px] text-muted-foreground">
-            Customize fields, publish your page, and share one link.
+            Each service has its own form, public page, and link.
           </p>
           <div className="mt-2 space-y-1.5">
             <div className="flex items-center justify-between rounded-md border border-border/50 px-2.5 py-2">
-              <span className="text-[10px] font-medium text-foreground">Project request</span>
+              <span className="text-[10px] font-medium text-foreground">Deep cleaning</span>
               <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[8px] font-medium text-primary">Live</span>
             </div>
             <div className="flex items-center justify-between rounded-md border border-border/50 px-2.5 py-2">
-              <span className="text-[10px] font-medium text-foreground">Quick quote</span>
+              <span className="text-[10px] font-medium text-foreground">Window washing</span>
               <span className="rounded-full border border-border/60 px-1.5 py-0.5 text-[8px] text-muted-foreground">Draft</span>
             </div>
           </div>

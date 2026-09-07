@@ -13,7 +13,7 @@ import {
 } from "@/features/admin/components/admin-users-list-sections";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const unstable_instant = false;
+export const instant = true;
 
 export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "Users - Requo admin",
@@ -42,8 +42,10 @@ function AdminListPageFallback() {
         eyebrow="Admin"
         title="Users"
       />
-      <AdminListControlsFallback />
-      <AdminListContentFallback />
+      <div className="dashboard-table-shell" data-list-card>
+        <AdminListControlsFallback />
+        <AdminListContentFallback />
+      </div>
     </DashboardPage>
   );
 }
@@ -60,12 +62,14 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
           eyebrow="Admin"
           title="Users"
         />
-        <Suspense fallback={<AdminListControlsFallback />}>
-          <AdminUsersListControlsSection rawParams={rawParams} />
-        </Suspense>
-        <Suspense fallback={<AdminListContentFallback />}>
-          <AdminUsersListContentSection rawParams={rawParams} />
-        </Suspense>
+        <div className="dashboard-table-shell" data-list-card>
+          <Suspense fallback={<AdminListControlsFallback />}>
+            <AdminUsersListControlsSection rawParams={rawParams} />
+          </Suspense>
+          <Suspense fallback={<AdminListContentFallback />}>
+            <AdminUsersListContentSection rawParams={rawParams} />
+          </Suspense>
+        </div>
       </DashboardPage>
     ),
     {

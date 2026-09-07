@@ -18,6 +18,28 @@ function toOrigin(value: string) {
   return new URL(value).origin;
 }
 
+/**
+ * Derive the cookie domain for cross-subdomain session sharing.
+ *
+ * - Production (https://requo.app): domain = ".requo.app" so both
+ *   app.requo.app and admin.requo.app share the session cookie.
+ * - Development (http://localhost:3000): domain = "localhost" so both
+ *   localhost:3000 and admin.localhost:3000 share the cookie.
+ */
+function getCookieDomain(): string {
+  const baseUrl = process.env.BETTER_AUTH_URL;
+  if (!baseUrl) return "";
+  try {
+    const hostname = new URL(baseUrl).hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "localhost";
+    }
+    return `.${hostname}`;
+  } catch {
+    return "";
+  }
+}
+
 function getTrustedVercelOrigin(value: string) {
   return toOrigin(value.startsWith("http") ? value : `https://${value}`);
 }
@@ -67,6 +89,11 @@ function buildTrustedOrigins() {
 
 const shouldSkipTransactionalAuthEmails =
   process.env.DISABLE_TRANSACTIONAL_EMAILS === "1";
+
+const shouldSkipMagicLinkEmail =
+  shouldSkipTransactionalAuthEmails ||
+  process.env.DISABLE_MAGIC_LINK === "1" ||
+  process.env.DISABLE_MAGIC_LINK === "true";
 
 export const auth = betterAuth({
   appName: "Requo",
@@ -182,6 +209,11 @@ export const auth = betterAuth({
   },
   advanced: {
     useSecureCookies: env.NODE_ENV === "production",
+    // Share session cookies between app and admin subdomains.
+    crossSubDomainCookies: {
+      enabled: true,
+      domain: getCookieDomain(),
+    },
     // Prefer concrete proxy headers before x-forwarded-for so "::" is not used as a stable client key when a better header exists.
     ipAddress: {
       ipAddressHeaders: ["cf-connecting-ip", "x-real-ip", "x-forwarded-for"],
@@ -227,7 +259,7 @@ export const auth = betterAuth({
       expiresIn: 900,
       storeToken: "hashed",
       sendMagicLink: async ({ email, url, token }) => {
-        if (shouldSkipTransactionalAuthEmails) {
+        if (shouldSkipMagicLinkEmail) {
           return;
         }
 
@@ -235,9 +267,10 @@ export const auth = betterAuth({
       },
     }),
     admin({
-      // Env-driven ADMIN_EMAILS allow-list is the authoritative admin signal.
-      // We do not use role-based admin, so no roles qualify as admin.
-      adminRoles: [],
+      // Role-based admin authorization. The `user.role` column is the
+      // source of truth — users with role "admin" can access the admin
+      // console and the Better Auth admin endpoints.
+      adminRoles: ["admin"],
       // 1 hour impersonation window.
       impersonationSessionDuration: 60 * 60,
       // Disallow admin-on-admin impersonation (default is already false;

@@ -6,11 +6,13 @@ import { AuthShell } from "@/components/shell/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { authClient } from "@/lib/auth/client";
 
 /**
- * Admin login form.
- *
- * POSTs to `/api/admin/login` and redirects to the admin dashboard on success.
+ * Admin login form. Uses Better Auth's `signIn.email()` to authenticate
+ * against the standard `/api/auth/sign-in/email` endpoint. On success,
+ * redirects to the admin dashboard. Admin role is checked server-side
+ * by `requireAdminUser()` in the layout.
  */
 export function AdminLoginForm() {
   const [error, setError] = useState<string | null>(null);
@@ -22,21 +24,19 @@ export function AdminLoginForm() {
     setLoading(true);
 
     const formData = new FormData(event.currentTarget);
-    const username = formData.get("username") as string;
+    const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
     try {
-      const response = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+      const result = await authClient.signIn.email({
+        email,
+        password,
       });
 
-      if (response.ok) {
-        window.location.assign("/");
+      if (result?.error) {
+        setError(result.error.message ?? "Invalid credentials.");
       } else {
-        const data = await response.json().catch(() => null);
-        setError(data?.error ?? "Invalid credentials.");
+        window.location.assign("/");
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -53,14 +53,14 @@ export function AdminLoginForm() {
     >
       <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <div className="flex flex-col gap-2">
-          <Label htmlFor="username">Username</Label>
+          <Label htmlFor="email">Email</Label>
           <Input
-            autoComplete="username"
-            id="username"
-            name="username"
-            placeholder="admin"
+            autoComplete="email"
+            id="email"
+            name="email"
+            placeholder="admin@requo.app"
             required
-            type="text"
+            type="email"
           />
         </div>
         <div className="flex flex-col gap-2">

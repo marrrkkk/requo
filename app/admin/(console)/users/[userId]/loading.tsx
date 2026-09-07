@@ -16,7 +16,7 @@ export default function AdminUserDetailLoading() {
           </div>
         ))}
       </div>
-      <div className="section-panel space-y-4 p-6">
+ <div className="section-panel space-y-4">
         <Skeleton className="h-5 w-32 rounded-md" />
         <Skeleton className="h-32 w-full rounded-lg" />
       </div>

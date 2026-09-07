@@ -215,7 +215,7 @@ export function BusinessEmailTemplateForm({
         {/* Two-column layout: fields + preview */}
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Fields */}
-          <section className="section-panel p-5 sm:p-6">
+ <section className="section-panel">
             <div className="flex flex-col gap-5">
               <Field
                 data-invalid={Boolean(state.fieldErrors?.subject) || undefined}
@@ -367,7 +367,7 @@ export function BusinessEmailTemplateForm({
           </section>
 
           {/* Live preview */}
-          <section className="section-panel p-5 sm:p-6 lg:sticky lg:top-24 lg:self-start">
+          <section className="section-panel lg:sticky lg:top-24 lg:self-start">
             <div className="mb-4">
               <p className="text-sm font-medium text-foreground">Live preview</p>
               <p className="mt-0.5 text-xs text-muted-foreground">

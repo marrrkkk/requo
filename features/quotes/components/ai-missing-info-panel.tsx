@@ -36,7 +36,7 @@ export function AiMissingInfoPanel({
   return (
     <div
       aria-live="polite"
-      className="soft-panel flex flex-col gap-4 px-4 py-4 shadow-none"
+      className="soft-panel flex flex-col gap-4 shadow-none"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">

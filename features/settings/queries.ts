@@ -76,6 +76,8 @@ export async function getBusinessSettingsForBusiness(
       notifyOnQuoteExpiring: businesses.notifyOnQuoteExpiring,
       notifyInAppOnQuoteExpiring: businesses.notifyInAppOnQuoteExpiring,
       defaultCurrency: businesses.defaultCurrency,
+      aiAgentEnabled: businesses.aiAgentEnabled,
+      aiAgentConfig: businesses.aiAgentConfig,
       activeBusinessCount: sql<number>`1`,
       updatedAt: businesses.updatedAt,
     })
@@ -83,7 +85,21 @@ export async function getBusinessSettingsForBusiness(
     .where(eq(businesses.id, businessId))
     .limit(1);
 
-  return business ?? null;
+  if (!business) return null;
+
+  const agentConfig = business.aiAgentConfig as
+    | { tone?: string }
+    | null
+    | undefined;
+
+  return {
+    ...business,
+    aiAgentTone:
+      typeof agentConfig?.tone === "string" &&
+      ["friendly", "professional", "casual"].includes(agentConfig.tone)
+        ? (agentConfig.tone as "friendly" | "professional" | "casual")
+        : "friendly",
+  };
 }
 
 export async function getBusinessInquiryPageSettingsForBusiness(

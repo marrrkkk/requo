@@ -5,13 +5,11 @@ const {
   getBusinessOwnerEmailsMock,
   assertPublicActionRateLimitMock,
   respondToPublicQuoteByTokenMock,
-  sendQuoteResponseOwnerNotificationEmailMock,
 } = vi.hoisted(() => ({
   revalidateTagMock: vi.fn(),
   getBusinessOwnerEmailsMock: vi.fn(),
   assertPublicActionRateLimitMock: vi.fn(),
   respondToPublicQuoteByTokenMock: vi.fn(),
-  sendQuoteResponseOwnerNotificationEmailMock: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({
@@ -61,9 +59,6 @@ vi.mock("@/lib/resend/client", () => ({
   getResendFromEmailConfigurationError: vi.fn(),
   getResendSendFailureMessage: vi.fn(),
   sendQuoteEmail: vi.fn(),
-  sendQuoteResponseOwnerNotificationEmail:
-    sendQuoteResponseOwnerNotificationEmailMock,
-  sendQuoteSentOwnerNotificationEmail: vi.fn(),
 }));
 
 vi.mock("@/lib/env", async () => {
@@ -93,7 +88,6 @@ import { checkUsageAllowance } from "@/lib/plans/usage";
 import {
   getResendFromEmailConfigurationError,
   sendQuoteEmail,
-  sendQuoteSentOwnerNotificationEmail,
 } from "@/lib/resend/client";
 
 function makeSendPayload(
@@ -186,7 +180,6 @@ describe("quote actions", () => {
       locked: false,
       status: "draft",
     } as Awaited<ReturnType<typeof acknowledgeQuoteUncertaintyForBusiness>>);
-    vi.mocked(sendQuoteSentOwnerNotificationEmail).mockResolvedValue(undefined);
     respondToPublicQuoteByTokenMock.mockResolvedValue({
       updated: true,
       status: "accepted",
@@ -387,10 +380,9 @@ describe("quote actions", () => {
       }),
     );
     expect(revalidateTagMock).toHaveBeenCalled();
-    expect(sendQuoteResponseOwnerNotificationEmailMock).not.toHaveBeenCalled();
   });
 
-  it("records a rejected public quote response; owner email notifications are owned by the mutation", async () => {
+  it("records a rejected public quote response without owner email (in-app + push only)", async () => {
     respondToPublicQuoteByTokenMock.mockResolvedValue({
       updated: true,
       status: "rejected",
@@ -424,7 +416,6 @@ describe("quote actions", () => {
       }),
     );
     expect(getBusinessOwnerEmailsMock).not.toHaveBeenCalled();
-    expect(sendQuoteResponseOwnerNotificationEmailMock).not.toHaveBeenCalled();
   });
 
   it("returns a clear message when a public quote has been voided", async () => {

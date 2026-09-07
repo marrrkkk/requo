@@ -71,7 +71,7 @@ export function PremiumContentBlur({
       <Card className="border-border/70 bg-card/50">
         <CardHeader className="gap-3 pb-4">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-muted/40">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
               <Lock className="size-4 text-muted-foreground" aria-hidden="true" />
             </div>
             <div className="min-w-0 flex-1">

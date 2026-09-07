@@ -1,4 +1,3 @@
-import { DashboardTableContainer } from "@/components/shared/dashboard-layout";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type DashboardListResultsSkeletonProps = {
@@ -12,7 +11,6 @@ export function DashboardListResultsSkeleton({
   const tableColumns = isInquiryList
     ? "grid-cols-[1.8fr_1.3fr_1.3fr_0.9fr_1fr]"
     : "grid-cols-[1.8fr_1.4fr_0.9fr_0.9fr_1fr]";
-  const mobileTileCount = 3;
   const rowSkeletonClasses = isInquiryList
     ? [
         "h-4 w-24 rounded-md",
@@ -29,23 +27,23 @@ export function DashboardListResultsSkeleton({
 
   return (
     <>
-      <DashboardTableContainer className="hidden min-h-[360px] xl:block">
-        <div className="overflow-hidden rounded-[1.1rem] border border-border/60 bg-background/70">
-          <div className={`grid gap-4 border-b border-border/60 px-5 py-3 ${tableColumns}`}>
+      <div className="hidden min-h-[440px] xl:block" aria-hidden="true">
+        <div className="overflow-hidden">
+          <div className={`grid gap-4 border-b border-border/60 px-4 py-2 ${tableColumns}`}>
             {Array.from({ length: 5 }).map((_, index) => (
               <Skeleton key={index} className="h-3 w-full rounded-md" />
             ))}
           </div>
 
           <div className="divide-y divide-border/60">
-            {Array.from({ length: 5 }).map((_, rowIndex) => (
+            {Array.from({ length: 10 }).map((_, rowIndex) => (
               <div
                 key={rowIndex}
-                className={`grid gap-4 px-5 py-4 ${tableColumns}`}
+                className={`grid gap-4 px-4 py-2 ${tableColumns}`}
               >
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-0.5">
                   <Skeleton className="h-4 w-32 rounded-md" />
-                  <Skeleton className="h-3 w-40 rounded-md" />
+                  <Skeleton className="h-4 w-40 rounded-md" />
                 </div>
                 {rowSkeletonClasses.map((className, index) => (
                   <Skeleton
@@ -57,9 +55,9 @@ export function DashboardListResultsSkeleton({
             ))}
           </div>
         </div>
-      </DashboardTableContainer>
+      </div>
 
-      <div className="flex flex-col gap-2.5 min-h-[300px] xl:hidden">
+      <div className="flex flex-col gap-2.5 p-4 min-h-[300px] xl:hidden" aria-hidden="true">
         {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
@@ -81,9 +79,9 @@ export function DashboardListResultsSkeleton({
         ))}
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-t border-border/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between" aria-hidden="true">
         <Skeleton className="h-4 w-40 rounded-md" />
-        <Skeleton className="h-9 w-full max-w-xs rounded-xl" />
+        <Skeleton className="h-8 w-full max-w-xs rounded-md" />
       </div>
     </>
   );

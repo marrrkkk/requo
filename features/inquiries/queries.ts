@@ -64,7 +64,6 @@ import {
   quotes,
   user,
   businessInquiryForms,
-  businessMembers,
   businesses,
   } from "@/lib/db/schema";
 import type {
@@ -404,56 +403,22 @@ export async function getPublicBusinessLogoAssetBySlug(slug: string) {
   return business ?? null;
 }
 
-export async function getBusinessOwnerNotificationEmails(businessId: string) {
-  const rows = await db
-    .select({
-      email: user.email,
-    })
-    .from(businessMembers)
-    .innerJoin(user, eq(businessMembers.userId, user.id))
-    .where(
-      and(
-        eq(businessMembers.businessId, businessId),
-        eq(businessMembers.role, "owner"),
-      ),
-    )
-    .orderBy(asc(user.email));
-
-  const dedupedEmails = new Map<string, string>();
-
-  for (const row of rows) {
-    const email = row.email.trim();
-
-    if (!email) {
-      continue;
-    }
-
-    const key = email.toLowerCase();
-
-    if (!dedupedEmails.has(key)) {
-      dedupedEmails.set(key, email);
-    }
-  }
-
-  return Array.from(dedupedEmails.values());
-}
-
 type GetInquiryListForBusinessInput = {
   businessId: string;
   filters: InquiryListQueryFilters;
 };
 
 export function getOperationalInquiryCondition() {
-  return isNull(inquiries.archivedAt);
+  return and(isNull(inquiries.deletedAt), isNull(inquiries.archivedAt));
 }
 
 function getInquiryViewCondition(view: InquiryRecordView) {
   switch (view) {
     case "archived":
-      return isNotNull(inquiries.archivedAt);
+      return and(isNull(inquiries.deletedAt), isNotNull(inquiries.archivedAt));
     case "active":
     default:
-      return isNull(inquiries.archivedAt);
+      return and(isNull(inquiries.deletedAt), isNull(inquiries.archivedAt));
   }
 }
 
@@ -487,6 +452,10 @@ function getInquiryListConditions({
 
   if (filters.form !== "all") {
     conditions.push(eq(businessInquiryForms.slug, filters.form));
+  }
+
+  if (filters.escalated) {
+    conditions.push(eq(inquiries.escalated, true));
   }
 
   return conditions;
@@ -570,6 +539,7 @@ export async function getInquiryListPageForBusiness({
           recordState: getInquiryRecordState,
           subject: inquiries.subject,
           archivedAt: inquiries.archivedAt,
+          escalated: inquiries.escalated,
           pendingFollowUpCount: sql<number>`(
             select count(*)::int
             from ${followUps}
@@ -706,6 +676,7 @@ export async function getInquiryDetailForBusiness({
       status: getEffectiveInquiryStatus,
       recordState: getInquiryRecordState,
       archivedAt: inquiries.archivedAt,
+      escalated: inquiries.escalated,
       submittedAt: inquiries.submittedAt,
       createdAt: inquiries.createdAt,
       submittedFieldSnapshot: inquiries.submittedFieldSnapshot,
@@ -715,7 +686,13 @@ export async function getInquiryDetailForBusiness({
       businessInquiryForms,
       eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
     )
-    .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+    .where(
+      and(
+        eq(inquiries.id, inquiryId),
+        eq(inquiries.businessId, businessId),
+        isNull(inquiries.deletedAt),
+      ),
+    )
     .limit(1);
 
   if (!inquiry) {

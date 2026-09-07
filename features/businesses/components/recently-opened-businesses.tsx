@@ -78,7 +78,7 @@ export function RecentlyOpenedBusinesses({
                     ) : null}
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-[0.7rem] text-muted-foreground/70">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground/70">
                     <PanelsTopLeft className="size-3 shrink-0" />
                     <span className="truncate">{business.businessName || business.slug}</span>
                     <span className="ml-auto shrink-0 tabular-nums">

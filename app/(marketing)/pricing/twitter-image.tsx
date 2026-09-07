@@ -28,7 +28,7 @@ export default async function TwitterImage() {
         <SocialPreviewImage
           title="Pricing"
           subtitle="Plans that scale with your service business"
-          body="Simple plans for owner-led service businesses managing inquiries and quotes."
+          body="Simple plans for service businesses managing inquiries and quotes."
         />
       ),
       { ...size },

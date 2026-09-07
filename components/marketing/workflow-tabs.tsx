@@ -38,13 +38,13 @@ function AcceptedPreview() {
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="soft-panel px-4 py-3">
+        <div data-padding="none" className="soft-panel px-4 py-3">
           <p className="meta-label">Quote total</p>
           <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
             $8,220
           </p>
         </div>
-        <div className="soft-panel flex flex-col justify-between px-4 py-3">
+        <div data-padding="none" className="soft-panel flex flex-col justify-between px-4 py-3">
           <p className="meta-label">Status</p>
           <div className="mt-2">
             <QuoteStatusBadge status="accepted" />

@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export function ProductsPageSkeleton() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       {/* Stats summary */}
       <div className="grid gap-3 sm:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
@@ -26,11 +26,11 @@ export function ProductsPageSkeleton() {
 
       {/* Toolbar: tabs + buttons */}
       <div className="flex flex-col gap-3">
-        <Skeleton className="h-10 w-full max-w-md rounded-lg" />
+        <Skeleton className="h-9 w-full max-w-md rounded-md sm:h-8" />
         <div className="flex flex-wrap gap-2">
-          <Skeleton className="h-9 w-32 rounded-lg" />
-          <Skeleton className="h-9 w-28 rounded-lg" />
-          <Skeleton className="h-9 w-32 rounded-lg" />
+          <Skeleton className="h-9 w-32 rounded-md sm:h-8" />
+          <Skeleton className="h-9 w-28 rounded-md sm:h-8" />
+          <Skeleton className="h-9 w-32 rounded-md sm:h-8" />
         </div>
       </div>
 
@@ -40,7 +40,7 @@ export function ProductsPageSkeleton() {
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
-              className="flex items-start gap-3 px-4 py-3.5 sm:items-center sm:gap-4 sm:px-5 sm:py-4"
+              className="flex items-start gap-3 px-4 py-2.5 sm:items-center sm:gap-4 sm:px-4 sm:py-3"
             >
               <Skeleton className="mt-0.5 size-9 rounded-lg sm:mt-0" />
               <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-4">

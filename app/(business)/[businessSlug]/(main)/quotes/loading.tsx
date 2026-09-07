@@ -3,6 +3,7 @@ import { DashboardListResultsSkeleton } from "@/components/shared/dashboard-list
 import { PageHeader } from "@/components/shared/page-header";
 import {
   QuoteListControlsFallback,
+  QuoteListHeaderActionsFallback,
 } from "@/features/quotes/components/quote-list-page-sections";
 
 export default function BusinessDashboardQuotesLoading() {
@@ -10,10 +11,12 @@ export default function BusinessDashboardQuotesLoading() {
     <DashboardPage>
       <PageHeader
         title="Quotes"
-        description="List, filter, and manage quotes for this business."
+        actions={<QuoteListHeaderActionsFallback />}
       />
-      <QuoteListControlsFallback />
-      <DashboardListResultsSkeleton variant="quotes" />
+      <div className="dashboard-table-shell" data-list-card>
+        <QuoteListControlsFallback />
+        <DashboardListResultsSkeleton variant="quotes" />
+      </div>
     </DashboardPage>
   );
 }

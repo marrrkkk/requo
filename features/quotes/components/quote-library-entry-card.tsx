@@ -126,7 +126,7 @@ export function QuoteLibraryEntryCard({
       <CardHeader className="gap-3 pb-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex flex-col gap-2">
-            <CardTitle className="text-xl">
+            <CardTitle>
               {entry.name}
             </CardTitle>
             <CardDescription>
@@ -157,7 +157,7 @@ export function QuoteLibraryEntryCard({
       </CardHeader>
 
       <CardContent className="flex flex-col gap-5 pt-0">
-        <div className="soft-panel p-4 shadow-none">
+        <div className="soft-panel shadow-none">
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-foreground">

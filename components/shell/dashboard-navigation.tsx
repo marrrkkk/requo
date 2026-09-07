@@ -1,12 +1,13 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Astroid,
   BarChart3,
   BellRing,
   FileText,
-  FormInput,
   Home,
   Inbox,
   Package,
+  PencilRuler,
   Users,
 } from "lucide-react";
 
@@ -17,13 +18,15 @@ import {
 } from "@/lib/business-members";
 import {
   getBusinessAnalyticsPath,
+  getBusinessAssistantPath,
   getBusinessDashboardPath,
   getBusinessDashboardSlugFromPathname,
   getBusinessPath,
   getBusinessFollowUpsPath,
-  getBusinessFormsPath,
+  getBusinessServicesPath,
   getBusinessInquiriesPath,
   getBusinessMembersPath,
+  getBusinessNotificationsPath,
   getBusinessNewInquiryPath,
   getBusinessProductsPath,
   getBusinessQuotesPath,
@@ -72,15 +75,21 @@ export function getDashboardNavigation(
       icon: BellRing,
     },
     {
-      href: getBusinessFormsPath(slug),
-      label: "Forms",
-      description: "Build and manage the forms that capture customer inquiries.",
-      icon: FormInput,
+      href: getBusinessAssistantPath(slug),
+      label: "Assistant",
+      description: "Chat with your business assistant.",
+      icon: Astroid,
+    },
+    {
+      href: getBusinessServicesPath(slug),
+      label: "Services",
+      description: "Build and manage the services that capture customer inquiries.",
+      icon: PencilRuler,
     },
     {
       href: getBusinessProductsPath(slug),
       label: "Products",
-      description: "Reusable product blocks and service packages for faster quotes.",
+      description: "Reusable blocks and packages for faster quotes.",
       icon: Package,
     },
     {
@@ -221,10 +230,12 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   const followUpsPath = getBusinessFollowUpsPath(slug);
   const inquiriesPath = getBusinessInquiriesPath(slug);
   const quotesPath = getBusinessQuotesPath(slug);
-  const formsPath = getBusinessFormsPath(slug);
+  const servicesPath = getBusinessServicesPath(slug);
   const membersPath = getBusinessMembersPath(slug);
+  const notificationsPath = getBusinessNotificationsPath(slug);
   const productsPath = getBusinessProductsPath(slug);
   const settingsPath = getBusinessSettingsPath(slug);
+  const assistantPath = getBusinessAssistantPath(slug);
 
   if (pathname === dashboardPath) {
     return [{ label: "Home" }];
@@ -232,6 +243,34 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
 
   if (pathname === analyticsPath || pathname.startsWith(`${analyticsPath}/`)) {
     return withDashboardHome(slug, [{ label: "Analytics" }]);
+  }
+
+  if (pathname === assistantPath || pathname.startsWith(`${assistantPath}/`)) {
+    const relativePath = pathname.slice(assistantPath.length);
+    const segments = relativePath.split("/").filter(Boolean);
+
+    if (segments.length === 0) {
+      return withDashboardHome(slug, [{ label: "Assistant" }]);
+    }
+
+    if (segments[0] === "chat") {
+      if (!segments[1]) {
+        return withDashboardHome(slug, [{ label: "Assistant" }]);
+      }
+      return withDashboardHome(slug, [
+        { label: "Assistant", href: assistantPath },
+        { label: `Conversation: ${formatRecordHint(segments[1])}` },
+      ]);
+    }
+
+    if (segments[0] === "settings") {
+      return withDashboardHome(slug, [
+        { label: "Assistant", href: assistantPath },
+        { label: "Public chat settings" },
+      ]);
+    }
+
+    return withDashboardHome(slug, [{ label: "Assistant" }]);
   }
 
   if (pathname === inquiriesPath) {
@@ -302,26 +341,30 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
     ]);
   }
 
-  if (pathname === formsPath) {
-    return withDashboardHome(slug, [{ label: "Forms" }]);
+  if (pathname === servicesPath) {
+    return withDashboardHome(slug, [{ label: "Services" }]);
   }
 
-  if (pathname.startsWith(`${formsPath}/`)) {
-    const formSlug = pathname.slice(`${formsPath}/`.length).split("/")[0];
+  if (pathname.startsWith(`${servicesPath}/`)) {
+    const serviceSlug = pathname.slice(`${servicesPath}/`.length).split("/")[0];
 
     return withDashboardHome(slug, [
       {
-        label: "Forms",
-        href: formsPath,
+        label: "Services",
+        href: servicesPath,
       },
       {
-        label: formSlug ? formatBreadcrumbLabel(formSlug) : "Form details",
+        label: serviceSlug ? formatBreadcrumbLabel(serviceSlug) : "Service details",
       },
     ]);
   }
 
   if (pathname === membersPath || pathname.startsWith(`${membersPath}/`)) {
     return withDashboardHome(slug, [{ label: "Members" }]);
+  }
+
+  if (pathname === notificationsPath || pathname.startsWith(`${notificationsPath}/`)) {
+    return withDashboardHome(slug, [{ label: "Notifications" }]);
   }
 
   if (pathname === productsPath || pathname.startsWith(`${productsPath}/`)) {
@@ -340,7 +383,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
       general: "Business profile",
       notifications: "Notifications",
       profile: "Your profile",
-      inquiry: "Forms",
+      inquiry: "Services",
       quote: "Quote defaults",
       knowledge: "Knowledge",
     };
@@ -349,8 +392,8 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
     if (section === "inquiry" && segments[1]) {
       return withDashboardHome(slug, [
         {
-          label: "Forms",
-          href: formsPath,
+          label: "Services",
+          href: servicesPath,
         },
         {
           label: formatBreadcrumbLabel(segments[1]),

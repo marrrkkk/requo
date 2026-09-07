@@ -14,6 +14,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
+import { cache } from "react";
 
 import type {
   FollowUpListQueryFilters,
@@ -352,7 +353,7 @@ export async function getFollowUpsForQuote({
   return rows.map(mapFollowUpRow);
 }
 
-export async function getFollowUpOverviewForBusiness(
+async function _getFollowUpOverviewForBusiness(
   businessId: string,
 ): Promise<FollowUpOverviewData> {
   "use cache";
@@ -365,6 +366,17 @@ export async function getFollowUpOverviewForBusiness(
     () => queryFollowUpOverviewForBusiness(businessId),
   );
 }
+
+/**
+ * Two-layer read (AGENTS.md "Performance & Caching"): the inner `"use cache"`
+ * function handles cross-request reuse and tag invalidation, while this outer
+ * `React.cache()` dedupes within a single request. The dashboard home page
+ * reads this overview from two separate Suspense regions, which without the
+ * outer layer resolve the cache entry twice per render.
+ */
+export const getFollowUpOverviewForBusiness = cache(
+  _getFollowUpOverviewForBusiness,
+);
 
 export async function getFollowUpOverviewForBusinessUncached(
   businessId: string,

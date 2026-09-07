@@ -30,7 +30,7 @@ import {
 import type { BusinessMemberInviteActionState } from "@/features/business-members/action-types";
 import { businessMemberInviteDurationDays } from "@/lib/business-members";
 import { sendBusinessMemberInviteEmail } from "@/lib/resend/client";
-import { env } from "@/lib/env";
+import { env, isMemberInviteEmailEnabled } from "@/lib/env";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { getBusinessMemberCount } from "@/lib/plans/usage";
 
@@ -100,26 +100,32 @@ export async function createBusinessMemberInviteAction(
     const invitePath = getBusinessMemberInvitePath(inviteToken);
     const inviteUrl = new URL(invitePath, env.BETTER_AUTH_URL).toString();
 
-    // Send invite email (non-blocking — don't fail the action if email fails)
-    sendBusinessMemberInviteEmail({
-      inviteId,
-      token: inviteToken,
-      email: validationResult.data.email,
-      businessName: businessContext.business.name,
-      inviterName: user.name,
-      role: validationResult.data.role,
-      inviteUrl,
-      businessId: businessContext.business.id,
-      userId: user.id,
-    }).catch((error) => {
-      console.error("Failed to send business member invite email.", error);
-    });
+    // In low-email mode, skip invite email delivery but still create the
+    // secure invite so owners can copy/share the link manually. Email
+    // delivery is non-blocking — don't fail the action if email fails.
+    if (isMemberInviteEmailEnabled) {
+      sendBusinessMemberInviteEmail({
+        inviteId,
+        token: inviteToken,
+        email: validationResult.data.email,
+        businessName: businessContext.business.name,
+        inviterName: user.name,
+        role: validationResult.data.role,
+        inviteUrl,
+        businessId: businessContext.business.id,
+        userId: user.id,
+      }).catch((error) => {
+        console.error("Failed to send business member invite email.", error);
+      });
+    }
 
     updateCacheTags(getBusinessMembersCacheTags(businessContext.business.id));
     revalidatePath(getBusinessMembersPath(businessContext.business.slug));
 
     return {
-      success: "Invite sent.",
+      success: isMemberInviteEmailEnabled
+        ? "Invite sent."
+        : "Invite created. Copy the link to share it manually.",
       inviteLink: invitePath,
     };
   } catch (error) {

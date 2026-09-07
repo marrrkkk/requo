@@ -6,15 +6,22 @@ import { registry, groq, cerebras, google, openrouter, mistral, cloudflare, nvid
 import {
   AiProviderError,
   getSanitizedErrorInfo,
-  isRetryableError,
-  wrapProviderError,
+  isModelNotFoundError,
+  isOversizedError,
 } from "@/lib/ai/errors";
 import { getModelsForProvider } from "@/lib/ai/model-options";
 import {
-  selectModels,
+  NON_CHAT_MAX_ATTEMPTS,
+  correctTokenUsage,
+  markModelDead,
+  recordModelTokenUsageDetailed,
   recordModelUsage,
   markModelExhausted,
+  selectModels,
 } from "@/lib/ai/capacity-selector";
+import { getCatalogEntry } from "@/lib/ai/catalog";
+import type { AiRoutingProfile } from "@/lib/ai/routing-profiles";
+import { estimateTokens } from "@/lib/ai/token-budget";
 import type {
   AiCompletionRequest,
   AiCompletionResponse,
@@ -26,16 +33,11 @@ import type {
 // ---------------------------------------------------------------------------
 // AI Provider + Model Fallback Router — Vercel AI SDK
 //
-// Two-level fallback: providers (Groq → Cerebras → Gemini → OpenRouter),
-// then models within each provider. The quality tier selects the model list.
-//
-// Uses the Vercel AI SDK's `generateText` and `streamText` with models
-// accessed through the provider registry.
-//
-// Fallback rules:
-// - Retryable errors (408, 409, 429, 5xx, timeout, network) → next model.
-// - Non-retryable errors (400, 401, 403, 404, 422) → stop immediately.
-// - Logs which provider/model was used and sanitised error info on failure.
+// Profile-driven selection (see lib/ai/routing-profiles.ts) plus a fallback
+// chain that advances through every candidate. A non-retryable error advances
+// to the next provider — only an exhausted candidate list is a failure.
+// A 404 / model-not-found is skipped (and remembered as dead for hours).
+// Oversized payloads route to a higher-context candidate, not plain rotation.
 // ---------------------------------------------------------------------------
 
 const MAX_RETRY_AFTER_MS = 5_000;
@@ -84,8 +86,6 @@ function getModelCandidates(
 
 /** Get the registry model ID string for a provider + model combination. */
 function getRegistryModelId(providerName: AiProviderName, model: string): `${string}:${string}` {
-  // The registry uses the provider key we registered:
-  // groq, cerebras, google (for gemini), mistral, cloudflare, openrouter
   const registryPrefix = providerName === "gemini" ? "google" : providerName;
   return `${registryPrefix}:${model}` as `${string}:${string}`;
 }
@@ -94,6 +94,15 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+/** Settle a bookkeeping write without failing the turn (mock-safe). */
+async function safeSettle(value: unknown): Promise<void> {
+  try {
+    await value;
+  } catch {
+    // Capacity bookkeeping must never fail a turn.
+  }
 }
 
 function buildMessages(request: AiCompletionRequest) {
@@ -111,35 +120,61 @@ function buildMessages(request: AiCompletionRequest) {
   };
 }
 
+/** Legacy quality-tier → profile mapping (quality tiers are removed). */
+function profileForLegacyTier(
+  tier: AiCompletionRequest["qualityTier"],
+): AiRoutingProfile {
+  switch (tier) {
+    case "cheap":
+      return "short_text";
+    case "best":
+      return "quote_draft";
+    default:
+      return "quote_draft";
+  }
+}
+
+function estimateRequestTokens(request: AiCompletionRequest): number {
+  const text = request.messages.map((m) => m.content).join("\n");
+  return estimateTokens(text) + (request.maxOutputTokens ?? 0) + 500;
+}
+
+function contextWindowOf(modelId: string): number {
+  try {
+    return getCatalogEntry(modelId)?.contextWindow ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // generateWithFallback
 // ---------------------------------------------------------------------------
 
 /**
- * Generate a completion using the capacity-aware model selector + fallback chain.
+ * Generate a completion using profile-driven selection + fallback chain.
  *
  * Strategy:
  * 1. If a specific provider/model is requested, try only that (pinned).
- * 2. Otherwise, use the capacity selector to get an ordered list of models
- *    ranked by quality × available headroom.
- * 3. Try each model in order. On retryable errors (429, 5xx), mark exhausted
- *    and continue to the next. On non-retryable errors (401, 403), stop.
- * 4. If ALL models fail, throw.
+ * 2. Otherwise, select via routing profile (explicit `routingProfile` wins;
+ *    legacy `qualityTier` maps onto a profile).
+ * 3. Try each candidate in order. EVERY failure advances to the next
+ *    candidate — including failures previously classified as non-retryable.
+ *    A 404 marks the identifier dead for hours. Oversized payloads prefer
+ *    larger-context candidates next.
+ * 4. If ALL candidates fail, throw with an attempt trail.
  */
 export async function generateWithFallback(
   request: AiCompletionRequest,
 ): Promise<AiCompletionResponse> {
-  // If a specific provider+model is requested, use the old per-provider path
   if (request.provider && request.model.trim()) {
     return generateWithProviderFallback(request);
   }
 
-  // Use capacity selector for smart model ordering
-  const tier = request.qualityTier ?? "balanced";
-  const modelIds = await selectModels({
-    needsTools: false,
-    minQuality: tier === "cheap" ? 4 : tier === "best" ? 8 : 6,
-  });
+  const profile = request.routingProfile ?? profileForLegacyTier(request.qualityTier);
+  const estimatedTokens =
+    request.estimatedTokens ?? estimateRequestTokens(request);
+  const modelIds = await selectModels({ profile, estimatedTokens });
 
   if (modelIds.length === 0) {
     throw new Error(
@@ -149,8 +184,13 @@ export async function generateWithFallback(
 
   let lastError: unknown;
   const { system, messages } = buildMessages(request);
+  const trail: Array<{ modelId: string; reason: string }> = [];
+  const maxAttempts = Math.min(NON_CHAT_MAX_ATTEMPTS, modelIds.length);
+  let attemptsUsed = 0;
+  let remaining = [...modelIds];
 
-  for (const modelId of modelIds) {
+  while (remaining.length > 0 && attemptsUsed < maxAttempts) {
+    const modelId = remaining.shift() as `${string}:${string}`;
     const [providerPrefix, ...modelParts] = modelId.split(":");
     const providerName = (providerPrefix === "google" ? "gemini" : providerPrefix) as AiProviderName;
     const model = modelParts.join(":");
@@ -167,6 +207,27 @@ export async function generateWithFallback(
       });
 
       await recordModelUsage(modelId);
+      const inputTokens = result.usage?.inputTokens ?? 0;
+      const outputTokens = result.usage?.outputTokens ?? 0;
+      if (inputTokens > 0 || outputTokens > 0) {
+        await safeSettle(
+          recordModelTokenUsageDetailed(modelId, {
+            inputTokens,
+            outputTokens,
+          }),
+        );
+        await safeSettle(
+          correctTokenUsage(modelId, estimatedTokens, {
+            inputTokens,
+            outputTokens,
+          }),
+        );
+      }
+      if (!result.text?.trim()) {
+        console.error(
+          `[ai-router] Zero-text completion (logged as error): model="${modelId}"`,
+        );
+      }
       console.info(
         `[ai-router] Completion succeeded: model="${modelId}"`,
       );
@@ -187,18 +248,28 @@ export async function generateWithFallback(
     } catch (error) {
       lastError = error;
       const errorInfo = getSanitizedErrorInfo(error);
+      const reason = `status=${errorInfo.statusCode ?? "N/A"} ${errorInfo.message}`.slice(0, 200);
+      trail.push({ modelId, reason });
 
       console.warn(
-        `[ai-router] Failed: model="${modelId}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable} message="${errorInfo.message}"`,
+        `[ai-router] Failed (advancing): model="${modelId}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable} message="${errorInfo.message}"`,
       );
 
-      if (!isRetryableError(error)) {
-        throw error instanceof AiProviderError
-          ? error
-          : wrapProviderError(providerName, error);
+      if (isModelNotFoundError(error)) {
+        await safeSettle(markModelDead(modelId));
+        // Dead identifiers cost no attempt.
+        continue;
       }
+      attemptsUsed += 1;
+      await safeSettle(markModelExhausted(modelId, error));
 
-      await markModelExhausted(modelId);
+      if (isOversizedError(error)) {
+        const failedContext = contextWindowOf(modelId);
+        remaining = [
+          ...remaining.filter((id) => contextWindowOf(id) > failedContext),
+          ...remaining.filter((id) => contextWindowOf(id) <= failedContext),
+        ];
+      }
 
       if (error instanceof AiProviderError && error.retryAfterMs) {
         const waitMs = Math.min(error.retryAfterMs, MAX_RETRY_AFTER_MS);
@@ -207,12 +278,19 @@ export async function generateWithFallback(
     }
   }
 
+  const trailText = trail.map((t) => `${t.modelId} (${t.reason})`).join("; ");
+  console.error(`[ai-router] All candidates failed: ${trailText}`);
   if (lastError instanceof AiProviderError) throw lastError;
-  throw new Error(lastError instanceof Error ? lastError.message : "All AI providers failed.");
+  throw new Error(
+    lastError instanceof Error
+      ? `${lastError.message} [tried: ${trailText}]`
+      : `All AI providers failed. [tried: ${trailText}]`,
+  );
 }
 
 /**
  * Legacy provider-specific fallback (used when a specific provider is pinned).
+ * Advances on every failure (including non-retryable) — only exhaustion fails.
  */
 async function generateWithProviderFallback(
   request: AiCompletionRequest,
@@ -268,16 +346,14 @@ async function generateWithProviderFallback(
         const errorInfo = getSanitizedErrorInfo(error);
 
         console.warn(
-          `[ai-router] Failed: provider="${providerName}" model="${model}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable}`,
+          `[ai-router] Failed (advancing): provider="${providerName}" model="${model}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable}`,
         );
 
-        if (!isRetryableError(error)) {
-          throw error instanceof AiProviderError
-            ? error
-            : wrapProviderError(providerName, error);
+        if (isModelNotFoundError(error)) {
+          await safeSettle(markModelDead(modelId));
+          continue;
         }
-
-        await markModelExhausted(modelId);
+        await safeSettle(markModelExhausted(modelId, error));
       }
     }
   }
@@ -291,24 +367,21 @@ async function generateWithProviderFallback(
 // ---------------------------------------------------------------------------
 
 /**
- * Start a streaming completion using the capacity-aware model selector + fallback chain.
- * Same strategy as generateWithFallback but returns an async iterable stream.
+ * Start a streaming completion using profile-driven selection + fallback.
+ * Advances through the chain on every failure (including non-retryable).
  */
 export async function streamWithFallback(
   request: AiCompletionRequest,
   options?: { onFallback?: () => void },
 ): Promise<AiStreamResponse> {
-  // If a specific provider+model is requested, use the pinned path
   if (request.provider && request.model.trim()) {
     return streamWithProviderFallback(request, options);
   }
 
-  // Use capacity selector for smart model ordering
-  const tier = request.qualityTier ?? "balanced";
-  const modelIds = await selectModels({
-    needsTools: false,
-    minQuality: tier === "cheap" ? 4 : tier === "best" ? 8 : 6,
-  });
+  const profile = request.routingProfile ?? profileForLegacyTier(request.qualityTier);
+  const estimatedTokens =
+    request.estimatedTokens ?? estimateRequestTokens(request);
+  const modelIds = await selectModels({ profile, estimatedTokens });
 
   if (modelIds.length === 0) {
     throw new Error(
@@ -361,16 +434,14 @@ export async function streamWithFallback(
       const errorInfo = getSanitizedErrorInfo(error);
 
       console.warn(
-        `[ai-router] Stream failed: model="${modelId}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable}`,
+        `[ai-router] Stream failed (advancing): model="${modelId}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable}`,
       );
 
-      if (!isRetryableError(error)) {
-        throw error instanceof AiProviderError
-          ? error
-          : wrapProviderError(providerName, error);
+      if (isModelNotFoundError(error)) {
+        await safeSettle(markModelDead(modelId));
+        continue;
       }
-
-      await markModelExhausted(modelId);
+      await safeSettle(markModelExhausted(modelId, error));
 
       if (attemptCount === 1 && options?.onFallback) {
         options.onFallback();
@@ -388,7 +459,7 @@ export async function streamWithFallback(
 }
 
 /**
- * Legacy provider-specific streaming fallback (used when a specific provider is pinned).
+ * Legacy provider-specific streaming fallback (pinned path).
  */
 async function streamWithProviderFallback(
   request: AiCompletionRequest,
@@ -450,16 +521,10 @@ async function streamWithProviderFallback(
         const errorInfo = getSanitizedErrorInfo(error);
 
         console.warn(
-          `[ai-router] Stream failed: provider="${providerName}" model="${model}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable}`,
+          `[ai-router] Stream failed (advancing): provider="${providerName}" model="${model}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable}`,
         );
 
-        if (!isRetryableError(error)) {
-          throw error instanceof AiProviderError
-            ? error
-            : wrapProviderError(providerName, error);
-        }
-
-        await markModelExhausted(modelId);
+        await safeSettle(markModelExhausted(modelId, error));
 
         if (attemptCount === 1 && options?.onFallback) {
           options.onFallback();

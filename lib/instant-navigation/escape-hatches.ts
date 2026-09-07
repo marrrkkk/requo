@@ -37,13 +37,19 @@ export type EscapeHatchValidationResult =
  * root to a `page.tsx` file.
  *
  * Includes all authenticated dashboard pages under:
- * - app/(business)/[businessSlug]/(main)/ (home, inquiries, quotes, jobs, follow-ups, members, knowledge, forms)
+ * - app/(business)/[businessSlug]/(main)/ (home, inquiries, quotes, follow-ups,
+ *   members, forms, products, notifications, analytics, assistant)
  * - app/(business)/[businessSlug]/settings/
  * - app/admin/(console)/
  * - app/onboarding/
  * - app/(business)/new/
  * - app/(auth)/ (login, signup, forgot-password, reset-password, check-email)
  * - The businesses hub (app/(business)/[businessSlug]/page.tsx)
+ *
+ * Redirect-only legacy routes, print routes, and public preview document
+ * routes are intentionally out of scope (see the progressive-data-loading
+ * spec): they redirect or render specialized views and are not part of the
+ * persistent dashboard shell navigation.
  */
 export const IN_SCOPE_ROUTES: ReadonlySet<string> = new Set([
   // (main) dashboard routes
@@ -54,23 +60,32 @@ export const IN_SCOPE_ROUTES: ReadonlySet<string> = new Set([
   "app/(business)/[businessSlug]/(main)/quotes/page.tsx",
   "app/(business)/[businessSlug]/(main)/quotes/[id]/page.tsx",
   "app/(business)/[businessSlug]/(main)/quotes/new/page.tsx",
-  "app/(business)/[businessSlug]/(main)/jobs/page.tsx",
-  "app/(business)/[businessSlug]/(main)/jobs/[id]/page.tsx",
   "app/(business)/[businessSlug]/(main)/follow-ups/page.tsx",
   "app/(business)/[businessSlug]/(main)/members/page.tsx",
   "app/(business)/[businessSlug]/(main)/forms/page.tsx",
   "app/(business)/[businessSlug]/(main)/forms/[formSlug]/page.tsx",
+  "app/(business)/[businessSlug]/(main)/notifications/page.tsx",
+  "app/(business)/[businessSlug]/(main)/products/page.tsx",
+  "app/(business)/[businessSlug]/(main)/analytics/page.tsx",
+  "app/(business)/[businessSlug]/(main)/assistant/page.tsx",
+  // assistant/chat/[sessionId] is a redirect to `assistant?session=…`, so it is
+  // out of scope like the other legacy redirect routes.
+  "app/(business)/[businessSlug]/(main)/assistant/settings/page.tsx",
 
   // Settings routes
   "app/(business)/[businessSlug]/settings/page.tsx",
   "app/(business)/[businessSlug]/settings/general/page.tsx",
   "app/(business)/[businessSlug]/settings/profile/page.tsx",
+  "app/(business)/[businessSlug]/settings/appearance/page.tsx",
   "app/(business)/[businessSlug]/settings/notifications/page.tsx",
   "app/(business)/[businessSlug]/settings/quote/page.tsx",
+  "app/(business)/[businessSlug]/settings/quote-templates/page.tsx",
   "app/(business)/[businessSlug]/settings/email/page.tsx",
   "app/(business)/[businessSlug]/settings/support/page.tsx",
   "app/(business)/[businessSlug]/settings/billing/page.tsx",
   "app/(business)/[businessSlug]/settings/audit-log/page.tsx",
+  "app/(business)/[businessSlug]/settings/ai/page.tsx",
+  "app/(business)/[businessSlug]/settings/knowledge-base/page.tsx",
   "app/(business)/[businessSlug]/settings/forms/page.tsx",
   "app/(business)/[businessSlug]/settings/forms/[formSlug]/page.tsx",
 

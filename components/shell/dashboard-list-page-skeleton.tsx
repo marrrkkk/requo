@@ -11,74 +11,49 @@ export function DashboardListPageSkeleton({
 }: DashboardListPageSkeletonProps) {
   const isInquiryList = variant === "inquiries";
   const actionSkeletons = isInquiryList ? ["w-36"] : ["w-28", "w-36"];
-  const toolbarHasSecondaryFilter = isInquiryList;
 
   return (
     <DashboardPage>
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0 max-w-3xl flex-1">
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <Skeleton className={`h-4 rounded-md ${isInquiryList ? "w-20" : "w-16"}`} />
             <Skeleton
-              className={`h-11 w-full rounded-2xl ${isInquiryList ? "max-w-md" : "max-w-sm"}`}
+              className={`h-5 w-full rounded-lg sm:h-6 ${isInquiryList ? "max-w-md" : "max-w-sm"}`}
             />
           </div>
         </div>
 
-        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:w-auto xl:max-w-xl">
+        <div className="dashboard-actions w-full sm:w-auto xl:w-auto xl:max-w-xl xl:justify-end">
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-2">
             {actionSkeletons.map((width) => (
               <Skeleton
                 key={`secondary-${width}`}
-                className={`h-10 w-full rounded-xl sm:w-auto ${width}`}
+                className={`h-9 w-full rounded-md sm:h-8 sm:w-auto ${width}`}
               />
             ))}
           </div>
           <Skeleton
-            className={`h-10 w-full rounded-xl sm:w-auto ${isInquiryList ? "sm:w-44" : "sm:w-36"}`}
+            className={`h-11 w-full rounded-md sm:h-8 sm:w-auto ${isInquiryList ? "sm:w-44" : "sm:w-36"}`}
           />
         </div>
       </div>
 
-      <div className="toolbar-panel">
-        <div className="flex flex-col gap-4">
-          <div className="data-list-toolbar-summary">
-            <Skeleton
-              className={`h-4 w-full rounded-md ${isInquiryList ? "max-w-sm" : "max-w-xs"}`}
-            />
-            <Skeleton className="h-7 w-28 rounded-full" />
-          </div>
-
-          <div className="data-list-toolbar-grid items-end">
-            <div className="flex flex-col gap-2.5">
-              <Skeleton
-                className={`h-3 rounded-md ${isInquiryList ? "w-28" : "w-24"}`}
-              />
-              <Skeleton className="h-10 w-full rounded-xl" />
-            </div>
-
-            <div className="flex flex-col gap-2.5 sm:max-w-[14rem] xl:w-[12rem] xl:max-w-[14rem] xl:shrink-0">
-              <Skeleton className="h-3 w-24 rounded-md" />
-              <Skeleton className="h-10 w-full rounded-xl" />
-            </div>
-
-            {toolbarHasSecondaryFilter ? (
-              <div className="hidden flex-col gap-2.5 sm:flex sm:max-w-[14rem] xl:w-[12rem] xl:max-w-[14rem] xl:shrink-0">
-                <Skeleton className="h-3 w-16 rounded-md" />
-                <Skeleton className="h-10 w-full rounded-xl" />
-              </div>
+      <div className="dashboard-table-shell" data-list-card>
+        <div className="data-list-toolbar-strip" aria-hidden="true">
+          <div className="data-list-toolbar-grid">
+            <Skeleton className="h-9 min-w-0 flex-1 rounded-md sm:h-8" />
+            <Skeleton className="hidden h-9 min-w-0 flex-1 rounded-md sm:block sm:h-8" />
+            {isInquiryList ? (
+              <Skeleton className="hidden h-9 w-32 rounded-md sm:block sm:h-8" />
             ) : null}
-
-            <div className="data-list-toolbar-actions">
-              <Skeleton className="h-10 flex-1 rounded-xl sm:hidden" />
-              <Skeleton className="h-10 w-20 rounded-xl" />
-              <Skeleton className="hidden size-5 rounded-full sm:block" />
-            </div>
+            <Skeleton className="h-9 w-20 shrink-0 rounded-md sm:h-8" />
           </div>
+          <Skeleton className="h-4 w-28 rounded-md" />
         </div>
-      </div>
 
-      <DashboardListResultsSkeleton variant={variant} />
+        <DashboardListResultsSkeleton variant={variant} />
+      </div>
     </DashboardPage>
   );
 }

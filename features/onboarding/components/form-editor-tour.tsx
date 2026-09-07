@@ -68,7 +68,11 @@ function FormSettingsPreview() {
           <div className="h-4 w-8 rounded-full bg-green-200 dark:bg-green-900/40" />
         </div>
         <div className="flex items-center justify-between rounded px-2 py-1.5">
-          <span className="text-[10px] text-muted-foreground">Notifications</span>
+          <span className="text-[10px] text-muted-foreground">Default service</span>
+          <div className="h-4 w-8 rounded-full bg-green-200 dark:bg-green-900/40" />
+        </div>
+        <div className="flex items-center justify-between rounded px-2 py-1.5">
+          <span className="text-[10px] text-muted-foreground">Template</span>
           <div className="h-2.5 w-20 rounded bg-muted" />
         </div>
       </div>
@@ -94,9 +98,9 @@ const tourSteps: TourModalStep[] = [
     preview: <PublicPagePreview />,
   },
   {
-    title: "Publishing & Controls",
+    title: "Publishing & defaults",
     description:
-      "Set your form live or configure where new inquiries are sent.",
+      "Publish your service, set it as the default, and apply your business's starter template.",
     preview: <FormSettingsPreview />,
   },
 ];

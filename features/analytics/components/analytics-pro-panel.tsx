@@ -82,7 +82,7 @@ export function AnalyticsProPanel({
                 className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2.5"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[0.65rem] font-semibold text-primary">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                     {i + 1}
                   </span>
                   <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

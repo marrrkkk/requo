@@ -48,12 +48,12 @@ export function AnalyticsFormTable({ rows }: { rows: FormPerformanceRow[] }) {
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{row.formName}</span>
                       {row.isDefault ? (
-                        <Badge variant="secondary" className="text-[0.6rem]">
+                        <Badge variant="secondary" className="text-xs">
                           Default
                         </Badge>
                       ) : null}
                       {row.archivedAt ? (
-                        <Badge variant="outline" className="text-[0.6rem]">
+                        <Badge variant="outline" className="text-xs">
                           Archived
                         </Badge>
                       ) : null}

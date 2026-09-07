@@ -74,7 +74,7 @@ export function ManualInquiryPreview({
     : "Not provided";
 
   return (
-    <article className="section-panel overflow-hidden p-5 sm:p-6 xl:sticky xl:top-[5.5rem] xl:self-start">
+    <article data-padding="none" className="section-panel overflow-hidden p-5 sm:p-6 xl:sticky xl:top-[5.5rem] xl:self-start">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-4 border-b border-border/80 pb-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -121,7 +121,7 @@ export function ManualInquiryPreview({
           />
         </DashboardStatsGrid>
 
-        <div className="soft-panel px-4 py-4 shadow-none">
+          <div className="soft-panel shadow-none">
           <p className="meta-label">
             {detailsField?.label ?? "Inquiry details"}
           </p>
@@ -146,7 +146,7 @@ export function ManualInquiryPreview({
         ) : null}
 
         {selectedFileName ? (
-          <div className="soft-panel px-4 py-4 shadow-none">
+          <div className="soft-panel shadow-none">
             <p className="meta-label">Attachment</p>
             <p className="mt-3 text-sm font-medium text-foreground">
               {selectedFileName}

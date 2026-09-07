@@ -2,18 +2,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function AdminListControlsFallback() {
   return (
-    <div className="toolbar-panel">
-      <div className="flex flex-col gap-4">
-        <div className="data-list-toolbar-summary">
-          <Skeleton className="h-4 w-full max-w-sm rounded-md" />
-          <Skeleton className="h-7 w-28 rounded-full" />
-        </div>
-        <div className="data-list-toolbar-grid">
-          <Skeleton className="h-10 w-full rounded-xl" />
-          <Skeleton className="h-10 w-full rounded-xl" />
-          <Skeleton className="h-10 w-full rounded-xl" />
-        </div>
+    <div className="data-list-toolbar-strip" aria-hidden="true">
+      <div className="data-list-toolbar-grid">
+        <Skeleton className="h-9 min-w-0 flex-1 rounded-md sm:h-8" />
+        <Skeleton className="hidden h-9 min-w-0 flex-1 rounded-md sm:block sm:h-8" />
+        <Skeleton className="h-9 w-20 shrink-0 rounded-md sm:h-8" />
       </div>
+      <Skeleton className="h-4 w-28 rounded-md" />
     </div>
   );
 }

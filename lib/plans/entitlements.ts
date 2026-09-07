@@ -25,6 +25,7 @@ export const planFeatures = [
   "autoFollowUps",
   "members",
   "auditLogs",
+  "aiAgent",
 ] as const;
 
 export type PlanFeature = (typeof planFeatures)[number];
@@ -50,6 +51,7 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "removeWatermark",
     "followUps",
     "autoFollowUps",
+    "aiAgent",
   ]),
   business: new Set<PlanFeature>([
     "analyticsConversion",
@@ -66,6 +68,7 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "autoFollowUps",
     "members",
     "auditLogs",
+    "aiAgent",
   ]),
 };
 
@@ -103,8 +106,8 @@ export function getRequiredPlan(feature: PlanFeature): BusinessPlan | null {
 export const planFeatureLabels: Record<PlanFeature, string> = {
   analyticsConversion: "Performance analytics",
   analyticsWorkflow: "Operations analytics",
-  multipleForms: "Multiple inquiry forms",
-  inquiryPageCustomization: "Inquiry page customization",
+  multipleForms: "Multiple services",
+  inquiryPageCustomization: "Service page customization",
   emailTemplates: "Email templates",
   aiQuoteDrafting: "AI quote drafting",
   quoteLibrary: "Quote library",
@@ -115,6 +118,7 @@ export const planFeatureLabels: Record<PlanFeature, string> = {
   autoFollowUps: "Auto follow-ups",
   members: "Team members",
   auditLogs: "Audit logs",
+  aiAgent: "AI agent",
 };
 
 /** Short value description for use in paywall locked states. */
@@ -124,9 +128,9 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
   analyticsWorkflow:
     "Workflow timing, operational alerts, revenue tracking, and follow-up analytics.",
   multipleForms:
-    "Create additional inquiry forms for different services or audiences.",
+    "Create additional services for different offerings or audiences.",
   inquiryPageCustomization:
-    "Customize your public inquiry page layout, showcase image, and supporting cards.",
+    "Customize your public service page layout, showcase image, and supporting cards.",
   emailTemplates:
     "Customize the email message used when sending quotes through Requo.",
   aiQuoteDrafting:
@@ -147,4 +151,6 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
     "Invite team members and assign roles.",
   auditLogs:
     "Review meaningful admin, lifecycle, and security actions for this business.",
+  aiAgent:
+    "Answer customer questions and collect inquiries automatically on your public site.",
 };

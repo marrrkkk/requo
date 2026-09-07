@@ -11,10 +11,13 @@ import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import {
   archiveInquiryAction,
+  bulkDeleteInquiriesAction,
   changeInquiryStatusAction,
   createManualInquiryAction,
+  deleteInquiryAction,
   unarchiveInquiryAction,
 } from '@/features/inquiries/actions';
+import { getInquiryListCountForBusiness } from '@/features/inquiries/queries';
 import { createInquiryFormConfigDefaults } from '@/features/inquiries/form-config';
 import { getBusinessInquiryPath } from '@/features/businesses/routes';
 import { hasFeatureAccess } from '@/lib/plans/entitlements';
@@ -253,6 +256,79 @@ describe('features/inquiries/actions', () => {
 
       const [restoredInquiry] = await testDb.select().from(inquiries).where(eq(inquiries.id, testInquiry.id));
       expect(restoredInquiry.archivedAt).toBeNull();
+    }, 10000);
+
+    it('deletes an inquiry and filters it out of active list views', async () => {
+      const testInquiry = await createInquiryFixture('test_inquiry_delete_1');
+
+      const initialCount = await getInquiryListCountForBusiness({
+        businessId: 'test_biz_w2',
+        filters: {
+          view: 'active',
+          status: 'all',
+          form: 'all',
+          sort: 'newest',
+          escalated: false,
+        },
+      });
+
+      const deleteFn = deleteInquiryAction.bind(null, testInquiry.id);
+      const result = await deleteFn({}, new FormData());
+
+      expect(result).toEqual({ success: 'Inquiry deleted.' });
+
+      const [deletedRecord] = await testDb
+        .select()
+        .from(inquiries)
+        .where(eq(inquiries.id, testInquiry.id));
+
+      expect(deletedRecord.deletedAt).not.toBeNull();
+      expect(deletedRecord.deletedBy).toBe('test_user_w2');
+
+      const countAfter = await getInquiryListCountForBusiness({
+        businessId: 'test_biz_w2',
+        filters: {
+          view: 'active',
+          status: 'all',
+          form: 'all',
+          sort: 'newest',
+          escalated: false,
+        },
+      });
+
+      expect(countAfter).toBe(initialCount - 1);
+    }, 10000);
+
+    it('redirects properly when redirectHref is provided in formData', async () => {
+      mockedRedirect.mockClear();
+      const testInquiry = await createInquiryFixture('test_inquiry_delete_redirect');
+
+      const formData = new FormData();
+      formData.set('redirectHref', '/action-business/inquiries');
+
+      const deleteFn = deleteInquiryAction.bind(null, testInquiry.id);
+      await expect(deleteFn({}, formData)).rejects.toThrow(/^NEXT_REDIRECT:/);
+
+      expect(mockedRedirect).toHaveBeenCalledWith('/action-business/inquiries');
+    }, 10000);
+
+    it('bulk deletes inquiries and handles skipping already deleted records', async () => {
+      const inq1 = await createInquiryFixture('test_inquiry_bulk_del_1');
+      const inq2 = await createInquiryFixture('test_inquiry_bulk_del_2');
+
+      const formData = new FormData();
+      formData.set('inquiryIds', `${inq1.id},${inq2.id}`);
+
+      const result = await bulkDeleteInquiriesAction({}, formData);
+
+      expect(result.affected).toBe(2);
+      expect(result.skipped).toBe(0);
+      expect(result.success).toBe('2 inquiries deleted.');
+
+      // Deleting them again should report that none were eligible
+      const secondResult = await bulkDeleteInquiriesAction({}, formData);
+      expect(secondResult.affected).toBe(0);
+      expect(secondResult.error).toBeDefined();
     }, 10000);
   });
 

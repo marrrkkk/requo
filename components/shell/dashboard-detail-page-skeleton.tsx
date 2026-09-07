@@ -22,12 +22,12 @@ export function DashboardDetailPageSkeleton({
       : ["sm:w-28", "sm:w-24", "sm:w-32"];
 
   return (
-    <DashboardPage>
+    <DashboardPage className="pb-24">
       <header className="dashboard-detail-header">
         <div className="dashboard-detail-header-copy">
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <Skeleton className="h-4 w-24 rounded-md" />
-            <Skeleton className="h-11 w-full max-w-xl rounded-2xl" />
+            <Skeleton className="h-5 w-full max-w-xl rounded-md sm:h-6" />
             <Skeleton className="h-4 w-full max-w-2xl rounded-md" />
           </div>
           <div className="dashboard-detail-header-meta">
@@ -35,7 +35,7 @@ export function DashboardDetailPageSkeleton({
               (_, index) => (
                 <Skeleton
                   className={cn(
-                    "h-9 rounded-full",
+                    "h-8 rounded-full",
                     index === 0
                       ? "w-28"
                       : index === 1
@@ -51,7 +51,7 @@ export function DashboardDetailPageSkeleton({
         <div className="dashboard-detail-header-actions">
           {headerActionWidths.map((width, index) => (
             <Skeleton
-              className={cn("h-11 w-full rounded-xl", width)}
+              className={cn("h-9 w-full rounded-md sm:h-8", width)}
               key={index}
             />
           ))}
@@ -69,7 +69,7 @@ export function DashboardQuoteEditorSkeleton() {
     <DashboardPage>
       <div className="flex flex-col gap-3">
         <Skeleton className="h-4 w-20 rounded-md" />
-        <Skeleton className="h-11 w-full max-w-lg rounded-2xl" />
+        <Skeleton className="h-6 w-full max-w-lg rounded-lg sm:h-7" />
       </div>
 
       <div className="dashboard-detail-layout items-start xl:grid-cols-[minmax(0,1.08fr)_0.92fr]">
@@ -83,7 +83,7 @@ export function DashboardQuoteEditorSkeleton() {
 
           {/* Section 2: Line items */}
           <SectionSkeleton
-            action={<Skeleton className="h-10 w-24 rounded-xl" />}
+            action={<Skeleton className="h-9 w-24 rounded-md sm:h-8" />}
             titleWidth="w-24"
           >
             {/* Toolbar */}
@@ -98,9 +98,9 @@ export function DashboardQuoteEditorSkeleton() {
                 key={index}
               >
                 <Skeleton className="size-3.5 shrink-0 rounded" />
-                <Skeleton className="h-9 min-w-0 flex-1 rounded-lg" />
-                <Skeleton className="h-9 w-14 shrink-0 rounded-lg" />
-                <Skeleton className="h-9 w-24 shrink-0 rounded-lg" />
+                <Skeleton className="h-9 min-w-0 flex-1 rounded-md sm:h-8" />
+                <Skeleton className="h-9 w-14 shrink-0 rounded-md sm:h-8" />
+                <Skeleton className="h-9 w-24 shrink-0 rounded-md sm:h-8" />
                 <Skeleton className="hidden h-4 w-16 shrink-0 rounded-md sm:block" />
                 <Skeleton className="size-7 shrink-0 rounded-md" />
               </div>
@@ -122,7 +122,7 @@ export function DashboardQuoteEditorSkeleton() {
 
           {/* Section 3: Pricing & notes */}
           <SectionSkeleton titleWidth="w-32">
-            <div className="grid gap-5 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-3">
               <FieldStack />
               <FieldStack />
               <FieldStack />
@@ -130,7 +130,7 @@ export function DashboardQuoteEditorSkeleton() {
             <FieldStack area />
             <FieldStack area />
             <div className="dashboard-actions sm:justify-end">
-              <Skeleton className="h-11 w-full rounded-xl sm:w-40" />
+              <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-40" />
             </div>
           </SectionSkeleton>
         </DashboardSidebarStack>
@@ -146,7 +146,7 @@ export function DashboardInquiryEditorSkeleton() {
     <DashboardPage>
       <div className="flex flex-col gap-3">
         <Skeleton className="h-4 w-24 rounded-md" />
-        <Skeleton className="h-11 w-full max-w-lg rounded-2xl" />
+        <Skeleton className="h-6 w-full max-w-lg rounded-lg sm:h-7" />
         <Skeleton className="h-4 w-full max-w-2xl rounded-md" />
       </div>
 
@@ -171,7 +171,7 @@ export function DashboardInquiryEditorSkeleton() {
           </SectionSkeleton>
 
           <SectionSkeleton titleWidth="w-32" descriptionWidth="w-64">
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <FieldStack />
               <FieldStack />
               <FieldStack />
@@ -187,7 +187,7 @@ export function DashboardInquiryEditorSkeleton() {
             <ContentPanel lines={2} labelWidth="w-24" />
             <div className="dashboard-actions justify-between">
               <Skeleton className="h-4 w-64 rounded-md" />
-              <Skeleton className="h-11 w-full rounded-xl sm:w-40" />
+              <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-40" />
             </div>
           </SectionSkeleton>
         </DashboardSidebarStack>
@@ -210,13 +210,13 @@ function InquiryDetailSkeleton() {
           </div>
           <ContentPanel lines={1} labelWidth="w-16" />
           <ContentPanel lines={6} labelWidth="w-20" />
-          <Skeleton className="h-11 w-full sm:w-48 rounded-xl" />
+          <Skeleton className="h-9 w-full sm:w-48 rounded-md sm:h-8" />
         </SectionSkeleton>
 
         <div className="dashboard-detail-support-grid">
           <SectionSkeleton titleWidth="w-28" descriptionWidth="w-56">
             <FeedSkeleton count={1} withBody />
-            <Skeleton className="h-11 w-full rounded-xl" />
+            <Skeleton className="h-9 w-full rounded-md sm:h-8" />
           </SectionSkeleton>
 
           <SectionSkeleton titleWidth="w-36" descriptionWidth="w-56">
@@ -224,12 +224,12 @@ function InquiryDetailSkeleton() {
               <InfoTileSkeleton compact />
               <InfoTileSkeleton compact />
             </div>
-            <Skeleton className="h-11 w-full rounded-xl" />
+            <Skeleton className="h-9 w-full rounded-md sm:h-8" />
           </SectionSkeleton>
 
           <SectionSkeleton titleWidth="w-28" descriptionWidth="w-44">
             <FeedSkeleton count={1} />
-            <Skeleton className="h-11 w-full rounded-xl" />
+            <Skeleton className="h-9 w-full rounded-md sm:h-8" />
           </SectionSkeleton>
         </div>
       </DashboardSidebarStack>
@@ -248,7 +248,7 @@ function InquiryDetailSkeleton() {
         </SectionSkeleton>
 
         <SectionSkeleton titleWidth="w-28" descriptionWidth="w-48">
-          <Skeleton className="h-7 w-20 rounded-full" />
+          <Skeleton className="h-6 w-20 rounded-full" />
           <div className="grid gap-3 sm:grid-cols-2">
             {Array.from({ length: 4 }).map((_, index) => (
               <InfoTileSkeleton key={index} />
@@ -277,7 +277,7 @@ function QuoteDetailSkeleton() {
 
         <SectionSkeleton titleWidth="w-28" descriptionWidth="w-44">
           <FeedSkeleton count={1} />
-          <Skeleton className="h-11 w-full rounded-xl" />
+          <Skeleton className="h-9 w-full rounded-md sm:h-8" />
         </SectionSkeleton>
 
         <SectionSkeleton titleWidth="w-36" descriptionWidth="w-48">
@@ -285,7 +285,7 @@ function QuoteDetailSkeleton() {
             <InfoTileSkeleton />
             <InfoTileSkeleton />
           </div>
-          <Skeleton className="h-11 w-full rounded-xl" />
+          <Skeleton className="h-9 w-full rounded-md sm:h-8" />
         </SectionSkeleton>
       </DashboardSidebarStack>
 
@@ -293,8 +293,8 @@ function QuoteDetailSkeleton() {
         <SectionSkeleton titleWidth="w-32" descriptionWidth="w-52">
           <ContentPanel lines={3} labelWidth="w-32" />
           <div className="flex items-center gap-2">
-            <Skeleton className="h-9 w-28 rounded-lg" />
-            <Skeleton className="h-9 w-16 rounded-lg" />
+            <Skeleton className="h-9 w-28 rounded-md sm:h-8" />
+            <Skeleton className="h-9 w-16 rounded-md sm:h-8" />
           </div>
         </SectionSkeleton>
 
@@ -336,13 +336,13 @@ function SectionSkeleton({
   descriptionWidth?: string;
 }) {
   return (
-    <section className="section-panel p-5 sm:p-6">
-      <div className="flex flex-col gap-5">
+    <section className="section-panel">
+      <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <Skeleton className={`h-6 ${titleWidth} rounded-md`} />
+            <Skeleton className={`h-5 ${titleWidth} rounded-md`} />
             {descriptionWidth ? (
-              <Skeleton className={`mt-3 h-4 ${descriptionWidth} rounded-md`} />
+              <Skeleton className={`mt-2 h-4 ${descriptionWidth} rounded-md`} />
             ) : null}
           </div>
           {action}
@@ -386,7 +386,7 @@ function FeedSkeleton({
                 <Skeleton className="h-3 w-20 rounded-md" />
               </div>
             </div>
-            {withAction ? <Skeleton className="h-9 w-24 rounded-lg" /> : null}
+            {withAction ? <Skeleton className="h-9 w-24 rounded-md sm:h-8" /> : null}
           </div>
           {withBody ? (
             <div className="dashboard-detail-feed-body">
@@ -410,7 +410,7 @@ function ContentPanel({
   labelWidth?: string;
 }) {
   return (
-    <div className="soft-panel px-4 py-4 shadow-none">
+    <div className="soft-panel shadow-none">
       <Skeleton className={`h-3 ${labelWidth} rounded-md`} />
       <div className="mt-3 flex flex-col gap-2">
         {Array.from({ length: lines }).map((_, index) => (
@@ -425,14 +425,14 @@ function FieldStack({ area = false }: { area?: boolean }) {
   return (
     <div className="grid gap-3">
       <Skeleton className="h-4 w-24 rounded-md" />
-      <Skeleton className={area ? "h-28 w-full rounded-2xl" : "h-12 w-full rounded-xl"} />
+      <Skeleton className={area ? "h-20 w-full rounded-md" : "h-9 w-full rounded-md sm:h-8"} />
     </div>
   );
 }
 
 function TwoFieldGrid() {
   return (
-    <div className="grid gap-5 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2">
       <FieldStack />
       <FieldStack />
     </div>
@@ -443,21 +443,22 @@ function ActionsSkeleton({ widths }: { widths: string[] }) {
   return (
     <div className="dashboard-actions sm:justify-end">
       {widths.map((width, index) => (
-        <Skeleton className={cn("h-11 w-full rounded-xl", width)} key={index} />
+        <Skeleton className={cn("h-9 w-full rounded-md sm:h-8", width)} key={index} />
       ))}
     </div>
   );
 }
 
 function QuotePreviewSkeleton({ className }: { className?: string }) {
+  // Document preview keeps customer-document proportions (opt-out of baked panel padding).
   return (
-    <article className={cn("section-panel overflow-hidden p-5 sm:p-6", className)}>
-      <div className="flex flex-col gap-6">
+    <article data-padding="none" className={cn("section-panel overflow-hidden p-5 sm:p-6", className)}>
+      <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-4 border-b border-border/80 pb-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex flex-col gap-2">
               <Skeleton className="h-4 w-24 rounded-md" />
-              <Skeleton className="h-10 w-56 rounded-xl" />
+              <Skeleton className="h-9 w-56 rounded-md sm:h-8" />
               <Skeleton className="h-4 w-24 rounded-md" />
             </div>
             <ContentPanel lines={2} labelWidth="w-20" />
@@ -468,7 +469,7 @@ function QuotePreviewSkeleton({ className }: { className?: string }) {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-[1.2rem] border border-border/75 bg-background/92">
+        <div className="overflow-hidden rounded-xl border border-border/75 bg-background/92">
           <div className="grid grid-cols-[minmax(0,1fr)_4rem_7rem_7rem] gap-0 border-b border-border/80 bg-muted/35 px-4 py-3">
             <Skeleton className="h-4 w-16 rounded-md" />
             <Skeleton className="mx-auto h-4 w-8 rounded-md" />
@@ -488,7 +489,7 @@ function QuotePreviewSkeleton({ className }: { className?: string }) {
           ))}
         </div>
 
-        <div className="soft-panel ml-auto flex w-full max-w-sm flex-col gap-3 px-4 py-4 shadow-none">
+        <div className="soft-panel ml-auto flex w-full max-w-sm flex-col gap-3 shadow-none">
           {Array.from({ length: 3 }).map((_, index) => (
             <div className="flex items-center justify-between gap-4" key={index}>
               <Skeleton className="h-4 w-16 rounded-md" />
@@ -502,14 +503,15 @@ function QuotePreviewSkeleton({ className }: { className?: string }) {
 }
 
 function InquiryPreviewSkeleton({ className }: { className?: string }) {
+  // Document preview keeps customer-document proportions (opt-out of baked panel padding).
   return (
-    <article className={cn("section-panel overflow-hidden p-5 sm:p-6", className)}>
-      <div className="flex flex-col gap-6">
+    <article data-padding="none" className={cn("section-panel overflow-hidden p-5 sm:p-6", className)}>
+      <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-4 border-b border-border/80 pb-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex flex-col gap-2">
               <Skeleton className="h-4 w-28 rounded-md" />
-              <Skeleton className="h-10 w-52 rounded-xl" />
+              <Skeleton className="h-9 w-52 rounded-md sm:h-8" />
               <Skeleton className="h-4 w-36 rounded-md" />
             </div>
             <ContentPanel lines={2} labelWidth="w-20" />

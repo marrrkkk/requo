@@ -60,7 +60,7 @@ export function MobileRecordRow({
             checked={isSelected}
             disabled={isSelectionDisabled}
             onCheckedChange={() => onToggleSelect?.(id)}
-            className="size-4.5 rounded-md"
+            className="size-4 rounded-md"
           />
         </div>
       ) : null}
@@ -77,7 +77,7 @@ export function MobileRecordRow({
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           {/* Top Line: Title & Badges */}
           <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0 flex-1 font-semibold text-[0.92rem] tracking-tight text-foreground truncate">
+            <div className="min-w-0 flex-1 font-semibold text-sm tracking-tight text-foreground truncate">
               {title}
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
@@ -95,7 +95,7 @@ export function MobileRecordRow({
 
           {/* Metadata line */}
           {metadata ? (
-            <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[0.72rem] text-muted-foreground/90">
+            <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground/90">
               {metadata}
             </div>
           ) : null}

@@ -3,18 +3,25 @@ import "server-only";
 // ---------------------------------------------------------------------------
 // AI Provider Error Utilities
 //
-// Centralizes error classification so the router can decide whether to
-// fall back to the next provider or stop immediately.
+// Centralizes error classification so routing can decide whether to advance
+// to the next provider or stop.
 //
-// Retryable (triggers fallback):
-//   408 timeout, 409 conflict/capacity, 413 payload too large (TPM on Groq),
+// Retryable (advance to next provider):
+//   408 timeout, 409 conflict/capacity, 413 TPM overflow on Groq,
 //   429 rate limit, 500, 502, 503, 504 server errors,
 //   network timeouts, connection errors, model temporarily unavailable,
-//   capacity/quota messages even when the status code is ambiguous.
+//   capacity/quota messages even when the status code is ambiguous,
+//   404 / model-not-found (dead catalog identifier — skipped without
+//   consuming an attempt; see fallback-model.ts).
 //
-// Non-retryable (stops immediately):
-//   400 bad request, 401 invalid key, 403 permission denied,
-//   404 invalid endpoint/model, 422 invalid payload.
+// Oversized (shrink-or-escalate, NOT plain rotation):
+//   context-length and request-too-large messages. The same payload fails
+//   identically on the next model, so these route to a higher-context
+//   candidate or compaction rather than a blind retry.
+//
+// Non-retryable by status alone no longer ends a turn: the non-streaming
+// path advances through its chain on any failure and only an exhausted
+// candidate list is a failure.
 // ---------------------------------------------------------------------------
 
 import type { AiProviderName } from "@/lib/ai/types";
@@ -46,9 +53,18 @@ const NETWORK_ERROR_PATTERNS = [
 
 /**
  * Message fragments that indicate a retryable capacity/quota problem even
- * when the status code is missing or ambiguous. Providers occasionally
- * return 400/500 with text like "Request too large" or "rate_limit_exceeded".
- * Treat those as retryable so the router can fall back to another provider.
+ * when the status code is missing or ambiguous.
+ *
+ * NOTE: context-length / request-too-large fragments are deliberately NOT
+ * here — they are oversized payloads (see OVERSIZED_MESSAGE_PATTERNS) and
+ * must route to shrink-or-escalate, not plain rotation.
+ *
+ * NOTE: unsupported-property rejections (`reasoning_content`,
+ * `is unsupported`) are deliberately NOT here either. They are prompt-shape
+ * problems, not capacity problems, so classifying them as retryable put a
+ * healthy model on a capacity cooldown. The prompt is kept portable by
+ * `stripReasoningMiddleware` in `lib/ai/fallback-model.ts`; if one still
+ * lands it advances as a non-retryable error without poisoning the counters.
  */
 const RETRYABLE_MESSAGE_PATTERNS = [
   "rate_limit_exceeded",
@@ -56,20 +72,42 @@ const RETRYABLE_MESSAGE_PATTERNS = [
   "rate-limit",
   "quota exceeded",
   "quota_exceeded",
-  "request too large",
-  "too many tokens",
   "tokens per minute",
   "tpm",
-  "context length",
-  "context_length",
-  "maximum context",
-  "max_tokens_exceeded",
   "capacity",
   "overloaded",
   "service unavailable",
   "model_overloaded",
-  "reasoning_content",
-  "is unsupported",
+];
+
+/**
+ * The same payload fails identically on the next model — route to a
+ * higher-context candidate or compaction, not a plain rotation.
+ */
+const OVERSIZED_MESSAGE_PATTERNS = [
+  "request too large",
+  "too many tokens",
+  "context length",
+  "context_length",
+  "maximum context",
+  "max_tokens_exceeded",
+  "input too long",
+  "prompt too long",
+  "exceeds the maximum",
+  "context window",
+];
+
+/** A model identifier the provider no longer serves (404 / not-found). */
+const MODEL_NOT_FOUND_PATTERNS = [
+  "model_not_found",
+  "model not found",
+  "model does not exist",
+  "no such model",
+  "unknown model",
+  "invalid model",
+  "model_not_available",
+  "not a valid model",
+  "does not exist",
 ];
 
 /**
@@ -180,16 +218,10 @@ function isNetworkError(error: unknown): boolean {
   return NETWORK_ERROR_PATTERNS.some((pattern) => message.includes(pattern));
 }
 
-/**
- * Detects retryable capacity/rate-limit errors by message content.
- * Used as a safety net when a provider returns a non-standard status code
- * (e.g., Groq sometimes wraps TPM overflows in a 400/413 with a JSON body).
- */
-function isRetryableMessage(error: unknown): boolean {
+function collectErrorText(error: unknown): string {
   const direct =
     error instanceof Error ? error.message : typeof error === "string" ? error : "";
 
-  // Some SDKs nest the real message inside { error: { message } } or a body string.
   let nested = "";
 
   if (typeof error === "object" && error !== null) {
@@ -215,20 +247,80 @@ function isRetryableMessage(error: unknown): boolean {
     }
   }
 
-  const haystack = `${direct} ${nested}`.toLowerCase();
+  return `${direct} ${nested}`.toLowerCase();
+}
+
+/**
+ * Detects retryable capacity/rate-limit errors by message content.
+ * Used as a safety net when a provider returns a non-standard status code
+ * (e.g., Groq sometimes wraps TPM overflows in a 400/413 with a JSON body).
+ */
+function isRetryableMessage(error: unknown): boolean {
+  const haystack = collectErrorText(error);
 
   return RETRYABLE_MESSAGE_PATTERNS.some((pattern) => haystack.includes(pattern));
+}
+
+/** A model identifier the provider no longer serves — skip without cost. */
+export function isModelNotFoundError(error: unknown): boolean {
+  const status = extractStatusCode(error);
+  if (status === 404) return true;
+  const haystack = collectErrorText(error);
+  return MODEL_NOT_FOUND_PATTERNS.some((pattern) => haystack.includes(pattern));
+}
+
+/** Payload too large for the model's context — needs shrink-or-escalate. */
+export function isOversizedError(error: unknown): boolean {
+  const haystack = collectErrorText(error);
+  return OVERSIZED_MESSAGE_PATTERNS.some((pattern) => haystack.includes(pattern));
+}
+
+const DAY_SCOPE_PATTERNS = [
+  "daily",
+  "per day",
+  "per-day",
+  "rpd",
+  "tpd",
+  "day quota",
+  "daily quota",
+  "quota per day",
+  "requests per day",
+  "tokens per day",
+  "monthly",
+  "per month",
+  "neurons",
+  "neuron",
+];
+
+/**
+ * Scope the exhaustion cooldown to the limit that tripped: a refusal naming
+ * a daily quota cools down until the day boundary, a per-minute limit cools
+ * down for a minute only.
+ */
+export function classifyExhaustionScope(
+  error: unknown,
+): "day" | "minute" {
+  const haystack = collectErrorText(error);
+  if (DAY_SCOPE_PATTERNS.some((pattern) => haystack.includes(pattern))) {
+    return "day";
+  }
+  return "minute";
 }
 
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
-/** Determine whether an error is retryable (should trigger fallback). */
+/** Determine whether an error should advance to the next provider. */
 export function isRetryableError(error: unknown): boolean {
   if (error instanceof AiProviderError) {
     return error.retryable;
   }
+
+  // Dead identifiers and oversized payloads both advance — the fallback
+  // wrapper distinguishes them (skip-without-cost vs shrink-or-escalate).
+  if (isModelNotFoundError(error)) return true;
+  if (isOversizedError(error)) return true;
 
   if (isNetworkError(error)) {
     return true;

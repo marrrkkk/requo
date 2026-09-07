@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { FormInput } from "lucide-react";
+import { Briefcase } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -12,7 +12,7 @@ import { createManualInquiryAction } from "@/features/inquiries/actions";
 import { ManualInquiryEditor } from "@/features/inquiries/components/manual-inquiry-editor";
 import { getPublicInquiryAttachmentHelpText } from "@/features/inquiries/plan-rules";
 import { getInquiryEditorFormsForBusiness } from "@/features/inquiries/queries";
-import { getBusinessFormsPath } from "@/features/businesses/routes";
+import { getBusinessServicesPath } from "@/features/businesses/routes";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
@@ -26,18 +26,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Quick-add an inquiry captured outside of a public form.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * New inquiry page — returns the structural shell synchronously.
@@ -93,14 +82,14 @@ async function NewInquiryContent({
       <DashboardEmptyState
         action={
           <Button asChild>
-            <Link href={getBusinessFormsPath(businessSlug)} prefetch={true}>
-              Open forms
+            <Link href={getBusinessServicesPath(businessSlug)} prefetch={true}>
+              Open services
             </Link>
           </Button>
         }
-        description="Create or restore an active inquiry form first, then come back here to add inquiries manually."
-        icon={FormInput}
-        title="No active inquiry forms"
+        description="Create or restore an active service first, then come back here to add inquiries manually."
+        icon={Briefcase}
+        title="No active services"
         variant="page"
       />
     );

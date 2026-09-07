@@ -113,6 +113,34 @@
       "when": 1787100000000,
       "tag": "0015_add_account_issuer",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1756737600000,
+      "tag": "0016_ai_agent_v1",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1756824000000,
+      "tag": "0017_ai_assistant_ux_enhancement",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1787150000000,
+      "tag": "0018_owner_assistant_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1787200000000,
+      "tag": "0020_ai_surfaces_repair",
+      "breakpoints": true
     }
   ]
 }

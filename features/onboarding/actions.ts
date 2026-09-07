@@ -24,6 +24,7 @@ import {
   type InquiryFormConfig,
 } from "@/features/inquiries/form-config";
 import { completeOnboardingForUser } from "@/features/onboarding/mutations";
+import { parseOnboardingServices } from "@/features/onboarding/schemas";
 import { completeOnboardingSchema } from "@/features/onboarding/schemas";
 import type { OnboardingActionState } from "@/features/onboarding/types";
 import {
@@ -105,6 +106,11 @@ export async function completeOnboardingAction(
     formData.get("inquiryFormConfigOverride"),
   );
 
+  // Named services from step 3 (JSON blob, mirrors the
+  // inquiryFormConfigOverride parsing pattern). Per-row validation; invalid
+  // rows are dropped, and the caller trims to the plan's live-service limit.
+  const rawServices = parseOnboardingServices(formData.get("services"));
+
   // Handle avatar upload
   const avatarFile = formData.get("avatar");
   let avatarUpload: { storagePath: string; contentType: string } | null = null;
@@ -162,6 +168,7 @@ export async function completeOnboardingAction(
       defaultCurrency: validationResult.data.defaultCurrency,
       customerContactChannel: validationResult.data.customerContactChannel,
       starterWorkflow: validationResult.data.starterWorkflow,
+      services: rawServices,
       inquiryFormConfigOverride,
       avatarUpload,
     });

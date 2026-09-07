@@ -61,7 +61,7 @@ export function LayoutSection({
               <button
                 key={templateId}
                 className={cn(
-                  "soft-panel flex min-h-44 flex-col gap-4 px-4 py-4 text-left transition-colors",
+                  "soft-panel flex min-h-44 flex-col gap-4 text-left transition-colors",
                   isSelected
                     ? "border-primary/20 bg-accent/52"
                     : "hover:bg-accent/30",
@@ -143,7 +143,7 @@ export function LayoutSection({
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div className="space-y-1">
               <p className="meta-label">Brand assets</p>
-              <p className="text-[0.95rem] font-semibold tracking-tight text-foreground">
+              <p className="text-sm font-semibold tracking-tight text-foreground">
                 Business brand
               </p>
               <p className="text-sm leading-6 text-muted-foreground">
@@ -162,7 +162,7 @@ export function LayoutSection({
             )}
           </div>
 
-          <div className="mt-4 soft-panel flex items-center gap-4 px-5 py-5 shadow-none">
+          <div className="mt-4 soft-panel flex items-center gap-4 shadow-none">
             <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border/70 bg-background/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
               {logoPreviewUrl ? (
                 <Image
@@ -202,8 +202,8 @@ function TemplateMiniPreview({
   if (template === "no_supporting_cards") {
     return (
       <div className="grid flex-1 gap-2">
-        <div className="soft-panel h-8 bg-secondary/70 shadow-none" />
-        <div className="soft-panel h-20 bg-background/95 shadow-none" />
+        <div data-padding="none" className="soft-panel h-8 bg-secondary/70 shadow-none" />
+        <div data-padding="none" className="soft-panel h-20 bg-background/95 shadow-none" />
       </div>
     );
   }
@@ -211,12 +211,12 @@ function TemplateMiniPreview({
   if (template === "showcase") {
     return (
       <div className="grid flex-1 gap-2 md:grid-cols-[0.8fr_1.2fr]">
-        <div className="soft-panel h-full min-h-20 bg-background/95 shadow-none" />
+        <div data-padding="none" className="soft-panel h-full min-h-20 bg-background/95 shadow-none" />
         <div className="grid gap-2">
-          <div className="soft-panel h-10 bg-secondary/70 shadow-none" />
+          <div data-padding="none" className="soft-panel h-10 bg-secondary/70 shadow-none" />
           <div className="grid gap-2 md:grid-cols-2">
-            <div className="soft-panel h-9 bg-background/95 shadow-none" />
-            <div className="soft-panel h-9 bg-background/95 shadow-none" />
+            <div data-padding="none" className="soft-panel h-9 bg-background/95 shadow-none" />
+            <div data-padding="none" className="soft-panel h-9 bg-background/95 shadow-none" />
           </div>
         </div>
       </div>
@@ -226,11 +226,11 @@ function TemplateMiniPreview({
   return (
     <div className="grid flex-1 gap-2 md:grid-cols-[1.15fr_0.85fr]">
       <div className="grid gap-2">
-        <div className="soft-panel h-7 bg-secondary/70 shadow-none" />
-        <div className="soft-panel h-10 bg-background/95 shadow-none" />
-        <div className="soft-panel h-10 bg-background/95 shadow-none" />
+        <div data-padding="none" className="soft-panel h-7 bg-secondary/70 shadow-none" />
+        <div data-padding="none" className="soft-panel h-10 bg-background/95 shadow-none" />
+        <div data-padding="none" className="soft-panel h-10 bg-background/95 shadow-none" />
       </div>
-      <div className="soft-panel h-full min-h-20 bg-background/95 shadow-none" />
+      <div data-padding="none" className="soft-panel h-full min-h-20 bg-background/95 shadow-none" />
     </div>
   );
 }

@@ -23,7 +23,7 @@ const ALLOWED_TOP_LEVEL_FOLDERS = new Set([
   "e2e",
 ]);
 const TEST_FILE_PATTERN = /\.(test\.(ts|tsx)|spec\.ts)$/;
-const SKIPPED_DIRECTORY_NAMES = new Set(["node_modules"]);
+const SKIPPED_DIRECTORY_NAMES = new Set(["node_modules", "screenshots"]);
 
 function collectTestFiles(dir: string, acc: string[]): void {
   const entries = readdirSync(dir, { withFileTypes: true });

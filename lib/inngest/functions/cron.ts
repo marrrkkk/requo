@@ -1,4 +1,5 @@
 import { inngest } from "@/lib/inngest/client";
+import { processExpireAgentSessions } from "@/features/ai-agent/jobs/expire-sessions";
 import { computeAnalyticsBenchmarks } from "@/features/analytics/jobs/benchmarks";
 import { sendAnalyticsDigestEmails } from "@/features/analytics/jobs/digest";
 import { computeDailyRollups } from "@/features/analytics/jobs/rollup";
@@ -156,12 +157,26 @@ export const analyticsBenchmarksCron = inngest.createFunction(
     step.run("compute-benchmarks", async () => computeAnalyticsBenchmarks()),
 );
 
+export const expireAgentSessionsCron = inngest.createFunction(
+  {
+    id: "cron-expire-agent-sessions",
+    name: "Expire abandoned AI agent sessions",
+    triggers: [{ cron: "0 * * * *" }], // Hourly
+    retries: 2,
+  },
+  async ({ step }) =>
+    step.run("expire-agent-sessions", async () =>
+      processExpireAgentSessions(),
+    ),
+);
+
 export const cronFunctions = [
   followUpRemindersCron,
   autoFollowUpsCron,
   quoteViewedFollowUpsCron,
   quoteExpiringSoonCron,
   autoArchiveStaleInquiriesCron,
+  expireAgentSessionsCron,
   // expireQuotesCron — migrated to Vercel Cron (/api/cron/expire-quotes)
   // expireSubscriptionsCron — migrated to Vercel Cron (/api/cron/expire-subscriptions)
   analyticsRollupCron,

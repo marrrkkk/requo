@@ -25,11 +25,13 @@ import {
   getBusinessInquiriesPath,
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
+import { Suspense } from "react";
 
 export function AnalyticsBusinessPanel({
   data,
   currency,
   aiSummary,
+  aiSummaryPromise,
   businessSlug,
   cohorts,
   revenueForecast,
@@ -37,6 +39,12 @@ export function AnalyticsBusinessPanel({
   data: BusinessAnalyticsData;
   currency: string;
   aiSummary?: string | null;
+  /**
+   * Streaming AI summary. When provided (and `aiSummary` is not), the card
+   * streams in place behind its own Suspense boundary so slow LLM
+   * generation never holds back the surrounding charts.
+   */
+  aiSummaryPromise?: Promise<string | null>;
   businessSlug?: string;
   cohorts?: CohortRow[];
   revenueForecast?: RevenueForecast | null;
@@ -246,11 +254,37 @@ export function AnalyticsBusinessPanel({
         )}
       </AnalyticsChartCard>
 
-      {/* AI insight */}
-      {aiSummary ? <AISummaryCard summary={aiSummary} /> : null}
+      {/* AI insight — streams in place when passed as a promise */}
+      {aiSummary ? (
+        <AISummaryCard summary={aiSummary} />
+      ) : aiSummaryPromise ? (
+        <Suspense fallback={null}>
+          <AiSummaryFromPromise promise={aiSummaryPromise} />
+        </Suspense>
+      ) : null}
 
       {/* Cohort Analysis */}
       {cohorts ? <CohortAnalysisSection cohorts={cohorts} /> : null}
     </div>
   );
+}
+
+/**
+ * Resolves a streaming AI summary in place. A failed generation renders
+ * nothing — it must never break the surrounding charts.
+ */
+async function AiSummaryFromPromise({
+  promise,
+}: {
+  promise: Promise<string | null>;
+}) {
+  let summary: string | null = null;
+  try {
+    summary = await promise;
+  } catch {
+    summary = null;
+  }
+
+  if (!summary) return null;
+  return <AISummaryCard summary={summary} />;
 }

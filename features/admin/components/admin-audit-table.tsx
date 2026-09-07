@@ -14,8 +14,6 @@ import {
 import {
   DashboardActionsRow,
   DashboardEmptyState,
-  DashboardTableContainer,
-  DashboardToolbar,
 } from "@/components/shared/dashboard-layout";
 import { DataListPagination } from "@/components/shared/data-list-pagination";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
@@ -100,6 +98,9 @@ const actionLabels: Record<AdminAction, string> = {
   "user.suspend": "Suspended user",
   "user.unsuspend": "Unsuspended user",
   "user.delete": "Deleted user",
+  "user.promote_admin": "Promoted to admin",
+  "user.demote_admin": "Removed admin access",
+  "admin.bootstrap": "Admin bootstrap",
   "subscription.manual_plan_override": "Manual plan override",
   "subscription.force_cancel": "Force-canceled subscription",
   "impersonation.start": "Started impersonation",
@@ -332,93 +333,133 @@ export function AdminAuditTable({
 
   const canClear = filtersDirty({ adminUserId, action, targetType, targetId });
 
+  const adminUserControl = (
+    <Input
+      id="admin-audit-admin-user"
+      value={adminUserId}
+      onChange={(event) => setAdminUserId(event.currentTarget.value)}
+      placeholder="Filter by admin user id"
+      aria-label="Admin user id"
+      aria-busy={isPending}
+      autoComplete="off"
+      spellCheck={false}
+    />
+  );
+
+  const actionControl = (
+    <Combobox
+      id="admin-audit-action"
+      value={action}
+      onValueChange={(value) => {
+        const nextAction = value as AdminAction | "all";
+        setAction(nextAction);
+        navigate({
+          adminUserId,
+          action: nextAction,
+          targetType,
+          targetId,
+        });
+      }}
+      options={actionOptions}
+      placeholder="Action"
+      searchable
+      searchPlaceholder="Search actions"
+    />
+  );
+
+  const targetTypeControl = (
+    <Combobox
+      id="admin-audit-target-type"
+      value={targetType}
+      onValueChange={(value) => {
+        const nextTargetType = value as AdminTargetType | "all";
+        setTargetType(nextTargetType);
+        navigate({
+          adminUserId,
+          action,
+          targetType: nextTargetType,
+          targetId,
+        });
+      }}
+      options={targetTypeOptions}
+      placeholder="Target type"
+    />
+  );
+
+  const targetIdControl = (
+    <Input
+      id="admin-audit-target-id"
+      value={targetId}
+      onChange={(event) => setTargetId(event.currentTarget.value)}
+      placeholder="Filter by target id"
+      aria-label="Target id"
+      aria-busy={isPending}
+      autoComplete="off"
+      spellCheck={false}
+    />
+  );
+
+  // Mobile sheet keeps visible labels where no placeholder can carry the hint.
   const filterFields = (
     <>
-      <Field className="min-w-0 w-full xl:min-w-[14rem] xl:flex-1 xl:basis-0">
-        <FieldLabel className="meta-label px-0.5" htmlFor="admin-audit-admin-user">
+      <Field className="min-w-0 w-full">
+        <FieldLabel htmlFor="admin-audit-admin-user">
           Admin user id
         </FieldLabel>
-        <FieldContent>
-          <Input
-            id="admin-audit-admin-user"
-            value={adminUserId}
-            onChange={(event) => setAdminUserId(event.currentTarget.value)}
-            placeholder="Filter by admin user id"
-            aria-busy={isPending}
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </FieldContent>
+        <FieldContent>{adminUserControl}</FieldContent>
       </Field>
 
-      <Field className="min-w-0 w-full sm:max-w-[14rem] xl:w-[13rem] xl:shrink-0">
-        <FieldLabel className="meta-label px-0.5" htmlFor="admin-audit-action">
+      <Field className="min-w-0 w-full">
+        <FieldLabel htmlFor="admin-audit-action">
           Action
         </FieldLabel>
-        <FieldContent>
-          <Combobox
-            id="admin-audit-action"
-            value={action}
-            onValueChange={(value) => {
-              const nextAction = value as AdminAction | "all";
-              setAction(nextAction);
-              navigate({
-                adminUserId,
-                action: nextAction,
-                targetType,
-                targetId,
-              });
-            }}
-            options={actionOptions}
-            placeholder="Action"
-            searchable
-            searchPlaceholder="Search actions"
-          />
-        </FieldContent>
+        <FieldContent>{actionControl}</FieldContent>
       </Field>
 
-      <Field className="min-w-0 w-full sm:max-w-[14rem] xl:w-[13rem] xl:shrink-0">
-        <FieldLabel
-          className="meta-label px-0.5"
-          htmlFor="admin-audit-target-type"
-        >
+      <Field className="min-w-0 w-full">
+        <FieldLabel htmlFor="admin-audit-target-type">
           Target type
         </FieldLabel>
-        <FieldContent>
-          <Combobox
-            id="admin-audit-target-type"
-            value={targetType}
-            onValueChange={(value) => {
-              const nextTargetType = value as AdminTargetType | "all";
-              setTargetType(nextTargetType);
-              navigate({
-                adminUserId,
-                action,
-                targetType: nextTargetType,
-                targetId,
-              });
-            }}
-            options={targetTypeOptions}
-            placeholder="Target type"
-          />
-        </FieldContent>
+        <FieldContent>{targetTypeControl}</FieldContent>
       </Field>
 
-      <Field className="min-w-0 w-full xl:min-w-[14rem] xl:flex-1 xl:basis-0">
-        <FieldLabel className="meta-label px-0.5" htmlFor="admin-audit-target-id">
+      <Field className="min-w-0 w-full">
+        <FieldLabel htmlFor="admin-audit-target-id">
           Target id
         </FieldLabel>
-        <FieldContent>
-          <Input
-            id="admin-audit-target-id"
-            value={targetId}
-            onChange={(event) => setTargetId(event.currentTarget.value)}
-            placeholder="Filter by target id"
-            aria-busy={isPending}
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </FieldContent>
+        <FieldContent>{targetIdControl}</FieldContent>
+      </Field>
+    </>
+  );
+
+  const desktopFilterFields = (
+    <>
+      <Field className="min-w-0 flex-1">
+        <FieldLabel className="sr-only" htmlFor="admin-audit-admin-user">
+          Admin user id
+        </FieldLabel>
+        <FieldContent>{adminUserControl}</FieldContent>
+      </Field>
+
+      <Field className="min-w-0 flex-1 sm:max-w-44">
+        <FieldLabel className="sr-only" htmlFor="admin-audit-action">
+          Action
+        </FieldLabel>
+        <FieldContent>{actionControl}</FieldContent>
+      </Field>
+
+      <Field className="min-w-0 flex-1 sm:max-w-44">
+        <FieldLabel className="sr-only" htmlFor="admin-audit-target-type">
+          Target type
+        </FieldLabel>
+        <FieldContent>{targetTypeControl}</FieldContent>
+      </Field>
+
+      <Field className="min-w-0 flex-1">
+        <FieldLabel className="sr-only" htmlFor="admin-audit-target-id">
+          Target id
+        </FieldLabel>
+        <FieldContent>{targetIdControl}</FieldContent>
       </Field>
     </>
   );
@@ -437,84 +478,77 @@ export function AdminAuditTable({
   };
 
   return (
-    <div className="flex flex-col gap-6">
-        <DashboardToolbar>
-        <div className="flex flex-col gap-4">
-          <div className="data-list-toolbar-summary">
-            <p className="text-sm leading-6 text-muted-foreground">
-              Every admin view and action, newest first. Filter by the admin
-              who acted, the specific action, or the target the entry points
-              at.
-            </p>
-            <p className="data-list-toolbar-count">{resultLabel}</p>
+    <div className="dashboard-table-shell" data-list-card>
+      <div className="data-list-toolbar-strip">
+        <div className="data-list-toolbar-grid">
+          <div className="hidden min-w-0 flex-1 items-center gap-2 sm:flex">
+            {desktopFilterFields}
           </div>
 
-          <div className="flex flex-col gap-4">
-            <div className="data-list-toolbar-grid">
-              <div className="hidden sm:contents">{filterFields}</div>
-
-              <DashboardActionsRow className="data-list-toolbar-actions">
-                <Sheet
-                  open={isMobileFiltersOpen}
-                  onOpenChange={setIsMobileFiltersOpen}
-                >
-                  <SheetTrigger asChild>
-                    <Button
-                      className="flex-1 sm:hidden"
-                      type="button"
-                      variant="outline"
-                    >
-                      <ListFilter data-icon="inline-start" />
-                      Filters
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="bottom">
-                    <SheetHeader>
-                      <SheetTitle>Audit filters</SheetTitle>
-                      <SheetDescription>
-                        Narrow the audit feed by admin, action, target type, or
-                        target id.
-                      </SheetDescription>
-                    </SheetHeader>
-                    <SheetBody className="gap-4">{filterFields}</SheetBody>
-                  </SheetContent>
-                </Sheet>
+          <DashboardActionsRow className="data-list-toolbar-actions">
+            <Sheet
+              open={isMobileFiltersOpen}
+              onOpenChange={setIsMobileFiltersOpen}
+            >
+              <SheetTrigger asChild>
                 <Button
-                  className="shrink-0 sm:w-auto"
-                  disabled={!canClear}
-                  onClick={clearFilters}
+                  aria-label="Filter audit entries"
+                  className="size-9 shrink-0 px-0 sm:hidden"
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                 >
-                  <X data-icon="inline-start" />
-                  Clear
+                  <ListFilter className="size-4" />
                 </Button>
-                {isPending ? (
-                  <Spinner
-                    className="hidden sm:inline-flex"
-                    aria-hidden="true"
-                  />
-                ) : null}
-              </DashboardActionsRow>
-            </div>
-          </div>
+              </SheetTrigger>
+              <SheetContent side="bottom">
+                <SheetHeader>
+                  <SheetTitle>Audit filters</SheetTitle>
+                  <SheetDescription>
+                    Narrow the audit feed by admin, action, target type, or
+                    target id.
+                  </SheetDescription>
+                </SheetHeader>
+                <SheetBody className="gap-4">{filterFields}</SheetBody>
+              </SheetContent>
+            </Sheet>
+            <Button
+              className="shrink-0"
+              size="sm"
+              disabled={!canClear}
+              onClick={clearFilters}
+              type="button"
+              variant="ghost"
+            >
+              <X data-icon="inline-start" />
+              Clear
+            </Button>
+            {isPending ? (
+              <Spinner
+                className="inline-flex"
+                aria-hidden="true"
+              />
+            ) : null}
+          </DashboardActionsRow>
         </div>
-      </DashboardToolbar>
+
+        <p className="data-list-toolbar-count">{resultLabel}</p>
+      </div>
 
       {items.length === 0 ? (
-        <DashboardEmptyState
-          className="border"
-          description={
-            canClear
-              ? "No audit entries match the current filters. Try clearing one to broaden the view."
-              : "Audit entries will appear here as admins view pages or run actions."
-          }
-          title="No audit entries"
-          variant="section"
-        />
+        <div className="p-4">
+          <DashboardEmptyState
+            description={
+              canClear
+                ? "No audit entries match the current filters. Try clearing one to broaden the view."
+                : "Audit entries will appear here as admins view pages or run actions."
+            }
+            title="No audit entries"
+            variant="list"
+          />
+        </div>
       ) : (
         <TooltipProvider delayDuration={300}>
-          <DashboardTableContainer>
+          <div className="overflow-x-auto no-scrollbar">
             <Table className="min-w-[72rem] table-fixed">
               <TableCaption className="sr-only">
                 Newest audit entries appear first.
@@ -535,7 +569,7 @@ export function AdminAuditTable({
                 ))}
               </TableBody>
             </Table>
-          </DashboardTableContainer>
+          </div>
         </TooltipProvider>
       )}
 
@@ -580,7 +614,7 @@ function AdminAuditTableRow({ entry }: { entry: AdminAuditLogRow }) {
             </TooltipContent>
           </Tooltip>
           <span
-            className="font-mono text-[0.72rem] text-muted-foreground truncate"
+            className="font-mono text-xs text-muted-foreground truncate"
             suppressHydrationWarning
           >
             {isoTimestamp}
@@ -595,9 +629,9 @@ function AdminAuditTableRow({ entry }: { entry: AdminAuditLogRow }) {
             text={entry.adminEmail}
           />
           {entry.adminUserId ? (
-            <span className="font-mono text-[0.72rem] text-muted-foreground">
+            <span className="font-mono text-xs text-muted-foreground">
               <TruncatedTextWithTooltip
-                className="font-mono text-[0.72rem] text-muted-foreground"
+                className="font-mono text-xs text-muted-foreground"
                 text={entry.adminUserId}
               />
             </span>
@@ -612,7 +646,7 @@ function AdminAuditTableRow({ entry }: { entry: AdminAuditLogRow }) {
           <Badge variant={getActionBadgeVariant(entry.action)}>
             {actionLabel}
           </Badge>
-          <span className="font-mono text-[0.72rem] text-muted-foreground">
+          <span className="font-mono text-xs text-muted-foreground">
             {entry.action}
           </span>
         </div>
@@ -622,7 +656,7 @@ function AdminAuditTableRow({ entry }: { entry: AdminAuditLogRow }) {
         <div className="flex flex-col gap-1">
           <span className="meta-label">{targetTypeLabel}</span>
           <TruncatedTextWithTooltip
-            className="font-mono text-[0.8rem] text-foreground"
+            className="font-mono text-sm text-foreground"
             text={targetIdDisplay}
           />
         </div>
@@ -632,12 +666,12 @@ function AdminAuditTableRow({ entry }: { entry: AdminAuditLogRow }) {
         {metadataExcerpt ? (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="block truncate font-mono text-[0.72rem] leading-5 text-muted-foreground cursor-default">
+              <span className="block truncate font-mono text-xs leading-5 text-muted-foreground cursor-default">
                 {metadataExcerpt}
               </span>
             </TooltipTrigger>
             <TooltipContent className="max-w-md whitespace-pre-wrap break-words">
-              <pre className="font-mono text-[0.72rem] leading-5">
+              <pre className="font-mono text-xs leading-5">
                 {metadataPretty ?? metadataExcerpt}
               </pre>
             </TooltipContent>
@@ -651,7 +685,7 @@ function AdminAuditTableRow({ entry }: { entry: AdminAuditLogRow }) {
         <div className="flex flex-col gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="block truncate font-mono text-[0.72rem] text-foreground cursor-default">
+              <span className="block truncate font-mono text-xs text-foreground cursor-default">
                 {ipAddress}
               </span>
             </TooltipTrigger>

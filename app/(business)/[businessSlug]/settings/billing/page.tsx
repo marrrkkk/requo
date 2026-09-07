@@ -28,18 +28,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Business billing overview, usage, and payment history.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 export default function BillingSettingsPage() {
   return (

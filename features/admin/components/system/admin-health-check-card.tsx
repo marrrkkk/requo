@@ -43,7 +43,7 @@ export function AdminHealthCheckCard({
   return (
     <article
       className={cn(
-        "soft-panel flex flex-col gap-3 border-l-4 px-4 py-4",
+ "soft-panel flex flex-col gap-3 border-l-4",
         checkStatusBorderClass(check.status),
       )}
     >

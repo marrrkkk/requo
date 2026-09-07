@@ -77,7 +77,7 @@ export function AppearanceSettingsForm({ userId }: AppearanceSettingsFormProps) 
             <div className="flex w-full items-center justify-between">
               <Icon className="size-5 text-muted-foreground" />
               {isActive && (
-                <span className="text-[0.68rem] font-medium uppercase tracking-wider text-primary">
+                <span className="text-xs font-medium uppercase tracking-wider text-primary">
                   Active
                 </span>
               )}

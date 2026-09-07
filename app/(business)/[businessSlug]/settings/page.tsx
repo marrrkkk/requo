@@ -2,25 +2,16 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
 import { createNoIndexMetadata } from "@/lib/seo/site";
+import { getBusinessSettingsPageContext } from "./_lib/page-context";
 
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Settings",
   description: "Personal and business settings for your Requo workspace.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 export default function SettingsPage({
   params,
@@ -40,6 +31,11 @@ async function SettingsRedirect({
   params: Promise<{ businessSlug: string }>;
 }) {
   const { businessSlug } = await params;
-  redirect(`/${businessSlug}/settings/profile`);
+  const { businessContext } = await getBusinessSettingsPageContext(businessSlug);
+  const destination = getDefaultBusinessSettingsPath(
+    businessSlug,
+    businessContext.role,
+  );
+  redirect(destination);
   return null as never;
 }

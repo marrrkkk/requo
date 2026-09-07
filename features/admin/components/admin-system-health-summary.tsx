@@ -86,7 +86,7 @@ export async function AdminSystemHealthBanner() {
   return (
     <div
       className={cn(
-        "section-panel border-l-4 px-5 py-5 sm:px-6 sm:py-6",
+ "section-panel border-l-4",
         config.accentClass,
       )}
     >

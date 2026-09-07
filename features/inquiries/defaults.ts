@@ -4,16 +4,18 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema";
+import { isInquiryAckEmailEnabled } from "@/lib/env";
 import { sendInquiryAcknowledgmentEmail } from "@/lib/resend/client";
 import { sendInquiryQualifiedEvent } from "@/lib/inngest/send";
 
 /**
  * Sends the customer an acknowledgment email after an inquiry is received.
  *
- * Gated by `businesses.sendInquiryAckEmail` and only fires when the customer
- * provided an email address. Silently skips when email delivery is not
- * configured. Non-blocking: callers fire-and-forget with their own error
- * handling.
+ * Gated by the deployment-level low-email switch (`LOW_EMAIL_MODE`) and the
+ * per-business `businesses.sendInquiryAckEmail` setting. Only fires when the
+ * customer provided an email address. Silently skips when email delivery is
+ * not configured or when low-email mode disables acknowledgment email.
+ * Non-blocking: callers fire-and-forget with their own error handling.
  */
 export async function maybeSendInquiryAckEmail({
   businessId,
@@ -31,6 +33,10 @@ export async function maybeSendInquiryAckEmail({
   details?: string;
 }): Promise<void> {
   if (!customerEmail) {
+    return;
+  }
+
+  if (!isInquiryAckEmailEnabled) {
     return;
   }
 

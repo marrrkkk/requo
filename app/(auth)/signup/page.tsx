@@ -10,7 +10,7 @@ import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { onboardingPath } from "@/features/onboarding/routes";
 import { dashboardPath } from "@/features/businesses/routes";
 import { getOptionalSession } from "@/lib/auth/session";
-import { isEmailConfigured } from "@/lib/env";
+import { isMagicLinkEnabled } from "@/lib/env";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { AuthFormSkeleton } from "@/features/auth/components/auth-form-skeleton";
 
@@ -20,18 +20,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   title: "Create account",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-      searchParams: { next: null, error: null },
-    },
-  ],
-};
+export const instant = true;
 
 export default function SignupPage() {
   return (
@@ -64,7 +53,7 @@ async function SignupContent() {
 
   return (
     <SignupForm
-      magicLinkEnabled={isEmailConfigured}
+      magicLinkEnabled={isMagicLinkEnabled}
       socialProviders={socialProviders}
     />
   );

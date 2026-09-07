@@ -48,7 +48,7 @@ export function AdminFooterMenu() {
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton
-            className="min-h-10 rounded-lg px-3 py-2 text-muted-foreground"
+            className="min-h-8 rounded-lg px-3 py-2 text-muted-foreground"
             disabled={isPending}
             onClick={handleSignOut}
             tooltip="Sign out"

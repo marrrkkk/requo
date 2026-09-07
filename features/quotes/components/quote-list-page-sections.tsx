@@ -46,11 +46,10 @@ type QuoteListControlsSectionProps = {
   ) => Promise<QuoteRecordActionState>;
 };
 
-export async function QuoteListControlsSection({
+export async function QuoteListHeaderActions({
   businessSlug,
   canExport,
   filters,
-  searchParams: _searchParams,
   totalItemsPromise,
   archivedItemsPromise,
   restoreAction,
@@ -62,38 +61,44 @@ export async function QuoteListControlsSection({
 
   return (
     <>
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div />
-
-        <div className="flex w-full flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:w-auto">
-          <div className="flex items-center gap-2 [&>*]:flex-1 sm:[&>*]:flex-initial">
-            <QuoteExportCsvDropdown
-              businessSlug={businessSlug}
-              canExport={canExport}
-              filters={filters}
-              resultCount={totalItems}
-            />
-            <ArchivedQuotesSheet
-              businessSlug={businessSlug}
-              items={archivedItems}
-              restoreAction={restoreAction}
-            />
-          </div>
-          <Button asChild className="w-full sm:w-auto">
-            <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>
-              <ReceiptText data-icon="inline-start" />
-              Create quote
-            </Link>
-          </Button>
-        </div>
-      </div>
-
-      <QuoteListFilters
-        key={`${filters.view}:${filters.status}:${filters.q ?? ""}:${filters.sort}`}
+      <QuoteExportCsvDropdown
+        businessSlug={businessSlug}
+        canExport={canExport}
         filters={filters}
         resultCount={totalItems}
       />
+      <ArchivedQuotesSheet
+        businessSlug={businessSlug}
+        items={archivedItems}
+        restoreAction={restoreAction}
+      />
+      <Button asChild className="h-11 sm:h-8">
+        <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>
+          <ReceiptText data-icon="inline-start" />
+          Create quote
+        </Link>
+      </Button>
     </>
+  );
+}
+
+export async function QuoteListControlsSection({
+  businessSlug: _businessSlug,
+  canExport: _canExport,
+  filters,
+  searchParams: _searchParams,
+  totalItemsPromise,
+  archivedItemsPromise: _archivedItemsPromise,
+  restoreAction: _restoreAction,
+}: QuoteListControlsSectionProps) {
+  const totalItems = await totalItemsPromise;
+
+  return (
+    <QuoteListFilters
+      key={`${filters.view}:${filters.status}:${filters.q ?? ""}:${filters.sort}`}
+      filters={filters}
+      resultCount={totalItems}
+    />
   );
 }
 
@@ -129,6 +134,7 @@ export async function QuoteListContentSection({
   }
 
   return (
+    <div className="p-4">
     <DashboardEmptyState
       action={
         hasNonViewFilters ? (
@@ -169,51 +175,31 @@ export async function QuoteListContentSection({
       }
       variant="list"
     />
+    </div>
+  );
+}
+
+export function QuoteListHeaderActionsFallback() {
+  return (
+    <>
+      <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-32" />
+      <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-28" />
+      <Skeleton className="h-11 w-full rounded-md sm:h-8 sm:w-36" />
+    </>
   );
 }
 
 export function QuoteListControlsFallback() {
   return (
-    <>
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <Skeleton className="hidden h-10 w-40 rounded-xl xl:block" />
-
-        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:w-auto">
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-2">
-            <Skeleton className="h-10 w-full rounded-xl sm:w-32" />
-            <Skeleton className="h-10 w-full rounded-xl sm:w-32" />
-          </div>
-          <Skeleton className="h-10 w-full rounded-xl sm:w-36" />
-        </div>
+    <div className="data-list-toolbar-strip" aria-hidden="true">
+      <div className="data-list-toolbar-grid">
+        <Skeleton className="h-9 min-w-0 flex-1 rounded-md sm:h-8" />
+        <Skeleton className="hidden h-9 min-w-0 flex-1 rounded-md sm:block sm:h-8" />
+        <Skeleton className="hidden h-9 w-32 rounded-md sm:block sm:h-8" />
+        <Skeleton className="h-9 w-20 shrink-0 rounded-md sm:h-8" />
       </div>
-
-      <div className="toolbar-panel">
-        <div className="flex flex-col gap-4">
-          <div className="data-list-toolbar-summary">
-            <Skeleton className="h-4 w-full max-w-xs rounded-md" />
-            <Skeleton className="h-7 w-28 rounded-full" />
-          </div>
-
-          <div className="data-list-toolbar-grid items-end">
-            <div className="flex flex-col gap-2.5">
-              <Skeleton className="h-3 w-24 rounded-md" />
-              <Skeleton className="h-10 w-full rounded-xl" />
-            </div>
-
-            <div className="flex flex-col gap-2.5 sm:max-w-[14rem] xl:w-[12rem] xl:max-w-[14rem] xl:shrink-0">
-              <Skeleton className="h-3 w-24 rounded-md" />
-              <Skeleton className="h-10 w-full rounded-xl" />
-            </div>
-
-            <div className="data-list-toolbar-actions">
-              <Skeleton className="h-10 flex-1 rounded-xl sm:hidden" />
-              <Skeleton className="h-10 w-20 rounded-xl" />
-              <Skeleton className="hidden size-5 rounded-full sm:block" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
+      <Skeleton className="h-4 w-24 rounded-md" />
+    </div>
   );
 }
 

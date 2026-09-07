@@ -1,7 +1,11 @@
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes - APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any Next-specific code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Requo Agent Guide
@@ -75,7 +79,7 @@ app/
 └── .well-known/      # Agent discovery, MCP, OAuth, OpenID, security.txt
 ```
 
-Dashboard routes (`app/(business)/[businessSlug]/(main)/`): `home`, `inquiries`, `quotes`, `products` (quote library / pricing catalog), `follow-ups`, `forms` (inquiry form builder), `analytics`, `members`. There is no AI chat surface — AI is drafting-focused.
+Dashboard routes (`app/(business)/[businessSlug]/(main)/`): `home`, `inquiries`, `quotes`, `products` (quote library / pricing catalog), `follow-ups`, `forms` (inquiry form builder), `analytics`, `members`, `notifications`, `assistant` (owner chat: section root, `chat/[sessionId]`, and `settings` for the public customer chat). The two conversational surfaces are the owner **Assistant** here and the customer **Agent** at `/b/[slug]/chat` — see `docs/architecture/assistant-and-agent.md`; everywhere else AI is drafting-focused.
 
 ### Features (`features/`)
 
@@ -86,6 +90,7 @@ Dashboard routes (`app/(business)/[businessSlug]/(main)/`): `home`, `inquiries`,
 | `account/` | Profile, security, account settings |
 | `admin/` | Admin console features |
 | `ai/` | AI-assisted quote drafting, pricing retrieval, missing-info detection, prompts, actions |
+| `ai-agent/` | Customer **Agent**: anonymous public chat that qualifies and submits inquiries (orchestrator, tools, session/message services, chat UI) |
 | `analytics/` | Conversion + workflow analytics, scheduled reports, public view tracking |
 | `audit/` | Audit log writes and business audit queries |
 | `auth/` | Auth forms, validation, client UX |
@@ -102,6 +107,7 @@ Dashboard routes (`app/(business)/[businessSlug]/(main)/`): `home`, `inquiries`,
 | `memory/` | Business memory — extraction, chunking, embeddings, RAG retriever; grounds AI quote drafts |
 | `notifications/` | In-app notification data and UI |
 | `onboarding/` | First-business onboarding, starter-template selection |
+| `owner-assistant/` | Owner **Assistant**: authenticated chat over business data (orchestrator, tools, confirmations, history panel, chat UI) |
 | `paywall/` | Plan-gating components and paywall logic |
 | `quotes/` | Quote editor, calculations, delivery, status transitions, public pages, response tracking, quote library / products |
 | `settings/` | Business settings surfaces |
@@ -163,12 +169,13 @@ api/
 ├── cron/           # expire-quotes, expire-subscriptions, token-log-cleanup
 ├── dev/            # Dev tools (context, revalidate, routes, skeleton, switch-plan, timing)
 ├── inngest/        # Inngest webhook route
+├── ai/             # agent chat/session, owner-assistant chat/session
 ├── inquiries/[id]/ # Inquiry-specific operations
 ├── public/         # analytics tracking, business lookup, markdown discovery
 └── push/           # Web push subscribe/unsubscribe
 ```
 
-Analytics rollups/digests/reports run as Inngest cron functions, not `api/cron` routes. There is no `api/ai` route — AI runs through server actions and Inngest.
+Analytics rollups/digests/reports run as Inngest cron functions, not `api/cron` routes. `api/ai` carries only the two streaming chat surfaces (customer Agent, owner Assistant); all other AI work runs through server actions and Inngest.
 
 ### Middleware (`proxy.ts`)
 
@@ -184,6 +191,8 @@ Next.js middleware; keep it to routing and headers only (no auth checks or heavy
 - **Framework:** Next.js 16.3 App Router, React 19, TypeScript (strict)
 - **Styling:** Tailwind CSS v4 + shadcn/ui + radix-ui
 - **Database:** Drizzle ORM 0.45 + PostgreSQL (Supabase)
+  - Customer agent: `ai_agent_sessions`, `ai_agent_messages`, `ai_agent_runs`
+  - Owner assistant: `owner_assistant_sessions`, `owner_assistant_messages`
 - **Auth:** Better Auth 1.6
 - **Storage/Realtime:** Supabase
 - **Email:** Resend (primary), Mailtrap + Brevo (fallback)
@@ -226,7 +235,8 @@ Do not add (unless explicitly requested): jobs / job lifecycle, invoicing, workf
 
 ### AI Architecture
 
-- `features/ai/` is product-level: AI-assisted quote drafting (`quote-generator.ts`), pricing retrieval, missing-info detection, and modular prompt files in `features/ai/prompts/`. It is **not** a chat orchestrator — there is no tool-calling agent loop or AI chat product surface.
+- `features/ai/` is product-level drafting: AI-assisted quote drafting (`quote-generator.ts`), pricing retrieval, missing-info detection, and modular prompt files in `features/ai/prompts/`. It holds no chat orchestrator.
+- The two chat surfaces own their own orchestrators and tool registries: `features/ai-agent/` (customer, anonymous, public `/b/[slug]/chat`) and `features/owner-assistant/` (owner, authenticated, `/[businessSlug]/assistant`). Both stream over the AI SDK UI message stream through `app/api/ai/*`. Naming is fixed by ADR 003 and the transcript privacy boundary by ADR 004 — read `docs/architecture/assistant-and-agent.md` before touching either.
 - `lib/ai/` is infrastructure: model registry, intelligent `router.ts`, capacity selector, embeddings, token logging, usage limiter, cache layers, request dedup, quality gate, input sanitizer, output filter, security event logging, and middleware (strip-reasoning, tool-truncator).
 - Provider routing is server-side through `lib/ai/router.ts` (Groq, Cerebras, Gemini via `@ai-sdk/google`, Mistral, Cloudflare Workers AI, NVIDIA NIM, OpenRouter).
 - AI usage is tracked and limited per business via `lib/ai/usage-limiter.ts` and `lib/plans/`.
@@ -293,7 +303,7 @@ When adding a plan-gated feature: add the key + label + description to `entitlem
 ### Database & Migrations
 
 - Drizzle ORM with sequential SQL migrations in `drizzle/`; one migration history across all environments.
-- Schema source of truth: `lib/db/schema/index.ts` (barrel over 21 domain modules): activity, admin, ai, analytics, audit, auth, business-inquiry-forms, businesses, compliance, email, follow-ups, inquiries, knowledge-files, memories, notifications, public-actions, push-subscriptions, quote-library, quotes, reply-snippets, subscriptions.
+- Schema source of truth: `lib/db/schema/index.ts` (barrel over 22 domain modules): activity, admin, ai, ai-agent, owner-assistant, analytics, audit, auth, business-inquiry-forms, businesses, compliance, email, follow-ups, inquiries, knowledge-files, memories, notifications, public-actions, push-subscriptions, quote-library, quotes, reply-snippets, subscriptions.
 - Runtime uses `DATABASE_URL` (pooler). Migrations use `DATABASE_MIGRATION_URL` (direct connection, port 5432); `drizzle.config.ts` and `scripts/migrate.ts` reject pooler URLs.
 - **Dev:** edit schema → `npm run db:generate -- --name descriptive_name` → `npm run db:migrate` → commit migration + schema together.
 - **Prod:** `vercel-build` runs `db:migrate:strict && next build` (apply only). Never `db:generate`/`db:push` against production. Never edit a committed migration — always add a new one.
@@ -309,13 +319,10 @@ When adding a plan-gated feature: add the key + label + description to `entitlem
 
 ### Instant Navigation
 
-All authenticated dashboard pages use the `unstable_instant` route segment config so sibling navigation paints the destination shell without a server roundtrip.
+All authenticated dashboard pages use the supported `instant` route segment config (Next.js 16.3, Cache Components) so sibling navigation paints the destination shell without a server roundtrip. Partial Prefetching is enabled app-wide (`partialPrefetching: true`).
 
 ```tsx
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [{ params: { businessSlug: "demo" }, headers: [["rsc", "1"], ["next-action", null]] }],
-};
+export const instant = true;
 
 export default function SomePage({ params }) {         // MUST be synchronous
   return (
@@ -335,7 +342,7 @@ async function DataRegion({ params }) {                // all dynamic reads live
 }
 ```
 
-Rules: pages return their shell + skeletons **synchronously**; `params`/`searchParams`/session/queries go inside `<Suspense>`-wrapped async children; each independently-loading region gets its own boundary, and independently-failing regions add `<RegionErrorBoundary>`. `unstable_instant` must include `samples`. Never re-add `unstable_disableValidation: true` — use the escape-hatch registry (`lib/instant-navigation/escape-hatch-registry.ts`). Stale times (`next.config.ts`): `experimental.staleTimes = { dynamic: 30, static: 180 }`. Source of truth: `node_modules/next/dist/docs/` (`instant-navigation.md`, `instant.md`, `prefetching.md`, `staleTimes.md`).
+Rules: pages return their shell + skeletons **synchronously**; `params`/`searchParams`/session/queries go inside `<Suspense>`-wrapped async children; each independently-loading region gets its own boundary, and independently-failing regions add `<RegionErrorBoundary>`. Never opt out with `instant = false` to silence a fixable failure — use the escape-hatch registry (`lib/instant-navigation/escape-hatch-registry.ts`). Stale times (`next.config.ts`): `experimental.staleTimes = { dynamic: 30, static: 180 }`. Source of truth: `node_modules/next/dist/docs/` (`instant-navigation.md`, `instant.md`, `prefetching.md`, `staleTimes.md`).
 
 ## Testing
 
@@ -402,7 +409,7 @@ Required: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_
 - **Billing:** `POLAR_ACCESS_TOKEN`, `POLAR_WEBHOOK_SECRET`, `POLAR_SERVER`, `POLAR_*_PRODUCT_ID`
 - **Push:** `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`
 - **Inngest:** `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`
-- **Admin:** `ADMIN_EMAILS`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`
+- **Admin:** `ADMIN_EMAILS`
 
 ## Agent Discovery & MCP
 

@@ -21,7 +21,7 @@ import {
 } from "@/lib/seo/site";
 
 const marketingDescription =
-  "Capture inquiries, send quotes, and follow up automatically before opportunities go cold. Requo is built for owner-led service businesses.";
+  "Quote and inquiry management software for service businesses. Capture requests, draft professional quotes, track responses, and follow up before opportunities go cold.";
 
 export const metadata: Metadata = {
   ...createPageMetadata({

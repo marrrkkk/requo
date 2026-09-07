@@ -148,7 +148,7 @@ export function FollowUpDashboardSectionFallback() {
             <div className="flex flex-col gap-3 p-3">
               {Array.from({ length: 2 }).map((_, itemIndex) => (
                 <div
-                  className="soft-panel flex flex-col gap-3 px-4 py-4 shadow-none"
+                  className="soft-panel flex flex-col gap-3 shadow-none"
                   key={itemIndex}
                 >
                   <Skeleton className="h-4 w-36 rounded-md" />

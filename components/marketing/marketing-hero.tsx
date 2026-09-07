@@ -67,8 +67,8 @@ const whyRequoGraphics = {
 // Indexes map into `faqItems` in `components/marketing/marketing-data.ts`.
 // Keep these ranges in sync if the list changes.
 const faqGroups = [
-  { label: "The basics", indexes: [0, 9, 10] },
-  { label: "Your workflow", indexes: [3, 4, 5, 6] },
+  { label: "The basics", indexes: [0, 9, 10, 11] },
+  { label: "Your workflow", indexes: [3, 4, 5, 6, 12, 13, 14] },
   { label: "Customers & team", indexes: [1, 2, 7, 8] },
 ] as const;
 
@@ -119,7 +119,7 @@ export function MarketingHero() {
               <span className="text-primary">Send every quote.</span>
             </h1>
             <p className="max-w-xl font-sans text-[0.95rem] font-normal leading-relaxed text-muted-foreground sm:text-base lg:text-lg lg:leading-relaxed">
-              Requo helps service businesses capture inquiries, send quotes, and follow up automatically — so you never miss an opportunity.
+              Requo helps service businesses capture inquiries, send quotes, track responses, and follow up on time — so you never miss an opportunity.
             </p>
 
             <div className="flex flex-row items-center gap-3 pt-2">
@@ -239,7 +239,7 @@ export function MarketingHero() {
           <div className="flex flex-col gap-3 sm:gap-4">
             <p className="meta-label !text-primary">THE REQUO WORKSPACE</p>
             <h2 className="max-w-3xl font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
-              One connected workflow from inquiry to booked job.
+              One connected workflow from inquiry to accepted quote.
             </h2>
           </div>
           <p className="max-w-md text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7 lg:pb-1">
@@ -335,7 +335,7 @@ export function MarketingHero() {
           </Button>
 
           <p className="text-xs text-muted-foreground sm:text-sm">
-            Start with the free plan and keep inquiries moving from first contact to booked job.
+            Start with the free plan and keep inquiries moving from first contact to accepted quote.
           </p>
         </section>
       </InViewReveal>

@@ -389,7 +389,7 @@ export function FollowUpItem({
 
           {/* Suggested message */}
           {showMessage && followUp.suggestedMessage ? (
-            <div className="soft-panel flex flex-col gap-2.5 px-4 py-3.5 shadow-none">
+            <div data-padding="none" className="soft-panel flex flex-col gap-2.5 px-4 py-3.5 shadow-none">
               <p className="meta-label">Suggested message</p>
               <p className="text-sm leading-6 text-foreground">
                 {followUp.suggestedMessage}
@@ -441,7 +441,7 @@ export function FollowUpItem({
 
           {/* Completion note */}
           {followUp.completionNote ? (
-            <div className="soft-panel px-4 py-3 shadow-none">
+            <div data-padding="none" className="soft-panel px-4 py-3 shadow-none">
               <p className="meta-label mb-1">Outcome</p>
               <p className="text-sm text-foreground">{followUp.completionNote}</p>
             </div>

@@ -85,7 +85,7 @@ const CreateBusinessHubCardTrigger = forwardRef<
         </span>
         <span
           aria-hidden="true"
-          className="control-surface-secondary inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-md border border-border/55 px-4 text-sm font-medium text-secondary-foreground sm:w-auto"
+          className="control-surface-secondary inline-flex h-9 w-full shrink-0 items-center justify-center gap-2 rounded-md border border-border/55 px-4 text-sm font-medium text-secondary-foreground sm:h-8 sm:w-auto"
         >
           Create business
         </span>

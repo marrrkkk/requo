@@ -26,7 +26,7 @@ export function AnalyticsFunnel({ steps }: { steps: FunnelStep[] }) {
             prevCount && prevCount > 0 ? step.count / prevCount : null;
 
           return (
-            <div className="soft-panel p-4 shadow-none" key={step.label}>
+            <div className="soft-panel shadow-none" key={step.label}>
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="meta-label">Step {i + 1}</p>

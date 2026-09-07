@@ -173,6 +173,22 @@ export const adminStartImpersonationSchema = z
   })
   .strict();
 
+/* ── Role management ────────────────────────────────────────────────────── */
+
+export const adminPromoteUserSchema = z
+  .object({
+    targetUserId: adminIdSchema,
+    confirmToken: adminConfirmTokenSchema,
+  })
+  .strict();
+
+export const adminDemoteUserSchema = z
+  .object({
+    targetUserId: adminIdSchema,
+    confirmToken: adminConfirmTokenSchema,
+  })
+  .strict();
+
 /* ── Password re-confirmation ────────────────────────────────────────────── */
 
 export const adminPasswordConfirmSchema = z
@@ -359,6 +375,8 @@ export type AdminForceCancelSubscriptionInput = z.infer<
 export type AdminStartImpersonationInput = z.infer<
   typeof adminStartImpersonationSchema
 >;
+export type AdminPromoteUserInput = z.infer<typeof adminPromoteUserSchema>;
+export type AdminDemoteUserInput = z.infer<typeof adminDemoteUserSchema>;
 export type AdminPasswordConfirmInput = z.infer<
   typeof adminPasswordConfirmSchema
 >;

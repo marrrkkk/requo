@@ -58,7 +58,7 @@ export function BusinessInquiryFormDangerZone({
         <h3 className="font-heading text-sm font-semibold tracking-tight text-foreground sm:text-base">
           Danger zone
         </h3>
-        <p className="mt-0.5 text-xs text-muted-foreground sm:text-[13px]">
+        <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
           Archive or permanently delete this form.
         </p>
       </div>
@@ -67,7 +67,7 @@ export function BusinessInquiryFormDangerZone({
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-foreground">Archive form</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
               Hide this form without deleting previously submitted customer inquiries.
             </p>
           </div>
@@ -99,7 +99,7 @@ export function BusinessInquiryFormDangerZone({
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-destructive">Delete form</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
               Permanently remove this form. Only available when no inquiries are linked.
             </p>
           </div>

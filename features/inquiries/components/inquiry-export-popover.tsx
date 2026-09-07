@@ -52,25 +52,27 @@ export function InquiryExportPopover({
         className="w-40 rounded-xl p-1.5"
       >
         <div className="grid gap-0.5">
-          <a
-            aria-label="Export PDF"
-            className="flex min-h-10 w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-[var(--control-accent-bg)] hover:text-foreground"
-            href={pdfHref}
-            onClick={() => setOpen(false)}
-          >
-            <FileText className="size-4" />
-            PDF
-          </a>
+          <Button asChild variant="ghost" className="w-full justify-start">
+            <a
+              aria-label="Export PDF"
+              href={pdfHref}
+              onClick={() => setOpen(false)}
+            >
+              <FileText data-icon="inline-start" />
+              PDF
+            </a>
+          </Button>
 
-          <a
-            aria-label="Export PNG"
-            className="flex min-h-10 w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-[var(--control-accent-bg)] hover:text-foreground"
-            href={pngHref}
-            onClick={() => setOpen(false)}
-          >
-            <FileImage className="size-4" />
-            PNG
-          </a>
+          <Button asChild variant="ghost" className="w-full justify-start">
+            <a
+              aria-label="Export PNG"
+              href={pngHref}
+              onClick={() => setOpen(false)}
+            >
+              <FileImage data-icon="inline-start" />
+              PNG
+            </a>
+          </Button>
         </div>
       </PopoverContent>
     </Popover>

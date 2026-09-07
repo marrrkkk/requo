@@ -20,18 +20,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Review meaningful admin, lifecycle, and security actions.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 export default function AuditLogSettingsPage({
   params,

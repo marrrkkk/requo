@@ -59,6 +59,7 @@ export type DashboardInquiryListItem = {
   recordState: InquiryRecordState;
   subject: string | null;
   archivedAt: Date | null;
+  escalated: boolean;
   pendingFollowUpCount: number;
   nextFollowUpDueAt: Date | null;
   hasDuplicateFlag: boolean;
@@ -124,6 +125,7 @@ export type DashboardInquiryDetail = {
   status: InquiryStatus;
   recordState: InquiryRecordState;
   archivedAt: Date | null;
+  escalated: boolean;
   submittedAt: Date;
   createdAt: Date;
   attachments: DashboardInquiryAttachment[];
@@ -139,6 +141,7 @@ export type InquiryListFilters = {
   status: InquiryStatusFilterValue;
   form: string;
   sort: "newest" | "oldest";
+  escalated: boolean;
   page: number;
 };
 

@@ -47,18 +47,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "See who needs contact next and when.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * Follow-ups page — returns the structural shell synchronously.
@@ -81,7 +70,7 @@ export default function FollowUpsPage({
         description="See who needs contact next and when."
       />
 
-      <FirstVisitTip {...featureTips.followUps} className="mb-4" />
+      <FirstVisitTip {...featureTips.followUps} />
 
       <Suspense fallback={<FollowUpsPageSkeleton />}>
         <FollowUpsContentRegion params={params} searchParams={searchParams} />
@@ -230,7 +219,7 @@ function FollowUpsPageSkeleton() {
     <>
       {/* Search bar placeholder */}
       <div className="relative max-w-sm">
-        <Skeleton className="h-10 w-full rounded-xl" />
+        <Skeleton className="h-9 w-full rounded-md sm:h-8" />
       </div>
 
       {/* Board columns skeleton */}

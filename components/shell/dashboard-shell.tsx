@@ -13,8 +13,6 @@ import {
   Fragment,
   memo,
 
-  type CSSProperties,
-
   type ReactNode,
   useMemo,
 
@@ -219,22 +217,14 @@ export function DashboardShell({
   const currentPageLabel = breadcrumbs.at(-1)?.label ?? business.name;
 
   return (
-    <SidebarProvider
-      defaultOpen
-      style={
-        {
-          "--sidebar-width": "17.5rem",
-          "--sidebar-width-icon": "4.25rem",
-        } as CSSProperties
-      }
-    >
+    <SidebarProvider defaultOpen>
       <ThemePreferenceSync
         themePreference={themePreference}
         userId={user.id}
       />
       <Sidebar collapsible="icon">
         <SidebarHeader className="gap-0 p-0">
-          <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-3.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <div className="flex h-12 items-center justify-between border-b border-sidebar-border px-3.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
             <BrandMark
               collapseLabel
               className="min-w-0 px-2 py-1.5 group-data-[collapsible=icon]:p-0"
@@ -282,10 +272,10 @@ export function DashboardShell({
       </Sidebar>
 
       <SidebarInset className="min-h-svh min-w-0">
-        <header className="dashboard-topbar flex h-14 items-center">
+        <header className="dashboard-topbar flex h-12 items-center">
           <DesktopSidebarTrigger />
           <div className="dashboard-topbar-inner min-w-0 flex-1">
-            <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
+            <div className="flex min-h-8 min-w-0 items-center gap-2 md:gap-2.5">
               <Button asChild variant="ghost" size="icon-sm" className="hidden size-8 shrink-0 lg:inline-flex">
                 <Link href={getBusinessDashboardPath(business.slug)} aria-label="Home">
                   <HomeIcon className="size-4" />
@@ -299,7 +289,7 @@ export function DashboardShell({
                 <p className="truncate font-heading text-sm font-semibold tracking-tight text-foreground">
                   {currentPageLabel}
                 </p>
-                <p className="truncate text-[0.7rem] text-muted-foreground">
+                <p className="truncate text-xs text-muted-foreground">
                   {business.name}
                 </p>
               </div>
@@ -334,6 +324,7 @@ export function DashboardShell({
                   <CommandMenu
                     businessSlug={business.slug}
                     businessId={business.id}
+                    userId={user.id}
                     role={businessContext.role}
                     plan={business.plan}
                   />
@@ -431,7 +422,7 @@ const DashboardNavigationItem = memo(function DashboardNavigationItem({
 
         asChild
 
-        className="min-h-9.5 h-9.5 rounded-lg border border-transparent px-3 py-2 text-[0.925rem] data-[active=true]:border-sidebar-primary/12 data-[active=true]:bg-sidebar-primary/12 data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+        className="rounded-md border border-transparent data-[active=true]:border-sidebar-primary/12 data-[active=true]:bg-sidebar-primary/12 data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
 
         isActive={isActive}
 
@@ -453,7 +444,7 @@ const DashboardNavigationItem = memo(function DashboardNavigationItem({
 
             className={cn(
 
-              "size-4.5 text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
+              "size-4 text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
 
               isActive && "text-primary",
 
@@ -891,7 +882,7 @@ function BusinessSwitcher({
 
         <button
 
-          className="group/business-switcher w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-accent dark:data-[state=open]:bg-accent group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none hover:group-data-[collapsible=icon]:bg-sidebar-accent"
+          className="group/business-switcher w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-accent dark:data-[state=open]:bg-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none hover:group-data-[collapsible=icon]:bg-sidebar-accent"
 
           data-tour="business-switcher"
 
@@ -1017,7 +1008,7 @@ function BusinessSwitcher({
 
                   </div>
 
-                  <span className="text-[0.68rem] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                  <span className="meta-label">
 
                     {membership.role}
 

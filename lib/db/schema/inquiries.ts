@@ -84,6 +84,8 @@ export const inquiries = pgTable(
     qualificationTemperature: text("qualification_temperature"),
     qualificationSignals: jsonb("qualification_signals"),
     qualifiedAt: timestamp("qualified_at", { withTimezone: true }),
+    aiAssisted: boolean("ai_assisted").notNull().default(false),
+    escalated: boolean("escalated").notNull().default(false),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -123,6 +125,16 @@ export const inquiries = pgTable(
     index("inquiries_business_qualification_score_idx").on(
       table.businessId,
       table.qualificationScore,
+    ),
+    index("inquiries_ai_assisted_idx").on(
+      table.businessId,
+      table.aiAssisted,
+      table.createdAt,
+    ),
+    index("inquiries_escalated_idx").on(
+      table.businessId,
+      table.escalated,
+      table.createdAt,
     ),
   ],
 );

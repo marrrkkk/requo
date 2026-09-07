@@ -13,7 +13,7 @@ export function AdminSystemLoading() {
       <div className="flex flex-col gap-8">
         <div
           aria-busy
-          className="section-panel flex flex-col gap-5 border-l-4 border-l-border p-5 sm:p-6"
+ className="section-panel flex flex-col gap-5 border-l-4 border-l-border"
         >
           <div className="flex gap-4">
             <Skeleton className="size-11 shrink-0 rounded-xl" />
@@ -31,7 +31,7 @@ export function AdminSystemLoading() {
           </div>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
             {Array.from({ length: 7 }).map((_, index) => (
-              <Skeleton className="h-14 rounded-lg" key={index} />
+              <Skeleton className="h-16 rounded-lg" key={index} />
             ))}
           </div>
         </div>

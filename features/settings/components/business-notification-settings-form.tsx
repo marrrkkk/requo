@@ -421,7 +421,7 @@ export function BusinessNotificationSettingsForm({
         onSendTest={() => { void handleSendTestPush(); }}
       />
 
-      <section className="section-panel">
+      <section data-padding="none" className="section-panel">
         {notificationGroups.map((group, groupIndex) => (
           <div key={group.label}>
             {groupIndex > 0 ? (
@@ -490,7 +490,7 @@ function NotificationEventRow({
         </div>
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">{event.label}</p>
-          <p className="text-[0.8rem] leading-relaxed text-muted-foreground">
+          <p className="text-sm leading-relaxed text-muted-foreground">
             {event.description}
           </p>
         </div>
@@ -504,7 +504,7 @@ function NotificationEventRow({
             type="button"
             variant="ghost"
           >
-            <span className="text-[0.8rem]">{summaryLabel}</span>
+            <span className="text-sm">{summaryLabel}</span>
             <ChevronDown className="size-3.5 opacity-60" />
           </Button>
         </PopoverTrigger>

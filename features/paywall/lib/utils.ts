@@ -60,7 +60,15 @@ export function getRequiredPlanLabel(feature: PlanFeature): string {
  */
 export function getUpgradeCtaText(
   currentPlan: BusinessPlan,
+  requiredPlan?: BusinessPlan,
 ): string | null {
+  if (requiredPlan) {
+    if (currentPlan === requiredPlan) {
+      return null;
+    }
+    return `Upgrade to ${planMeta[requiredPlan].label}`;
+  }
+
   switch (currentPlan) {
     case "free":
       return "Upgrade to Pro";

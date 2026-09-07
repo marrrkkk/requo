@@ -122,7 +122,7 @@ function NeedsAttentionModalRow({
             {item.title}
           </p>
           {item.category ? (
-            <span className="shrink-0 text-[0.68rem] font-medium uppercase tracking-wider text-muted-foreground/70">
+            <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
               {item.category}
             </span>
           ) : null}

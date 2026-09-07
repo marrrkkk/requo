@@ -1,6 +1,7 @@
 "use server";
 
 import { updateTag } from "next/cache";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -142,6 +143,7 @@ export async function submitPublicInquiryAction(
     {
       maxAttachmentSizeBytes:
         getPublicInquiryAttachmentMaxBytes(plan),
+      defaultServiceCategory: business.form?.name ?? undefined,
     },
   );
 
@@ -434,6 +436,8 @@ async function runInquiryRecordAction(
 
   const { user, businessContext } = ownerAccess;
 
+  let redirectTarget: string | null = null;
+
   try {
     const result = await mutation({
       businessId: businessContext.business.id,
@@ -456,19 +460,32 @@ async function runInquiryRecordAction(
     }
 
     if (messages.redirectHref && (result.changed || result.deleted)) {
-      redirect(messages.redirectHref);
+      redirectTarget = messages.redirectHref;
+    } else {
+      return {
+        success: result.changed || result.deleted ? messages.success : messages.unchanged,
+      };
     }
-
-    return {
-      success: result.changed || result.deleted ? messages.success : messages.unchanged,
-    };
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
     console.error(messages.fallbackError, error);
 
     return {
       error: "We couldn't update that inquiry right now.",
     };
   }
+
+  if (redirectTarget) {
+    redirect(redirectTarget);
+  }
+
+  // Unreachable when redirectTarget is set (redirect throws); keeps the
+  // return type satisfied for the non-redirect fall-through path.
+  return {
+    success: messages.success,
+  };
 }
 
 export async function archiveInquiryAction(
@@ -566,8 +583,16 @@ export async function bulkArchiveInquiriesAction(
 
     updateCacheTags(getBusinessInquiryListCacheTags(businessContext.business.id));
 
+    if (result.affected === 0) {
+      return {
+        error: "No inquiries were archived. Selected inquiries may have already been archived.",
+        affected: 0,
+        skipped: result.skipped,
+      };
+    }
+
     return {
-      success: `${result.affected} inquiry${result.affected !== 1 ? "ies" : ""} archived.`,
+      success: `${result.affected} ${result.affected === 1 ? "inquiry" : "inquiries"} archived.`,
       affected: result.affected,
       skipped: result.skipped,
     };
@@ -601,10 +626,24 @@ export async function bulkDeleteInquiriesAction(
       actorUserId: user.id,
     });
 
-    updateCacheTags(getBusinessInquiryListCacheTags(businessContext.business.id));
+    const cacheTags = [
+      ...getBusinessInquiryListCacheTags(businessContext.business.id),
+      ...parsed.data.inquiryIds.flatMap((id) =>
+        getBusinessInquiryDetailCacheTags(businessContext.business.id, id),
+      ),
+    ];
+    updateCacheTags(cacheTags);
+
+    if (result.affected === 0) {
+      return {
+        error: "No inquiries were deleted. Selected inquiries may have already been deleted.",
+        affected: 0,
+        skipped: result.skipped,
+      };
+    }
 
     return {
-      success: `${result.affected} inquiry${result.affected !== 1 ? "ies" : ""} deleted.`,
+      success: `${result.affected} ${result.affected === 1 ? "inquiry" : "inquiries"} deleted.`,
       affected: result.affected,
       skipped: result.skipped,
     };

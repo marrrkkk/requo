@@ -22,7 +22,7 @@ import type { BusinessPlan } from "@/lib/plans/plans";
 import type { PlanFeature } from "@/lib/plans/entitlements";
 import { cn } from "@/lib/utils";
 
-import { getUpgradeCtaText, getRequiredPlanLabel } from "../lib/utils";
+import { getUpgradeCtaText, getRequiredPlanLabel, resolveRequiredPlan } from "../lib/utils";
 import type {
   UpgradeActionProps,
   UpgradePromptSize,
@@ -66,7 +66,7 @@ const sizeButtonSize: Record<UpgradePromptSize, "sm" | "default" | "lg"> = {
 
 const sizeIconClasses: Record<UpgradePromptSize, string> = {
   sm: "size-8",
-  md: "size-10",
+  md: "size-8",
   lg: "size-12",
 };
 
@@ -370,7 +370,8 @@ export function UpgradePrompt({
     return null;
   }
 
-  const ctaText = getUpgradeCtaText(plan);
+  const requiredPlan = feature ? resolveRequiredPlan(feature) : undefined;
+  const ctaText = getUpgradeCtaText(plan, requiredPlan);
   if (!ctaText) {
     return null;
   }

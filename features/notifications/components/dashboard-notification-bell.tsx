@@ -12,6 +12,7 @@ import {
   UserCheck,
   UserX,
 } from "lucide-react";
+import Link from "next/link";
 
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { useProgressRouter } from "@/hooks/use-progress-router";
@@ -61,6 +62,7 @@ import {
 import {
   getBusinessDashboardPath,
   getBusinessInquiryPath,
+  getBusinessNotificationsPath,
   getBusinessQuotePath,
 } from "@/features/businesses/routes";
 import { cn } from "@/lib/utils";
@@ -593,9 +595,9 @@ export function DashboardNotificationBell({
       type="button"
       variant="ghost"
     >
-      <Bell className="size-4.5" />
+      <Bell className="size-4" />
       {view.unreadCount ? (
-        <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 py-0.5 text-[0.65rem] font-semibold leading-none text-background shadow-sm">
+        <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 py-0.5 text-xs font-semibold leading-none text-background shadow-sm">
           {view.unreadCount > 99 ? "99+" : view.unreadCount}
         </span>
       ) : null}
@@ -666,7 +668,7 @@ export function DashboardNotificationBell({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span
-                            className="shrink-0 text-[0.72rem] font-medium text-muted-foreground"
+                            className="shrink-0 text-xs font-medium text-muted-foreground"
                           >
                             {formatRelativeNotificationTime(item.createdAt)}
                           </span>
@@ -706,6 +708,20 @@ export function DashboardNotificationBell({
             </Empty>
           </div>
         )}
+      </div>
+      <Separator />
+      <div className="px-4 py-3">
+        <Button
+          asChild
+          className="w-full"
+          onClick={() => setIsOpen(false)}
+          size="sm"
+          variant="ghost"
+        >
+          <Link href={getBusinessNotificationsPath(businessSlug)}>
+            View all notifications
+          </Link>
+        </Button>
       </div>
     </>
   );

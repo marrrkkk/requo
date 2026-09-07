@@ -12,6 +12,7 @@ import { createBusinessAction } from "@/features/businesses/actions";
 import { CreateBusinessForm } from "@/features/businesses/components/create-business-form";
 import { getBusinessQuotaForUser } from "@/features/businesses/quota";
 import { dashboardPath } from "@/features/businesses/routes";
+import { getEffectivePlanForUser } from "@/lib/billing/subscription-service";
 import { onboardingPath } from "@/features/onboarding/routes";
 import { UpgradePrompt } from "@/features/paywall";
 import { requireSession } from "@/lib/auth/session";
@@ -22,17 +23,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Create a new business workspace.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 export default function NewBusinessPage() {
   return (
@@ -47,9 +38,10 @@ async function NewBusinessPageContent() {
   const session = await requireSession();
   const userId = session.user.id;
 
-  const [profile, businessQuota] = await Promise.all([
+  const [profile, businessQuota, effectivePlan] = await Promise.all([
     getAccountProfileForUser(userId),
     getBusinessQuotaForUser({ ownerUserId: userId }),
+    getEffectivePlanForUser(userId),
   ]);
 
   if (!profile?.onboardingCompletedAt) {
@@ -85,10 +77,10 @@ async function NewBusinessPageContent() {
 
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
         <div className="space-y-2 pb-8">
-          <h1 className="font-heading text-[2rem] font-semibold tracking-tight text-foreground sm:text-[2.35rem]">
+          <h1 className="font-heading text-xl font-semibold leading-tight tracking-tight text-foreground text-balance sm:text-2xl">
             Create a new business
           </h1>
-          <p className="max-w-2xl text-sm leading-normal text-muted-foreground sm:text-[0.96rem] sm:leading-7">
+          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
             Set up a new workspace with inquiry capture, quote defaults, and
             follow-up basics.
           </p>
@@ -98,6 +90,7 @@ async function NewBusinessPageContent() {
           <CreateBusinessForm
             action={createBusinessAction}
             businessId={businessId}
+            plan={effectivePlan}
             standalone
           />
         ) : (
@@ -127,10 +120,10 @@ function NewBusinessPageSkeleton() {
 
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
         <div className="space-y-2 pb-8">
-          <h1 className="font-heading text-[2rem] font-semibold tracking-tight text-foreground sm:text-[2.35rem]">
+          <h1 className="font-heading text-xl font-semibold leading-tight tracking-tight text-foreground text-balance sm:text-2xl">
             Create a new business
           </h1>
-          <p className="max-w-2xl text-sm leading-normal text-muted-foreground sm:text-[0.96rem] sm:leading-7">
+          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
             Set up a new workspace with inquiry capture, quote defaults, and
             follow-up basics.
           </p>

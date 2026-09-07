@@ -1,19 +1,30 @@
-import { Sparkles } from "lucide-react";
+import { DashboardPage } from "@/components/shared/dashboard-layout";
+import { Skeleton } from "@/components/ui/skeleton";
 
-/**
- * Structural loading state for the assistant route.
- * Renders the chat page container frame with a minimal centered loading indicator,
- * matching the chat loading pattern since both are AI conversation interfaces.
- */
+/** Loading skeleton for the Assistant section — same shape as the loaded surface. */
 export default function AssistantLoading() {
   return (
-    <div className="chat-page-container">
-      <div className="flex h-full flex-col items-center justify-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-full bg-primary/10">
-          <Sparkles className="size-5 text-primary animate-pulse" />
+    <DashboardPage className="min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 flex-col" data-assistant-pane="">
+        <div className="flex items-center justify-between gap-2 px-3 pt-3 md:px-6">
+          <Skeleton className="h-8 w-24 rounded-lg" />
+          <Skeleton className="h-8 w-8 rounded-lg" />
         </div>
-        <p className="text-sm text-muted-foreground">Loading assistant…</p>
+        <div className="chat-stage min-h-0 flex-1" data-conversation="empty">
+          <div className="chat-stage-transcript px-3 md:px-6">
+            <div className="chat-stage-transcript-inner mx-auto flex w-full max-w-3xl flex-col gap-7 pt-6 pb-2">
+              <Skeleton className="h-16 w-3/4 rounded-2xl" />
+              <Skeleton className="h-24 w-full rounded-2xl" />
+            </div>
+          </div>
+          <div className="sticky bottom-0 z-10 bg-background/95 backdrop-blur-xs px-3 pb-4 pt-2 md:px-6">
+            <div className="mx-auto w-full max-w-3xl">
+              <Skeleton className="h-24 w-full rounded-2xl" />
+            </div>
+          </div>
+          <div aria-hidden="true" />
+        </div>
       </div>
-    </div>
+    </DashboardPage>
   );
 }

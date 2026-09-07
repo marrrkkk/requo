@@ -2,99 +2,182 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * Structural loading state for the marketing home page.
- * Renders hero structure, section headings, and CTA placeholders synchronously.
- * Uses Skeleton only for dynamic/testimonial content.
- * Header/footer are rendered by the page component (PublicPageShell) — they
- * will appear once the page streams in.
+ * Mirrors the section order and anatomy of MarketingHero: hero (left-aligned
+ * headline, CTAs, device frame), Why Requo, How it works, Workspace features,
+ * FAQ, final CTA, and footer.
  */
 export default function MarketingHomeLoading() {
   return (
     <div className="overflow-x-clip">
-      {/* Hero section structure */}
-      <section className="relative min-h-[480px] overflow-hidden px-5 pb-14 pt-10 sm:px-6 sm:pb-20 sm:pt-14 lg:min-h-[600px] lg:px-8 lg:pb-24 lg:pt-16 xl:px-10">
-        <div className="flex flex-col gap-12 lg:gap-16">
-          <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6 text-center">
-            {/* Announcement pill */}
-            <Skeleton className="h-7 w-64 rounded-full" />
-
-            <div className="flex flex-col items-center gap-4">
+      {/* Hero section */}
+      <section className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 sm:pb-28 sm:pt-16 lg:px-8 lg:pb-36 lg:pt-24 xl:px-0">
+        <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-start gap-8 sm:gap-10 lg:gap-12">
+          <div className="flex w-full max-w-4xl flex-col items-start gap-4 sm:gap-5">
+            <div className="flex flex-col gap-3">
               <Skeleton className="h-12 w-full max-w-xl rounded-lg sm:h-16 lg:h-20" />
-              <Skeleton className="h-6 w-full max-w-md rounded-md" />
+              <Skeleton className="h-12 w-72 max-w-full rounded-lg sm:h-16 lg:h-20" />
             </div>
-
-            {/* CTA button placeholders */}
-            <div className="flex w-full max-w-sm flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row">
-              <Skeleton className="h-11 w-full rounded-md sm:w-40" />
-              <Skeleton className="h-11 w-full rounded-md sm:w-36" />
+            <Skeleton className="h-5 w-full max-w-lg rounded-md sm:h-6" />
+            <div className="flex flex-row items-center gap-3 pt-2">
+              <Skeleton className="h-11 w-36 rounded-lg" />
+              <Skeleton className="h-11 w-32 rounded-lg" />
             </div>
-
-            <Skeleton className="h-4 w-72 rounded-md" />
           </div>
 
-          {/* Showcase placeholder */}
-          <Skeleton className="mx-auto h-64 w-full max-w-5xl rounded-xl sm:h-80 lg:h-96" />
+          {/* Device frame */}
+          <div className="w-full">
+            <Skeleton className="h-72 w-full rounded-xl sm:h-96 lg:h-[30rem]" />
+          </div>
         </div>
       </section>
+
       <div className="border-b border-border/70" />
 
       {/* Why Requo section */}
-      <section className="mx-auto mt-32 w-full max-w-6xl px-5 sm:mt-40 sm:px-6 lg:mt-48 lg:px-8 xl:px-0">
-        <div className="mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
-          <p className="eyebrow">WHY REQUO</p>
-          <Skeleton className="h-10 w-full max-w-lg rounded-lg sm:h-12" />
-          <Skeleton className="h-5 w-full max-w-md rounded-md" />
+      <section className="mx-auto mt-24 w-full max-w-6xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0">
+        <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 xl:gap-16">
+          <div className="flex flex-col gap-4">
+            <Skeleton className="h-4 w-24 rounded-md" />
+            <Skeleton className="h-10 w-full max-w-lg rounded-lg sm:h-14" />
+          </div>
+          <div className="flex items-center">
+            <Skeleton className="h-4 w-full max-w-md rounded-md" />
+          </div>
         </div>
 
-        <div className="mt-12 grid gap-4 sm:mt-14 sm:gap-5 lg:mt-16 lg:grid-cols-2 lg:gap-6">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <Skeleton className="h-72 w-full rounded-2xl" key={`why-card-${i}`} />
-          ))}
-        </div>
-
-        <Skeleton className="mt-4 h-32 w-full rounded-2xl sm:mt-5 lg:mt-6" />
-      </section>
-
-      {/* How it works section */}
-      <section className="mx-auto mt-32 w-full max-w-6xl px-5 sm:mt-40 sm:px-6 lg:mt-48 lg:px-8 xl:px-0">
-        <div className="flex flex-col items-start gap-4">
-          <p className="eyebrow">HOW IT WORKS</p>
-          <Skeleton className="h-10 w-full max-w-lg rounded-lg sm:h-12" />
-          <Skeleton className="h-5 w-full max-w-2xl rounded-md" />
-        </div>
-
-        <div className="mt-12 grid gap-6 sm:mt-14 lg:mt-16 lg:grid-cols-4 lg:gap-5">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div className="flex flex-col gap-4" key={`workflow-step-${i}`}>
-              <Skeleton className="size-10 rounded-full" />
-              <Skeleton className="h-6 w-40 rounded-md" />
-              <Skeleton className="h-4 w-full rounded-md" />
-              <Skeleton className="h-4 w-3/4 rounded-md" />
+        <div className="mt-14 grid gap-4 sm:mt-16 sm:grid-cols-2 lg:mt-20 lg:grid-cols-3 lg:gap-5">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card"
+              key={`why-card-${i}`}
+            >
+              <Skeleton className="aspect-[16/9] w-full rounded-none" />
+              <div className="flex flex-col gap-5 p-6 sm:p-7">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="size-11 rounded-xl" />
+                  <Skeleton className="h-3 w-6 rounded-md" />
+                </div>
+                <Skeleton className="h-5 w-4/5 rounded-md" />
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-4 w-full rounded-md" />
+                  <Skeleton className="h-4 w-3/4 rounded-md" />
+                </div>
+              </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Features section */}
-      <section className="mx-auto mt-32 w-full max-w-6xl px-5 sm:mt-40 sm:px-6 lg:mt-48 lg:px-8 xl:px-0">
-        <Skeleton className="h-10 w-full max-w-lg rounded-lg sm:h-12" />
-        <Skeleton className="mt-4 h-5 w-full max-w-xl rounded-md" />
+      {/* How it works section */}
+      <section className="mx-auto mt-24 w-full max-w-6xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0">
+        <div className="mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
+          <Skeleton className="h-4 w-28 rounded-md" />
+          <Skeleton className="h-10 w-full max-w-lg rounded-lg sm:h-14" />
+          <Skeleton className="h-4 w-full max-w-md rounded-md" />
+        </div>
+        <div className="mt-14 sm:mt-16 lg:mt-20">
+          <div className="rounded-xl border border-border/70 bg-card p-1.5">
+            <div className="flex flex-wrap gap-1.5">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton className="h-9 w-28 rounded-lg" key={i} />
+              ))}
+            </div>
+            <Skeleton className="mt-3 h-72 w-full rounded-lg sm:h-96" />
+          </div>
+        </div>
+      </section>
+
+      {/* The Requo workspace section */}
+      <section className="relative left-1/2 mt-24 w-screen -translate-x-1/2 overflow-x-clip bg-muted/20 py-16 sm:mt-32 sm:py-20 lg:mt-40 lg:py-24">
+        <div className="mx-auto grid w-full max-w-6xl gap-4 px-4 sm:gap-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end lg:px-8 xl:px-0">
+          <div className="flex flex-col gap-3 sm:gap-4">
+            <Skeleton className="h-4 w-48 rounded-md" />
+            <Skeleton className="h-10 w-full max-w-3xl rounded-lg sm:h-14" />
+          </div>
+          <Skeleton className="h-4 w-full max-w-md rounded-md" />
+        </div>
+
+        <div className="mt-10 flex flex-col sm:mt-12">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              className="mx-auto grid w-full max-w-6xl gap-6 border-b border-border/60 px-4 py-10 sm:gap-8 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-12 lg:px-8 xl:px-0"
+              key={`feature-row-${i}`}
+            >
+              <div className="flex flex-col gap-3">
+                <Skeleton className="h-6 w-40 rounded-md" />
+                <Skeleton className="h-4 w-full max-w-md rounded-md" />
+                <Skeleton className="h-4 w-4/5 max-w-md rounded-md" />
+              </div>
+              <Skeleton className="h-56 w-full rounded-xl" />
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* FAQ section */}
-      <section className="mx-auto mt-32 w-full max-w-4xl px-5 sm:mt-40 sm:px-6 lg:mt-48 lg:px-8">
-        <div className="flex flex-col items-start gap-4">
-          <p className="eyebrow">FAQ</p>
-          <Skeleton className="h-10 w-full max-w-md rounded-lg sm:h-12" />
-          <Skeleton className="h-5 w-full max-w-xl rounded-md" />
+      <section className="mx-auto mt-24 w-full max-w-4xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0">
+        <div className="flex flex-col items-start gap-3 sm:gap-4">
+          <Skeleton className="h-4 w-16 rounded-md" />
+          <Skeleton className="h-10 w-full max-w-lg rounded-lg sm:h-14" />
+          <Skeleton className="h-4 w-full max-w-xl rounded-md" />
+        </div>
+
+        <div className="mt-8 flex flex-col gap-8 sm:mt-10 sm:gap-10">
+          {Array.from({ length: 3 }).map((_, groupIndex) => (
+            <div className="flex flex-col gap-3" key={`faq-group-${groupIndex}`}>
+              <Skeleton className="h-4 w-28 rounded-md" />
+              <div className="border-t border-border/70">
+                {Array.from({ length: 4 }).map((_, qIndex) => (
+                  <div
+                    className="flex items-center justify-between gap-4 border-b border-border/70 py-3.5"
+                    key={qIndex}
+                  >
+                    <Skeleton className="h-4 w-3/4 rounded-md" />
+                    <Skeleton className="size-4 shrink-0 rounded-sm" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
       {/* Final CTA section */}
-      <section className="mx-auto mt-32 flex w-full max-w-4xl flex-col items-center gap-8 px-5 py-12 text-center sm:mt-40 sm:px-6 sm:py-16 lg:mt-48 lg:px-8 xl:px-0">
-        <Skeleton className="h-12 w-full max-w-lg rounded-lg sm:h-14 lg:h-16" />
-        <Skeleton className="h-11 w-40 rounded-full" />
-        <Skeleton className="h-4 w-56 rounded-md" />
+      <section className="mx-auto mt-24 w-full max-w-4xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0">
+        <div className="flex flex-col items-center gap-6 py-10 text-center sm:gap-8 sm:py-14">
+          <Skeleton className="h-12 w-full max-w-xl rounded-lg sm:h-16" />
+          <Skeleton className="h-11 w-40 rounded-full" />
+          <Skeleton className="h-4 w-80 max-w-full rounded-md" />
+        </div>
       </section>
+
+      {/* Footer */}
+      <footer className="bg-primary text-primary-foreground">
+        <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-14 sm:py-16 lg:flex-row lg:gap-20">
+          <div className="flex flex-col gap-5">
+            <Skeleton className="h-6 w-24 rounded-md bg-primary-foreground/25" />
+            <div className="flex items-center gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton className="size-5 rounded-full bg-primary-foreground/25" key={i} />
+              ))}
+            </div>
+            <Skeleton className="h-9 w-44 rounded-md bg-primary-foreground/25" />
+          </div>
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:ml-auto lg:gap-12">
+            {Array.from({ length: 3 }).map((_, columnIndex) => (
+              <div className="flex flex-col gap-3" key={columnIndex}>
+                <Skeleton className="h-3 w-20 rounded-md bg-primary-foreground/25" />
+                {Array.from({ length: 4 }).map((_, linkIndex) => (
+                  <Skeleton className="h-3 w-28 rounded-md bg-primary-foreground/20" key={linkIndex} />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mx-auto max-w-6xl border-t border-primary-foreground/20 px-6 py-5">
+          <Skeleton className="h-3 w-44 rounded-md bg-primary-foreground/25" />
+        </div>
+      </footer>
     </div>
   );
-}
+}

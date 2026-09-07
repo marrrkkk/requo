@@ -1,6 +1,8 @@
 "use client";
 
-import { Download, FileDown, Loader2 } from "lucide-react";
+import { Download, FileDown } from "lucide-react";
+
+import { Spinner } from "@/components/ui/spinner";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -63,8 +65,7 @@ export function DataExportCard() {
           <Button type="submit" disabled={isPending}>
             {isPending ? (
               <>
-                <Loader2
-                  className="animate-spin"
+                <Spinner
                   data-icon="inline-start"
                   aria-hidden="true"
                 />

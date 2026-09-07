@@ -25,6 +25,7 @@ export default function PricingLoading() {
       <div className="grid gap-6 md:grid-cols-3">
         {(["Free", "Pro", "Business"] as const).map((planName) => (
           <div
+            data-padding="none"
             className="section-panel flex min-h-[320px] flex-col gap-5 p-6"
             key={planName}
           >

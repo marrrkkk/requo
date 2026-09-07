@@ -26,6 +26,7 @@ import {
   getRequiredPlanLabel,
   getUpgradeCtaText,
   getUpgradeDescription,
+  resolveRequiredPlan,
   safeHasFeatureAccess,
 } from "../lib/utils";
 import type { UpgradeActionProps } from "../types";
@@ -88,10 +89,10 @@ export function LockedAction({
     return children;
   }
 
-  // Locked state
+  const requiredPlan = resolveRequiredPlan(feature);
   const requiredPlanLabel = getRequiredPlanLabel(feature);
   const featureDescription = description ?? getUpgradeDescription(feature);
-  const ctaText = getUpgradeCtaText(plan);
+  const ctaText = getUpgradeCtaText(plan, requiredPlan);
 
   // If no CTA text (business plan), just render children — shouldn't happen
   // since we already checked access, but defensive fallback
@@ -128,7 +129,7 @@ export function LockedAction({
                 }}
               >
                 {/* Render child disabled */}
-                <div className="pointer-events-none opacity-50" aria-hidden="true">
+                <div className="pointer-events-none opacity-50" aria-hidden="true" inert={true}>
                   {children}
                 </div>
               </div>

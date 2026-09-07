@@ -50,9 +50,11 @@ export function InquiryBulkActions({
     <>
       <Button
         onClick={() => {
-          onOptimisticRemove?.(ids, async () => {
+          const targetIds = [...ids];
+          const targetSerializedIds = targetIds.join(",");
+          onOptimisticRemove?.(targetIds, async () => {
             const formData = new FormData();
-            formData.set("inquiryIds", serializedIds);
+            formData.set("inquiryIds", targetSerializedIds);
             return bulkArchiveInquiriesAction({}, formData);
           });
           onComplete();
@@ -110,9 +112,11 @@ export function InquiryBulkActions({
             </ResponsiveOverlayClose>
             <Button
               onClick={() => {
-                onOptimisticRemove?.(ids, async () => {
+                const targetIds = [...ids];
+                const targetSerializedIds = targetIds.join(",");
+                onOptimisticRemove?.(targetIds, async () => {
                   const formData = new FormData();
-                  formData.set("inquiryIds", serializedIds);
+                  formData.set("inquiryIds", targetSerializedIds);
                   return bulkDeleteInquiriesAction({}, formData);
                 });
                 setShowDeleteDialog(false);

@@ -292,7 +292,7 @@ test("project fields can be dragged and the preview order persists after save", 
 
   await closePreview(page);
   await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(page.getByText("Inquiry form saved.")).toBeVisible({
+  await expect(page.getByText("Intake form saved.")).toBeVisible({
     timeout: 20_000,
   });
 
@@ -315,7 +315,7 @@ test("project fields can be dragged and the preview order persists after save", 
     page.getByRole("button", { name: "Reorder Budget" }),
   );
   await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(page.getByText("Inquiry form saved.")).toBeVisible({
+  await expect(page.getByText("Intake form saved.")).toBeVisible({
     timeout: 20_000,
   });
 });
@@ -384,7 +384,7 @@ test("supporting cards can be dragged and the preview order persists after save"
 
   await closePreview(page);
   await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(page.getByText("Inquiry page saved.")).toBeVisible({
+  await expect(page.getByText("Service page saved.")).toBeVisible({
     timeout: 20_000,
   });
 
@@ -407,7 +407,7 @@ test("supporting cards can be dragged and the preview order persists after save"
     page.getByRole("button", { name: "Reorder Call out timing" }),
   );
   await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(page.getByText("Inquiry page saved.")).toBeVisible({
+  await expect(page.getByText("Service page saved.")).toBeVisible({
     timeout: 20_000,
   });
 });

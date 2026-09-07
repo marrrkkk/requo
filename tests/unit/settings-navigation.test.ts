@@ -5,12 +5,13 @@ import {
 } from "@/features/settings/navigation";
 
 describe("getUnifiedSettingsNavigation", () => {
-  it("returns two groups: Personal and Business", () => {
+  it("returns three groups: Personal, Business, and Account", () => {
     const groups = getUnifiedSettingsNavigation("acme");
 
-    expect(groups).toHaveLength(2);
+    expect(groups).toHaveLength(3);
     expect(groups[0].label).toBe("Personal");
     expect(groups[1].label).toBe("Business");
+    expect(groups[2].label).toBe("Account");
   });
 
   it("Personal group contains Profile, Appearance, Notifications", () => {
@@ -27,16 +28,13 @@ describe("getUnifiedSettingsNavigation", () => {
   it("Business group contains all current business settings items", () => {
     const [, business] = getUnifiedSettingsNavigation("acme");
 
-    expect(business.items).toHaveLength(8);
     expect(business.items.map((i) => i.label)).toEqual([
-      "General",
-      "Members",
-      "Billing",
+      "Profile",
       "Quotes",
-      "Email",
-      "Pricing",
-      "Support",
-      "Audit log",
+      "Templates",
+      "Email templates",
+      "Assistant",
+      "Knowledge base",
     ]);
   });
 

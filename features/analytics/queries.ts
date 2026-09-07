@@ -15,6 +15,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
+import { cache } from "react";
 
 import type {
   AiUsageSummary,
@@ -187,7 +188,7 @@ function buildFirstResponseSq(businessId: string) {
 // Free tier query
 // ---------------------------------------------------------------------------
 
-export async function getFreeAnalytics(
+async function _getFreeAnalytics(
   businessId: string,
   since?: Date,
   until?: Date,
@@ -208,6 +209,20 @@ export async function getFreeAnalytics(
     () => getFreeAnalyticsUncached(businessId, effectiveSince, effectiveUntil),
   );
 }
+
+/**
+ * Two-layer read (AGENTS.md "Performance & Caching"): the inner `"use cache"`
+ * function handles cross-request reuse and tag invalidation, while this outer
+ * `React.cache()` dedupes within a single request. Seven call sites read the
+ * default window as `getFreeAnalytics(businessId)` — three of them in
+ * `analytics-dashboard.tsx` alone — so without the outer layer one render
+ * resolves the same cache entry repeatedly.
+ *
+ * `React.cache()` keys on argument identity, so the explicit-range callers
+ * (which pass fresh `Date` objects) do not dedupe against each other. Those
+ * are one call per request, so nothing is lost.
+ */
+export const getFreeAnalytics = cache(_getFreeAnalytics);
 
 async function getFreeAnalyticsCached(
   businessId: string,
@@ -327,7 +342,7 @@ export type DashboardResponseTime = {
   avgTimeToQuoteHours: number | null;
 };
 
-export async function getDashboardResponseTime(
+async function _getDashboardResponseTime(
   businessId: string,
 ): Promise<DashboardResponseTime> {
   return withCircuitBreaker(
@@ -335,6 +350,13 @@ export async function getDashboardResponseTime(
     () => getDashboardResponseTimeCached(businessId),
   );
 }
+
+/**
+ * Two-layer read (AGENTS.md "Performance & Caching"): the inner `"use cache"`
+ * function handles cross-request reuse and tag invalidation, while this outer
+ * `React.cache()` dedupes within a single request.
+ */
+export const getDashboardResponseTime = cache(_getDashboardResponseTime);
 
 async function getDashboardResponseTimeCached(
   businessId: string,

@@ -45,7 +45,7 @@ export type SocialPreviewImageProps = {
 export function SocialPreviewImage({
   title = siteName,
   subtitle = siteTagline,
-  headline = "Quote software for owner-led service businesses.",
+  headline = "Quote software for service businesses.",
   body = siteDescription,
 }: SocialPreviewImageProps = {}) {
   const displayTitle = truncateSocialTitle(title);
@@ -114,7 +114,7 @@ export function SocialPreviewImage({
               textTransform: "uppercase",
             }}
           >
-            Owner-led service workflow
+            Service business workflow
           </span>
           <span
             style={{

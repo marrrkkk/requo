@@ -347,6 +347,15 @@ export type BusinessEmailTemplateSettingsInput = z.infer<
   typeof businessEmailTemplateSettingsSchema
 >;
 
+export const businessAiAgentSettingsSchema = z.object({
+  aiAgentEnabled: formBoolean().default(false),
+  tone: z.enum(["friendly", "professional", "casual"]).default("friendly"),
+});
+
+export type BusinessAiAgentSettingsInput = z.infer<
+  typeof businessAiAgentSettingsSchema
+>;
+
 export const businessDeleteSchema = z.object({
   confirmation: z
     .string()
@@ -366,7 +375,7 @@ export const businessInquiryPageSettingsSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(2, "Enter a form name.")
+    .min(2, "Enter a service name.")
     .max(80, "Use 80 characters or fewer."),
   slug: z
     .string()
@@ -470,9 +479,8 @@ export const businessInquiryFormCreateSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(2, "Enter a form name.")
+    .min(2, "Enter a service name.")
     .max(80, "Use 80 characters or fewer."),
-  businessType: z.enum(businessTypes),
 });
 
 export type BusinessInquiryFormCreateInput = z.infer<

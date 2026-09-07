@@ -105,18 +105,7 @@ type QuoteDetailPageProps = {
   params: Promise<{ businessSlug: string; id: string }>;
 };
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo", id: "sample-quote-id" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * Quote detail page — returns the structural shell synchronously.
@@ -670,10 +659,10 @@ async function QuoteDetailContent({
                   </div>
 
                   {quote.customerResponseMessage ? (
-                    <div className="soft-panel px-4 py-4 shadow-none">
+                    <div className="soft-panel shadow-none">
                       <p className="meta-label">Customer message</p>
                       <TruncatedTextWithTooltip
-                        className="mt-2 whitespace-pre-wrap text-sm leading-7 text-foreground"
+                        className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground"
                         lines={4}
                         text={quote.customerResponseMessage}
                       />
@@ -1009,11 +998,11 @@ function QuoteCustomerHistoryFallback() {
       title="Customer history"
     >
       <div className="grid animate-pulse gap-3 sm:grid-cols-2">
-        <div className="soft-panel px-4 py-4 shadow-none">
+        <div className="soft-panel shadow-none">
           <div className="h-3 w-20 rounded bg-muted" />
           <div className="mt-2 h-5 w-8 rounded bg-muted" />
         </div>
-        <div className="soft-panel px-4 py-4 shadow-none">
+        <div className="soft-panel shadow-none">
           <div className="h-3 w-20 rounded bg-muted" />
           <div className="mt-2 h-5 w-8 rounded bg-muted" />
         </div>

@@ -11,7 +11,7 @@ import { getSafeAuthRedirectPath } from "@/lib/auth/redirects";
 import { getOptionalSession } from "@/lib/auth/session";
 import { onboardingPath } from "@/features/onboarding/routes";
 import { dashboardPath } from "@/features/businesses/routes";
-import { isEmailConfigured } from "@/lib/env";
+import { isMagicLinkEnabled } from "@/lib/env";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { AuthFormSkeleton } from "@/features/auth/components/auth-form-skeleton";
 
@@ -20,18 +20,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   title: "Log in",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-      searchParams: { next: null, reset: null, verified: null, error: null },
-    },
-  ],
-};
+export const instant = true;
 
 export default function LoginPage({
   searchParams,
@@ -80,7 +69,7 @@ async function LoginContent({
 
   return (
     <LoginForm
-      magicLinkEnabled={isEmailConfigured}
+      magicLinkEnabled={isMagicLinkEnabled}
       socialProviders={socialProviders}
     />
   );

@@ -62,6 +62,7 @@ export function QuotePreview({
 
   return (
     <article
+      data-padding="none"
       className={cn(
         "overflow-hidden",
         variant === "default" && "section-panel p-5 sm:p-6",
@@ -91,7 +92,7 @@ export function QuotePreview({
                 <TruncatedTextWithTooltip text={title} lines={2} />
               </TitleTag>
             </div>
-            <div className="soft-panel w-full px-4 py-3 text-sm shadow-none sm:w-auto sm:min-w-52">
+            <div data-padding="none" className="soft-panel w-full px-4 py-3 text-sm shadow-none sm:w-auto sm:min-w-52">
               <TruncatedTextWithTooltip
                 className="text-sm font-semibold text-foreground"
                 text={quoteNumber}
@@ -216,7 +217,7 @@ export function QuotePreview({
           </div>
         </div>
 
-        <div className="soft-panel flex w-full flex-col gap-3 px-4 py-4 shadow-none">
+        <div className="soft-panel flex w-full flex-col gap-3 shadow-none">
           <p className="meta-label">Summary</p>
           <SummaryRow
             label="Subtotal"
@@ -240,7 +241,7 @@ export function QuotePreview({
         </div>
 
         {terms ? (
-          <div className="soft-panel px-4 py-4 shadow-none">
+          <div className="soft-panel shadow-none">
             <p className="meta-label">Terms & conditions</p>
             <TruncatedTextWithTooltip
               className="mt-3 whitespace-pre-wrap text-xs leading-normal sm:leading-6 text-muted-foreground"

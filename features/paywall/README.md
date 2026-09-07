@@ -140,15 +140,14 @@ type FeatureGateProps = {
 
 ## Available Features
 
-See `lib/plans/entitlements.ts` for the complete list:
+See `lib/plans/entitlements.ts` for the complete list (single source of truth):
 
 **Free Plan** (always available):
-- `attachments`
-- `customerHistory`
 - `followUps`
-- `aiAssistant`
-- `knowledgeBase`
+- `aiQuoteDrafting`
 - `quoteLibrary`
+- `knowledgeBase`
+- `exports`
 
 **Pro Plan** (requires Pro or Business):
 - `analyticsConversion`
@@ -156,12 +155,19 @@ See `lib/plans/entitlements.ts` for the complete list:
 - `multipleForms`
 - `inquiryPageCustomization`
 - `emailTemplates`
-- `exports`
 - `removeWatermark`
 - `autoFollowUps`
+- `aiAgent`
 
 **Business Plan** (requires Business):
 - `members`
+- `auditLogs`
+
+Notes:
+- The Assistant is available on every plan with a per-plan daily message
+  bucket; it has no entitlement key. The Agent requires Pro+ (`aiAgent`).
+- Limits reached inside a conversation render `UpgradePrompt` in the stream;
+  navigation is never hidden by plan.
 
 ## Getting Upgrade Action Props
 

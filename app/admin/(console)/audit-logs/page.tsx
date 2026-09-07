@@ -10,7 +10,7 @@ import {
 } from "@/features/admin/components/admin-audit-list-sections";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const unstable_instant = false;
+export const instant = true;
 
 export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "Audit logs - Requo admin",

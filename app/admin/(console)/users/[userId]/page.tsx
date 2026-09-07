@@ -101,8 +101,10 @@ async function renderDetail(userId: string, adminUserId: string) {
         actions={
           <AdminUserActions
             adminUserId={adminUserId}
+            canDemoteTarget={user.canDemoteTarget}
             targetEmail={user.email}
             targetEmailVerified={user.emailVerified}
+            targetIsAdmin={user.role === "admin"}
             targetIsSuspended={user.banned}
             targetUserId={user.id}
           />

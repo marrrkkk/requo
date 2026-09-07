@@ -1,6 +1,6 @@
 import {
   getBusinessInquiriesPath,
-  getBusinessInquiryFormsPath,
+  getBusinessServicesPath,
   getBusinessNewQuotePath,
   getBusinessQuotesPath,
   getBusinessSettingsPath,
@@ -36,10 +36,10 @@ export async function SidebarChecklistSection({
       href: getBusinessSettingsPath(businessSlug),
     },
     {
-      id: "form",
-      title: "Publish inquiry form",
+      id: "service",
+      title: "Publish a service",
       complete: publicInquiryEnabled,
-      href: getBusinessInquiryFormsPath(businessSlug),
+      href: getBusinessServicesPath(businessSlug),
     },
     {
       id: "inquiry",

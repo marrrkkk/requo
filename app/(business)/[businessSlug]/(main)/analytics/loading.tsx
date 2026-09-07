@@ -4,11 +4,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AnalyticsLoading() {
   return (
-    <DashboardPage>
+    <DashboardPage className="bg-surface-default">
       <PageHeader
+        actions={
+          <div className="flex items-center gap-1">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-14 rounded-lg" />
+            ))}
+          </div>
+        }
+        description="How your inquiry-to-quote pipeline is performing over the last 30 days."
         eyebrow="Analytics"
         title="Performance"
-        description="How your inquiry-to-quote pipeline is performing over the last 30 days."
       />
 
       <div className="flex flex-col gap-6">
@@ -17,11 +24,11 @@ export default function AnalyticsLoading() {
           <Skeleton className="h-9 w-48 rounded-lg" />
         </div>
 
-        {/* Basic view card grid skeleton — Traffic section */}
+        {/* Core metrics — 5-card grid matching BasicAnalyticsView */}
         <div>
           <Skeleton className="mb-4 h-3 w-36 rounded-md" />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
                 className="flex min-h-28 flex-col justify-between rounded-lg border bg-card p-5"
@@ -33,22 +40,9 @@ export default function AnalyticsLoading() {
           </div>
         </div>
 
-        {/* Basic view card grid skeleton — Quotes section */}
-        <div>
-          <Skeleton className="mb-4 h-3 w-36 rounded-md" />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div
-                key={i}
-                className="flex min-h-28 flex-col justify-between rounded-lg border bg-card p-5"
-              >
-                <Skeleton className="h-3 w-24 rounded-md" />
-                <Skeleton className="h-7 w-16 rounded-md" />
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* Sparkline / chart placeholder */}
+        <Skeleton className="h-[280px] w-full rounded-xl" />
       </div>
     </DashboardPage>
   );
-}
+}

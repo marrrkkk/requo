@@ -25,18 +25,7 @@ export const metadata: Metadata = createNoIndexMetadata({
     "General business profile settings, branding, and lifecycle actions.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * General settings page — non-blocking structural shell.

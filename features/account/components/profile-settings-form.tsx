@@ -168,7 +168,7 @@ export function ProfileSettingsForm({
             />
             <div className="flex min-w-0 flex-col gap-5">
               <FormSection
-                className="soft-panel px-5 py-5 shadow-none sm:px-6"
+ className="soft-panel shadow-none"
                 description="Shown across the business."
                 title="Name & role"
               >
@@ -218,7 +218,7 @@ export function ProfileSettingsForm({
               </FormSection>
 
               <FormSection
-                className="soft-panel px-5 py-5 shadow-none sm:px-6"
+ className="soft-panel shadow-none"
                 description="Your direct contact details."
                 title="Contact details"
               >
@@ -480,9 +480,9 @@ function ProfileAvatarField({
   return (
     <>
       <div className="self-start xl:sticky xl:top-6">
-        <div className="soft-panel flex flex-col gap-5 p-5 shadow-none sm:p-6">
+ <div className="soft-panel flex flex-col gap-5 shadow-none">
           <div className="space-y-2">
-            <p className="text-[0.72rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Profile photo
             </p>
             <div className="space-y-2">
@@ -531,7 +531,7 @@ function ProfileAvatarField({
                   tabIndex={disabled ? -1 : 0}
                 >
                   <span className="absolute inset-0 rounded-full bg-foreground/0 transition-colors duration-150 sm:group-hover:bg-foreground/10 sm:group-focus-within:bg-foreground/10" />
-                  <span className="relative mr-1.5 mb-1.5 inline-flex size-10 items-center justify-center rounded-full border border-border/80 bg-background/94 text-foreground shadow-[0_8px_20px_rgba(15,23,42,0.14)] transition-[transform,opacity] duration-150 opacity-100 sm:translate-y-1 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-focus-within:translate-y-0 sm:group-focus-within:opacity-100">
+                  <span className="relative mr-1.5 mb-1.5 inline-flex size-8 items-center justify-center rounded-full border border-border/80 bg-background/94 text-foreground shadow-[0_8px_20px_rgba(15,23,42,0.14)] transition-[transform,opacity] duration-150 opacity-100 sm:translate-y-1 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-focus-within:translate-y-0 sm:group-focus-within:opacity-100">
                     <Camera className="size-4" />
                     <span className="sr-only">
                       {effectivePreviewUrl ? "Update profile photo" : "Upload profile photo"}
@@ -560,7 +560,7 @@ function ProfileAvatarField({
           <div className="border-t border-border/70 pt-5">
             <div className="flex flex-col gap-3">
               {previewUrl ? (
-                <div className="soft-panel flex flex-col gap-3 px-4 py-3 text-sm shadow-none sm:flex-row sm:items-center sm:justify-between">
+                <div data-padding="none" className="soft-panel flex flex-col gap-3 px-4 py-3 text-sm shadow-none sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="font-medium text-foreground">Cropped photo ready</p>
                     <p className="text-muted-foreground">Applies after save.</p>
@@ -657,7 +657,7 @@ function ProfileAvatarField({
                   <FieldLabel htmlFor="avatar-crop-zoom">Zoom</FieldLabel>
                   <FieldContent>
                     <input
-                      className="h-10 w-full accent-primary"
+                      className="h-8 w-full accent-primary"
                       id="avatar-crop-zoom"
                       max="4"
                       min="1"
@@ -671,7 +671,7 @@ function ProfileAvatarField({
               </FieldGroup>
 
               {draftAsset ? (
-                <div className="soft-panel flex items-start gap-3 px-4 py-4 text-sm">
+                <div className="soft-panel flex items-start gap-3 text-sm">
                   <div className="space-y-1">
                     <p className="font-medium text-foreground">{draftAsset.file.name}</p>
                     <p className="text-muted-foreground">Replaces the upload.</p>

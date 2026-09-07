@@ -11,7 +11,7 @@ import {
   DashboardSection,
 } from "@/components/shared/dashboard-layout";
 import {
-  getBusinessInquiryFormsPath,
+  getBusinessServicesPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 import { Badge } from "@/components/ui/badge";
@@ -45,13 +45,13 @@ export function DashboardActivationChecklist({
       href: getBusinessSettingsPath(businessSlug),
     },
     {
-      id: "form",
-      title: publicInquiryEnabled ? "Inquiry form is live" : "Publish inquiry form",
+      id: "service",
+      title: publicInquiryEnabled ? "Service is live" : "Publish a service",
       detail: publicInquiryEnabled
         ? "You can preview it now or copy the public link to share it."
-        : "Publish your inquiry form so customers can start sending inquiries.",
+        : "Publish a service so customers can start sending inquiries.",
       complete: publicInquiryEnabled,
-      href: getBusinessInquiryFormsPath(businessSlug),
+      href: getBusinessServicesPath(businessSlug),
     },
     {
       id: "inquiry",
@@ -133,7 +133,7 @@ export function DashboardActivationChecklist({
                 href={item.href}
                 key={item.id}
                 prefetch={true}
-                className="soft-panel group flex items-start gap-3 px-4 py-4 transition-colors hover:border-border/80 hover:bg-accent/22"
+                className="soft-panel group flex items-start gap-3 transition-colors hover:border-border/80 hover:bg-accent/22"
               >
                 {content}
               </Link>
@@ -141,7 +141,7 @@ export function DashboardActivationChecklist({
           }
 
           return (
-            <div className="soft-panel flex items-start gap-3 px-4 py-4" key={item.id}>
+ <div className="soft-panel flex items-start gap-3" key={item.id}>
               {content}
             </div>
           );

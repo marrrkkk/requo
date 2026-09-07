@@ -28,18 +28,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Manage the product library used to build quotes quickly.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * Products page — returns the structural shell synchronously.
@@ -57,7 +46,7 @@ export default function BusinessProductsPage({
     <>
       <PageHeader
         title="Products"
-        description="Reusable product blocks and service packages for faster quotes."
+        description="Reusable blocks and packages for faster quotes."
       />
       <Suspense fallback={<ProductsPageSkeleton />}>
         <ProductsRegion params={params} />

@@ -13,7 +13,7 @@ export default function FollowUpsLoading() {
         description="See who needs contact next, why, and when. Follow-ups are lightweight reminders tied to inquiries and quotes."
         eyebrow="Follow-ups"
         title="Follow-ups"
-        actions={<Skeleton className="h-10 w-full rounded-xl sm:w-40" />}
+        actions={<Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-40" />}
       />
       <FollowUpListControlsFallback />
       <FollowUpListContentFallback />

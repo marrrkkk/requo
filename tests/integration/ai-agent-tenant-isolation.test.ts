@@ -1,0 +1,223 @@
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { eq } from "drizzle-orm";
+
+vi.mock("@/lib/db/client", async () => {
+  const { testDb: mockedDb } = await import("../support/db");
+
+  return { db: mockedDb };
+});
+
+vi.mock("@/features/memory/retrieval", () => ({
+  retrieveBusinessKnowledge: vi.fn(),
+}));
+
+import { businessInquiryForms, businesses } from "@/lib/db/schema";
+import { loadSessionByToken } from "@/features/ai-agent/session-service";
+import { retrieveBusinessKnowledge } from "@/features/memory/retrieval";
+import { getBusinessInfoTool } from "@/features/ai-agent/tools/get-business-info";
+import { getServicesTool } from "@/features/ai-agent/tools/get-services";
+import { searchKnowledgeTool } from "@/features/ai-agent/tools/search-knowledge";
+
+import { closeTestDb, testDb } from "@/tests/support/db";
+import {
+  createActiveAgentSession,
+  createAgentToolContext,
+  runAgentTool,
+} from "@/tests/support/ai-agent";
+import {
+  cleanupWorkflowFixture,
+  createWorkflowFixture,
+  type WorkflowFixtureIds,
+} from "@/tests/support/fixtures/workflow";
+
+const prefix = "test_ai_agent_isolation";
+let ids: WorkflowFixtureIds;
+
+describe("ai-agent tenant isolation", () => {
+  beforeAll(async () => {
+    ids = await createWorkflowFixture(prefix);
+  }, 30_000);
+
+  afterAll(async () => {
+    await cleanupWorkflowFixture(prefix);
+    await closeTestDb();
+  }, 30_000);
+
+  it("resolves sessions to their own business context only", async () => {
+    const businessA = await createActiveAgentSession(ids.businessId);
+    const businessB = await createActiveAgentSession(ids.otherBusinessId);
+
+    const a = await loadSessionByToken(businessA.publicToken);
+    const b = await loadSessionByToken(businessB.publicToken);
+
+    expect(a?.businessId).toBe(ids.businessId);
+    expect(a?.business.name).toBe("Workflow Business");
+    expect(b?.businessId).toBe(ids.otherBusinessId);
+    expect(b?.business.name).toBe("Other Workflow Business");
+
+    // A token from one business must never resolve to another business's session.
+    expect(businessA.publicToken).not.toBe(businessB.publicToken);
+    expect(a?.business.plan).toBe("pro");
+    expect(b?.business.plan).toBe("free");
+  });
+
+  it("returns only public business info from the session's own business", async () => {
+    const sessionA = await createActiveAgentSession(ids.businessId);
+    const contextA = await createAgentToolContext(sessionA.publicToken);
+
+    const result = await runAgentTool<{
+      name: string;
+      description: string | null;
+      contact: string | null;
+    }>(
+      getBusinessInfoTool,
+      {},
+      { experimental_context: contextA },
+    );
+
+    expect(result).toEqual({
+      name: "Workflow Business",
+      description: null,
+      contact: null,
+    });
+    // No internal fields may leak (owner, plan, enabled flags, etc.).
+    expect(Object.keys(result).sort()).toEqual(["contact", "description", "name"]);
+  });
+
+  it("returns no services when services are disabled for public inquiry", async () => {
+    await testDb
+      .update(businessInquiryForms)
+      .set({ publicInquiryEnabled: false })
+      .where(eq(businessInquiryForms.businessId, ids.businessId));
+
+    const session = await createActiveAgentSession(ids.businessId);
+    const context = await createAgentToolContext(session.publicToken);
+
+    const result = await runAgentTool<{ services: Array<{ value: string; label: string }> }>(
+      getServicesTool,
+      {},
+      { experimental_context: context },
+    );
+
+    expect(result.services).toEqual([]);
+  });
+
+  it("returns live services scoped to the session business only", async () => {
+    await testDb
+      .update(businessInquiryForms)
+      .set({ publicInquiryEnabled: true })
+      .where(eq(businessInquiryForms.businessId, ids.businessId));
+
+    const session = await createActiveAgentSession(ids.businessId);
+    const context = await createAgentToolContext(session.publicToken);
+
+    const result = await runAgentTool<{ services: Array<{ value: string; label: string }> }>(
+      getServicesTool,
+      {},
+      { experimental_context: context },
+    );
+
+    expect(result.services.map((s) => s.label)).toEqual(["Workflow Form"]);
+    expect(result.services.map((s) => s.value)).toEqual(["workflow-form"]);
+
+    // The other business never sees business A's services.
+    const otherSession = await createActiveAgentSession(ids.otherBusinessId);
+    const otherContext = await createAgentToolContext(otherSession.publicToken);
+    const otherResult = await runAgentTool<{ services: Array<{ value: string; label: string }> }>(
+      getServicesTool,
+      {},
+      { experimental_context: otherContext },
+    );
+
+    expect(otherResult.services.map((s) => s.label)).toEqual(["Other Workflow Form"]);
+  });
+
+  it("forwards the session business id to the knowledge retriever", async () => {
+    const sessionA = await createActiveAgentSession(ids.businessId);
+    const contextA = await createAgentToolContext(sessionA.publicToken);
+
+    vi.mocked(retrieveBusinessKnowledge).mockResolvedValueOnce({
+      evidence: [
+        {
+          sourceType: "manual_memory",
+          sourceId: "mem_1",
+          chunkId: "chunk_1",
+          title: "Pricing guide",
+          content: "Signage starts at $400.",
+          score: 0.92,
+          confidence: "high",
+        },
+      ],
+      usedRag: true,
+    });
+
+    const result = await runAgentTool<{
+      found: boolean;
+      results?: Array<{ content: string; relevance: number; source: string }>;
+      message?: string;
+    }>(
+      searchKnowledgeTool,
+      { query: "How much is signage?" },
+      { experimental_context: contextA },
+    );
+
+    expect(retrieveBusinessKnowledge).toHaveBeenCalledWith({
+      businessId: ids.businessId,
+      queryText: "How much is signage?",
+      topK: 5,
+      tokenBudget: 1500,
+    });
+    expect(result).toEqual({
+      found: true,
+      results: [
+        { content: "Signage starts at $400.", relevance: 0.92, source: "Pricing guide" },
+      ],
+    });
+
+    const sessionB = await createActiveAgentSession(ids.otherBusinessId);
+    const contextB = await createAgentToolContext(sessionB.publicToken);
+
+    vi.mocked(retrieveBusinessKnowledge).mockResolvedValueOnce({
+      evidence: [],
+      usedRag: false,
+    });
+
+    const otherResult = await runAgentTool<{
+      found: boolean;
+      message?: string;
+    }>(
+      searchKnowledgeTool,
+      { query: "How much is signage?" },
+      { experimental_context: contextB },
+    );
+
+    expect(retrieveBusinessKnowledge).toHaveBeenLastCalledWith({
+      businessId: ids.otherBusinessId,
+      queryText: "How much is signage?",
+      topK: 5,
+      tokenBudget: 1500,
+    });
+    expect(otherResult).toEqual({
+      found: false,
+      message: "No relevant information found in the business knowledge base.",
+    });
+  });
+
+  it("degrades gracefully when the knowledge retriever fails", async () => {
+    const session = await createActiveAgentSession(ids.businessId);
+    const context = await createAgentToolContext(session.publicToken);
+
+    vi.mocked(retrieveBusinessKnowledge).mockRejectedValueOnce(new Error("embeddings down"));
+
+    const result = await runAgentTool<{ found: boolean; message: string }>(
+      searchKnowledgeTool,
+      { query: "anything" },
+      { experimental_context: context },
+    );
+
+    expect(result).toEqual({
+      found: false,
+      message: "Failed to search knowledge base. Please try asking in a different way.",
+    });
+  });
+});

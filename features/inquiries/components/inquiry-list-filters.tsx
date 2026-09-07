@@ -120,8 +120,8 @@ export function InquiryListFilters({
         label:
           option === "all" ? "All statuses" : getInquiryStatusLabel(option),
       }))}
-      secondaryFilterId="inquiry-form-filter"
-      secondaryFilterLabel="Form"
+      secondaryFilterId="inquiry-service-filter"
+      secondaryFilterLabel="Service"
       secondaryFilterValue={form}
       onSecondaryFilterChange={(value) => {
         setForm(value);

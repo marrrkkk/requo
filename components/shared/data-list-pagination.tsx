@@ -182,7 +182,7 @@ export function DataListPagination({
     (!activePendingPage || !cachedPages.includes(activePendingPage));
 
   return (
-    <div className="flex flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 border-t border-border/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
         <span>
           Showing {firstItemIndex}-{lastItemIndex} of {totalItems}

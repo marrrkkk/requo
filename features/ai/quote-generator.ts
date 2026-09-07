@@ -41,6 +41,7 @@ import { formatQuoteMoney } from "@/features/quotes/utils";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema";
 import {
+  estimateTokens,
   generateWithFallback,
   logAiInvocation,
   recordUsage,
@@ -1302,6 +1303,10 @@ export async function generateQuoteDraftForBusiness(
     temperature: taskConfig.temperature,
     maxOutputTokens: taskConfig.maxOutputTokens,
     qualityTier: taskConfig.qualityTier as AiQualityTier,
+    routingProfile: "quote_draft",
+    estimatedTokens:
+      estimateTokens(systemInstructions + userMessage) +
+      taskConfig.maxOutputTokens,
   };
 
   // Cache fingerprint: prompt version + template hash + source data hashes.
@@ -1621,6 +1626,10 @@ export async function generateQuoteImprovementForBusiness(
     temperature: taskConfig.temperature,
     maxOutputTokens: taskConfig.maxOutputTokens,
     qualityTier: taskConfig.qualityTier as AiQualityTier,
+    routingProfile: "quote_improvement",
+    estimatedTokens:
+      estimateTokens(systemInstructions + userMessage) +
+      taskConfig.maxOutputTokens,
   };
 
   const cacheKey: CacheKeyComponents = {

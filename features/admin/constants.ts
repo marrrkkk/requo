@@ -28,6 +28,10 @@ export const ADMIN_ACTIONS = [
   "user.suspend",
   "user.unsuspend",
   "user.delete",
+  "user.promote_admin",
+  "user.demote_admin",
+  // Bootstrap
+  "admin.bootstrap",
   // Subscription mutations
   "subscription.manual_plan_override",
   "subscription.force_cancel",

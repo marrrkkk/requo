@@ -134,6 +134,7 @@ export function renderProjectInput({
 
             return (
               <label
+                data-padding="none"
                 key={option.id}
                 className="soft-panel flex cursor-pointer items-center gap-3 px-3 py-3 shadow-none"
                 htmlFor={optionId}

@@ -35,7 +35,7 @@ export function AdminHealthCheckGrid({ results }: AdminHealthCheckGridProps) {
           <section className="flex flex-col gap-4" key={group.category}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-xl border border-border/70 bg-accent/50 text-accent-foreground">
+                <div className="flex size-8 items-center justify-center rounded-xl border border-border/70 bg-accent/50 text-accent-foreground">
                   <CategoryIcon className="size-4" />
                 </div>
                 <div>

@@ -11,12 +11,12 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DashboardGreeting } from "@/features/businesses/components/dashboard-greeting";
 import {
   NeedsAttentionTabs,
   type NeedsAttentionItemData,
   type NeedsAttentionIconName,
 } from "@/features/businesses/components/needs-attention-tabs";
+import { OwnerAssistantHomeWidget } from "@/features/owner-assistant/components/owner-assistant-home-widget";
 import {
   getBusinessOverviewData,
   getBusinessDashboardSummaryData,
@@ -51,18 +51,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Your home base for this business.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * Home page — returns the structural shell synchronously.
@@ -77,10 +66,10 @@ export default function DashboardOverviewPage({
 }: DashboardOverviewPageProps) {
   return (
     <div className="home-page-container home-entrance">
-      {/* Greeting */}
+      {/* Owner Assistant — centred greeting, stats, and composer */}
       <section className="home-entrance-section w-full max-w-5xl mx-auto">
-        <Suspense fallback={<GreetingFallback />}>
-          <GreetingRegion params={params} />
+        <Suspense fallback={null}>
+          <OwnerAssistantWidgetRegion params={params} />
         </Suspense>
       </section>
 
@@ -123,7 +112,7 @@ export default function DashboardOverviewPage({
 // Suspense-wrapped async child server components
 // ---------------------------------------------------------------------------
 
-async function GreetingRegion({
+async function OwnerAssistantWidgetRegion({
   params,
 }: {
   params: Promise<{ businessSlug: string }>;
@@ -132,18 +121,17 @@ async function GreetingRegion({
   const { user, businessContext } = await getAppShellContext(businessSlug);
   const businessId = businessContext.business.id;
 
-  const [overview, followUpOverview, summary] = await Promise.all([
+  const [overview, followUpOverview] = await Promise.all([
     getBusinessOverviewData(businessId),
     getFollowUpOverviewForBusiness(businessId),
-    getBusinessDashboardSummaryData(businessId),
   ]);
 
   return (
-    <DashboardGreeting
-      userName={user.name}
+    <OwnerAssistantHomeWidget
+      businessSlug={businessSlug}
       counts={overview.counts}
       followUpCounts={followUpOverview.counts}
-      summary={summary}
+      userName={user.name}
     />
   );
 }
@@ -504,7 +492,7 @@ function StatCard({
       >
         {value}
       </p>
-      <p className="mt-0.5 text-[0.7rem] text-muted-foreground">{suffix}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">{suffix}</p>
     </div>
   );
 }
@@ -547,15 +535,6 @@ function EmptyQueueState({ businessSlug }: { businessSlug: string }) {
 // ---------------------------------------------------------------------------
 // Skeleton fallbacks
 // ---------------------------------------------------------------------------
-
-function GreetingFallback() {
-  return (
-    <div className="flex flex-col gap-2">
-      <Skeleton className="h-8 w-56 rounded-lg sm:w-64" />
-      <Skeleton className="h-4 w-72 rounded-md sm:w-80" />
-    </div>
-  );
-}
 
 function KpiFallback() {
   return (

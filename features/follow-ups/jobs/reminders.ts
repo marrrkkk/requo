@@ -6,7 +6,7 @@ import { insertBusinessNotification } from "@/features/notifications/mutations";
 import { sendEmailWithFallback } from "@/lib/email";
 import { db } from "@/lib/db/client";
 import { businesses, followUps, inquiries, quotes } from "@/lib/db/schema";
-import { env } from "@/lib/env";
+import { env, isFollowUpReminderEmailEnabled } from "@/lib/env";
 
 export type FollowUpRemindersSummary = {
   processed: number;
@@ -111,7 +111,14 @@ export async function processFollowUpReminders(): Promise<FollowUpRemindersSumma
             inAppCreated++;
           }
 
-          if (row.notifyEmail && row.businessContactEmail) {
+          // Low-email mode disables reminder email while retaining the
+          // in-app follow_up_due notification above. Per-business
+          // notifyOnFollowUpReminder still controls non-low-email deployments.
+          if (
+            isFollowUpReminderEmailEnabled &&
+            row.notifyEmail &&
+            row.businessContactEmail
+          ) {
             await sendEmailWithFallback({
               to: row.businessContactEmail,
               subject: `Follow-up due: ${row.followUpTitle}`,

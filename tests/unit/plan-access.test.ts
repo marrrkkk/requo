@@ -30,6 +30,11 @@ describe("business plan access", () => {
     expect(hasFeatureAccess("free", "analyticsConversion")).toBe(false);
     expect(hasFeatureAccess("free", "removeWatermark")).toBe(false);
     expect(hasFeatureAccess("free", "autoFollowUps")).toBe(false);
+    expect(hasFeatureAccess("free", "aiAgent")).toBe(false);
+    // Assistant is available on every plan with its own daily bucket.
+    expect(getUsageLimit("free", "assistantMessagesPerDay")).toBe(25);
+    // The Agent is not available on free (entitlement + zero session bucket).
+    expect(getUsageLimit("free", "agentSessionsPerMonth")).toBe(0);
   });
 
   it("unlocks time-saving and presentation features on pro without enabling team roles", () => {
@@ -52,15 +57,21 @@ describe("business plan access", () => {
     expect(hasFeatureAccess("pro", "analyticsWorkflow")).toBe(true);
     expect(hasFeatureAccess("pro", "autoFollowUps")).toBe(true);
     expect(hasFeatureAccess("pro", "removeWatermark")).toBe(true);
+    expect(hasFeatureAccess("pro", "aiAgent")).toBe(true);
     expect(hasFeatureAccess("pro", "members")).toBe(false);
     expect(hasFeatureAccess("pro", "auditLogs")).toBe(false);
     expect(getRequiredPlan("members")).toBe("business");
+    expect(getRequiredPlan("aiAgent")).toBe("pro");
+    // Separate buckets: customer traffic never consumes the owner allowance.
+    expect(getUsageLimit("pro", "assistantMessagesPerDay")).toBe(250);
+    expect(getUsageLimit("pro", "agentSessionsPerMonth")).toBe(100);
   });
 
   it("reserves member collaboration and audit logs for the business plan", () => {
     expect(getUpgradePlan("business")).toBeNull();
     expect(hasFeatureAccess("business", "members")).toBe(true);
     expect(hasFeatureAccess("business", "auditLogs")).toBe(true);
+    expect(hasFeatureAccess("business", "aiAgent")).toBe(true);
     expect(getRequiredPlan("auditLogs")).toBe("business");
     expect(getUsageLimit("business", "membersPerBusiness")).toBe(5);
     expect(getUsageLimit("business", "liveFormsPerBusiness")).toBe(10);
@@ -71,6 +82,8 @@ describe("business plan access", () => {
       50 * 1024 * 1024,
     );
     expect(getUsageLimit("business", "productEntriesPerBusiness")).toBeNull();
+    expect(getUsageLimit("business", "assistantMessagesPerDay")).toBe(1000);
+    expect(getUsageLimit("business", "agentSessionsPerMonth")).toBe(500);
   });
 
   it("leaves core records and manual follow-ups uncapped", () => {

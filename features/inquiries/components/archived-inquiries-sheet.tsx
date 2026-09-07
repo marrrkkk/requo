@@ -30,6 +30,7 @@ import type {
   InquiryStatus,
 } from "@/features/inquiries/types";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
+import { getInquirySourceLabel } from "@/features/inquiries/utils";
 
 const statusFilterOptions: { label: string; value: InquiryStatus | "all" }[] = [
   { label: "All statuses", value: "all" },
@@ -65,7 +66,7 @@ export function ArchivedInquiriesSheet({
     const seen = new Map<string, string>();
     for (const item of items) {
       const slug = item.inquiryFormSlug ?? "__no_form__";
-      const name = item.inquiryFormName ?? (item.source === "ai" ? "AI" : "Manual");
+      const name = item.inquiryFormName ?? getInquirySourceLabel(item.source);
       if (!seen.has(slug)) {
         seen.set(slug, name);
       }
@@ -150,7 +151,7 @@ export function ArchivedInquiriesSheet({
                     onClick={() => setFormFilter("all")}
                     type="button"
                   >
-                    All forms
+                    All services
                   </button>
                   {formOptions.map((form) => (
                     <button

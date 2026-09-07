@@ -40,7 +40,7 @@ export function DismissibleQuoteAlert({
       )}
     >
       <div className="min-w-0 flex-1">
-        <p className="font-heading text-[0.95rem] font-semibold leading-6">
+        <p className="font-heading text-sm font-semibold leading-6">
           {title}
         </p>
         <p className="leading-6 text-muted-foreground">{description}</p>

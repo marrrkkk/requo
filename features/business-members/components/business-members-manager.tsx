@@ -526,7 +526,7 @@ function MemberRow({
     <div className={rowIndex > 0 ? "border-t border-border" : undefined}>
       <div className="flex flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between">
         <div className="flex min-w-0 items-center gap-4">
-          <Avatar className="size-10">
+          <Avatar className="size-8">
             {member.image ? (
               <AvatarImage alt={member.name} src={member.image} />
             ) : null}
@@ -888,7 +888,7 @@ export function BusinessMembersManagerFallback() {
         >
           <Skeleton className="h-5 w-48 rounded-md" />
           <Skeleton className="mt-2 h-4 w-64 rounded-md" />
-          <Skeleton className="mt-5 h-10 w-full rounded-lg sm:w-48" />
+          <Skeleton className="mt-5 h-9 w-full rounded-md sm:h-8 sm:w-48" />
         </div>
       ))}
     </div>

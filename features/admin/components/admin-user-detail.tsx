@@ -26,6 +26,9 @@ const adminActionLabels: Record<AdminAction, string> = {
   "user.suspend": "Suspended user",
   "user.unsuspend": "Reinstated user",
   "user.delete": "Deleted user",
+  "user.promote_admin": "Promoted to admin",
+  "user.demote_admin": "Removed admin access",
+  "admin.bootstrap": "Admin bootstrap",
   "subscription.manual_plan_override": "Overrode subscription plan",
   "subscription.force_cancel": "Force-canceled subscription",
   "impersonation.start": "Started impersonation",
@@ -99,6 +102,16 @@ export function AdminUserDetail({ user }: AdminUserDetailProps) {
             <dt className="meta-label">Name</dt>
             <dd className="mt-1 truncate text-sm text-foreground">
               {user.name || "—"}
+            </dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="meta-label">Role</dt>
+            <dd className="mt-1">
+              {user.role === "admin" ? (
+                <Badge variant="secondary">Admin</Badge>
+              ) : (
+                <Badge variant="ghost">User</Badge>
+              )}
             </dd>
           </div>
           <div className="min-w-0">

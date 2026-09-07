@@ -18,18 +18,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Configure push and email notifications for this business.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * Notifications settings page — non-blocking structural shell.

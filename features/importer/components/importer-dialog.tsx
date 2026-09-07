@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useRef, useState, useTransition } from "react";
-import { FileUp, Loader2, Sparkles, X } from "lucide-react";
+import { FileUp, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -232,7 +232,7 @@ export function ImporterDialog({
               </Button>
               <Button disabled={!file || isAnalyzing} onClick={handleAnalyze} type="button">
                 {isAnalyzing ? (
-                  <Loader2 className="animate-spin" data-icon="inline-start" />
+                  <Spinner data-icon="inline-start" />
                 ) : (
                   <Sparkles data-icon="inline-start" />
                 )}
@@ -260,7 +260,7 @@ export function ImporterDialog({
                 type="button"
               >
                 {isCommitting ? (
-                  <Loader2 className="animate-spin" data-icon="inline-start" />
+                  <Spinner data-icon="inline-start" />
                 ) : null}
                 {isCommitting
                   ? "Saving..."

@@ -52,11 +52,10 @@ type InquiryListControlsSectionProps = {
   ) => Promise<InquiryRecordActionState>;
 };
 
-export async function InquiryListControlsSection({
+export async function InquiryListHeaderActions({
   businessSlug,
   canExport,
   filters,
-  searchParams: _searchParams,
   totalItemsPromise,
   formOptionsPromise,
   archivedItemsPromise,
@@ -70,7 +69,7 @@ export async function InquiryListControlsSection({
   const formOptions = [
     {
       value: "all",
-      label: "All forms",
+      label: "All services",
     },
     ...inquiryFormOptions.map((form) => ({
       value: form.slug,
@@ -80,40 +79,60 @@ export async function InquiryListControlsSection({
 
   return (
     <>
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div />
-
-        <div className="flex w-full flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:w-auto">
-          <div className="flex items-center gap-2 [&>*]:flex-1 sm:[&>*]:flex-initial">
-            <InquiryExportCsvDropdown
-              businessSlug={businessSlug}
-              canExport={canExport}
-              filters={filters}
-              formOptions={formOptions}
-              resultCount={totalItems}
-            />
-            <ArchivedInquiriesSheet
-              businessSlug={businessSlug}
-              items={archivedItems}
-              unarchiveAction={unarchiveAction}
-            />
-          </div>
-          <Button asChild className="w-full sm:w-auto">
-            <Link href={getBusinessNewInquiryPath(businessSlug)} prefetch={true}>
-              <Plus data-icon="inline-start" />
-              Quick-add inquiry
-            </Link>
-          </Button>
-        </div>
-      </div>
-
-      <InquiryListToolbar
-        key={`${filters.view}:${filters.status}:${filters.form}:${filters.q ?? ""}:${filters.sort}`}
+      <InquiryExportCsvDropdown
+        businessSlug={businessSlug}
+        canExport={canExport}
         filters={filters}
         formOptions={formOptions}
         resultCount={totalItems}
       />
+      <ArchivedInquiriesSheet
+        businessSlug={businessSlug}
+        items={archivedItems}
+        unarchiveAction={unarchiveAction}
+      />
+      <Button asChild className="h-11 sm:h-8">
+        <Link href={getBusinessNewInquiryPath(businessSlug)} prefetch={true}>
+          <Plus data-icon="inline-start" />
+          Quick-add inquiry
+        </Link>
+      </Button>
     </>
+  );
+}
+
+export async function InquiryListControlsSection({
+  businessSlug: _businessSlug,
+  canExport: _canExport,
+  filters,
+  searchParams: _searchParams,
+  totalItemsPromise,
+  formOptionsPromise,
+  archivedItemsPromise: _archivedItemsPromise,
+  unarchiveAction: _unarchiveAction,
+}: InquiryListControlsSectionProps) {
+  const [totalItems, inquiryFormOptions] = await Promise.all([
+    totalItemsPromise,
+    formOptionsPromise,
+  ]);
+  const formOptions = [
+    {
+      value: "all",
+      label: "All services",
+    },
+    ...inquiryFormOptions.map((form) => ({
+      value: form.slug,
+      label: form.archivedAt ? `${form.name} (Archived)` : form.name,
+    })),
+  ];
+
+  return (
+    <InquiryListToolbar
+      key={`${filters.view}:${filters.status}:${filters.form}:${filters.q ?? ""}:${filters.sort}`}
+      filters={filters}
+      formOptions={formOptions}
+      resultCount={totalItems}
+    />
   );
 }
 
@@ -149,6 +168,7 @@ export async function InquiryListContentSection({
   }
 
   return (
+    <div className="p-4">
     <DashboardEmptyState
       action={
         hasNonViewFilters ? (
@@ -189,56 +209,31 @@ export async function InquiryListContentSection({
       }
       variant="list"
     />
+    </div>
+  );
+}
+
+export function InquiryListHeaderActionsFallback() {
+  return (
+    <>
+      <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-32" />
+      <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-28" />
+      <Skeleton className="h-11 w-full rounded-md sm:h-8 sm:w-40" />
+    </>
   );
 }
 
 export function InquiryListControlsFallback() {
   return (
-    <>
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <Skeleton className="hidden h-10 w-48 rounded-xl xl:block" />
-
-        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:w-auto">
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-2">
-            <Skeleton className="h-10 w-full rounded-xl sm:w-36" />
-            <Skeleton className="h-10 w-full rounded-xl sm:w-32" />
-          </div>
-          <Skeleton className="h-10 w-full rounded-xl sm:w-44" />
-        </div>
+    <div className="data-list-toolbar-strip" aria-hidden="true">
+      <div className="data-list-toolbar-grid">
+        <Skeleton className="h-9 min-w-0 flex-1 rounded-md sm:h-8" />
+        <Skeleton className="hidden h-9 min-w-0 flex-1 rounded-md sm:block sm:h-8" />
+        <Skeleton className="hidden h-9 w-32 rounded-md sm:block sm:h-8" />
+        <Skeleton className="h-9 w-20 shrink-0 rounded-md sm:h-8" />
       </div>
-
-      <div className="toolbar-panel">
-        <div className="flex flex-col gap-4">
-          <div className="data-list-toolbar-summary">
-            <Skeleton className="h-4 w-full max-w-sm rounded-md" />
-            <Skeleton className="h-7 w-28 rounded-full" />
-          </div>
-
-          <div className="data-list-toolbar-grid items-end">
-            <div className="flex flex-col gap-2.5">
-              <Skeleton className="h-3 w-28 rounded-md" />
-              <Skeleton className="h-10 w-full rounded-xl" />
-            </div>
-
-            <div className="flex flex-col gap-2.5 sm:max-w-[14rem] xl:w-[12rem] xl:max-w-[14rem] xl:shrink-0">
-              <Skeleton className="h-3 w-24 rounded-md" />
-              <Skeleton className="h-10 w-full rounded-xl" />
-            </div>
-
-            <div className="hidden flex-col gap-2.5 sm:flex sm:max-w-[14rem] xl:w-[12rem] xl:max-w-[14rem] xl:shrink-0">
-              <Skeleton className="h-3 w-16 rounded-md" />
-              <Skeleton className="h-10 w-full rounded-xl" />
-            </div>
-
-            <div className="data-list-toolbar-actions">
-              <Skeleton className="h-10 flex-1 rounded-xl sm:hidden" />
-              <Skeleton className="h-10 w-20 rounded-xl" />
-              <Skeleton className="hidden size-5 rounded-full sm:block" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
+      <Skeleton className="h-4 w-28 rounded-md" />
+    </div>
   );
 }
 

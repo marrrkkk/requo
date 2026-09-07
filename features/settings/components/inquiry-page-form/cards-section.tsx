@@ -148,7 +148,7 @@ export function CardsSection({
             </SortableContext>
           </DndContext>
         ) : (
-          <div className="soft-panel px-5 py-6">
+ <div className="soft-panel">
             <p className="text-sm font-medium text-foreground">
               No supporting cards saved
             </p>
@@ -208,7 +208,7 @@ function SortableInquiryPageCard({
   return (
     <div
       className={cn(
-        "soft-panel overflow-hidden p-4 shadow-none sm:p-5",
+        "soft-panel overflow-hidden shadow-none",
         isDragging && "relative z-10 ring-2 ring-primary/20 shadow-lg",
       )}
       ref={setNodeRef}
@@ -217,7 +217,7 @@ function SortableInquiryPageCard({
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-start gap-4">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-accent/85 text-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent/85 text-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
               <Icon className="size-4" />
             </div>
             <div className="min-w-0">
