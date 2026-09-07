@@ -131,7 +131,7 @@ export const businessTypeMeta: Record<
   },
   general_project_services: {
     label: "General project services",
-    description: "Flexible starting template for owner-led service businesses with mixed inquiry types.",
+    description: "Flexible starting template for service businesses with mixed inquiry types.",
   },
 };
 

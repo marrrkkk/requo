@@ -5,21 +5,21 @@ import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 import {
+  ArchiveRestore,
   ArrowUpRight,
   Download,
   FileArchive,
-  ArchiveRestore,
   Link2,
   MoreHorizontal,
   PencilLine,
+  PencilRuler,
   Plus,
-  FileText,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Combobox } from "@/components/ui/combobox";
 import { DashboardTableContainer } from "@/components/shared/dashboard-layout";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,20 +61,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  getStarterTemplateBusinessType,
-  starterTemplateOptions,
-} from "@/features/businesses/starter-templates";
-import {
-  businessTypeMeta,
-  type BusinessType,
-} from "@/features/inquiries/business-types";
 import type {
   BusinessInquiryFormDangerActionState,
   BusinessInquiryFormsActionState,
   BusinessInquiryFormsSettingsView,
 } from "@/features/settings/types";
-import { getBusinessInquiryFormEditorPath } from "@/features/businesses/routes";
+import { getBusinessServicePath } from "@/features/businesses/routes";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { hasFeatureAccess } from "@/lib/plans";
@@ -82,7 +74,7 @@ import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import { LockedAction } from "@/features/paywall";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 
-type FormsListProps = {
+type ServicesListProps = {
   settings: BusinessInquiryFormsSettingsView;
   createAction: (
     state: BusinessInquiryFormsActionState,
@@ -97,18 +89,15 @@ type FormsListProps = {
 
 const initialState: BusinessInquiryFormsActionState = {};
 
-export function FormsList({
+export function ServicesList({
   settings,
   createAction,
   unarchiveAction,
   plan,
-}: FormsListProps) {
+}: ServicesListProps) {
   const businessCheckout = useBusinessCheckout();
   const [createState, createFormAction, isCreatePending] =
     useActionStateWithSonner(createAction, initialState);
-  const [businessType, setBusinessType] = useState<BusinessType>(
-    getStarterTemplateBusinessType(settings.businessType),
-  );
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [, unarchiveFormAction, isUnarchivePending] =
@@ -117,7 +106,6 @@ export function FormsList({
     ? businessCheckout.currentPlan
     : plan;
   const nameError = createState.fieldErrors?.name?.[0];
-  const businessTypeError = createState.fieldErrors?.businessType?.[0];
   const activeForms = settings.forms.filter((form) => !form.archivedAt);
   const archivedForms = settings.forms.filter((form) => form.archivedAt);
   const canCreateAdditionalForms =
@@ -143,10 +131,10 @@ export function FormsList({
               <ResponsiveOverlayContent className="sm:max-w-xl">
                 <ResponsiveOverlayHeader>
                   <ResponsiveOverlayTitle>
-                    Archived forms
+                    Archived services
                   </ResponsiveOverlayTitle>
                   <ResponsiveOverlayDescription>
-                    These forms are disabled and no longer accept new
+                    These services are disabled and no longer accept new
                     submissions.
                   </ResponsiveOverlayDescription>
                 </ResponsiveOverlayHeader>
@@ -198,14 +186,14 @@ export function FormsList({
             <ResponsiveOverlayTrigger asChild>
               <Button size="sm">
                 <Plus data-icon="inline-start" />
-                Create form
+                Create service
               </Button>
             </ResponsiveOverlayTrigger>
             <ResponsiveOverlayContent className="sm:max-w-xl">
               <ResponsiveOverlayHeader>
-                <ResponsiveOverlayTitle>Create form</ResponsiveOverlayTitle>
+                <ResponsiveOverlayTitle>Create service</ResponsiveOverlayTitle>
                 <ResponsiveOverlayDescription>
-                  Add a new inquiry form and its public page for this business.
+                  Add a new service and its public page for this business.
                 </ResponsiveOverlayDescription>
               </ResponsiveOverlayHeader>
 
@@ -214,18 +202,10 @@ export function FormsList({
                 className="flex min-h-0 flex-1 flex-col"
               >
                 <ResponsiveOverlayBody className="gap-6">
-                  <input
-                    name="businessType"
-                    type="hidden"
-                    value={businessType}
-                  />
-
                   <FieldGroup className="rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-4">
-                    <Field
-                      data-invalid={Boolean(nameError) || undefined}
-                    >
+                    <Field data-invalid={Boolean(nameError) || undefined}>
                       <FieldLabel htmlFor="business-inquiry-form-create-name">
-                        Form name
+                        Service name
                       </FieldLabel>
                       <FieldContent>
                         <Input
@@ -240,47 +220,6 @@ export function FormsList({
                         <FieldError
                           errors={
                             nameError ? [{ message: nameError }] : undefined
-                          }
-                        />
-                      </FieldContent>
-                    </Field>
-
-                    <Field
-                      data-invalid={Boolean(businessTypeError) || undefined}
-                    >
-                      <FieldLabel htmlFor="business-inquiry-form-create-type">
-                        Business type
-                      </FieldLabel>
-                      <FieldContent>
-                        <Combobox
-                          aria-invalid={
-                            Boolean(businessTypeError) || undefined
-                          }
-                          disabled={isCreatePending}
-                          id="business-inquiry-form-create-type"
-                          onValueChange={(value) =>
-                            setBusinessType(value as BusinessType)
-                          }
-                          options={starterTemplateOptions}
-                          placeholder="Choose a business type"
-                          renderOption={(option) => (
-                            <div className="min-w-0">
-                              <p className="truncate font-medium">
-                                {option.label}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {option.description}
-                              </p>
-                            </div>
-                          )}
-                          searchPlaceholder="Search business types"
-                          value={businessType}
-                        />
-                        <FieldError
-                          errors={
-                            businessTypeError
-                              ? [{ message: businessTypeError }]
-                              : undefined
                           }
                         />
                       </FieldContent>
@@ -314,7 +253,7 @@ export function FormsList({
                     ) : (
                       <>
                         <Plus data-icon="inline-start" />
-                        Create form
+                        Create service
                       </>
                     )}
                   </Button>
@@ -326,11 +265,11 @@ export function FormsList({
           <LockedAction
             feature="multipleForms"
             plan={effectiveplan}
-            description="Create additional inquiry forms for different services or audiences."
+            description="Create additional services for different offerings or audiences."
           >
             <Button size="sm">
               <Plus data-icon="inline-start" />
-              Create form
+              Create service
             </Button>
           </LockedAction>
         )}
@@ -344,16 +283,28 @@ export function FormsList({
             {activeForms.map((form) => (
               <Link
                 key={form.id}
-                href={getBusinessInquiryFormEditorPath(
+                href={getBusinessServicePath(
                   settings.slug,
                   form.slug,
                 )}
                 className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background px-4 py-3.5 transition-colors hover:bg-muted/40"
               >
-                <div className="min-w-0 flex-1 space-y-1">
-                  <p className="truncate text-sm font-medium">{form.name}</p>
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40 text-muted-foreground">
+                  <PencilRuler className="size-4" />
+                </div>
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-medium">{form.name}</p>
+                    {form.isDefault ? (
+                      <Badge
+                        variant="secondary"
+                        className="px-1.5 py-0 text-[10px] font-normal text-muted-foreground"
+                      >
+                        Default
+                      </Badge>
+                    ) : null}
+                  </div>
                   <p className="truncate text-xs text-muted-foreground">
-                    {businessTypeMeta[form.businessType]?.label ?? "General"} ·{" "}
                     {form.submittedInquiryCount}{" "}
                     {form.submittedInquiryCount === 1
                       ? "inquiry"
@@ -365,11 +316,19 @@ export function FormsList({
                     variant="outline"
                     className={
                       form.publicInquiryEnabled
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : "border-red-200 bg-red-50 text-red-700"
+                        ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                        : "border-border text-muted-foreground"
                     }
                   >
-                    {form.publicInquiryEnabled ? "Live" : "Unpublished"}
+                    <span
+                      className={cn(
+                        "mr-1.5 inline-block size-1.5 rounded-full",
+                        form.publicInquiryEnabled
+                          ? "bg-emerald-500"
+                          : "bg-muted-foreground/50",
+                      )}
+                    />
+                    {form.publicInquiryEnabled ? "Active" : "Inactive"}
                   </Badge>
                 </div>
               </Link>
@@ -381,8 +340,7 @@ export function FormsList({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Form</TableHead>
-                  <TableHead>Type</TableHead>
+                  <TableHead>Service</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Inquiries</TableHead>
                   <TableHead className="w-[60px]" />
@@ -393,36 +351,50 @@ export function FormsList({
                   <TableRow key={form.id}>
                     <TableCell>
                       <Link
-                        href={getBusinessInquiryFormEditorPath(
+                        href={getBusinessServicePath(
                           settings.slug,
                           form.slug,
                         )}
-                        className="group flex flex-col gap-0.5"
+                        className="group flex items-center gap-3 py-0.5"
                       >
-                        <span className="truncate font-medium group-hover:underline">
-                          {form.name}
-                        </span>
-                        <span className="truncate font-mono text-xs text-muted-foreground">
-                          /{settings.slug}/{form.slug}
-                        </span>
+                        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40 text-muted-foreground transition-colors group-hover:border-border group-hover:text-foreground">
+                          <PencilRuler className="size-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate font-medium group-hover:underline">
+                              {form.name}
+                            </span>
+                            {form.isDefault ? (
+                              <Badge
+                                variant="secondary"
+                                className="px-1.5 py-0 text-[10px] font-normal text-muted-foreground"
+                              >
+                                Default
+                              </Badge>
+                            ) : null}
+                          </div>
+                        </div>
                       </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {businessTypeMeta[form.businessType]?.label ??
-                          "General"}
-                      </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
                         className={
                           form.publicInquiryEnabled
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-red-200 bg-red-50 text-red-700"
+                            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                            : "border-border text-muted-foreground"
                         }
                       >
-                        {form.publicInquiryEnabled ? "Live" : "Unpublished"}
+                        <span
+                          className={cn(
+                            "mr-1.5 inline-block size-1.5 rounded-full",
+                            form.publicInquiryEnabled
+                              ? "bg-emerald-500"
+                              : "bg-muted-foreground/50",
+                          )}
+                        />
+                        {form.publicInquiryEnabled ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
@@ -445,17 +417,17 @@ export function FormsList({
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
-              <FileText />
+              <PencilRuler />
             </EmptyMedia>
-            <EmptyTitle>No active forms</EmptyTitle>
+            <EmptyTitle>No active services</EmptyTitle>
             <EmptyDescription>
-              Create an inquiry form to publish a page for incoming inquiries.
+              Create a service to publish a page for incoming inquiries.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button onClick={() => setIsCreateDialogOpen(true)}>
               <Plus data-icon="inline-start" />
-              Create form
+              Create service
             </Button>
           </EmptyContent>
         </Empty>
@@ -467,7 +439,7 @@ export function FormsList({
 type FormRowActionsProps = {
   settingsSlug: string;
   businessName: string;
-  form: FormsListProps["settings"]["forms"][number];
+  form: ServicesListProps["settings"]["forms"][number];
 };
 
 function FormRowActions({
@@ -489,7 +461,7 @@ function FormRowActions({
         <DropdownMenuContent align="end">
           <DropdownMenuItem asChild>
             <Link
-              href={getBusinessInquiryFormEditorPath(
+              href={getBusinessServicePath(
                 settingsSlug,
                 form.slug,
               )}
@@ -510,7 +482,7 @@ function FormRowActions({
                   rel="noreferrer"
                 >
                   <ArrowUpRight className="mr-2 size-4" />
-                  Open live form
+                  Open public page
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setIsShareOpen(true)}>
@@ -684,9 +656,9 @@ function FormShareDialog({
     <ResponsiveOverlay open={open} onOpenChange={onOpenChange}>
       <ResponsiveOverlayContent className="sm:max-w-md">
         <ResponsiveOverlayHeader>
-          <ResponsiveOverlayTitle>Share form</ResponsiveOverlayTitle>
+          <ResponsiveOverlayTitle>Share service</ResponsiveOverlayTitle>
           <ResponsiveOverlayDescription>
-            Share this inquiry form link or scan the QR code.
+            Share this service link or scan the QR code.
           </ResponsiveOverlayDescription>
         </ResponsiveOverlayHeader>
         <ResponsiveOverlayBody className="items-center gap-6">

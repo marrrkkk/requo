@@ -103,10 +103,17 @@ export const businesses = pgTable(
     defaultQuoteValidityDays: integer("default_quote_validity_days")
       .notNull()
       .default(14),
+    /**
+     * Legacy: no active production email call sites. Owner new-inquiry
+     * events use in-app + push notifications. Kept for backward
+     * compatibility; do not add new email sends without a call site.
+     */
     notifyOnNewInquiry: boolean("notify_on_new_inquiry")
       .notNull()
       .default(true),
+    /** Legacy: no active production email call sites (see above). */
     notifyOnQuoteSent: boolean("notify_on_quote_sent").notNull().default(true),
+    /** Legacy: no active production email call sites (see above). */
     notifyOnQuoteResponse: boolean("notify_on_quote_response")
       .notNull()
       .default(true),
@@ -119,6 +126,7 @@ export const businesses = pgTable(
     notifyInAppOnQuoteResponse: boolean("notify_in_app_on_quote_response")
       .notNull()
       .default(true),
+    /** Legacy: no active production email call sites (see above). */
     notifyOnMemberInviteResponse: boolean("notify_on_member_invite_response")
       .notNull()
       .default(true),
@@ -179,7 +187,7 @@ export const businesses = pgTable(
     aiAgentEnabled: boolean("ai_agent_enabled").notNull().default(false),
     /** AI agent configuration (tone, handoff triggers, etc.). */
     aiAgentConfig: jsonb("ai_agent_config").notNull().default("{}"),
-    /** Enable the new AI assistant UX beta (customer-facing panel) for this business. */
+    /** Unused. Predates ADR 003; the Agent is gated by `aiAgentEnabled`. */
     aiAssistantBetaEnabled: boolean("ai_assistant_beta_enabled").notNull().default(false),
     industryCategory: text("industry_category"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),

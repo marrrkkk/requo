@@ -44,6 +44,7 @@ type BusinessInquiryFormEditorTabsProps = {
   previewHref: string;
   publicInquiryHref: string;
   inquiryListHref: string;
+  productsHref?: string;
   isPublicLive: boolean;
 
   applyPresetAction: (
@@ -71,17 +72,17 @@ const editorSections: Array<{
 }> = [
   {
     id: "page",
-    label: "Page",
+    label: "Service page",
     icon: FileText,
   },
   {
     id: "fields",
-    label: "Fields",
+    label: "Form",
     icon: FormInput,
   },
   {
     id: "publishing",
-    label: "Publishing",
+    label: "Settings",
     icon: Settings2,
   },
 ];
@@ -103,6 +104,7 @@ export function BusinessInquiryFormEditorTabs({
   previewHref,
   publicInquiryHref,
   inquiryListHref,
+  productsHref,
   isPublicLive,
   applyPresetAction,
   saveFormAction,
@@ -238,7 +240,7 @@ export function BusinessInquiryFormEditorTabs({
               rel="noreferrer"
               target="_blank"
             >
-              Open form
+              Open service
               <ArrowUpRight data-icon="inline-end" />
             </Link>
           </Button>
@@ -293,24 +295,43 @@ export function BusinessInquiryFormEditorTabs({
           <section className="flex flex-col gap-4">
             <div>
               <h2 className="font-heading text-base font-semibold tracking-tight text-foreground">
-                Publishing
+                Settings
               </h2>
               <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                Visibility, defaults, and lifecycle for this form.
+                Visibility, defaults, and lifecycle for this service.
               </p>
             </div>
 
             {settings.submittedInquiryCount > 0 ? (
-              <div className="soft-panel flex items-center gap-4 px-5 py-4 shadow-none">
+              <div className="soft-panel flex items-center gap-4 shadow-none">
                 <div className="min-w-0">
                   <p className="meta-label">Submissions</p>
                   <p className="mt-1 text-lg font-semibold tabular-nums text-foreground">
                     {settings.submittedInquiryCount.toLocaleString()}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Total inquiries received through this form
+                    Total inquiries received through this service
                   </p>
                 </div>
+              </div>
+            ) : null}
+
+            {productsHref ? (
+              <div className="surface-card flex items-center justify-between gap-4 p-4 sm:p-5">
+                <div className="min-w-0 space-y-1">
+                  <p className="font-heading text-sm font-semibold text-foreground">
+                    Pricing & Packages
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Configure reusable packages and line items in your product catalog to quote this service faster.
+                  </p>
+                </div>
+                <Button asChild size="sm" variant="outline" className="shrink-0">
+                  <Link href={productsHref}>
+                    Open catalog
+                    <ArrowUpRight className="size-3.5" />
+                  </Link>
+                </Button>
               </div>
             ) : null}
 

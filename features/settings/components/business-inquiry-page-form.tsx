@@ -18,7 +18,6 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import type { BusinessType } from "@/features/inquiries/business-types";
 import { getFieldError } from "@/lib/action-state";
 import {
   createInquiryPageBusinessContact,
@@ -83,9 +82,6 @@ export function BusinessInquiryPageForm({
   );
   const [formName, setFormName] = useState(settings.formName);
   const [formSlug, setFormSlug] = useState(settings.formSlug);
-  const [businessType, setBusinessType] = useState<BusinessType>(
-    settings.businessType,
-  );
   const [template, setTemplate] = useState<InquiryPageTemplate>(
     pageCustomizationLocked
       ? "no_supporting_cards"
@@ -166,7 +162,6 @@ export function BusinessInquiryPageForm({
   const fieldErrors = state.fieldErrors;
   const nameError = getFieldError(fieldErrors, "name");
   const slugError = getFieldError(fieldErrors, "slug");
-  const businessTypeError = getFieldError(fieldErrors, "businessType");
   const templateError = getFieldError(fieldErrors, "template");
   const eyebrowError = getFieldError(fieldErrors, "eyebrow");
   const headlineError = getFieldError(fieldErrors, "headline");
@@ -222,7 +217,6 @@ export function BusinessInquiryPageForm({
   const hasControlledChanges =
     formName !== settings.formName ||
     formSlug !== settings.formSlug ||
-    businessType !== settings.businessType ||
     (!pageCustomizationLocked &&
       template !== settings.inquiryPageConfig.template) ||
     mobileLayout !== (settings.inquiryPageConfig.mobileLayout ?? "full") ||
@@ -382,18 +376,18 @@ export function BusinessInquiryPageForm({
 
   useEffect(() => {
     onDraftChange({
-      businessType,
+      businessType: settings.businessType,
       formName,
       formSlug,
       publicInquiryEnabled: settings.publicInquiryEnabled,
       inquiryPageConfig: draftInquiryPageConfig,
     });
   }, [
-    businessType,
     draftInquiryPageConfig,
     formName,
     formSlug,
     onDraftChange,
+    settings.businessType,
     settings.publicInquiryEnabled,
   ]);
 
@@ -468,7 +462,6 @@ export function BusinessInquiryPageForm({
     formRef.current?.reset();
     setFormName(settings.formName);
     setFormSlug(settings.formSlug);
-    setBusinessType(settings.businessType);
     setTemplate(
       pageCustomizationLocked
         ? "no_supporting_cards"
@@ -536,7 +529,13 @@ export function BusinessInquiryPageForm({
       ref={formRef}
     >
       <input name="formId" type="hidden" value={settings.formId} />
-      <input name="businessType" type="hidden" value={businessType} />
+      {/* The service inherits the business's template; it is not editable
+          here. Template changes happen in Settings → Template. */}
+      <input
+        name="businessType"
+        type="hidden"
+        value={settings.businessType}
+      />
       <input
         name="publicInquiryEnabled"
         type="hidden"
@@ -602,14 +601,14 @@ export function BusinessInquiryPageForm({
           defaultValue={["basics", "content"]}
           className="flex flex-col gap-3"
         >
-          <AccordionItem value="basics" className="section-panel border-none p-0">
+          <AccordionItem value="basics" data-padding="none" className="section-panel border-none p-0">
             <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
               <div className="flex flex-col gap-0.5">
                 <span className="font-heading text-base font-semibold tracking-tight text-foreground">
                   Basics
                 </span>
                 <span className="text-sm font-normal text-muted-foreground">
-                  Name, link, and business type
+                  Service name and link
                 </span>
               </div>
             </AccordionTrigger>
@@ -618,21 +617,18 @@ export function BusinessInquiryPageForm({
                 <BasicsSection
                   formName={formName}
                   formSlug={formSlug}
-                  businessType={businessType}
                   isPending={isPending}
                   nameError={nameError}
                   slugError={slugError}
-                  businessTypeError={businessTypeError}
                   settingsSlug={settings.slug}
                   onFormNameChange={setFormName}
                   onFormSlugChange={setFormSlug}
-                  onBusinessTypeChange={setBusinessType}
                 />
               </div>
             </AccordionContent>
           </AccordionItem>
 
-          <AccordionItem value="content" className="section-panel border-none p-0">
+          <AccordionItem value="content" data-padding="none" className="section-panel border-none p-0">
             <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
               <div className="flex flex-col gap-0.5">
                 <span className="font-heading text-base font-semibold tracking-tight text-foreground">
@@ -677,7 +673,7 @@ export function BusinessInquiryPageForm({
             </AccordionContent>
           </AccordionItem>
 
-          <AccordionItem value="layout" className="section-panel border-none p-0">
+          <AccordionItem value="layout" data-padding="none" className="section-panel border-none p-0">
             <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
               <div className="flex flex-col gap-0.5">
                 <span className="font-heading text-base font-semibold tracking-tight text-foreground">
@@ -709,7 +705,7 @@ export function BusinessInquiryPageForm({
           </AccordionItem>
 
           {(effectiveTemplate !== "no_supporting_cards" || pageCustomizationLocked) ? (
-            <AccordionItem value="cards" className="section-panel border-none p-0">
+            <AccordionItem value="cards" data-padding="none" className="section-panel border-none p-0">
               <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
                 <div className="flex flex-col gap-0.5">
                   <span className="font-heading text-base font-semibold tracking-tight text-foreground">
@@ -743,7 +739,7 @@ export function BusinessInquiryPageForm({
             </AccordionItem>
           ) : null}
 
-          <AccordionItem value="showcase" className="section-panel border-none p-0">
+          <AccordionItem value="showcase" data-padding="none" className="section-panel border-none p-0">
             <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
               <div className="flex flex-col gap-0.5">
                 <span className="font-heading text-base font-semibold tracking-tight text-foreground">
@@ -784,7 +780,7 @@ export function BusinessInquiryPageForm({
             </AccordionContent>
           </AccordionItem>
 
-          <AccordionItem value="contact" className="section-panel border-none p-0">
+          <AccordionItem value="contact" data-padding="none" className="section-panel border-none p-0">
             <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
               <div className="flex flex-col gap-0.5">
                 <span className="font-heading text-base font-semibold tracking-tight text-foreground">

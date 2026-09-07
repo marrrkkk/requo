@@ -88,7 +88,7 @@ function VelocityStat({
   highlight?: boolean;
 }) {
   return (
-    <div className="soft-panel px-4 py-4">
+ <div className="soft-panel">
       <p className="meta-label">{label}</p>
       <p
         className={cn(
@@ -116,7 +116,7 @@ export function DashboardVelocitySectionFallback() {
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
-          <div className="soft-panel px-4 py-4" key={index}>
+ <div className="soft-panel" key={index}>
             <Skeleton className="h-3 w-20 rounded-md" />
             <Skeleton className="mt-2 h-7 w-14 rounded-md" />
             <Skeleton className="mt-1 h-3 w-16 rounded-md" />

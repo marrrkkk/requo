@@ -486,17 +486,17 @@ export function DashboardOverviewChecklistFallback() {
       }
       footer={
         <DashboardActionsRow className="w-full [&>*]:w-full sm:[&>*]:w-auto">
-          <Skeleton className="h-10 w-full rounded-xl sm:w-44" />
-          <Skeleton className="h-10 w-full rounded-xl sm:w-40" />
-          <Skeleton className="h-10 w-full rounded-xl sm:w-36" />
-          <Skeleton className="h-10 w-full rounded-xl sm:w-40" />
+          <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-44" />
+          <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-40" />
+          <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-36" />
+          <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-40" />
         </DashboardActionsRow>
       }
       title="Get your workflow live"
     >
       <div className="grid gap-3 md:grid-cols-2">
         {Array.from({ length: 4 }).map((_, index) => (
-          <div className="soft-panel flex items-start gap-3 px-4 py-4" key={index}>
+ <div className="soft-panel flex items-start gap-3" key={index}>
             <Skeleton className="size-6 shrink-0 rounded-full" />
             <div className="flex min-w-0 flex-1 flex-col gap-2">
               <Skeleton className="h-4 w-40 rounded-md" />
@@ -514,7 +514,7 @@ export function DashboardOverviewStatsFallback() {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       {Array.from({ length: 5 }).map((_, index) => (
-        <div className="soft-panel px-4 py-4" key={index}>
+ <div className="soft-panel" key={index}>
           <div className="flex items-center gap-1.5">
             <Skeleton className="h-3 w-20 rounded-md" />
             <Skeleton className="size-4 rounded-full" />
@@ -582,7 +582,7 @@ function OverviewActionStat({
     <Link
       href={href}
       prefetch={true}
-      className="soft-panel px-4 py-4 transition-colors hover:bg-accent/40"
+      className="soft-panel transition-colors hover:bg-accent/40"
     >
       <div className="flex items-center gap-1.5">
         <p className="meta-label">{label}</p>
@@ -612,7 +612,7 @@ function OverviewQueueCard({
   children: ReactNode;
 }) {
   return (
-    <section className="section-panel flex h-full flex-col overflow-hidden">
+    <section data-padding="none" className="section-panel flex h-full flex-col overflow-hidden">
       <div className="flex items-center justify-between gap-3 border-b border-border/70 px-5 py-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <h2 className="truncate text-base font-semibold tracking-tight text-foreground">
@@ -650,13 +650,13 @@ function OverviewQueueList({
 
 function OverviewQueueCardSkeleton() {
   return (
-    <section className="section-panel flex h-full flex-col overflow-hidden">
+    <section data-padding="none" className="section-panel flex h-full flex-col overflow-hidden">
       <div className="flex items-center justify-between gap-3 border-b border-border/70 px-5 py-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <Skeleton className="h-5 w-32 rounded-md" />
           <Skeleton className="h-6 w-10 rounded-full" />
         </div>
-        <Skeleton className="h-9 w-24 rounded-lg" />
+        <Skeleton className="h-9 w-24 rounded-md sm:h-8" />
       </div>
       <div className="flex min-h-[21rem] flex-1 flex-col divide-y divide-border/70">
         {Array.from({ length: 3 }).map((_, index) => (
@@ -748,7 +748,7 @@ function OverviewInquiryRow({
       <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
         <div className="flex min-w-0 items-center gap-2">
           <Badge
-            className="h-6 border-transparent bg-muted/70 px-2.5 text-[0.68rem] font-medium text-muted-foreground"
+            className="h-6 border-transparent bg-muted/70 px-2.5 text-xs font-medium text-muted-foreground"
             variant="secondary"
           >
             {inquiry.serviceCategory}
@@ -788,7 +788,7 @@ function OverviewQuoteRow({
                 <p className="truncate text-sm font-medium text-foreground">
                   {quote.title}
                 </p>
-                <span className="shrink-0 text-[0.68rem] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                <span className="shrink-0 meta-label">
                   {quote.quoteNumber}
                 </span>
               </div>

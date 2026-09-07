@@ -39,13 +39,14 @@ import {
 import { recordRecentlyOpenedBusiness } from "@/features/businesses/recently-opened";
 import {
   createBusinessSchema,
+  parseBusinessServiceNames,
   recentlyOpenedBusinessSchema,
 } from "@/features/businesses/schemas";
 import {
   activeBusinessSlugCookieName,
   dashboardPath,
   getBusinessDashboardPath,
-  getBusinessFormsPath,
+  getBusinessServicesPath,
   getBusinessPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
@@ -103,7 +104,7 @@ function revalidateBusinessLifecyclePaths({
   revalidatePath(getBusinessDashboardPath(businessSlug), "layout");
   revalidatePath(getBusinessSettingsPath(businessSlug));
   revalidatePath(getBusinessSettingsPath(businessSlug, "general"));
-  revalidatePath(getBusinessFormsPath(businessSlug));
+  revalidatePath(getBusinessServicesPath(businessSlug));
   revalidatePath(`/inquire/${businessSlug}`);
 }
 
@@ -192,6 +193,7 @@ export async function createBusinessAction(
       defaultCurrency: validationResult.data.defaultCurrency,
       name: validationResult.data.name,
       businessType: validationResult.data.businessType,
+      onboardingServices: parseBusinessServiceNames(formData.get("services")),
     });
 
     updateUserBusinessMembershipCacheTags({

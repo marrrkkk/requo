@@ -11,6 +11,10 @@ import {
   type StarterWorkflowKey,
 } from "@/features/businesses/starter-workflows";
 import {
+  businessServiceEntrySchema,
+  parseBusinessServiceNames,
+} from "@/features/businesses/schemas";
+import {
   businessTypes,
   type BusinessType,
 } from "@/features/inquiries/business-types";
@@ -151,8 +155,22 @@ export const onboardingStartingWorkflowSchema = z.object({
 });
 
 /**
+ * Step 3: Services
+ * Named services created during onboarding. Re-exports the shared entry
+ * schema from businesses/schemas (services are a business-creation concern;
+ * the hub's create form uses the same rules).
+ */
+export const onboardingServiceEntrySchema = businessServiceEntrySchema;
+
+/** Re-export shared parser for onboarding tests and call sites. */
+export const parseOnboardingServices = parseBusinessServiceNames;
+
+
+/**
  * Complete onboarding submission schema.
- * Merges both steps plus optional deferred fields.
+ * Merges all steps plus optional deferred fields. Services are parsed and
+ * validated separately in the action (JSON blob, mirrors the
+ * inquiryFormConfigOverride pattern).
  */
 export const completeOnboardingSchema = z.object({
   ...onboardingBusinessBasicsSchema.shape,

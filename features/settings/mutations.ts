@@ -103,7 +103,10 @@ type ApplyBusinessInquiryFormPresetInput = {
 type CreateBusinessInquiryFormInput = {
   businessId: string;
   actorUserId: string;
-  values: BusinessInquiryFormCreateInput;
+  values: BusinessInquiryFormCreateInput & {
+    /** Starter template the new service inherits from its business. */
+    businessType: BusinessType;
+  };
 };
 
 type TargetBusinessInquiryFormInput = {

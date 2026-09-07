@@ -60,6 +60,7 @@ export function getBusinessQuotesPath(slug: string) {
   return `${getBusinessPath(slug)}/quotes`;
 }
 
+
 export function getBusinessFollowUpsPath(slug: string) {
   return `${getBusinessPath(slug)}/follow-ups`;
 }
@@ -186,8 +187,12 @@ export function getBusinessMemberInvitePath(token: string) {
   return `/invite/${token}`;
 }
 
-export function getBusinessFormsPath(slug: string) {
-  return `${getBusinessPath(slug)}/forms`;
+export function getBusinessServicesPath(slug: string) {
+  return `${getBusinessPath(slug)}/services`;
+}
+
+export function getBusinessServicePath(slug: string, serviceSlug: string) {
+  return `${getBusinessServicesPath(slug)}/${serviceSlug}`;
 }
 
 export function getBusinessMembersPath(slug: string) {
@@ -200,10 +205,6 @@ export function getBusinessNotificationsPath(slug: string) {
 
 export function getBusinessProductsPath(slug: string) {
   return `${getBusinessPath(slug)}/products`;
-}
-
-export function getBusinessFormPath(slug: string, formSlug: string) {
-  return `${getBusinessFormsPath(slug)}/${formSlug}`;
 }
 
 export function getBusinessAssistantPath(slug: string) {
@@ -222,29 +223,8 @@ export function getBusinessPublicInquirePath(slug: string) {
   return `/b/${slug}/inquire`;
 }
 
-export function getBusinessInquiryFormsPath(slug: string) {
-  return getBusinessFormsPath(slug);
-}
-
-export function getBusinessInquiryFormEditorPath(
-  slug: string,
-  formSlug: string,
-) {
-  return getBusinessFormPath(slug, formSlug);
-}
-
-export function getBusinessInquiryPageEditorPath(
-  slug: string,
-  formSlug: string,
-) {
-  return getBusinessInquiryFormEditorPath(slug, formSlug);
-}
-
-export function getBusinessInquiryFormPreviewPath(
-  slug: string,
-  formSlug: string,
-) {
-  return `${getBusinessPath(slug)}/preview/inquiry/${formSlug}`;
+export function getBusinessServicePreviewPath(slug: string, serviceSlug: string) {
+  return `${getBusinessPath(slug)}/preview/inquiry/${serviceSlug}`;
 }
 
 export function getBusinessDashboardSlugFromPathname(pathname: string) {

@@ -168,8 +168,8 @@ export function CropDialog({
               <Field>
                 <FieldLabel htmlFor="showcase-image-crop-zoom">Zoom</FieldLabel>
                 <FieldContent>
-                  <input
-                    className="h-10 w-full accent-primary"
+                    <input
+                      className="h-8 w-full accent-primary"
                     id="showcase-image-crop-zoom"
                     max="4"
                     min="1"
@@ -184,7 +184,7 @@ export function CropDialog({
               </Field>
             </FieldGroup>
 
-            <div className="soft-panel px-4 py-4 text-sm shadow-none">
+            <div className="soft-panel text-sm shadow-none">
               <p className="font-medium text-foreground">Crop</p>
               <p className="mt-1 text-muted-foreground">
                 Uses the frame selected above.

@@ -6,6 +6,10 @@ import {
   resolveCurrencyForCountry,
 } from "@/features/businesses/locale";
 import type { BusinessType } from "@/features/inquiries/business-types";
+import {
+  createInquiryFormConfigDefaults,
+} from "@/features/inquiries/form-config";
+import { getDefaultInquiryFormName } from "@/features/inquiries/inquiry-forms";
 import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
 import { createPublicInquiryPreviewBusiness } from "@/features/inquiries/preview-business";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
@@ -24,6 +28,10 @@ export function clearOnboardingDraft() {
   }
 }
 
+export type OnboardingDraftService = {
+  name: string;
+};
+
 export type OnboardingDraft = {
   firstName: string;
   lastName: string;
@@ -38,7 +46,19 @@ export type OnboardingDraft = {
   customerContactChannel: string;
   companySize: string;
   referralSource: string;
+  /** Named services for step 3. First entry pre-fills from the type preset. */
+  services: OnboardingDraftService[];
 };
+
+/** Max rows the UI keeps around; plan limits are resolved at render/submit. */
+export const onboardingServicesHardCap = 10;
+
+/** The preset name for the first service, derived from the business type. */
+export function getDefaultOnboardingServiceName(
+  businessType: BusinessType | "",
+): string {
+  return businessType ? getDefaultInquiryFormName(businessType) : "Project inquiry";
+}
 
 export function createEmptyOnboardingDraft(): OnboardingDraft {
   return {
@@ -54,7 +74,38 @@ export function createEmptyOnboardingDraft(): OnboardingDraft {
     customerContactChannel: "",
     companySize: "",
     referralSource: "",
+    services: [{ name: "" }],
   };
+}
+
+/**
+ * Keeps the first service's pre-filled name tracking the chosen business type
+ * until the owner edits it themselves.
+ */
+export function resolveFirstServiceNameOnTypeChange({
+  services,
+  previousBusinessType,
+  nextBusinessType,
+}: {
+  services: OnboardingDraftService[];
+  previousBusinessType: BusinessType | "";
+  nextBusinessType: BusinessType | "";
+}): OnboardingDraftService[] {
+  if (nextBusinessType === previousBusinessType || services.length === 0) {
+    return services;
+  }
+
+  const [first, ...rest] = services;
+  const previousDefaultName = getDefaultOnboardingServiceName(previousBusinessType);
+
+  if (first.name.trim() && first.name !== previousDefaultName) {
+    return services;
+  }
+
+  return [
+    { ...first, name: getDefaultOnboardingServiceName(nextBusinessType) },
+    ...rest,
+  ];
 }
 
 export function getRecommendedStarterWorkflowForBusinessType(
@@ -95,12 +146,14 @@ export function resolveOnboardingCurrencyChange({
 export function createOnboardingPreviewBusiness(
   draft: OnboardingDraft,
 ): PublicInquiryBusiness {
+  // Preview honors the picked starter workflow so it matches the services
+  // actually created on finish (same config path as createBusinessRecordForUser).
   const selectedWorkflow =
     draft.starterWorkflow ||
     getRecommendedStarterWorkflowForBusinessType(draft.businessType);
   const businessName = draft.businessName.trim() || "Your business";
   const businessType = draft.businessType || "general_project_services";
-  
+
   const preset = createInquiryFormPreset({
     businessType,
     businessName,
@@ -118,7 +171,10 @@ export function createOnboardingPreviewBusiness(
       slug: preset.slug,
       businessType,
     },
-    inquiryFormConfig: preset.inquiryFormConfig,
+    inquiryFormConfig: createInquiryFormConfigDefaults({
+      businessType,
+      starterWorkflow: selectedWorkflow,
+    }),
     inquiryPageConfig: preset.inquiryPageConfig,
   });
 }

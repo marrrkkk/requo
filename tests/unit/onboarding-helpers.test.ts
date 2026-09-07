@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   createOnboardingPreviewBusiness,
+  createEmptyOnboardingDraft,
+  getDefaultOnboardingServiceName,
   getRecommendedStarterWorkflowForBusinessType,
+  resolveFirstServiceNameOnTypeChange,
   resolveOnboardingCurrencyChange,
   type OnboardingDraft,
 } from "@/features/onboarding/helpers";
@@ -23,6 +26,7 @@ function createDraft(
     jobTitle: "Owner",
     companySize: "2-5 people",
     referralSource: "Google Search",
+    services: [{ name: "Project inquiry" }],
     ...overrides,
   };
 }
@@ -69,6 +73,72 @@ describe("features/onboarding/helpers", () => {
       });
 
       expect(result).toBe("EUR");
+    });
+  });
+
+  describe("getDefaultOnboardingServiceName", () => {
+    it("derives the preset name from the business type", () => {
+      expect(getDefaultOnboardingServiceName("cleaning_services")).toBe(
+        "Service inquiry",
+      );
+      expect(getDefaultOnboardingServiceName("web_it_services")).toBe(
+        "Project inquiry",
+      );
+    });
+
+    it("falls back to a generic name for an empty business type", () => {
+      expect(getDefaultOnboardingServiceName("")).toBe("Project inquiry");
+    });
+  });
+
+  describe("resolveFirstServiceNameOnTypeChange", () => {
+    it("updates an untouched pre-filled first service name to the new type", () => {
+      const services = resolveFirstServiceNameOnTypeChange({
+        services: [{ name: "Project inquiry" }, { name: "SEO audit" }],
+        previousBusinessType: "web_it_services",
+        nextBusinessType: "cleaning_services",
+      });
+
+      expect(services[0]?.name).toBe("Service inquiry");
+      expect(services[1]?.name).toBe("SEO audit");
+    });
+
+    it("keeps a name the owner edited themselves", () => {
+      const services = resolveFirstServiceNameOnTypeChange({
+        services: [{ name: "Website packages" }],
+        previousBusinessType: "web_it_services",
+        nextBusinessType: "cleaning_services",
+      });
+
+      expect(services[0]?.name).toBe("Website packages");
+    });
+
+    it("updates a blank first row", () => {
+      const services = resolveFirstServiceNameOnTypeChange({
+        services: [{ name: "" }],
+        previousBusinessType: "web_it_services",
+        nextBusinessType: "consulting_professional_services",
+      });
+
+      expect(services[0]?.name).toBe("Discovery inquiry");
+    });
+
+    it("does nothing when the type has not changed", () => {
+      const services = [{ name: "Project inquiry" }];
+
+      expect(
+        resolveFirstServiceNameOnTypeChange({
+          services,
+          previousBusinessType: "web_it_services",
+          nextBusinessType: "web_it_services",
+        }),
+      ).toBe(services);
+    });
+  });
+
+  describe("createEmptyOnboardingDraft", () => {
+    it("starts with a single blank service row", () => {
+      expect(createEmptyOnboardingDraft().services).toEqual([{ name: "" }]);
     });
   });
 

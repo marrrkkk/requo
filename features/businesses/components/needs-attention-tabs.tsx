@@ -130,7 +130,7 @@ export function NeedsAttentionTabs({
           >
             {filter.label}
             {(categoryCounts[filter.value] ?? 0) > 0 ? (
-              <span className="text-[0.6rem] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 {categoryCounts[filter.value]}
               </span>
             ) : null}
@@ -204,7 +204,7 @@ function NeedsAttentionMinimalRow({ item }: { item: NeedsAttentionItemData }) {
             iconStyle
           )}
         >
-          <Icon className="size-4.5" />
+          <Icon className="size-4" />
         </div>
 
         {/* Neat text stack */}
@@ -213,7 +213,7 @@ function NeedsAttentionMinimalRow({ item }: { item: NeedsAttentionItemData }) {
             <span className="truncate text-sm font-semibold tracking-tight text-foreground">
               {item.title}
             </span>
-            <span className="shrink-0 rounded-md bg-secondary/80 px-1.5 py-0.5 text-[0.62rem] font-medium text-muted-foreground uppercase tracking-wider">
+            <span className="shrink-0 rounded-md bg-secondary/80 px-1.5 py-0.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
               {item.category}
             </span>
           </div>

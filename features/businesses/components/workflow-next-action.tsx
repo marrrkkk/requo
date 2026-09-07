@@ -46,7 +46,7 @@ export function WorkflowNextActionCallout({
       role="status"
     >
       <div className="min-w-0 flex-1">
-        <p className="font-heading text-[0.98rem] font-semibold leading-6 tracking-tight text-foreground">
+        <p className="font-heading text-sm font-semibold leading-6 tracking-tight text-foreground">
           {action.label}
         </p>
         <p className="mt-1 max-w-3xl leading-6 text-muted-foreground">
@@ -90,7 +90,7 @@ export function WorkflowNextActionSummary({
         className,
       )}
     >
-      <span className="meta-label shrink-0 text-[0.62rem] tracking-[0.12em]">
+      <span className="meta-label shrink-0 text-xs tracking-[0.12em]">
         Next
       </span>
       <span className="truncate font-medium">{action.label}</span>

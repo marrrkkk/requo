@@ -103,9 +103,9 @@ export function BusinessInquiryFormManageCard({
       <Card size="sm" className="gap-0 border-border/75 bg-card/97 shadow-xs">
         <CardHeader className="gap-1 border-b border-border/70 p-4 sm:p-5">
           <CardTitle className="font-heading text-sm font-semibold tracking-tight sm:text-base">
-            Form publishing &amp; defaults
+            Service publishing &amp; defaults
           </CardTitle>
-          <CardDescription className="text-xs leading-relaxed sm:text-[13px]">
+          <CardDescription className="text-xs leading-relaxed sm:text-sm">
             Manage visibility, default routing, starter templates, and duplication.
           </CardDescription>
         </CardHeader>
@@ -114,8 +114,8 @@ export function BusinessInquiryFormManageCard({
           <SettingsRow
             description={
               isPublicInquiryEnabled
-                ? "This intake form is live and accessible to anyone with your public URL."
-                : "This form is saved as a draft and hidden from public visitors."
+                ? "This service is live and accepts inquiries from anyone with your public URL."
+                : "This service is saved as a draft and hidden from public visitors."
             }
             label="Public page status"
             status={
@@ -131,7 +131,7 @@ export function BusinessInquiryFormManageCard({
                     className="size-3.5 shrink-0 text-muted-foreground"
                   />
                   <span>
-                    Default form stays live. Set another default before unpublishing.
+                    The default service stays live. Set another default before unpublishing.
                   </span>
                 </div>
               ) : (
@@ -156,12 +156,12 @@ export function BusinessInquiryFormManageCard({
                     ) : isPublicInquiryEnabled ? (
                       <>
                         <EyeOff data-icon="inline-start" />
-                        Unpublish form
+                        Unpublish service
                       </>
                     ) : (
                       <>
                         <Eye data-icon="inline-start" />
-                        Publish form
+                        Publish service
                       </>
                     )}
                   </Button>
@@ -170,10 +170,10 @@ export function BusinessInquiryFormManageCard({
             }
           />
 
-          {/* Default Inquiry Form */}
+          {/* Default Service */}
           <SettingsRow
-            description="The primary intake form used on your default business inquiry link."
-            label="Default business form"
+            description="The service that receives inquiries from your default business inquiry link."
+            label="Default service"
             status={
               <Badge variant={isDefault ? "secondary" : "outline"}>
                 {isDefault ? "Default" : "Standard"}
@@ -213,8 +213,8 @@ export function BusinessInquiryFormManageCard({
           {/* Template Defaults Reset */}
           {starterTemplate && applyPresetAction ? (
             <SettingsRow
-              description={`Rebuild fields and page copy using the ${starterTemplate.label} starter preset.`}
-              label="Business type preset"
+              description={`Rebuild this service's fields and page copy from the ${starterTemplate.label} starter template.`}
+              label="Template"
               status={
                 <Badge variant="outline">
                   {starterTemplate.label}
@@ -235,10 +235,10 @@ export function BusinessInquiryFormManageCard({
             />
           ) : null}
 
-          {/* Duplicate Form */}
+          {/* Duplicate Service */}
           <SettingsRow
-            description="Create an exact copy of this form with all fields and copy preserved."
-            label="Duplicate form"
+            description="Create an exact copy of this service with all fields and copy preserved."
+            label="Duplicate service"
             action={
               <form action={duplicateFormAction}>
                 <input name="targetFormId" type="hidden" value={formId} />
@@ -271,7 +271,7 @@ export function BusinessInquiryFormManageCard({
         <Dialog open={isPresetDialogOpen} onOpenChange={setIsPresetDialogOpen}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>Reset to business type defaults?</DialogTitle>
+              <DialogTitle>Reset to template defaults?</DialogTitle>
               <DialogDescription>
                 This will replace your current fields and page copy with the{" "}
                 {starterTemplate.label} template defaults.
@@ -320,7 +320,7 @@ export function BusinessInquiryFormManageCard({
                       Applying...
                     </>
                   ) : (
-                    "Reset form"
+                    "Apply defaults"
                   )}
                 </Button>
               </form>
@@ -351,7 +351,7 @@ function SettingsRow({
           {status}
         </div>
         {description ? (
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
             {description}
           </p>
         ) : null}

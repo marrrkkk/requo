@@ -837,7 +837,7 @@ export function BusinessInquiryFormForm({
                     isEditingProjectGroupLabel ? (
                       <input
                         autoFocus
-                        className="h-auto w-full bg-transparent px-0 py-0 text-[0.95rem] font-semibold tracking-tight text-foreground outline-none sm:w-auto sm:min-w-[14rem]"
+                        className="h-auto w-full bg-transparent px-0 py-0 text-sm font-semibold tracking-tight text-foreground outline-none sm:w-auto sm:min-w-[14rem]"
                         maxLength={40}
                         onBlur={saveProjectGroupLabel}
                         onChange={(event) =>
@@ -1401,6 +1401,7 @@ function ProjectFieldEditorControl({
 
               return (
                 <label
+                  data-padding="none"
                   className="soft-panel flex items-center gap-3 px-3 py-3 shadow-none"
                   htmlFor={optionId}
                   key={option.id}
@@ -1748,6 +1749,7 @@ function AddFieldDialog({
         <DialogBody className="grid gap-3 sm:grid-cols-2">
           {addFieldTypeOptions.map(({ type, label, description, icon: Icon }) => (
             <button
+              data-padding="none"
               className="soft-panel flex items-start gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-muted/60"
               disabled={disabled}
               key={type}

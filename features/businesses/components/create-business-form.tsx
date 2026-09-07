@@ -23,13 +23,20 @@ import {
   getBusinessCurrencyOption,
 } from "@/features/businesses/locale";
 import {
+  getDefaultOnboardingServiceName,
+  resolveFirstServiceNameOnTypeChange,
+} from "@/features/onboarding/helpers";
+import {
   starterTemplateOptions,
 } from "@/features/businesses/starter-templates";
 import { validateBusinessSlug } from "@/features/businesses/validation";
 import type { CreateBusinessActionState } from "@/features/businesses/types";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
+import type { BusinessPlan } from "@/lib/plans/plans";
 import { slugifyPublicName } from "@/lib/slugs";
+
+import { ServiceNameFields, type ServiceNameEntry } from "./service-name-fields";
 
 type CreateBusinessFormProps = {
   action: (
@@ -39,6 +46,8 @@ type CreateBusinessFormProps = {
   businessId: string;
   /** When true, renders without dialog wrappers for standalone page use. */
   standalone?: boolean;
+  /** Resolved plan for the new business; drives the service cap UI. */
+  plan?: BusinessPlan;
 };
 
 const initialState: CreateBusinessActionState = {};
@@ -47,6 +56,7 @@ export function CreateBusinessForm({
   action,
   businessId,
   standalone = false,
+  plan = "free",
 }: CreateBusinessFormProps) {
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
@@ -55,6 +65,9 @@ export function CreateBusinessForm({
   const [businessType, setBusinessType] = useState<BusinessType>(
     "general_project_services",
   );
+  const [services, setServices] = useState<ServiceNameEntry[]>([
+    { name: "" },
+  ]);
   const [defaultCurrency, setDefaultCurrency] = useState("USD");
   const [slugPreview, setSlugPreview] = useState<string>("");
   const [slugError, setSlugError] = useState<string | undefined>(undefined);
@@ -94,6 +107,19 @@ export function CreateBusinessForm({
     },
     [],
   );
+
+  function handleBusinessTypeChange(value: string) {
+    const nextBusinessType = value as BusinessType;
+
+    setServices((currentServices) =>
+      resolveFirstServiceNameOnTypeChange({
+        services: currentServices,
+        previousBusinessType: businessType,
+        nextBusinessType,
+      }),
+    );
+    setBusinessType(nextBusinessType);
+  }
 
   const fields = (
     <FieldGroup>
@@ -170,7 +196,7 @@ export function CreateBusinessForm({
             aria-invalid={Boolean(businessTypeError) || undefined}
             disabled={isPending}
             id="business-starter-template"
-            onValueChange={(value) => setBusinessType(value as BusinessType)}
+            onValueChange={handleBusinessTypeChange}
             options={starterTemplateOptions}
             placeholder="Choose a business type"
             renderOption={(option) => (
@@ -188,6 +214,36 @@ export function CreateBusinessForm({
             errors={
               businessTypeError ? [{ message: businessTypeError }] : undefined
             }
+          />
+        </FieldContent>
+      </Field>
+
+      <Field>
+        <FieldLabel>Services</FieldLabel>
+        <FieldContent>
+          <ServiceNameFields
+            extraPlaceholder="e.g. Sign installation"
+            firstPlaceholder={getDefaultOnboardingServiceName(businessType)}
+            isPending={isPending}
+            onAddService={() =>
+              setServices((current) => [...current, { name: "" }])
+            }
+            onNameChange={(index, name) =>
+              setServices((current) =>
+                current.map((service, serviceIndex) =>
+                  serviceIndex === index ? { name } : service,
+                ),
+              )
+            }
+            onRemoveService={(index) =>
+              setServices((current) =>
+                current.length > 1
+                  ? current.filter((_, serviceIndex) => serviceIndex !== index)
+                  : current,
+              )
+            }
+            plan={plan}
+            services={services}
           />
         </FieldContent>
       </Field>
@@ -216,6 +272,11 @@ export function CreateBusinessForm({
         <input name="businessType" type="hidden" value={businessType} />
         <input name="defaultCurrency" type="hidden" value={defaultCurrency} />
         <input name="businessId" type="hidden" value={businessId} />
+        <input
+          name="services"
+          type="hidden"
+          value={JSON.stringify(services)}
+        />
 
         {fields}
 
@@ -234,6 +295,11 @@ export function CreateBusinessForm({
         <input name="businessType" type="hidden" value={businessType} />
         <input name="defaultCurrency" type="hidden" value={defaultCurrency} />
         <input name="businessId" type="hidden" value={businessId} />
+        <input
+          name="services"
+          type="hidden"
+          value={JSON.stringify(services)}
+        />
 
         <DialogBody className="overflow-y-auto">
           {fields}

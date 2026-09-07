@@ -13,6 +13,7 @@ import {
   createEmptyOnboardingDraft,
   getRecommendedStarterWorkflowForBusinessType,
   onboardingSessionStorageKey,
+  resolveFirstServiceNameOnTypeChange,
   resolveOnboardingCurrencyChange,
   type OnboardingDraft,
 } from "@/features/onboarding/helpers";
@@ -26,6 +27,7 @@ import type { BusinessType } from "@/features/inquiries/business-types";
 import { slugifyPublicName } from "@/lib/slugs";
 
 import { BusinessStep } from "./business-step";
+import { ServicesStep } from "./services-step";
 import { SetupLoadingOverlay } from "./setup-loading-overlay";
 import { WorkflowStep } from "./workflow-step";
 import {
@@ -40,7 +42,12 @@ import {
 
 const initialState: OnboardingActionState = {};
 
-export function OnboardingForm({ action, detectedCountryCode, initialProfile }: OnboardingFormProps) {
+export function OnboardingForm({
+  action,
+  detectedCountryCode,
+  initialProfile,
+  plan = "free",
+}: OnboardingFormProps) {
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
@@ -208,9 +215,42 @@ export function OnboardingForm({ action, detectedCountryCode, initialProfile }: 
         currentDraft.starterWorkflow === previousRecommendation
           ? nextRecommendation
           : currentDraft.starterWorkflow,
+      services: resolveFirstServiceNameOnTypeChange({
+        services: currentDraft.services,
+        previousBusinessType: currentDraft.businessType,
+        nextBusinessType,
+      }),
     }));
 
-    clearFieldErrors("businessType", "starterWorkflow");
+    clearFieldErrors("businessType", "starterWorkflow", "services");
+  }
+
+  function handleServiceNameChange(index: number, name: string) {
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      services: currentDraft.services.map((service, serviceIndex) =>
+        serviceIndex === index ? { name } : service,
+      ),
+    }));
+
+    clearFieldErrors("services");
+  }
+
+  function handleAddService() {
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      services: [...currentDraft.services, { name: "" }],
+    }));
+  }
+
+  function handleRemoveService(index: number) {
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      services:
+        currentDraft.services.length > 1
+          ? currentDraft.services.filter((_, serviceIndex) => serviceIndex !== index)
+          : currentDraft.services,
+    }));
   }
 
   function clearFieldErrors(...fields: OnboardingFieldName[]) {
@@ -404,6 +444,11 @@ export function OnboardingForm({ action, detectedCountryCode, initialProfile }: 
           type="hidden"
           value={draft.starterWorkflow}
         />
+        <input
+          name="services"
+          type="hidden"
+          value={JSON.stringify(draft.services)}
+        />
         <input name="jobTitle" type="hidden" value={draft.jobTitle} />
         <input name="companySize" type="hidden" value={draft.companySize} />
         <input
@@ -466,6 +511,18 @@ export function OnboardingForm({ action, detectedCountryCode, initialProfile }: 
                 isPending={isPending}
                 recommendedWorkflow={recommendedWorkflow}
                 updateField={updateField}
+              />
+            ) : null}
+
+            {currentStepId === "services" ? (
+              <ServicesStep
+                draft={draft}
+                fieldError={fieldErrors.services}
+                isPending={isPending}
+                onAddService={handleAddService}
+                onNameChange={handleServiceNameChange}
+                onRemoveService={handleRemoveService}
+                plan={plan}
               />
             ) : null}
           </div>

@@ -10,7 +10,8 @@ export type OnboardingFieldName =
   | "customerContactChannel"
   | "starterWorkflow"
   | "companySize"
-  | "referralSource";
+  | "referralSource"
+  | "services";
 
 export type OnboardingActionState = {
   error?: string;

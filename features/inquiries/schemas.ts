@@ -419,6 +419,7 @@ function createCustomFieldSchema(field: InquiryFormCustomFieldDefinition) {
 type PublicInquiryValidationOptions = {
   maxAttachmentSizeBytes?: number;
   plan?: plan;
+  defaultServiceCategory?: string;
 };
 
 function resolveAttachmentMaxSizeBytes(
@@ -475,11 +476,13 @@ function createPublicInquirySubmissionSchema(
 
     switch (field.key) {
       case "serviceCategory":
-        shape[inputName] = createRequiredTextSchema({
-          label: field.label,
-          minLength: 2,
-          maxLength: 120,
-        });
+        shape[inputName] = options?.defaultServiceCategory
+          ? createOptionalTextSchema(field.label, 120)
+          : createRequiredTextSchema({
+              label: field.label,
+              minLength: 2,
+              maxLength: 120,
+            });
         break;
       case "requestedDeadline":
         shape[inputName] = createDateSchema(field.label, field.required);
@@ -672,7 +675,9 @@ export function validatePublicInquirySubmission(
       customerEmail,
       customerContactMethod,
       customerContactHandle,
-      serviceCategory: String(parsedValues.serviceCategory ?? ""),
+      serviceCategory: String(
+        parsedValues.serviceCategory || options?.defaultServiceCategory || "",
+      ),
       requestedDeadline:
         typeof parsedValues.requestedDeadline === "string"
           ? parsedValues.requestedDeadline

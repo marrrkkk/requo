@@ -201,7 +201,7 @@ function StepsBar({
                 </div>
                 <span
                   className={cn(
-                    "text-center text-[0.625rem] leading-tight sm:text-[0.6875rem]",
+                    "text-center text-xs leading-tight sm:text-xs",
                     step.state === "current" && "font-medium text-primary",
                     step.state === "completed" && "font-medium text-foreground/80",
                     step.state === "upcoming" && "text-muted-foreground/60",

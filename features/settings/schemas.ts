@@ -375,7 +375,7 @@ export const businessInquiryPageSettingsSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(2, "Enter a form name.")
+    .min(2, "Enter a service name.")
     .max(80, "Use 80 characters or fewer."),
   slug: z
     .string()
@@ -479,9 +479,8 @@ export const businessInquiryFormCreateSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(2, "Enter a form name.")
+    .min(2, "Enter a service name.")
     .max(80, "Use 80 characters or fewer."),
-  businessType: z.enum(businessTypes),
 });
 
 export type BusinessInquiryFormCreateInput = z.infer<

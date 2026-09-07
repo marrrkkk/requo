@@ -69,7 +69,7 @@ export function StarterTemplateChoiceGrid({
                     {option.label}
                   </p>
                   {isRecommended ? (
-                    <span className="rounded-full border border-primary/20 bg-primary/[0.08] px-2 py-0.5 text-[0.68rem] font-medium uppercase tracking-[0.14em] text-primary">
+                    <span className="rounded-full border border-primary/20 bg-primary/[0.08] px-2 py-0.5 text-xs font-medium uppercase tracking-[0.14em] text-primary">
                       {recommendedLabel}
                     </span>
                   ) : null}
@@ -89,7 +89,7 @@ export function StarterTemplateChoiceGrid({
             <div className="mt-4 flex flex-wrap gap-2">
               {template.recommendedFields.map((field) => (
                 <span
-                  className="rounded-full border border-border/75 bg-muted/20 px-2.5 py-1 text-[0.72rem] font-medium text-muted-foreground"
+                  className="rounded-full border border-border/75 bg-muted/20 px-2.5 py-1 text-xs font-medium text-muted-foreground"
                   key={field}
                 >
                   {field}

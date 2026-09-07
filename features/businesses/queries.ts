@@ -82,7 +82,7 @@ function getFutureUtcDateString(daysAhead: number) {
     .slice(0, 10);
 }
 
-export async function getBusinessOverviewData(
+async function _getBusinessOverviewData(
   businessId: string,
 ): Promise<BusinessOverviewData> {
   try {
@@ -100,6 +100,14 @@ export async function getBusinessOverviewData(
     return createEmptyBusinessOverviewData();
   }
 }
+
+/**
+ * Two-layer read (AGENTS.md "Performance & Caching"): the inner `"use cache"`
+ * function handles cross-request reuse and tag invalidation, while this outer
+ * `React.cache()` dedupes within a single request so the several dashboard
+ * home regions needing overview data share one call instead of repeating it.
+ */
+export const getBusinessOverviewData = cache(_getBusinessOverviewData);
 
 async function getCachedBusinessOverviewData(
   businessId: string,
@@ -383,7 +391,7 @@ async function getCachedBusinessOverviewData(
   };
 }
 
-export async function getBusinessDashboardSummaryData(
+async function _getBusinessDashboardSummaryData(
   businessId: string,
 ): Promise<BusinessDashboardSummaryData> {
   try {
@@ -401,6 +409,16 @@ export async function getBusinessDashboardSummaryData(
     return createEmptyBusinessDashboardSummaryData();
   }
 }
+
+/**
+ * Two-layer read (AGENTS.md "Performance & Caching"): the inner `"use cache"`
+ * function handles cross-request reuse and tag invalidation, while this outer
+ * `React.cache()` dedupes within a single request so the KPI and
+ * needs-attention regions share one call instead of repeating it.
+ */
+export const getBusinessDashboardSummaryData = cache(
+  _getBusinessDashboardSummaryData,
+);
 
 async function getCachedBusinessDashboardSummaryData(
   businessId: string,
@@ -474,7 +492,7 @@ function createEmptyBusinessMoneySnapshot(): BusinessMoneySnapshot {
  * plans — deliberately NOT gated behind the analytics entitlement. Both
  * figures are quote-derived sums in the business's default currency.
  */
-export async function getBusinessMoneySnapshot(
+async function _getBusinessMoneySnapshot(
   businessId: string,
 ): Promise<BusinessMoneySnapshot> {
   try {
@@ -492,6 +510,14 @@ export async function getBusinessMoneySnapshot(
     return createEmptyBusinessMoneySnapshot();
   }
 }
+
+/**
+ * Two-layer read (AGENTS.md "Performance & Caching"): the inner `"use cache"`
+ * function handles cross-request reuse and tag invalidation, while this outer
+ * `React.cache()` dedupes within a single request so the KPI row and any
+ * other region reading money figures share one call instead of repeating it.
+ */
+export const getBusinessMoneySnapshot = cache(_getBusinessMoneySnapshot);
 
 async function getCachedBusinessMoneySnapshot(
   businessId: string,

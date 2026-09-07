@@ -1,6 +1,6 @@
 import {
   getBusinessInquiriesPath,
-  getBusinessInquiryFormsPath,
+  getBusinessServicesPath,
   getBusinessNewQuotePath,
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
@@ -64,12 +64,12 @@ function resolveNextStep({
 }): NextStepSuggestion | null {
   if (!publicInquiryEnabled) {
     return {
-      id: "publish-form",
-      title: "Your inquiry form is ready to go live",
+      id: "publish-service",
+      title: "Your service is ready to go live",
       description:
         "Publish it so potential customers can reach you directly from your website.",
-      href: getBusinessInquiryFormsPath(businessSlug),
-      ctaLabel: "Publish form",
+      href: getBusinessServicesPath(businessSlug),
+      ctaLabel: "Publish service",
     };
   }
 
@@ -78,7 +78,7 @@ function resolveNextStep({
       id: "first-inquiry",
       title: "Share your inquiry link",
       description: inquirySourceTip,
-      href: getBusinessInquiryFormsPath(businessSlug),
+      href: getBusinessServicesPath(businessSlug),
       ctaLabel: "Get your link",
     };
   }

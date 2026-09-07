@@ -1,13 +1,13 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function BusinessFormSettingsLoading() {
+export default function BusinessServiceLoading() {
   return (
     <>
       <PageHeader
-        eyebrow="Forms"
+        eyebrow="Services"
         title={<Skeleton className="h-9 w-48 rounded-xl" />}
-        description="Edit the fields, public page, preview, and publishing controls for this inquiry workflow."
+        description="Manage this service's intake form, public page, and settings."
       />
 
       <div className="flex flex-col gap-5">
@@ -23,7 +23,7 @@ export default function BusinessFormSettingsLoading() {
             <Skeleton className="h-8 w-[6rem] rounded-md" />
           </div>
 
-          {/* Open form button */}
+          {/* Open service button */}
           <Skeleton className="h-9 w-full rounded-lg sm:w-[7.5rem]" />
         </div>
 
@@ -42,7 +42,7 @@ export default function BusinessFormSettingsLoading() {
               {Array.from({ length: 3 }).map((_, index) => (
                 <div className="grid gap-2" key={index}>
                   <Skeleton className="h-4 w-24 rounded-md" />
-                  <Skeleton className="h-10 w-full rounded-xl" />
+                  <Skeleton className="h-9 w-full rounded-md sm:h-8" />
                 </div>
               ))}
 

@@ -9,6 +9,7 @@ import type { InquiryFormConfig } from "@/features/inquiries/form-config";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { db } from "@/lib/db/client";
 import { businessMembers, businesses, profiles } from "@/lib/db/schema";
+import { getUsageLimit } from "@/lib/plans/usage-limits";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 type CompleteOnboardingForUserInput = {
@@ -29,6 +30,8 @@ type CompleteOnboardingForUserInput = {
   countryCode: string;
   defaultCurrency: string;
   customerContactChannel: string;
+  /** Named services from onboarding; trimmed to the plan's live limit. */
+  services?: Array<{ name: string }>;
   inquiryFormConfigOverride?: InquiryFormConfig;
   avatarUpload?: { storagePath: string; contentType: string } | null;
 };
@@ -51,6 +54,7 @@ export async function completeOnboardingForUser({
   countryCode,
   defaultCurrency,
   customerContactChannel,
+  services,
   inquiryFormConfigOverride,
   avatarUpload,
 }: CompleteOnboardingForUserInput) {
@@ -97,6 +101,12 @@ export async function completeOnboardingForUser({
       currentPlan = existingMembership.plan as plan;
     }
 
+    const liveFormLimit = getUsageLimit(currentPlan, "liveFormsPerBusiness");
+    const trimmedServices =
+      liveFormLimit === null
+        ? (services ?? [])
+        : (services ?? []).slice(0, liveFormLimit);
+
     return createBusinessRecordForUser({
       tx,
       businessId: createId("biz"),
@@ -109,6 +119,7 @@ export async function completeOnboardingForUser({
       starterWorkflow,
       shortDescription: null,
       customerContactChannel,
+      onboardingServices: trimmedServices,
       inquiryFormConfigOverride,
       plan: currentPlan,
       activitySource: "onboarding",

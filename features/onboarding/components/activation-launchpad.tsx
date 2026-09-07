@@ -13,7 +13,7 @@ import {
   DashboardSection,
 } from "@/components/shared/dashboard-layout";
 import {
-  getBusinessInquiryFormsPath,
+  getBusinessServicesPath,
   getBusinessNewQuotePath,
 } from "@/features/businesses/routes";
 import { Badge } from "@/components/ui/badge";
@@ -50,21 +50,21 @@ export async function ActivationLaunchpad({
 
   const launchpadItems = [
     {
-      id: "review-form",
-      title: "Review your inquiry form",
+      id: "review-service",
+      title: "Review your service",
       detail: "Check the default fields and customize if needed.",
-      complete: true, // Form always exists after onboarding
-      href: getBusinessInquiryFormsPath(businessSlug),
+      complete: true, // Service always exists after onboarding
+      href: getBusinessServicesPath(businessSlug),
       icon: FileText,
     },
     {
       id: "publish-link",
-      title: publicInquiryEnabled ? "Copy your public link" : "Publish your form",
+      title: publicInquiryEnabled ? "Copy your public link" : "Publish your service",
       detail: publicInquiryEnabled
         ? "Share it on your website or send directly to customers."
-        : "Make your form live so customers can submit inquiries.",
+        : "Make your service live so customers can submit inquiries.",
       complete: publicInquiryEnabled,
-      href: getBusinessInquiryFormsPath(businessSlug),
+      href: getBusinessServicesPath(businessSlug),
       icon: Globe,
     },
     {
@@ -72,11 +72,11 @@ export async function ActivationLaunchpad({
       title: hasInquiry ? "First inquiry received" : "Send a test inquiry",
       detail: hasInquiry
         ? `${summary.totalInquiries} ${summary.totalInquiries === 1 ? "inquiry" : "inquiries"} in your inbox.`
-        : "Submit a test inquiry through your public form to see how it works.",
+        : "Submit a test inquiry through your public service to see how it works.",
       complete: hasInquiry,
       href: publicInquiryEnabled
         ? publicInquiryPath
-        : getBusinessInquiryFormsPath(businessSlug),
+        : getBusinessServicesPath(businessSlug),
       icon: Send,
       external: publicInquiryEnabled && !hasInquiry,
     },
@@ -140,9 +140,9 @@ export async function ActivationLaunchpad({
         ) : (
           <DashboardActionsRow>
             <Button asChild variant="secondary">
-              <Link href={getBusinessInquiryFormsPath(businessSlug)} prefetch={true}>
+              <Link href={getBusinessServicesPath(businessSlug)} prefetch={true}>
                 <Globe data-icon="inline-start" />
-                View form settings
+                View service settings
               </Link>
             </Button>
           </DashboardActionsRow>
@@ -185,6 +185,7 @@ export async function ActivationLaunchpad({
           if (item.disabled) {
             return (
               <div
+                data-padding="none"
                 className="soft-panel flex items-start gap-3 px-4 py-4 opacity-60"
                 key={item.id}
               >
@@ -196,6 +197,7 @@ export async function ActivationLaunchpad({
           if (item.href) {
             return (
               <Link
+                data-padding="none"
                 href={item.href}
                 key={item.id}
                 prefetch={!item.external}
@@ -210,7 +212,7 @@ export async function ActivationLaunchpad({
           }
 
           return (
-            <div className="soft-panel flex items-start gap-3 px-4 py-4" key={item.id}>
+            <div data-padding="none" className="soft-panel flex items-start gap-3 px-4 py-4" key={item.id}>
               {content}
             </div>
           );

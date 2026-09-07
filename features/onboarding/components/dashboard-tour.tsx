@@ -6,12 +6,14 @@ import { completeDashboardTourAction } from "@/features/onboarding/tour-actions"
 import {
   AiDraftingPreview,
   AnalyticsPreview,
+  AssistantPreview,
   FollowUpsPreview,
-  FormsPreview,
   HomeOverviewPreview,
   InquiriesPreview,
+  MembersPreview,
   ProductsPreview,
   QuotesPreview,
+  ServicesPreview,
   TourModal,
   type TourModalStep,
 } from "@/features/onboarding/components/tour-modal";
@@ -26,13 +28,13 @@ const tourSteps: TourModalStep[] = [
   {
     title: "Your home base",
     description:
-      "See what needs attention today, switch businesses from the sidebar, and ask Requo to draft follow-ups or summarize inquiries.",
+      "See what needs attention today — overdue follow-ups, expiring quotes, and wins — plus your key numbers close by.",
     preview: <HomeOverviewPreview />,
   },
   {
     title: "Capture every inquiry",
     description:
-      "Public forms, manual entry, and email intake land in one list — qualify and turn the best leads into quotes.",
+      "Public services, manual entry, and email intake land in one list — qualify and turn the best leads into quotes.",
     preview: <InquiriesPreview />,
   },
   {
@@ -42,16 +44,28 @@ const tourSteps: TourModalStep[] = [
     preview: <QuotesPreview />,
   },
   {
+    title: "Draft with AI",
+    description:
+      "Turn an inquiry into a polished quote in seconds — Requo suggests line items from your Products and business memory, and drafts follow-up messages too.",
+    preview: <AiDraftingPreview />,
+  },
+  {
     title: "Stay on top of follow-ups",
     description:
       "Schedule reminders when quotes go quiet or inquiries need a reply so nothing slips after you send.",
     preview: <FollowUpsPreview />,
   },
   {
-    title: "Draft with AI",
+    title: "Ask your Assistant",
     description:
-      "Turn an inquiry into a polished quote in seconds — Requo suggests line items from your Products and business memory, and drafts follow-up messages too.",
-    preview: <AiDraftingPreview />,
+      "Chat with Requo to search your business, draft quotes and follow-ups, and run operations — all from the dashboard.",
+    preview: <AssistantPreview />,
+  },
+  {
+    title: "Publish your Services",
+    description:
+      "Create services with their own form and public page, then share one link for new leads.",
+    preview: <ServicesPreview />,
   },
   {
     title: "Reuse your Products",
@@ -60,16 +74,16 @@ const tourSteps: TourModalStep[] = [
     preview: <ProductsPreview />,
   },
   {
+    title: "Invite your team",
+    description:
+      "Add teammates with the right roles so they can help handle inquiries, quotes, and follow-ups.",
+    preview: <MembersPreview />,
+  },
+  {
     title: "Track what works",
     description:
       "See inquiry-to-quote conversion, which quotes get viewed and accepted, and where leads go quiet.",
     preview: <AnalyticsPreview />,
-  },
-  {
-    title: "Publish inquiry forms",
-    description:
-      "Customize fields and your public page, then share one link for new leads.",
-    preview: <FormsPreview />,
   },
 ];
 
