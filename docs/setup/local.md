@@ -98,6 +98,71 @@ Where to get it in Supabase:
 4. Use that string as `DATABASE_URL`.
 5. Copy it again and change only the port from `6543` to `5432` for `DATABASE_MIGRATION_URL`.
 
+### Local Postgres (fastest dev loop)
+
+`next dev` does no prefetching, so every click renders live on the server. With
+`DATABASE_URL` pointed at a remote pooler, each query in that render pays the
+full network round trip. Measured against the `ap-south-1` Supabase pooler from
+a machine in the Philippines:
+
+| Measurement | Result |
+| --- | --- |
+| Warm `select 1` round trip | 108 ms median |
+| Cold connect | ~1.7 s |
+| Six sequential queries | 613 ms |
+| `/api/auth/sign-in/email` (dev trace) | 1592 ms median |
+| `/<slug>/home` render (dev trace) | 2682 ms median, 28 renders |
+
+Those `handle-request` and `render-path` numbers come from `.next/dev/trace`,
+which Next writes automatically during `next dev`. The home route never gets
+faster with repetition, which is what separates this from a compile cost.
+
+Production does not have the problem: it prefetches route payloads and honors
+`experimental.staleTimes`, so the same queries are not on the interaction path.
+That asymmetry is why the app can feel fine when built and slow in dev.
+
+Point the database envs at a local Postgres instead:
+
+```env
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/requo
+DATABASE_MIGRATION_URL=postgresql://postgres:postgres@127.0.0.1:5432/requo
+```
+
+Getting a Postgres to point at, if you do not have one yet:
+
+- **Native install (recommended on this machine).** `winget install -e --id PostgreSQL.PostgreSQL.17`
+  then run the installer's prompts. The server costs roughly 100-200 MB resident.
+- **Docker.** `docker run -d --name requo-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 -v requo-pg:/var/lib/postgresql/data postgres:17`
+  Tidier to remove later, but Docker Desktop on Windows runs a WSL2 VM that costs
+  1-2 GB of RAM. Prefer the native install when memory is already tight.
+
+Then create the database and load fixtures:
+
+```bash
+createdb -U postgres requo
+npm run db:migrate
+npm run db:seed
+```
+
+Notes:
+
+- **Keep the Supabase envs pointed at the real project.** Only the database
+  moves. Storage (uploads, logos, attachments) and realtime notifications still
+  go through Supabase.
+- **No extensions are required.** Embeddings are stored as `jsonb`
+  (`lib/db/schema/memories.ts`, `lib/db/schema/knowledge-files.ts`), and no
+  migration issues `CREATE EXTENSION`, so a vanilla Postgres install is enough.
+- **Connection options adapt automatically.** `lib/db/connection-options.ts`
+  detects a non-pooler URL and raises the pool to `max: 10` while dropping the
+  pooler-specific idle timeout. Nothing to configure.
+- **Both env vars use port 5432.** The `6543`/`5432` split exists only for
+  Supabase's transaction pooler.
+- `npm run db:reset` refuses any host other than `localhost`, `127.0.0.1`, or
+  `::1`, so it is safe to use here and cannot touch the Supabase project.
+- Local data is separate from the Supabase project. Re-seed rather than
+  expecting shared state, and switch `DATABASE_URL` back when you need to read
+  real project data.
+
 ### Email Delivery
 
 - Fallback order is Resend, then Mailtrap, then Brevo.
@@ -166,6 +231,34 @@ Set `INNGEST_DEV=1` in `.env` so the app sends events to the local Dev Server in
 Use `npm run dev` only when you also need an ngrok tunnel for callbacks or webhook testing.
 
 Open the app at the same origin configured in `BETTER_AUTH_URL`.
+
+## Windows Dev Performance
+
+Two machine-level costs sit on top of the database latency covered above.
+
+**Defender real-time scanning.** Every chunk Turbopack writes into `.next`, and
+every file npm rewrites in `node_modules`, is scanned as it lands. Excluding
+those paths is the first Windows recommendation in the bundled Next.js guide
+(`node_modules/next/dist/docs/01-app/02-guides/local-development.md`). Run from
+an **elevated** PowerShell prompt:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\dev-defender-exclusions.ps1
+```
+
+The script excludes the repo root (which covers `.next` and `node_modules`) and
+the npm cache, plus `node.exe` as a process exclusion. Reverse it with `-Remove`.
+Read the trade-off in the script header first: an excluded path is no longer
+scanned in real time, and `node_modules` is exactly where a malicious
+postinstall script would land. It is a reasonable trade for a repo you trust on
+a machine you control, and a poor default anywhere else.
+
+**Memory headroom.** `npm run dev:app` sets `--max-old-space-size=6144`. Raising
+that on a 16 GB machine is counterproductive: Node defers garbage collection
+until it approaches the ceiling, so a ceiling above available physical memory
+pushes the heap into the pagefile instead of collecting it. If dev feels slow
+and the commit charge exceeds physical RAM, close browser and editor windows
+before raising the ceiling.
 
 ## Verification
 

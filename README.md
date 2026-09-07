@@ -4,7 +4,7 @@
 
 <h1 align="center">Requo</h1>
 
-<p align="center"><strong>Inquiry-to-quote software for owner-led service businesses.</strong></p>
+<p align="center"><strong>Inquiry-to-quote software for service businesses.</strong></p>
 
 <p align="center">Capture requests, build clear quotes, share them professionally, and follow up consistently.</p>
 
@@ -21,7 +21,7 @@ Requo supports the workflow from a new customer request to a quote response:
 - AI-assisted quote drafting grounded in business knowledge files and the Products library
 - Business onboarding templates, multi-business accounts, and Polar subscriptions with Free, Pro, and Business plans
 
-Requo is intentionally focused on owner-led service workflows. It does not currently include jobs, invoices, calendar scheduling, a mobile app, marketplace features, or a general-purpose AI chat product.
+Requo is intentionally focused on service-business inquiry-to-quote workflows. It does not currently include jobs, invoices, calendar scheduling, a mobile app, marketplace features, or a general-purpose AI chat product.
 
 ## Stack
 

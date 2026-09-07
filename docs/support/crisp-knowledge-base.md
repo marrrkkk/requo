@@ -2,7 +2,7 @@
 
 ## Product Overview
 
-Requo helps owner-led service businesses manage the inquiry-to-quote workflow:
+Requo helps service businesses manage the inquiry-to-quote workflow:
 
 1. Capture inquiries from public forms or manual entry.
 2. Qualify and organize requests in a business-scoped inbox.

@@ -3,18 +3,33 @@
 ## Core Entities
 
 ### Business
-A tenant in the multi-tenant SaaS. Each business has its own inquiries, quotes, forms, knowledge, and configuration. Identified by `slug` in public URLs and `id` internally.
+A tenant in the multi-tenant SaaS. Each business has its own inquiries, quotes, services, knowledge, and configuration. Identified by `slug` in public URLs and `id` internally.
+
+### Service
+A service a business offers. A Service is the unit of intake: it owns its intake form, public page design, default/public/archive state, and public URL slug. A business can have multiple live Services (plan-gated).
+
+- **Code/storage identity**: backed by the `business_inquiry_forms` row (table name kept to avoid migration; user-facing copy and routes use "Service" exclusively).
+- **Public URL**: `/inquire/{businessSlug}` (default service) or `/inquire/{businessSlug}/{serviceSlug}` (named service).
+- **Dashboard URL**: `/{businessSlug}/services` (list) and `/{businessSlug}/services/{serviceSlug}` (editor with Form | Service page | Settings).
+- **Lifecycle per service**: `live` (default + public enabled), `live-non-default` (public enabled, not default), `unpublished` (public disabled), `archived` (no longer accepts submissions, kept for historical inquiries).
+- **Starter template**: the `business_type` column records the starter template that seeds a Service's fields and page copy. Creating a Service asks only for a name and silently inherits the business's template; changing a Service's template happens in Settings → Template (apply-preset), never in the editor's identity panel.
+- **Service description**: the public page's description field doubles as the Service's description — it appears in the services list and on the public page. There is no separate description field.
+
+A Service is the entity the customer thinks in ("deep cleaning"); the underlying intake form is implementation detail.
 
 ### Inquiry
-A customer request for service. Created either through:
-- Traditional form submission → immediate inquiry with status="new"
-- AI agent conversation → session qualifies → inquiry created with status="new"
+A customer request for a service. Created either through:
+- Public Service submission → immediate inquiry with status="new", linked to the originating Service
+- AI agent conversation → session qualifies → Proposed Inquiry → the prospective customer approves → inquiry created with status="new" and linked to the Service they were qualifying for
 
 An inquiry is **not** the conversation itself; it's the qualified, structured result.
 
 **Lifecycle**: `new` → `quoted` → `waiting` → `won` | `lost` | `archived`
 
 **Key distinction**: The existing `inquiry_messages` table is for human-written notes and responses on inquiries, not AI chat transcripts.
+
+### Proposed Inquiry
+A structured inquiry the Agent has assembled from an Agent Session and put to the prospective customer for approval. It is not an Inquiry — nothing reaches the business until the person it describes approves it. Editable both directly and by continuing the conversation, and superseded rather than versioned, so a session holds at most one.
 
 ### Agent Session (customer-facing)
 A conversational interaction between a prospective customer and the AI agent. Exists independently until it produces a qualified inquiry.
@@ -26,7 +41,7 @@ A conversational interaction between a prospective customer and the AI agent. Ex
 - **Active**: Conversation in progress, collecting information
 - **Completed**: Sufficient information collected, inquiry created successfully
 - **Human handoff**: Agent determined it cannot help; requires human attention
-- **Abandoned**: Customer left without completing (no inquiry created)
+- **Abandoned**: Customer left without completing — no inquiry created, including when a Proposed Inquiry was never approved
 
 **Key principle**: Sessions are ephemeral qualification containers. Once they create an inquiry, the inquiry becomes the authoritative record.
 
@@ -36,13 +51,13 @@ A single message within an agent session. Roles: `user` (customer), `assistant` 
 Stored separately from inquiry data. These are chat transcripts, not inquiry notes.
 
 ### AI-Assisted Attribution
-The `inquiries.ai_assisted` boolean flag tracks whether AI was involved in collecting the inquiry, regardless of final submission method. This allows analytics to measure AI impact even when customers complete via form.
+The `inquiries.ai_assisted` boolean flag tracks whether AI was involved in collecting the inquiry, regardless of final submission method. This allows analytics to measure AI impact even when customers complete via a Service.
 
 **Attribution model**:
-- `source`: Final submission method (`form`, `ai_agent`, `manual`, `api`)
+- `source`: Final submission method (`service` (was `form`), `ai_agent`, `manual`, `api`)
 - `ai_assisted`: Whether AI participated at any point in qualification (`true`/`false`)
 
-Example: Customer chats with AI, then completes a form → `source = "form"`, `ai_assisted = true`.
+Example: Customer chats with AI, then completes a Service submission → `source = "service"`, `ai_assisted = true`.
 
 ### Customer
 **Not a first-class entity in V1.** Customer information is stored as denormalized fields on inquiries and quotes:
@@ -64,12 +79,21 @@ Knowledge entries maintained by the business owner. Used for RAG retrieval durin
 
 ## AI Agent Concepts
 
+### Turn Budget
+A bounded allowance for one AI Turn, covering the estimated context tokens sent to a provider and the maximum response tokens reserved for that turn. A Turn Budget is a reliability control, not a user-visible plan entitlement. Requo keeps recent context plus a compact extractive summary when a session grows, and reserves provider TPM headroom before starting a stream.
+
+### Provider Budget
+The conservative per-minute token allowance used by Requo for one provider/model pool. It is configured from deployment environment variables and intentionally sits below the provider's published or observed limit. The provider dashboard remains authoritative; a Provider Budget prevents avoidable TPM errors but cannot guarantee availability.
+
+### Stream Recovery
+The bounded recovery path after a streamed AI Turn fails. The transcript and any partial reply remain visible, and the member or visitor can retry with the same user turn after context compaction. A retry must not repeat a side-effecting Tool unless that Tool is idempotent or has not executed.
+
 ### Tool
 A capability the AI agent can invoke during conversation. MVP tools:
 - `search_knowledge`: Retrieve relevant business memories via RAG
 - `get_business_info`: Return public business information
-- `get_services`: List available services
-- `create_inquiry`: Create a qualified inquiry from collected information
+- `get_services`: List the business's live Services (the offerings a prospective customer can ask about — sourced from `business_inquiry_forms` with `archived_at IS NULL` and `public_inquiry_enabled = true`)
+- `propose_inquiry`: Stage a Proposed Inquiry for the prospective customer to review and send (commits nothing — see Proposed Inquiry)
 - `request_human_handoff`: Mark session as requiring human attention
 
 **Security invariant**: Every tool independently verifies tenant context from the session. Tools never trust LLM-provided tenant identifiers.
@@ -89,7 +113,7 @@ The process of collecting sufficient information from a customer conversation to
 **Minimum required fields** (MVP):
 - `customerName`
 - `customerEmail` or `customerContactHandle` (depending on contactMethod)
-- `serviceCategory`
+- `targetServiceId` (the Service the prospective customer is asking about — the agent resolves this from the live Services list and the customer's description, not from a free-form category)
 - `details` (what they need)
 
 **Optional fields**:
@@ -102,20 +126,20 @@ The process of collecting sufficient information from a customer conversation to
   "collected": {
     "customerName": true,
     "customerEmail": true,
-    "serviceCategory": true,
+    "targetServiceId": true,
     "details": true
   },
   "values": {
     "customerName": "John Smith",
     "customerEmail": "john@example.com",
-    "serviceCategory": "Website Development",
+    "targetServiceId": "deep-cleaning",
     "details": "Need an e-commerce site for my bakery"
   },
   "missing": []
 }
 ```
 
-The agent conducts natural conversation while the application maintains structured state.
+The agent conducts natural conversation while the application maintains structured state. `serviceCategory` on the persisted inquiry record is set to the chosen Service's name; customers no longer re-pick a category from a dropdown the Service already implies.
 
 ### Human Handoff
 A transition where the AI agent determines it cannot adequately help and marks the session for human attention.
@@ -130,12 +154,12 @@ A transition where the AI agent determines it cannot adequately help and marks t
 **Result**: Session status → `human_handoff`, inquiry created with flag `needsAttention=true` (or stored in metadata).
 
 ### Autonomy Level
-**Deferred to V2.** MVP operates in fully autonomous mode:
+The Agent operates at `assist`: low-risk steps run on their own, and the one step that commits a record to the business waits for approval.
 - Knowledge search: automatic
-- Inquiry creation: automatic (no approval required)
-- Human handoff: automatic when conditions met
+- Inquiry creation: proposed, then approved by the prospective customer (see Proposed Inquiry)
+- Human handoff: automatic when conditions met — an escalation is never gated behind an approval
 
-Future levels: `suggest` (drafts only), `assist` (low-risk auto, high-risk approval), `autonomous` (all automatic).
+Levels not used: `suggest` (drafts only), `autonomous` (all automatic).
 
 ## Security Model
 
@@ -174,22 +198,24 @@ Customer messages are untrusted input. System prompts, business secrets, interna
 
 ## Data Flow
 
-### Traditional Form Flow
+### Public Service Flow
 ```
-Customer → Form → createInquirySubmission() → inquiries table (status="new") → Business inbox
+Customer → /inquire/{slug} or /inquire/{slug}/{serviceSlug} →
+  submitPublicInquiryAction() → createInquirySubmission() (linked to the Service) →
+  inquiries table (status="new") → Business inbox
 ```
 
 ### AI Agent Flow (MVP)
 ```
-Customer → AI chat UI → 
-  Session created → 
-  Conversation (multiple turns) → 
-  Agent collects fields → 
-  Qualification complete → 
-  create_inquiry tool → 
-  createInquirySubmission() → 
-  inquiries table (status="new") → 
-  Business inbox →
+Customer → AI chat UI →
+  Session created →
+  Conversation (multiple turns) →
+  Agent lists live Services via get_services and qualifies the customer against one →
+  Qualification complete →
+  propose_inquiry tool (stages Proposed Inquiry, commits nothing) →
+  Prospective customer reviews, edits, and approves →
+  approveAgentProposalAction() → createInquirySubmission() →
+  inquiries table (status="new") → Business inbox →
   Session status="completed"
 ```
 
@@ -200,7 +226,7 @@ Customer → AI chat UI →
 ### Overview
 A conversational AI interface for authenticated business owners to interact with their business data and operations. Distinct from the customer-facing AI Agent — this is an **internal operations tool** for searching data, analyzing metrics, and executing write operations.
 
-**Terminology**: Internal code uses "Owner Assistant" (`features/owner-assistant/`). Owner-facing UI calls it simply **Assistant**. Each Assistant Session has its own URL, a title derived from the opening message, and a member-scoped history sidebar (rename, delete, paginated).
+**Terminology**: Internal code uses "Owner Assistant" (`features/owner-assistant/`). Owner-facing UI calls it simply **Assistant**. Each Assistant Session has its own URL, a title derived from the opening message, and appears in a member-scoped history panel opened from the chat header (rename, delete, paginated).
 
 ### Owner Assistant Session
 A conversational interaction between a business owner/member and the operations assistant. Sessions are persisted in the database and can be resumed across devices and browser sessions.
@@ -318,24 +344,21 @@ The assistant translates to natural language: "Conversion analytics are availabl
 **Key principle**: The assistant is visible to all plans. Features are gated at the tool level, not the UI level.
 
 ### Entry Points
-Multiple access paths, all leading to the same experience:
+Three access paths, all landing on the same composer (dashboard routes are
+`/[businessSlug]/...`; `/b/[slug]/...` is the public prefix):
 
-1. **Home widget** (primary): Floating input on `/b/[slug]/home` → collect first prompt → redirect to `/b/[slug]/assistant` with prompt in session storage
-2. **Sidebar navigation**: Direct link to `/b/[slug]/assistant`
-3. **Command menu**: `Cmd+K` → "Ask Assistant" → navigate to `/b/[slug]/assistant`
-4. **Context actions** (future): Deep-link with pre-filled context
+1. **Dashboard home box** (primary): a composer on `/[businessSlug]/home` takes
+   the first prompt and hands it to `/[businessSlug]/assistant?q=...`, which
+   sends it on arrival. The hand-off clears the box, so returning home finds an
+   empty prompt.
+2. **Sidebar navigation**: direct link to `/[businessSlug]/assistant`.
+3. **Command menu**: `Cmd+K` → "Ask Assistant".
 
-**Home widget design**:
-- Desktop: Prominent hero section (top of home page), integrated layout
-- Mobile: Responsive top section (non-floating), less prominent
-- Placeholder: "Create a quote, search inquiries, get analytics..."
-- Example prompts: Meta text below input, non-interactive
-
-**Assistant page** (`/b/[slug]/assistant`):
-- Standard dashboard layout (sidebar visible, PageHeader)
-- Full-height chat interface (message history + fixed input)
-- Empty state: Interactive prompt cards (clickable examples)
-- "Clear conversation" button to reset session
+The section root and a saved conversation are one surface: greeting, mark and
+composer sit centred until the first send, then the composer settles to the
+bottom. `New chat` sits at the left of the header, history at the right. Chrome
+detail (shared primitives, motion, the customer/owner asymmetries) lives in
+`docs/architecture/assistant-and-agent.md` — not here.
 
 ### Security Model
 Unlike the customer-facing agent (session token auth), the owner assistant uses **authenticated sessions**:
@@ -475,8 +498,12 @@ One owner conversation with the Assistant. Resumable by the member who created i
 _Avoid_: Agent session, chat log
 
 **Agent Message** / **Assistant Message**:
-A single turn within the corresponding session.
+One recorded message within the corresponding session, attributed to the person or to the surface.
 _Avoid_: Chat message (ambiguous with Inquiry Note)
+
+**Turn**:
+One exchange within a session: what the person said and the reply it produced. A reply may be recorded as several Messages while still reading as one Turn.
+_Avoid_: Block, group, round, exchange
 
 **Inquiry Note**:
 A human-written note or response recorded against an Inquiry. Not a chat transcript.
@@ -486,18 +513,72 @@ _Avoid_: Message, comment, chat message
 A capability either surface can invoke mid-conversation.
 _Avoid_: Function, action, skill
 
+**Tool Step**:
+One invocation of a Tool within a Turn, together with its outcome. A member may inspect the steps behind an Assistant reply; a customer is never shown the steps behind an Agent reply.
+_Avoid_: Trace, process, step log, tool run (that is an Agent Run)
+
 **Qualification**:
 Collecting enough information in an Agent Session to create a valid Inquiry.
 _Avoid_: Intake, triage, lead capture
+
+**Proposed Inquiry**:
+The structured result of Qualification, put to the prospective customer for approval before it becomes an Inquiry.
+_Avoid_: Inquiry draft, draft inquiry, inquiry preview, pending inquiry
 
 **Business Memory**:
 An owner-maintained knowledge entry retrieved during conversation.
 _Avoid_: Knowledge base article, document, embedding
 
+### Navigation Rendering
+
+**Static Shell**:
+The portion of a dashboard route that renders immediately on navigation,
+before any per-request data arrives: the persistent business shell (sidebar,
+top bar, mobile navigation) plus the destination page's static structure
+(title, description, control chrome, skeleton fallbacks).
+_Avoid_: Page skeleton (a route-level blank state), loading spinner
+
+**Progressive Region**:
+One independently-loading section of a page — an async Server Component
+behind its own `<Suspense>` boundary (and, where it can fail on its own, a
+region error boundary). Fast regions resolve before slow ones; a failed
+region leaves the shell and its siblings usable.
+_Avoid_: Per-card spinner cascade, blocking page load
+
+**Instant Navigation**:
+A client-side route transition that paints the destination's Static Shell
+from the prefetched App Shell the moment the link is clicked, while
+Progressive Regions stream in after. Backed by the `instant` route segment
+config, Partial Prefetching, and per-link pending hints — never by a global
+loader.
+_Avoid_: Full page reload, global spinner
+
+### Tours
+
+**Dashboard Tour**:
+The onboarding product tour shown on the business home. Walks through the
+dashboard surfaces once per business membership, in sidebar order: Home,
+Inquiries, Quotes, Follow-ups, Assistant, Services, Products, Members,
+Analytics — with a "Draft with AI" deep-dive on the Quotes surface right
+after the Quotes step. Completion is recorded on the membership.
+_Avoid_: Onboarding tour (ambiguous with first-business onboarding), product walkthrough
+
+**Form Editor Tour**:
+The one-time walkthrough shown inside the Service editor, stepping through its
+three tabs — Form, Service page, Settings (publishing & defaults). Completion
+is recorded per user profile.
+_Avoid_: Service tour, editor walkthrough, form tour (a form is the intake mechanism inside a Service)
+
 ### Reserved / rejected terms
 - ❌ **"Customer"** as a standalone entity — there is none; customer details are fields on an Inquiry or Quote.
 - ❌ **"AI Inquiry"** — an Inquiry created by the Agent is just an Inquiry, distinguished by `source` and `ai_assisted`.
-- ❌ **"Conversation"** as a type name — ambiguous across the two surfaces. Use Agent Session or Assistant Session.
+- ❌ **"User"** for the person on the Agent surface — "User" names an authenticated account holder. The person chatting with the Agent is a **prospective customer** in prose and a **visitor** in code and comments.
+- ❌ **"Conversation"** as a type name — ambiguous across the two surfaces. Use Agent Session or Assistant Session. Owner-facing UI copy may say "conversation" for an Assistant Session, since that is the word a member expects; customer-facing copy never names the session at all.
+- ❌ **"Form"** in owner-facing or customer-facing copy for the intake container — that is a **Service**. The DB table stays `business_inquiry_forms` to avoid migration, but routes, components, and copy use **Service**. The exception is the mechanism itself inside the Service editor: the **Form tab** edits the intake form, and customer-facing copy (public pages, emails) may say "form" when pointing at the thing a visitor fills out. Product/pricing copy also drops "service package" — packages are **packages** under Products; the live offer is the **Service**.
+
+**Service**:
+An offering a business sells, and the unit of intake — it owns its intake form, public page, default/public/archive state, and URL slug.
+_Avoid_: Form (for the container), intake form (as the product object), business type preset
 
 ## Edge Cases
 
@@ -535,7 +616,7 @@ Customer exceeds per-session message limit (50 messages). Agent returns polite e
 - Multi-channel support (email/SMS/WhatsApp)
 - Customer identity across inquiries
 - Agent configuration UI (uses hardcoded defaults)
-- Approval workflows
+- Business-side approval workflows — routing, sign-off, or a review queue before an Inquiry reaches the inbox. Distinct from the prospective customer approving their own Proposed Inquiry, which is in scope.
 - Analytics dashboard
 - A/B testing
 - Autonomous pricing

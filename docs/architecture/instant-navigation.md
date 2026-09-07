@@ -8,7 +8,7 @@ Before this system, every authenticated page awaited `params`, `getAppShellConte
 
 Three root causes:
 
-1. **Validation globally disabled.** Every page exported `unstable_instant` with `unstable_disableValidation: true`, turning off the build-time check that verifies routes produce an instant static shell.
+1. **Validation globally disabled.** Every page exported the legacy `unstable_instant` config with `unstable_disableValidation: true`, turning off the build-time check that verifies routes produce an instant static shell. (Next.js 16.3 replaced this with the supported `instant` export; the repo has been migrated.)
 2. **Pages block on dynamic data above the return.** The awaits for session, params, and queries sat above `return`, so `<Suspense>` boundaries inside the JSX never reached the prefetchable static shell.
 3. **Unbounded router stale times.** `experimental.staleTimes` was set to 24 hours for both dynamic and static segments.
 
@@ -25,16 +25,10 @@ The key insight: validation checks **every shared-layout entry point**, not just
 Every authenticated dashboard page follows this pattern:
 
 ```tsx
-// Route segment config — enables instant validation at dev and build time
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [["rsc", "1"], ["next-action", null]],
-    },
-  ],
-};
+// Route segment config — opts into instant validation (dev overlay).
+// With `experimental.instantInsights.validationLevel: "manual-warning"`,
+// only segments that export `instant` are validated.
+export const instant = true;
 
 // Page function is SYNCHRONOUS — returns immediately
 export default function SomeDashboardPage({ params, searchParams }) {
@@ -72,6 +66,8 @@ What the user experiences:
 
 ```ts
 // next.config.ts
+cacheComponents: true,
+partialPrefetching: true, // each <Link> prefetches its route's App Shell
 experimental: {
   staleTimes: {
     dynamic: 30,   // seconds — dynamic RSC payloads reuse for back/forward
@@ -94,9 +90,12 @@ No new invalidation primitives were introduced.
 
 ### Build-time (`npm run build`)
 
-With `unstable_disableValidation` removed, the build simulates client navigations from every shared-layout entry point for each route. If a component blocks (awaits without being inside Suspense), the build fails naming the page and component.
-
-The `samples` array in `unstable_instant` provides the params and headers needed for the validator to render dynamic routes.
+With Cache Components enabled, the build verifies each page produces a
+non-empty static shell. Validation of instant navigation itself runs in
+development (see below): it simulates client navigations from every
+shared-layout entry point for each route. If a component blocks (awaits
+without being inside Suspense), the dev overlay names the page and
+component.
 
 ### Dev-time
 
@@ -163,23 +162,24 @@ Current escape hatches: 6 admin console pages (cookie-based JWT auth incompatibl
 1. Make the default export function synchronous (no `async`, no awaits above return).
 2. Return the structural shell with `<Suspense>` boundaries and skeleton fallbacks.
 3. Put all dynamic reads (`params`, `getAppShellContext`, queries) in async child server components inside those boundaries.
-4. Export `unstable_instant` with `prefetch: "static"` and appropriate `samples`.
-5. Run `npm run build` to verify validation passes.
+4. Export `instant = true` (the supported Next.js 16.3 route segment config).
+5. Run `npm run build` to verify the static shell still prerenders.
 
 ### Fixing a validation failure
 
-The build error names the page and the blocking component. Either:
+The dev overlay names the page and the blocking component. Either:
 - Move the blocking read into a `<Suspense>`-wrapped child, or
 - Cache the data with `"use cache"` so it doesn't suspend.
 
-Never re-add `unstable_disableValidation: true`.
+Never opt out with `instant = false` to silence a fixable failure — use the
+escape-hatch registry (`lib/instant-navigation/escape-hatch-registry.ts`).
 
 ### Adding an escape hatch
 
 1. Add an entry to `lib/instant-navigation/escape-hatch-registry.ts` with `route`, `reason`, `targetReviewDate`, `active: true`.
 2. Verify it passes `validateEscapeHatch`.
 3. Update `.kiro/specs/instant-navigation-rollout/escape-hatches.md`.
-4. Set `export const unstable_instant = false` on the page file.
+4. Set `export const instant = false` on the page file.
 
 ### Checking migration coverage
 

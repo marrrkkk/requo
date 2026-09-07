@@ -70,6 +70,27 @@ Read these sources first when relevant:
 - Covered user-flow changes: run the relevant `npm run test:e2e:smoke`; use `npm run test:e2e` for broader browser journeys.
 - CI baseline is lint, typecheck, unit/component tests, build, DB-backed integration tests, and Playwright smoke coverage.
 
+## Loading Skeletons & Tours
+
+- A route `loading.tsx` mirrors its page's Static Shell: the same PageHeader
+  (eyebrow/title/description/actions), tab bars, grid column counts, and
+  section order as the page it loads. When a page's structure changes, its
+  loading file changes in the same commit.
+- If a page renders its PageHeader synchronously, the loading file must render
+  it too (same copy) so navigation never pops a header in after the content.
+- Prefer reusing colocated `*Fallback` exports from feature components and
+  shared skeletons in `components/shell/` and `components/shared/`; add a new
+  shared skeleton only when two or more routes need it.
+- Keep the two product tours in sync with the product surface:
+  - **Dashboard Tour** (`features/onboarding/components/dashboard-tour.tsx`)
+    walks the sidebar nav order (Home, Inquiries, Quotes, Follow-ups,
+    Assistant, Services, Products, Members, Analytics) — non-nav deep-dives
+    (e.g. "Draft with AI") sit directly beside the nav item they extend, so
+    the sidebar highlight never moves backwards — previews live in
+    `features/onboarding/components/tour-modal.tsx`.
+  - **Form Editor Tour** (`features/onboarding/components/form-editor-tour.tsx`)
+    mirrors the Service editor tabs (Form | Service page | Settings).
+
 ## Optimistic CRUD UI
 
 Use the shared optimistic stack for dashboard create/update/delete flows:
