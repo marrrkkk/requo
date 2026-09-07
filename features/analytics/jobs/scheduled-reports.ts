@@ -11,7 +11,10 @@ import {
 } from "@/lib/db/schema";
 import { sendEmailWithFallback } from "@/lib/email/send-email";
 import { getEmailSender } from "@/lib/email/senders";
-import { isEmailConfigured } from "@/lib/env";
+import {
+  isAnalyticsScheduledReportEmailEnabled,
+  isEmailConfigured,
+} from "@/lib/env";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import type { BusinessPlan } from "@/lib/plans/plans";
 
@@ -110,6 +113,10 @@ function formatDate(date: Date): string {
 }
 
 export async function sendAnalyticsScheduledReports(): Promise<AnalyticsScheduledReportsSummary> {
+  if (!isAnalyticsScheduledReportEmailEnabled) {
+    return { skipped: true, reason: "low_email_mode" };
+  }
+
   if (!isEmailConfigured) {
     return { skipped: true, reason: "email_not_configured" };
   }

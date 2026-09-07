@@ -90,6 +90,11 @@ function buildTrustedOrigins() {
 const shouldSkipTransactionalAuthEmails =
   process.env.DISABLE_TRANSACTIONAL_EMAILS === "1";
 
+const shouldSkipMagicLinkEmail =
+  shouldSkipTransactionalAuthEmails ||
+  process.env.DISABLE_MAGIC_LINK === "1" ||
+  process.env.DISABLE_MAGIC_LINK === "true";
+
 export const auth = betterAuth({
   appName: "Requo",
   baseURL: env.BETTER_AUTH_URL,
@@ -254,7 +259,7 @@ export const auth = betterAuth({
       expiresIn: 900,
       storeToken: "hashed",
       sendMagicLink: async ({ email, url, token }) => {
-        if (shouldSkipTransactionalAuthEmails) {
+        if (shouldSkipMagicLinkEmail) {
           return;
         }
 

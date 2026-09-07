@@ -5,7 +5,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { getPublicQuoteUrl } from "@/features/quotes/utils";
 import { db } from "@/lib/db/client";
 import { activityLogs, businesses, quotes } from "@/lib/db/schema";
-import { env } from "@/lib/env";
+import { env, isQuoteAutoFollowUpEmailEnabled } from "@/lib/env";
 import { sendQuoteAutoFollowUpEmail } from "@/lib/resend/client";
 
 export type AutoFollowUpsSummary = {
@@ -15,6 +15,13 @@ export type AutoFollowUpsSummary = {
 };
 
 export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary> {
+  // Low-email deployments disable unattended auto-follow-up sends via
+  // configuration instead of deleting the feature. Per-quote
+  // autoFollowUpEnabled still controls non-low-email deployments.
+  if (!isQuoteAutoFollowUpEmailEnabled) {
+    return { processed: 0, sent: 0, errors: 0 };
+  }
+
   const now = new Date();
   let sent = 0;
   let processed = 0;

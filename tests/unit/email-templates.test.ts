@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { renderPublicInquiryNotificationEmail } from "@/emails/templates/public-inquiry-notification";
+import { renderInquiryAcknowledgmentEmail } from "@/emails/templates/inquiry-acknowledgment";
 import { renderQuoteEmail } from "@/emails/templates/quote-email";
 
 describe("Requo email templates", () => {
@@ -34,22 +34,16 @@ describe("Requo email templates", () => {
     expect(template.text).toContain("https://test.requo.app/quote/q_1042");
   });
 
-  it("renders a branded inquiry notification with clear details and text fallback", () => {
-    const template = renderPublicInquiryNotificationEmail({
+  it("renders a branded inquiry acknowledgment for the customer", () => {
+    const template = renderInquiryAcknowledgmentEmail({
       businessName: "BrightSide Print Studio",
-      dashboardUrl: "https://test.requo.app/businesses/brightside/inquiries/1",
-      inquiryFormName: "General inquiries",
       customerName: "Ava Cruz",
-      customerEmail: "ava@example.com",
-      customerContactMethod: "email",
-      customerContactHandle: "ava@example.com",
       serviceCategory: "Signage",
       details: "We need a new storefront sign.",
     });
 
     expect(template.html).toContain("Requo");
-    expect(template.html).toContain("#008060");
-    expect(template.html).toContain("Inquiry details");
-    expect(template.text).toContain("Open in Requo:");
+    expect(template.html).toContain("BrightSide Print Studio");
+    expect(template.subject).toContain("BrightSide Print Studio");
   });
 });

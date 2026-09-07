@@ -6,10 +6,7 @@ import { renderEmailVerificationEmail } from "@/emails/templates/email-verificat
 import { renderInquiryAcknowledgmentEmail } from "@/emails/templates/inquiry-acknowledgment";
 import { renderMagicLinkEmail } from "@/emails/templates/magic-link";
 import { renderPasswordResetEmail } from "@/emails/templates/password-reset";
-import { renderPublicInquiryNotificationEmail } from "@/emails/templates/public-inquiry-notification";
 import { renderQuoteEmail } from "@/emails/templates/quote-email";
-import { renderQuoteResponseOwnerNotificationEmail } from "@/emails/templates/quote-response-owner-notification";
-import { renderQuoteSentOwnerNotificationEmail } from "@/emails/templates/quote-sent-owner-notification";
 import {
   EmailSendError,
 } from "@/lib/email/errors";
@@ -54,28 +51,6 @@ type SendBusinessMemberInviteEmailInput = {
   userId?: string | null;
 };
 
-type SendPublicInquiryNotificationEmailInput = {
-  inquiryId: string;
-  recipients: string[];
-  businessName: string;
-  dashboardUrl: string;
-  inquiryFormName: string;
-  customerName: string;
-  customerEmail?: string;
-  customerContactMethod: string;
-  customerContactHandle: string;
-  serviceCategory: string;
-  deadline?: string;
-  budget?: string;
-  details: string;
-  attachmentName?: string | null;
-  additionalFields?: Array<{
-    label: string;
-    value: string;
-  }>;
-  businessId?: string | null;
-};
-
 type SendQuoteEmailInput = {
   quoteId: string;
   updatedAt: Date;
@@ -108,51 +83,12 @@ type SendQuoteEmailInput = {
   userId?: string | null;
 };
 
-type SendQuoteSentOwnerNotificationEmailInput = {
-  quoteId: string;
-  updatedAt: Date;
-  recipients: string[];
-  businessName: string;
-  customerName: string;
-  customerEmail: string | null;
-  customerContactMethod?: string;
-  customerContactHandle?: string;
-  quoteNumber: string;
-  title: string;
-  dashboardUrl: string;
-  publicQuoteUrl: string;
-  businessId?: string | null;
-};
-
-type SendQuoteResponseOwnerNotificationEmailInput = {
-  quoteId: string;
-  updatedAt: Date;
-  recipients: string[];
-  businessName: string;
-  customerName: string;
-  customerEmail: string | null;
-  customerContactMethod?: string;
-  customerContactHandle?: string;
-  customerMessage?: string | null;
-  quoteNumber: string;
-  title: string;
-  response: "accepted" | "rejected";
-  dashboardUrl: string;
-  businessId?: string | null;
-};
-
 function hashIdempotencyPart(value: string) {
   return createHash("sha256").update(value).digest("hex").slice(0, 32);
 }
 
 function getRecipientKey(email: string) {
   return normalizeEmailAddress(email) ?? email.trim().toLowerCase();
-}
-
-function getRecipientSetKey(recipients: string[]) {
-  return hashIdempotencyPart(
-    recipients.map(getRecipientKey).sort((a, b) => a.localeCompare(b)).join(","),
-  );
 }
 
 function getFallbackReplyTo(preferred?: string) {
@@ -402,83 +338,6 @@ export async function sendBusinessMemberInviteEmail({
   return true;
 }
 
-export async function sendPublicInquiryNotificationEmail({
-  inquiryId,
-  recipients,
-  businessName,
-  dashboardUrl,
-  inquiryFormName,
-  customerName,
-  customerEmail,
-  customerContactMethod,
-  customerContactHandle,
-  serviceCategory,
-  deadline,
-  budget,
-  details,
-  attachmentName,
-  additionalFields,
-  businessId,
-}: SendPublicInquiryNotificationEmailInput) {
-  if (!recipients.length) {
-    return;
-  }
-
-  if (!isEmailConfigured) {
-    logDeliverySkipped(
-      "Email is not configured yet. Inquiry notification email delivery was skipped.",
-      "inquiry",
-    );
-    return;
-  }
-
-  const senderConfigurationError = getConfigurationError("inquiry");
-
-  if (senderConfigurationError) {
-    logDeliverySkipped(
-      `Email sender is misconfigured. Inquiry notification email delivery was skipped. ${senderConfigurationError}`,
-      "inquiry",
-    );
-    return;
-  }
-
-  const template = renderPublicInquiryNotificationEmail({
-    businessName,
-    dashboardUrl,
-    inquiryFormName,
-    customerName,
-    customerEmail,
-    customerContactMethod,
-    customerContactHandle,
-    serviceCategory,
-    deadline,
-    budget,
-    details,
-    attachmentName,
-    additionalFields,
-  });
-
-  await sendBrandedEmail({
-    emailType: "inquiry",
-    to: recipients,
-    replyTo: getFallbackReplyTo(),
-    subject: template.subject,
-    html: template.html,
-    text: template.text,
-    idempotencyKey: `inquiry:${inquiryId}:notification:${getRecipientSetKey(recipients)}`,
-    businessId,
-    metadata: {
-      inquiryId,
-      businessId,
-      inquiryFormName,
-    },
-    tags: {
-      type: "inquiry",
-      event: "public_inquiry_notification",
-    },
-  });
-}
-
 export async function sendQuoteEmail({
   quoteId,
   updatedAt,
@@ -626,143 +485,6 @@ export async function sendQuoteAutoFollowUpEmail({
     tags: {
       type: "quote",
       event: "auto_follow_up",
-    },
-  });
-}
-
-export async function sendQuoteSentOwnerNotificationEmail({
-  quoteId,
-  updatedAt,
-  recipients,
-  businessName,
-  customerName,
-  customerEmail,
-  quoteNumber,
-  title,
-  dashboardUrl,
-  publicQuoteUrl,
-  businessId,
-}: SendQuoteSentOwnerNotificationEmailInput) {
-  if (!recipients.length) {
-    return;
-  }
-
-  if (!isEmailConfigured) {
-    logDeliverySkipped(
-      "Email is not configured yet. Quote owner notification email delivery was skipped.",
-      "quote",
-    );
-    return;
-  }
-
-  const senderConfigurationError = getConfigurationError("quote");
-
-  if (senderConfigurationError) {
-    logDeliverySkipped(
-      `Email sender is misconfigured. Quote owner notification email delivery was skipped. ${senderConfigurationError}`,
-      "quote",
-    );
-    return;
-  }
-
-  const template = renderQuoteSentOwnerNotificationEmail({
-    businessName,
-    customerName,
-    customerEmail: customerEmail ?? "Not provided",
-    quoteNumber,
-    title,
-    dashboardUrl,
-    publicQuoteUrl,
-  });
-
-  await sendBrandedEmail({
-    emailType: "quote",
-    to: recipients,
-    replyTo: getFallbackReplyTo(),
-    subject: template.subject,
-    html: template.html,
-    text: template.text,
-    idempotencyKey: `quote:${quoteId}:sent-owner-notification:${getRecipientSetKey(recipients)}`,
-    businessId,
-    metadata: {
-      quoteId,
-      quoteNumber,
-      businessId,
-      updatedAt: updatedAt.toISOString(),
-    },
-    tags: {
-      type: "quote",
-      event: "quote_sent_owner_notification",
-    },
-  });
-}
-
-export async function sendQuoteResponseOwnerNotificationEmail({
-  quoteId,
-  updatedAt,
-  recipients,
-  businessName,
-  customerName,
-  customerEmail,
-  customerMessage,
-  quoteNumber,
-  title,
-  response,
-  dashboardUrl,
-  businessId,
-}: SendQuoteResponseOwnerNotificationEmailInput) {
-  if (!recipients.length) {
-    return;
-  }
-
-  if (!isEmailConfigured) {
-    logDeliverySkipped(
-      "Email is not configured yet. Quote response owner notification email delivery was skipped.",
-      "quote",
-    );
-    return;
-  }
-
-  const senderConfigurationError = getConfigurationError("quote");
-
-  if (senderConfigurationError) {
-    logDeliverySkipped(
-      `Email sender is misconfigured. Quote response owner notification email delivery was skipped. ${senderConfigurationError}`,
-      "quote",
-    );
-    return;
-  }
-
-  const template = renderQuoteResponseOwnerNotificationEmail({
-    businessName,
-    customerName,
-    customerEmail: customerEmail ?? "Not provided",
-    customerMessage,
-    quoteNumber,
-    title,
-    response,
-    dashboardUrl,
-  });
-
-  await sendBrandedEmail({
-    emailType: "quote",
-    to: recipients,
-    replyTo: getFallbackReplyTo(),
-    subject: template.subject,
-    html: template.html,
-    text: template.text,
-    idempotencyKey: `quote:${quoteId}:response:${response}:${getRecipientSetKey(recipients)}`,
-    businessId,
-    metadata: {
-      quoteId,
-      quoteNumber,
-      response,
-      businessId,
-      updatedAt: updatedAt.toISOString(),
-    },
-    tags: {
-      type: "quote",
-      event: "quote_response_owner_notification",
     },
   });
 }

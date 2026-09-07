@@ -105,14 +105,52 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 
 - Configure providers in fallback order: Resend, Mailtrap, then Brevo.
 - Create API keys for each provider you want to enable: `RESEND_API_KEY`, `MAILTRAP_API_TOKEN`, and `BREVO_API_KEY`.
+- For a small deployment, keep only one provider configured. Fallback across
+  Resend/Mailtrap/Brevo remains available, but unnecessary provider
+  configuration should be avoided.
 - Set `EMAIL_DOMAIN` to the verified sending domain. For this Requo environment, use `test.requo.app`.
 - Configure senders centrally with `EMAIL_FROM_DEFAULT`, `EMAIL_FROM_NOTIFICATIONS`, `EMAIL_FROM_SYSTEM`, `EMAIL_FROM_QUOTES`, and `EMAIL_FROM_SUPPORT`.
 - Do not use personal mailbox domains such as `gmail.com`, `outlook.com`, `hotmail.com`, `yahoo.com`, or `icloud.com` for sender addresses.
 - Set `RESEND_REPLY_TO_EMAIL` to the reply target mailbox if customer replies should go to a different inbox.
 - Verify the sending domain in Resend, Mailtrap, and Brevo before relying on that provider in production.
 - Publish the SPF, DKIM, and DMARC DNS records required by the providers you enable. Provider-specific domain verification is handled outside code.
-- Expect password reset and inquiry notification email flows to be best-effort when email providers are absent.
+- Expect password reset email flows to be best-effort when email providers are absent.
 - Expect quote sending to fail clearly when no email provider is configured.
+
+### Low-email deployments (limited/free quotas)
+
+Set `LOW_EMAIL_MODE=1` to reduce outbound email to authentication plus the
+core inquiry-to-quote workflow. This is the intended default for a
+low-volume deployment. Do NOT use `DISABLE_TRANSACTIONAL_EMAILS=1` as the
+general solution — it skips auth email callbacks and can break verification,
+password reset, and magic-link flows.
+
+Active when `LOW_EMAIL_MODE=1` (see `getActiveEmailPaths()` in `lib/env.ts`
+for the code-level inventory):
+
+- Kept: email verification, password reset, explicit owner-requested quote
+  delivery (`sendQuoteEmail`), manual quote-link sharing (no email involved).
+- Kept with independent toggle: magic-link login only when email is
+  configured and `DISABLE_MAGIC_LINK` is not `1`.
+- Disabled: inquiry acknowledgment email (per-business `sendInquiryAckEmail`
+  still controls non-low-email deployments; new businesses default off in
+  low-email mode).
+- Disabled: follow-up reminder email (in-app `follow_up_due` notifications
+  still sent via `notifyInAppOnFollowUpReminder`; control email separately
+  with `notifyOnFollowUpReminder`).
+- Disabled: quote auto-follow-up processing (feature code retained; the job
+  early-returns in low-email mode).
+- Disabled: weekly analytics digest emails (dashboard analytics unaffected).
+- Disabled: analytics scheduled report emails (set report records to
+  `enabled = false` for defense in depth; the job also early-returns).
+- Replaced: business member invite email (invite creation still returns a
+  secure link — copy/share it manually from Members → pending invites).
+
+Owner events (new inquiries, quote responses, quote views, revisions) use
+the existing in-app notification center plus web push — no email required.
+`notifyOnNewInquiry`, `notifyOnQuoteSent`, `notifyOnQuoteResponse`, and
+`notifyOnMemberInviteResponse` are legacy settings with no active email call
+sites; in-app/push equivalents remain authoritative.
 
 ## AI Provider Checklist
 

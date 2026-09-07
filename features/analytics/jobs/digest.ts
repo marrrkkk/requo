@@ -13,7 +13,7 @@ import {
 } from "@/lib/db/schema";
 import { sendEmailWithFallback } from "@/lib/email/send-email";
 import { getEmailSender } from "@/lib/email/senders";
-import { isEmailConfigured } from "@/lib/env";
+import { isAnalyticsDigestEmailEnabled, isEmailConfigured } from "@/lib/env";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import type { BusinessPlan } from "@/lib/plans/plans";
 
@@ -92,6 +92,8 @@ async function generateRecommendations(
       temperature: 0.4,
       maxOutputTokens: 300,
       qualityTier: "cheap",
+      routingProfile: "short_text",
+      estimatedTokens: prompt.length / 4 + 300,
     });
 
     return response.text
@@ -118,6 +120,10 @@ function formatDate(date: Date): string {
 }
 
 export async function sendAnalyticsDigestEmails(): Promise<AnalyticsDigestSummary> {
+  if (!isAnalyticsDigestEmailEnabled) {
+    return { skipped: true, reason: "low_email_mode" };
+  }
+
   if (!isEmailConfigured) {
     return { skipped: true, reason: "email_not_configured" };
   }
