@@ -15,7 +15,7 @@ import {
 
 export const metadata: Metadata = createPageMetadata({
   description:
-    "Transparent Requo pricing for owner-led service businesses. Start free, upgrade when you need faster responses, more AI credits, and auto follow-ups to keep deals moving.",
+    "Transparent Requo pricing for service businesses. Start free, upgrade when you need faster responses, more AI credits, and auto follow-ups to keep deals moving.",
   pathname: "/pricing",
   title: "Pricing",
 });
@@ -79,7 +79,7 @@ export default function PricingRoute() {
   const defaultCurrency: BillingCurrency = "USD";
 
   const productStructuredData = getProductPricingStructuredData({
-    description: "Quote software for owner-led service businesses.",
+    description: "Quote software for service businesses.",
     name: "Requo",
     offers: buildPricingOffers(),
     url: absoluteUrl("/pricing"),

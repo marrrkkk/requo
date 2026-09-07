@@ -325,7 +325,7 @@ function AnalyticsPreviewMock() {
     >
       <div className="grid grid-cols-3 gap-3">
         {metrics.map((metric) => (
-          <div className="soft-panel px-3 py-3" key={metric.label}>
+          <div data-padding="none" className="soft-panel px-3 py-3" key={metric.label}>
             <p className="meta-label">{metric.label}</p>
             <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
               {metric.value}

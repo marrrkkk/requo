@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export default function SecurityLoading() {
   return (
-    <div className="section-panel mx-auto w-full max-w-4xl overflow-hidden">
+    <div data-padding="none" className="section-panel mx-auto w-full max-w-4xl overflow-hidden">
       {/* Document header */}
       <div className="border-b border-border/70 px-5 py-6 sm:px-8 sm:py-8">
         <p className="meta-label">Effective date</p>

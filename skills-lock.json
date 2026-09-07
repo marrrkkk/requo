@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "ai-seo": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "skillPath": "skills/ai-seo/SKILL.md",
+      "computedHash": "30307bebed9bd2ad24bc497526491ab00db5d61746498c39bf79d6b1e376d100"
+    },
     "animate": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
@@ -122,6 +128,12 @@
       "source": "igorwarzocha/opencode-workflows",
       "sourceType": "github",
       "computedHash": "b54aa44cb5ae9866e102263e415a853f032ae89f6043a9e370e51f8e83ea4163"
+    },
+    "seo-audit": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "skillPath": "skills/seo-audit/SKILL.md",
+      "computedHash": "71435fbaf3622f1a6b16e20fda15f19aa8e285c9914fdeb92ac0a7612d6317bb"
     },
     "shadcn": {
       "source": "shadcn/ui",

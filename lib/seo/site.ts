@@ -4,7 +4,7 @@ export const siteName = "Requo";
 export const siteTagline =
   "Manage inquiries, send quotes, and follow up in one place.";
 export const siteDescription =
-  "Quote software for service businesses. Capture inquiries, send professional quotes, track viewed and accepted status, and follow up before jobs go cold.";
+  "Quote software for service businesses. Capture inquiries, send professional quotes, track viewed and accepted status, and follow up before opportunities go cold.";
 
 /** Official Requo social profiles for Organization `sameAs` and marketing footer. */
 export const siteSameAs = [

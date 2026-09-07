@@ -11,7 +11,7 @@ import {
 
 export const metadata: Metadata = createPageMetadata({
   description:
-    "The Requo Privacy Policy covers accounts, public inquiry pages, quote links, uploads, and AI-assisted drafts for owner-led service businesses using Requo.",
+    "The Requo Privacy Policy covers accounts, public inquiry pages, quote links, uploads, and AI-assisted drafts for service businesses using Requo.",
   pathname: "/privacy",
   title: "Privacy Policy",
 });

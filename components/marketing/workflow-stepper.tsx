@@ -40,9 +40,9 @@ const workflowSteps = [
   },
   {
     title: "Won",
-    subtitle: "Accepted and ready for work",
+    subtitle: "Accepted and ready to move forward",
     description:
-      "See accepted quotes instantly and move the work into a job without re-entering the customer or quote details.",
+      "See accepted quotes instantly and keep the customer, scope, and pricing together for the next step.",
     icon: Briefcase,
   },
 ] as const;
@@ -154,9 +154,9 @@ function DeliverArtifact() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Briefcase className="size-4 text-primary" />
-            <span className="text-sm font-medium text-foreground">Job created</span>
+            <span className="text-sm font-medium text-foreground">Quote accepted</span>
           </div>
-          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold text-primary">In progress</span>
+          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold text-primary">Accepted</span>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">Kitchen remodel · Sarah Jenkins · From Q-1042</p>
       </div>
@@ -164,11 +164,11 @@ function DeliverArtifact() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Receipt className="size-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-muted-foreground">Invoice #INV-087</span>
+            <span className="text-sm font-medium text-muted-foreground">Response tracked</span>
           </div>
           <span className="text-sm font-medium text-foreground">$4,850</span>
         </div>
-        <p className="mt-1.5 text-[11px] text-muted-foreground/70">Generated from job line items · Sent</p>
+        <p className="mt-1.5 text-[11px] text-muted-foreground/70">Outcome recorded · No re-entering details</p>
       </div>
     </div>
   );

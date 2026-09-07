@@ -11,7 +11,7 @@ import {
 
 export const metadata: Metadata = createPageMetadata({
   description:
-    "The Requo Refund Policy explains refund eligibility, subscription cancellation, and payment provider notes for owner-led service businesses using Requo.",
+    "The Requo Refund Policy explains refund eligibility, subscription cancellation, and payment provider notes for service businesses using Requo.",
   pathname: "/refund-policy",
   title: "Refund Policy",
 });

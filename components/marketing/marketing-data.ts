@@ -53,7 +53,7 @@ export const whyPoints: readonly {
     icon: Inbox,
     title: "After acceptance, nothing connects",
     description:
-      "Work tracking, invoicing, and follow-ups live in separate tools or not at all. Context drops the moment the customer says yes.",
+      "Accepted, rejected, and expired outcomes end up scattered or untracked. Context drops the moment the customer responds.",
   },
 ] as const;
 
@@ -74,12 +74,12 @@ export const workflowSteps: readonly {
   },
   {
     title: "Follow up",
-    description: "Automatic reminders keep good opportunities moving.",
+    description: "Reminders and automatic follow-ups keep good opportunities moving.",
     icon: Search,
   },
   {
     title: "Win",
-    description: "See what was accepted and turn it into the next job step.",
+    description: "See what was accepted, rejected, or expired and keep every outcome organized.",
     icon: Send,
   },
 ] as const;
@@ -112,7 +112,19 @@ export const landingFeatureItems: readonly {
     id: "followUps",
     title: "Follow-ups run on schedule, automatically.",
     description:
-      "Requo creates follow-ups when quotes go quiet and reminds you before they expire. The system handles repetitive tasks so you can focus on closing deals.",
+      "Create reminders for any inquiry or quote, or let Requo send automatic follow-up emails when a quote goes quiet. The system handles repetitive tasks so you can focus on closing deals.",
+  },
+  {
+    id: "ai",
+    title: "AI drafts grounded in how you work.",
+    description:
+      "Use your pricing library, quote templates, past quotes, and business knowledge to create a draft you can review, edit, and send. Requo keeps you in control of scope and pricing.",
+  },
+  {
+    id: "analytics",
+    title: "See what moves from inquiry to accepted quote.",
+    description:
+      "Track inquiry sources, quote activity, conversion trends, response timing, and follow-up performance so you know where opportunities are getting stuck.",
   },
 ] as const;
 
@@ -120,7 +132,7 @@ export const faqItems = [
   {
     question: "What exactly does Requo do?",
     answer:
-      "Requo helps owner-led service businesses turn inquiries into quotes without losing the next step. Capture customer requests, draft quotes with AI, send them through Requo or share a public link, track responses, and follow up automatically before opportunities go cold.",
+      "Requo is quote and inquiry management software for service businesses. Capture requests, draft professional quotes, send them by email or public link, track viewed and accepted status, and follow up before opportunities go cold.",
   },
   {
     question: "Do my customers need to sign up to open a quote?",
@@ -140,7 +152,7 @@ export const faqItems = [
   {
     question: "How do I know when a quote is viewed or needs a follow-up?",
     answer:
-      "Every quote tracks its status: viewed, accepted, rejected, expired, or voided. Follow-up tasks appear automatically with suggested timing, so you can nudge customers before they go elsewhere.",
+      "Every quote tracks its status: draft, sent, viewed, accepted, rejected, expired, or voided. You can create follow-up reminders for inquiries and quotes, and Pro and Business plans can automatically send follow-up emails when customers have not responded.",
   },
   {
     question: "Does Requo send emails or do I share the link myself?",
@@ -150,26 +162,46 @@ export const faqItems = [
   {
     question: "What happens after a customer accepts?",
     answer:
-      "Accepted quotes move into job management. Add a checklist to track progress, mark milestones complete, and generate an invoice directly from the quote line items when the work is done. No re-entering numbers.",
+      "The quote is marked accepted and stays connected to the inquiry and customer details. Requo helps you track the outcome and keep the record organized; it does not include job scheduling, dispatch, or invoicing.",
   },
   {
     question: "Can my team work inside the same business?",
     answer:
-      "Yes, on the Business plan. Invite team members so everyone sees the same inquiries, quotes, jobs, and follow-ups. Solo operators can stay on the free or Pro plan.",
+      "Yes. The Business plan supports up to five members with roles and shared access to the business workspace, including inquiries, quotes, forms, follow-ups, and analytics. Free and Pro are designed for solo owners.",
   },
   {
     question: "Can I run more than one business from one account?",
     answer:
-      "Yes. One login manages multiple businesses. Each business has separate inquiries, quotes, forms, pricing libraries, and branding. One subscription covers all of them.",
+      "Yes. One login can manage multiple businesses, with separate inquiries, quotes, forms, pricing libraries, knowledge, and branding for each. The Free plan includes one free business; additional businesses require their own paid subscription.",
   },
   {
     question: "Who is Requo for?",
     answer:
-      "Requo is built for owner-led service businesses that receive custom inquiries and prepare custom-scope quotes. If customers reach out to ask for pricing before committing, and you write up a quote specific to their request, Requo helps you respond faster and follow up before they choose someone else. Appointment-first businesses with fixed services aren't the primary fit.",
+      "Requo is built for service businesses that receive custom inquiries and prepare custom-scope quotes. If customers reach out to ask for pricing before committing, and you write up a quote specific to their request, Requo helps you respond faster and follow up before they choose someone else. Appointment-first businesses with fixed services aren't the primary fit.",
   },
   {
     question: "Is there a free plan?",
     answer:
-      "Yes. The free plan includes the full workflow with enough capacity to test everything. Upgrade to Pro or Business when you need higher limits, team access, or advanced AI features.",
+      "Yes. Free includes the core inquiry-to-quote workflow, unlimited inquiries and quotes, manual follow-up reminders, CSV exports, one live inquiry form, and about 10 AI quote drafts per month. Upgrade when you need automatic follow-ups, more forms, advanced analytics, or team access.",
+  },
+  {
+    question: "What does a Requo subscription cost?",
+    answer:
+      "Requo has three business plans. Free is $0. Pro is $9 per month or $90 per year. Business is $24 per month or $240 per year. Annual billing includes two months free. Paid subscriptions are billed per business, and the pricing page shows the current plan limits and included features.",
+  },
+  {
+    question: "Does Requo include an AI assistant or customer chat?",
+    answer:
+      "Yes. The owner Assistant helps members search business data, create inquiries and quotes, and review metrics inside the dashboard. Pro and Business plans also include a public customer-facing Agent that can answer questions and collect qualified inquiries from your website. AI usage is subject to plan limits.",
+  },
+  {
+    question: "Can I use my own pricing and business knowledge?",
+    answer:
+      "Yes. Add reusable products, pricing entries, quote templates, and business knowledge. AI quote drafts use that context to suggest relevant line items and wording, while you review and approve every draft before sending.",
+  },
+  {
+    question: "Can I export my inquiries and quotes?",
+    answer:
+      "Yes. Requo includes CSV exports for inquiries and quotes, so you can keep a copy of your operational data or analyze it elsewhere.",
   },
 ] as const;

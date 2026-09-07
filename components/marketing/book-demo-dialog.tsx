@@ -8,7 +8,8 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 
 import {
@@ -182,7 +183,7 @@ export function BookDemoProvider({ children }: { children: React.ReactNode }) {
                 <Button type="submit" disabled={isPending}>
                   {isPending ? (
                     <>
-                      <Loader2 className="size-4 animate-spin" />
+                      <Spinner className="size-4" />
                       Sending…
                     </>
                   ) : (
@@ -325,7 +326,7 @@ function StandaloneBookDemoDialog({
               <Button type="submit" disabled={isPending}>
                 {isPending ? (
                   <>
-                    <Loader2 className="size-4 animate-spin" />
+                    <Spinner className="size-4" />
                     Sending…
                   </>
                 ) : (

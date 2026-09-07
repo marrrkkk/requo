@@ -49,29 +49,30 @@ export function SelectBusinessDialog({
   const [businesses, setBusinesses] = useState<UpgradeEligibleBusiness[] | null>(
     null,
   );
-  const [isLoading, setIsLoading] = useState(false);
   const [startingBusinessId, setStartingBusinessId] = useState<string | null>(
     null,
   );
+
+  // Derived loading state: businesses stay null until the first fetch for the
+  // current open resolves (or errors into an empty list).
+  const isLoading = open && businesses === null;
 
   useEffect(() => {
     if (!open) return;
 
     let isMounted = true;
-    setIsLoading(true);
 
     getUserUpgradeEligibleBusinessesAction()
       .then((data) => {
         if (isMounted) {
           setBusinesses(data);
-          setIsLoading(false);
         }
       })
       .catch((error) => {
         console.error("Failed to load user businesses for upgrade", error);
         if (isMounted) {
           toast.error("Failed to load your businesses. Please try again.");
-          setIsLoading(false);
+          setBusinesses([]);
         }
       });
 
