@@ -7,7 +7,6 @@ import { AiProviderError } from "@/lib/ai/errors";
 // Mocks
 // ---------------------------------------------------------------------------
 
-// Mock the registry module
 vi.mock("@/lib/ai/registry", () => ({
   registry: {
     languageModel: vi.fn(() => ({ modelId: "mock-model" })),
@@ -16,24 +15,26 @@ vi.mock("@/lib/ai/registry", () => ({
   cerebras: { id: "cerebras" },
   google: { id: "google" },
   openrouter: { id: "openrouter" },
+  mistral: { id: "mistral" },
+  cloudflare: { id: "cloudflare" },
+  nvidia: { id: "nvidia" },
 }));
 
-// Mock model-options
 vi.mock("@/lib/ai/model-options", () => ({
   aiProviderNames: ["groq", "cerebras", "gemini", "openrouter"],
-  aiQualityTiers: ["balanced", "cheap", "best", "coding"],
+  aiQualityTiers: ["balanced", "cheap", "best"],
   aiProviderModels: {
-    groq: { balanced: ["model-a", "model-b"], cheap: ["model-a"], best: ["model-a"], coding: ["model-a"] },
-    cerebras: { balanced: ["model-c"], cheap: ["model-c"], best: ["model-c"], coding: ["model-c"] },
-    gemini: { balanced: ["model-d"], cheap: ["model-d"], best: ["model-d"], coding: ["model-d"] },
-    openrouter: { balanced: ["model-e"], cheap: ["model-e"], best: ["model-e"], coding: ["model-e"] },
+    groq: { balanced: ["model-a", "model-b"], cheap: ["model-a"], best: ["model-a"] },
+    cerebras: { balanced: ["model-c"], cheap: ["model-c"], best: ["model-c"] },
+    gemini: { balanced: ["model-d"], cheap: ["model-d"], best: ["model-d"] },
+    openrouter: { balanced: ["model-e"], cheap: ["model-e"], best: ["model-e"] },
   },
   getModelsForProvider: vi.fn((provider: string, tier: string) => {
     const models: Record<string, Record<string, string[]>> = {
-      groq: { balanced: ["model-a", "model-b"], cheap: ["model-a"], best: ["model-a"], coding: ["model-a"] },
-      cerebras: { balanced: ["model-c"], cheap: ["model-c"], best: ["model-c"], coding: ["model-c"] },
-      gemini: { balanced: ["model-d"], cheap: ["model-d"], best: ["model-d"], coding: ["model-d"] },
-      openrouter: { balanced: ["model-e"], cheap: ["model-e"], best: ["model-e"], coding: ["model-e"] },
+      groq: { balanced: ["model-a", "model-b"], cheap: ["model-a"], best: ["model-a"] },
+      cerebras: { balanced: ["model-c"], cheap: ["model-c"], best: ["model-c"] },
+      gemini: { balanced: ["model-d"], cheap: ["model-d"], best: ["model-d"] },
+      openrouter: { balanced: ["model-e"], cheap: ["model-e"], best: ["model-e"] },
     };
     return models[provider]?.[tier] ?? ["default-model"];
   }),
@@ -44,7 +45,6 @@ vi.mock("@/lib/ai/model-options", () => ({
   createAiModelOptionValue: vi.fn((s: { provider: string; model: string }) => `${s.provider}|${s.model}`),
 }));
 
-// Mock the Vercel AI SDK
 const mockGenerateText = vi.fn();
 const mockStreamText = vi.fn();
 
@@ -57,7 +57,7 @@ vi.mock("ai", () => ({
   customProvider: vi.fn(),
 }));
 
-// Mock capacity selector — return models matching the mocked registry providers
+// Mock capacity selector — full surface incl. new bookkeeping exports
 const mockSelectModels = vi.fn((..._args: unknown[]) => [
   "groq:model-a" as `${string}:${string}`,
   "groq:model-b" as `${string}:${string}`,
@@ -65,16 +65,29 @@ const mockSelectModels = vi.fn((..._args: unknown[]) => [
   "google:model-d" as `${string}:${string}`,
   "openrouter:model-e" as `${string}:${string}`,
 ]);
-const mockRecordModelUsage = vi.fn((..._args: unknown[]) => {});
-const mockMarkModelExhausted = vi.fn((..._args: unknown[]) => {});
+const mockRecordModelUsage = vi.fn((..._args: unknown[]) => Promise.resolve());
+const mockMarkModelExhausted = vi.fn((..._args: unknown[]) => Promise.resolve());
+const mockMarkModelDead = vi.fn((..._args: unknown[]) => Promise.resolve());
 
 vi.mock("@/lib/ai/capacity-selector", () => ({
-  selectModels: (...args: unknown[]) => mockSelectModels(...args),
-  recordModelUsage: (...args: unknown[]) => mockRecordModelUsage(...args),
-  markModelExhausted: (...args: unknown[]) => mockMarkModelExhausted(...args),
+  selectModels: (..._args: unknown[]) => mockSelectModels(..._args),
+  recordModelUsage: (..._args: unknown[]) => mockRecordModelUsage(..._args),
+  recordModelTokenUsage: (..._args: unknown[]) => Promise.resolve(),
+  recordModelTokenUsageDetailed: (..._args: unknown[]) => Promise.resolve(),
+  correctTokenUsage: (..._args: unknown[]) => Promise.resolve(),
+  markModelExhausted: (..._args: unknown[]) => mockMarkModelExhausted(..._args),
+  markModelDead: (..._args: unknown[]) => mockMarkModelDead(..._args),
+  isModelDead: (..._args: unknown[]) => Promise.resolve(false),
+  NON_CHAT_MAX_ATTEMPTS: 4,
+  CHAT_MAX_ATTEMPTS: 5,
 }));
 
-// Import router after mocks
+vi.mock("@/lib/ai/catalog", () => ({
+  getCatalogEntry: vi.fn(() => ({ contextWindow: 128_000 })),
+  getModelCatalog: vi.fn(() => []),
+  getDerivedCostTable: vi.fn(() => ({})),
+}));
+
 import { generateWithFallback, streamWithFallback } from "@/lib/ai/router";
 
 // ---------------------------------------------------------------------------
@@ -173,11 +186,41 @@ describe("generateWithFallback", () => {
     expect(mockGenerateText).toHaveBeenCalledTimes(3);
   });
 
-  it("stops immediately on non-retryable error", async () => {
-    mockGenerateText.mockRejectedValueOnce(makeNonRetryableError("groq", 401));
+  it("advances on non-retryable errors instead of stopping", async () => {
+    mockGenerateText
+      .mockRejectedValueOnce(makeNonRetryableError("groq", 401))
+      .mockResolvedValueOnce({
+        text: "Recovered",
+        usage: { inputTokens: 10, outputTokens: 5 },
+      });
 
-    await expect(generateWithFallback(mockRequest)).rejects.toThrow("Unauthorized (401)");
-    expect(mockGenerateText).toHaveBeenCalledOnce();
+    const result = await generateWithFallback(mockRequest);
+
+    expect(result.text).toBe("Recovered");
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips dead identifiers without consuming the budget", async () => {
+    mockGenerateText
+      .mockRejectedValueOnce(
+        new AiProviderError("groq", 404, false, null, "model_not_found"),
+      )
+      .mockRejectedValueOnce(
+        new AiProviderError("groq", 404, false, null, "model_not_found"),
+      )
+      .mockRejectedValueOnce(
+        new AiProviderError("groq", 404, false, null, "model_not_found"),
+      )
+      .mockResolvedValueOnce({
+        text: "Alive",
+        usage: { inputTokens: 10, outputTokens: 5 },
+      });
+
+    const result = await generateWithFallback(mockRequest);
+
+    // Three 404s cost no attempts; the fourth candidate still serves.
+    expect(result.text).toBe("Alive");
+    expect(mockMarkModelDead).toHaveBeenCalledTimes(3);
   });
 
   it("throws when all providers and models fail", async () => {
@@ -192,7 +235,6 @@ describe("generateWithFallback", () => {
   });
 
   it("throws when no providers are configured", async () => {
-    // Temporarily override the registry module
     const registryModule = await import("@/lib/ai/registry");
     const originalGroq = registryModule.groq;
     const originalCerebras = registryModule.cerebras;
@@ -209,14 +251,13 @@ describe("generateWithFallback", () => {
       "No AI providers are configured",
     );
 
-    // Restore
     (registryModule as Record<string, unknown>).groq = originalGroq;
     (registryModule as Record<string, unknown>).cerebras = originalCerebras;
     (registryModule as Record<string, unknown>).google = originalGoogle;
     (registryModule as Record<string, unknown>).openrouter = originalOpenrouter;
   });
 
-  it("passes qualityTier to capacity selector as minQuality", async () => {
+  it("selects via routing profile (legacy cheap maps to short_text)", async () => {
     mockGenerateText.mockResolvedValueOnce({
       text: "cheap response",
       usage: { inputTokens: 5, outputTokens: 3 },
@@ -225,7 +266,27 @@ describe("generateWithFallback", () => {
     await generateWithFallback({ ...mockRequest, qualityTier: "cheap" });
 
     expect(mockSelectModels).toHaveBeenCalledWith(
-      expect.objectContaining({ minQuality: 4 }),
+      expect.objectContaining({ profile: "short_text" }),
+    );
+  });
+
+  it("passes an explicit routing profile and token estimate", async () => {
+    mockGenerateText.mockResolvedValueOnce({
+      text: "ok",
+      usage: { inputTokens: 5, outputTokens: 3 },
+    });
+
+    await generateWithFallback({
+      ...mockRequest,
+      routingProfile: "quote_draft",
+      estimatedTokens: 5000,
+    });
+
+    expect(mockSelectModels).toHaveBeenCalledWith(
+      expect.objectContaining({
+        profile: "quote_draft",
+        estimatedTokens: 5000,
+      }),
     );
   });
 
@@ -299,13 +360,21 @@ describe("streamWithFallback", () => {
     expect(result.model).toBe("model-b");
   });
 
-  it("stops on non-retryable stream error", async () => {
-    mockStreamText.mockImplementationOnce(() => {
-      throw makeNonRetryableError("groq", 401);
-    });
+  it("advances on non-retryable stream errors", async () => {
+    mockStreamText
+      .mockImplementationOnce(() => {
+        throw makeNonRetryableError("groq", 401);
+      })
+      .mockReturnValueOnce({
+        textStream: (async function* () {
+          yield "Recovered stream";
+        })(),
+        response: Promise.resolve({ messages: [{}] }),
+      });
 
-    await expect(streamWithFallback(mockRequest)).rejects.toThrow("Unauthorized (401)");
-    expect(mockStreamText).toHaveBeenCalledOnce();
+    const result = await streamWithFallback(mockRequest);
+
+    expect(result.model).toBe("model-b");
   });
 
   it("throws when no providers are configured", async () => {

@@ -4,6 +4,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateText } from "ai";
 
 import { env, isGeminiConfigured } from "@/lib/env";
+import { EXTRACTION_MODEL_IDS } from "@/lib/ai/catalog";
 import type { ExtractedPayload } from "@/features/importer/extractors";
 import type {
   ImporterDestination,
@@ -31,10 +32,12 @@ import {
 
 const GEMINI_TIMEOUT_MS = 30_000;
 
-// "flash-lite" is cheap and accurate enough for extraction. We prefer the
-// regular "flash" first for better table understanding and fall back to
-// "flash-lite" if the first attempt fails.
-const EXTRACTION_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] as const;
+// Extraction models live in the unified catalog (`EXTRACTION_MODEL_IDS`) so
+// they are covered by the drift check. The importer keeps its own provider
+// client and retry loop (unifying it into the shared router is out of scope).
+const EXTRACTION_MODELS: string[] = EXTRACTION_MODEL_IDS.map((id) =>
+  id.slice("google:".length),
+);
 
 const PRICING_JSON_SHAPE = `{
   "entries": [

@@ -2,6 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db/client";
 import { aiTokenLogs } from "@/lib/db/schema";
+import { getDerivedCostTable } from "@/lib/ai/catalog";
 
 // ---------------------------------------------------------------------------
 // Token Logger — records every AI invocation for cost monitoring and debugging
@@ -11,53 +12,22 @@ import { aiTokenLogs } from "@/lib/db/schema";
 // 2. Structured JSON console.info line for server log aggregation
 // ---------------------------------------------------------------------------
 
-/** Per-model cost rates in cents per million tokens. */
+/** Per-model cost rates in cents per million tokens. Derived from the unified catalog. */
+export function getTokenCostTable(): Record<
+  string,
+  { inputPerMillion: number; outputPerMillion: number }
+> {
+  try {
+    return getDerivedCostTable();
+  } catch {
+    return {};
+  }
+}
+
 export const TOKEN_COST_TABLE: Record<
   string,
   { inputPerMillion: number; outputPerMillion: number }
-> = {
-  // Groq models
-  "groq:llama-3.1-8b-instant": { inputPerMillion: 50, outputPerMillion: 80 },
-  "groq:llama-3.3-70b-versatile": { inputPerMillion: 590, outputPerMillion: 790 },
-  "groq:openai/gpt-oss-120b": { inputPerMillion: 150, outputPerMillion: 600 },
-  "groq:openai/gpt-oss-20b": { inputPerMillion: 75, outputPerMillion: 300 },
-  "groq:qwen/qwen3-32b": { inputPerMillion: 290, outputPerMillion: 590 },
-  "groq:meta-llama/llama-4-scout-17b-16e-instruct": { inputPerMillion: 110, outputPerMillion: 340 },
-  // Cerebras models
-  "cerebras:llama3.1-8b": { inputPerMillion: 10, outputPerMillion: 10 },
-  "cerebras:gpt-oss-120b": { inputPerMillion: 60, outputPerMillion: 60 },
-  "cerebras:zai-glm-4.7": { inputPerMillion: 60, outputPerMillion: 60 },
-  "cerebras:qwen-3-235b-a22b-instruct-2507": { inputPerMillion: 60, outputPerMillion: 60 },
-  // Gemini models
-  "gemini:gemini-2.5-flash": { inputPerMillion: 150, outputPerMillion: 600 },
-  "gemini:gemini-2.5-flash-lite": { inputPerMillion: 75, outputPerMillion: 300 },
-  "gemini:gemini-2.5-pro": { inputPerMillion: 1250, outputPerMillion: 5000 },
-  // OpenRouter free models — $0 cost
-  "openrouter:openrouter/owl-alpha": { inputPerMillion: 0, outputPerMillion: 0 },
-  "openrouter:nvidia/nemotron-3-super-120b-a12b:free": { inputPerMillion: 0, outputPerMillion: 0 },
-  "openrouter:openai/gpt-oss-120b:free": { inputPerMillion: 0, outputPerMillion: 0 },
-  "openrouter:openai/gpt-oss-20b:free": { inputPerMillion: 0, outputPerMillion: 0 },
-  "openrouter:z-ai/glm-4.5-air:free": { inputPerMillion: 0, outputPerMillion: 0 },
-  "openrouter:deepseek/deepseek-v4-flash:free": { inputPerMillion: 0, outputPerMillion: 0 },
-  "openrouter:google/gemma-4-31b-it:free": { inputPerMillion: 0, outputPerMillion: 0 },
-  "openrouter:poolside/laguna-m.1:free": { inputPerMillion: 0, outputPerMillion: 0 },
-  "openrouter:minimax/minimax-m2.5:free": { inputPerMillion: 0, outputPerMillion: 0 },
-  "openrouter:nvidia/nemotron-3-nano-30b-a3b:free": { inputPerMillion: 0, outputPerMillion: 0 },
-  // Mistral — free tier (data training opt-in)
-  "mistral:mistral-small-latest": { inputPerMillion: 0, outputPerMillion: 0 },
-  "mistral:mistral-medium-latest": { inputPerMillion: 0, outputPerMillion: 0 },
-  "mistral:codestral-latest": { inputPerMillion: 0, outputPerMillion: 0 },
-  // Cloudflare Workers AI — free tier
-  "cloudflare:@cf/openai/gpt-oss-120b": { inputPerMillion: 0, outputPerMillion: 0 },
-  "cloudflare:@cf/moonshotai/kimi-k2.5": { inputPerMillion: 0, outputPerMillion: 0 },
-  "cloudflare:@cf/zai-org/glm-4.7-flash": { inputPerMillion: 0, outputPerMillion: 0 },
-  "cloudflare:@cf/qwen/qwen3-30b-a3b-fp8": { inputPerMillion: 0, outputPerMillion: 0 },
-  "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast": { inputPerMillion: 0, outputPerMillion: 0 },
-  // NVIDIA NIM — free credits (consumed per token, not per-million pricing)
-  "nvidia:nvidia/llama-3.3-nemotron-super-49b-v1": { inputPerMillion: 0, outputPerMillion: 0 },
-  "nvidia:meta/llama-3.3-70b-instruct": { inputPerMillion: 0, outputPerMillion: 0 },
-  "nvidia:meta/llama-3.1-8b-instruct": { inputPerMillion: 0, outputPerMillion: 0 },
-};
+> = getTokenCostTable();
 
 /** Parameters for logging an AI invocation. */
 export type LogAiInvocationParams = {
@@ -113,7 +83,15 @@ export function computeEstimatedCostCents(
   outputTokens: number,
 ): number | null {
   const key = `${provider}:${model}`;
-  const rates = TOKEN_COST_TABLE[key];
+  // Read through the live catalog (with a static fallback) so Gemini turns
+  // served via the `google:` registry prefix are priced instead of logged as
+  // unpriced. Accepts both `google:` and legacy `gemini:` prefixes.
+  const table = getTokenCostTable();
+  const rates =
+    table[key] ??
+    (provider === "gemini" ? table[`google:${model}`] : undefined) ??
+    (provider === "google" ? table[`gemini:${model}`] : undefined) ??
+    TOKEN_COST_TABLE[key];
 
   if (!rates) {
     return null;

@@ -23,13 +23,15 @@ export type AiTaskType = (typeof aiTaskTypes)[number];
 // these types normalize the interface for internal app logic.
 // ---------------------------------------------------------------------------
 
+import type { AiRoutingProfile } from "@/lib/ai/routing-profiles";
+
+export type { AiRoutingProfile } from "@/lib/ai/routing-profiles";
+
 /**
- * Quality tier controls which models are preferred within each provider.
- *
- * - "balanced" — default order, good quality/speed tradeoff.
- * - "cheap"    — prefer fast/high-volume models first.
- * - "best"     — prefer strongest models first.
- * - "coding"   — prefer coding-capable models.
+ * Each AI surface declares which kind of work it is doing, so routing is a
+ * property of the surface rather than a number guessed at the call site.
+ * `qualityTier` is retained for backward compatibility and maps onto a
+ * profile (cheap → short_text, balanced/best → quote_draft).
  */
 /** Normalized chat message shape sent to every provider. */
 export type AiChatMessage = {
@@ -45,6 +47,10 @@ export type AiCompletionRequest = {
   temperature: number;
   maxOutputTokens: number;
   qualityTier?: AiQualityTier;
+  /** Preferred: explicit routing profile for this kind of work. */
+  routingProfile?: AiRoutingProfile;
+  /** Preflight token estimate (input + output) for capacity selection. */
+  estimatedTokens?: number;
 };
 
 /** Normalized response returned by every provider. */

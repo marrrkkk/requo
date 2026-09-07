@@ -135,6 +135,8 @@ export async function generateAnalyticsSummary(
       temperature: 0.3,
       maxOutputTokens: 150,
       qualityTier: "cheap",
+      routingProfile: "short_text",
+      estimatedTokens: prompt.length / 4 + 150,
     });
 
     const summary = response.text.trim();

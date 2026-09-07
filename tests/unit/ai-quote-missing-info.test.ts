@@ -32,26 +32,32 @@ describe("AI quote missing info helpers", () => {
       {
         label: "Exact event date",
         question: "What date should we reserve?",
+        critical: false,
       },
       {
         label: "Number of guests",
         question: "How many guests should we quote for?",
+        critical: false,
       },
       {
         label: "Preferred package",
         question: "Which package do you prefer?",
+        critical: false,
       },
       {
         label: "Delivery deadline",
         question: "When do you need delivery?",
+        critical: false,
       },
       {
         label: "Venue",
         question: "Where will the event take place?",
+        critical: false,
       },
       {
         label: "Setup time",
         question: "What setup time is available?",
+        critical: false,
       },
     ]);
   });
