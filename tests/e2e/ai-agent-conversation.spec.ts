@@ -5,6 +5,9 @@ import { registerSmokeGuard } from "./smoke-registry";
 
 registerSmokeGuard();
 
+const DEMO_BUSINESS_NAME = "BrightSide Print Studio";
+const SESSION_STORAGE_KEY = `requo-agent-session:${demoBusinessSlug}`;
+
 const MOCK_REPLY =
   "Thanks for reaching out! We handle storefront signage and event graphics — could you share a few details about the project?";
 
@@ -60,11 +63,17 @@ test("public chat flow streams a reply on the enabled demo business @smoke", asy
   await page.goto(`/b/${demoBusinessSlug}/chat`);
   await page.waitForLoadState("networkidle");
 
-  await expect(page.getByText("Chat with BrightSide Print Studio")).toBeVisible();
+  // Slim header: the business's own name, and the centred greeting beneath it.
+  await expect(page.getByRole("banner")).toContainText(DEMO_BUSINESS_NAME);
+  await expect(page.getByText("How can we help?")).toBeVisible();
 
-  const input = page.getByLabel("Message");
-  // The chat input stays disabled until the session server action resolves.
-  await expect(input).toBeEnabled({ timeout: 15_000 });
+  const input = page.getByLabel(`Message ${DEMO_BUSINESS_NAME}`);
+  // The session is minted by the first send, so the composer is usable on the
+  // first paint and a visitor who never types leaves nothing behind.
+  await expect(input).toBeEnabled();
+  expect(
+    await page.evaluate((key) => sessionStorage.getItem(key), SESSION_STORAGE_KEY),
+  ).toBeNull();
 
   await input.fill("Hi, I need storefront signage.");
   await page.getByRole("button", { name: "Send message" }).click();
@@ -74,9 +83,50 @@ test("public chat flow streams a reply on the enabled demo business @smoke", asy
 
   // A session token is persisted so a reload resumes the conversation.
   const storedToken = await page.evaluate(
-    () => sessionStorage.getItem("requo-agent-session:brightside-print-studio"),
+    (key) => sessionStorage.getItem(key),
+    SESSION_STORAGE_KEY,
   );
   expect(storedToken).toMatch(/^[0-9a-f]{64}$/);
+
+  // The composer stays pinned in the viewport — it never drifts down the page.
+  const composerBox = await input.boundingBox();
+  const viewport = page.viewportSize();
+  expect(composerBox).not.toBeNull();
+  expect(composerBox!.y + composerBox!.height).toBeLessThanOrEqual(
+    (viewport?.height ?? 800) + 1,
+  );
+
+  // The transcript is the only thing that scrolls, bottom-aligned by an
+  // automatic top margin on the inner wrapper (not end-justified).
+  const transcriptState = await page.evaluate(() => {
+    const el = document.querySelector(".chat-stage-transcript");
+    const inner = document.querySelector(".chat-stage-transcript-inner");
+    if (!el || !inner) return null;
+    const style = getComputedStyle(el);
+    const innerStyle = getComputedStyle(inner);
+    return {
+      overflowY: style.overflowY,
+      marginTop: innerStyle.marginTop,
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight,
+    };
+  });
+  expect(transcriptState).not.toBeNull();
+  expect(transcriptState!.overflowY).toBe("auto");
+  expect(transcriptState!.marginTop).not.toBe("0px");
+
+  // Composer and bubbles share the product radius step (not a pill).
+  const composerRounded = await page.evaluate(() => {
+    const el = document.querySelector('[data-slot="input-group"]');
+    return el ? el.className : "";
+  });
+  expect(composerRounded).toContain("rounded-2xl");
+  expect(composerRounded).not.toContain("rounded-3xl");
+
+  // Detached affordance is hidden while attached to the bottom.
+  await expect(
+    page.getByRole("button", { name: "Jump to latest" }),
+  ).toBeHidden();
 });
 
 test("chat page shows the public not-found state for agent-disabled businesses", async ({

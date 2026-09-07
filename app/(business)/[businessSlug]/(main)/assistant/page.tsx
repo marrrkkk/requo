@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+
 import { DashboardPage } from "@/components/shared/dashboard-layout";
-import { PageHeader } from "@/components/shared/page-header";
+import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
-import { AssistantComposer } from "@/features/owner-assistant/components/assistant-composer";
-import { AssistantHistorySidebar } from "@/features/owner-assistant/components/assistant-history-sidebar";
+import { OwnerAssistantChat } from "@/features/owner-assistant/components/owner-assistant-chat";
+import { loadAssistantTranscript } from "@/features/owner-assistant/session-service";
+
+type AssistantSearchParams = { q?: string; session?: string };
 
 type AssistantPageProps = {
   params: Promise<{ businessSlug: string }>;
+  searchParams: Promise<AssistantSearchParams>;
 };
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -17,28 +21,26 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "AI-powered assistant for your business operations",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
-export default function AssistantPage({ params }: AssistantPageProps) {
+/**
+ * The Assistant, for a new chat and for every saved conversation.
+ *
+ * Which conversation is open lives in `?session=`, not in the path: the first
+ * send mints the session server-side and rewrites the search param in place, so
+ * "new chat" and "chatting" are the same page segment. A path change here would
+ * swap the segment and tear the surface down mid-stream.
+ */
+export default function AssistantPage({
+  params,
+  searchParams,
+}: AssistantPageProps) {
   return (
-    <DashboardPage className="flex flex-col h-full">
-      <PageHeader
-        title="Assistant"
-        description="Ask questions, search data, or create inquiries and quotes"
-      />
+    <DashboardPage className="min-h-0 flex-1">
       <Suspense fallback={<AssistantSkeleton />}>
-        <AssistantRegion params={params} />
+        <RegionErrorBoundary fallback={<AssistantErrorState />}>
+          <AssistantRegion params={params} searchParams={searchParams} />
+        </RegionErrorBoundary>
       </Suspense>
     </DashboardPage>
   );
@@ -46,27 +48,73 @@ export default function AssistantPage({ params }: AssistantPageProps) {
 
 async function AssistantRegion({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessSlug: string }>;
+  searchParams: Promise<AssistantSearchParams>;
 }) {
   const { businessSlug } = await params;
-  // Membership gate for the section; the composer creates nothing.
-  await getAppShellContext(businessSlug);
+  const { q, session } = await searchParams;
+  const { user, businessContext } = await getAppShellContext(businessSlug);
+
+  // `?session=` is a pointer, not a promise: an unknown or deleted id opens a
+  // new chat instead of 404ing, because the client may still be holding this
+  // conversation in memory (it rewrites the param itself as it mints).
+  const transcript =
+    typeof session === "string" && session.trim()
+      ? await loadAssistantTranscript({
+          businessId: businessContext.business.id,
+          userId: user.id,
+          sessionId: session,
+        })
+      : null;
 
   return (
-    <div className="relative flex flex-1 min-h-0">
-      <AssistantHistorySidebar businessSlug={businessSlug} />
-      <div className="flex-1 min-w-0">
-        <AssistantComposer businessSlug={businessSlug} />
-      </div>
-    </div>
+    // No `key`: the surface must never be remounted by a param change, or a
+    // mint would restart the conversation it just created.
+    <OwnerAssistantChat
+      autoPrompt={typeof q === "string" && q.trim() ? q : null}
+      businessId={businessContext.business.id}
+      businessSlug={businessSlug}
+      initialMessages={transcript?.rows ?? []}
+      plan={businessContext.business.plan}
+      sessionId={transcript?.sessionId ?? null}
+      userId={user.id}
+    />
   );
 }
 
 function AssistantSkeleton() {
   return (
-    <div className="flex flex-col gap-4 h-full">
-      <Skeleton className="h-full" />
+    <div className="flex min-h-0 flex-1 flex-col" data-assistant-pane="">
+      <div className="flex items-center justify-between gap-2 px-3 pt-3 md:px-6">
+        <Skeleton className="h-8 w-24 rounded-lg" />
+        <Skeleton className="h-8 w-8 rounded-lg" />
+      </div>
+      <div className="chat-stage min-h-0 flex-1" data-conversation="empty">
+        <div className="chat-stage-transcript px-3 md:px-6">
+          <div className="chat-stage-transcript-inner mx-auto flex w-full max-w-3xl flex-col gap-7 pt-6 pb-2">
+            <Skeleton className="h-16 w-3/4 rounded-2xl" />
+            <Skeleton className="h-24 w-full rounded-2xl" />
+          </div>
+        </div>
+        <div className="sticky bottom-0 z-10 bg-background/95 backdrop-blur-xs px-3 pb-4 pt-2 md:px-6">
+          <div className="mx-auto w-full max-w-3xl">
+            <Skeleton className="h-24 w-full rounded-2xl" />
+          </div>
+        </div>
+        <div aria-hidden="true" />
+      </div>
+    </div>
+  );
+}
+
+function AssistantErrorState() {
+  return (
+    <div className="flex h-full items-center justify-center p-4">
+      <p className="text-sm text-muted-foreground">
+        The assistant couldn&apos;t be loaded. Please try again.
+      </p>
     </div>
   );
 }

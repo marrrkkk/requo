@@ -148,20 +148,157 @@ export async function loadSessionById(sessionId: string): Promise<AgentSession |
 
 /**
  * Update session state.
+ *
+ * Accepts the full session state (Qualification plus the single staged
+ * Proposed Inquiry). Older callers pass Qualification only — the proposal is
+ * preserved when absent so partial updates never drop it.
  */
 export async function updateSessionState({
   sessionId,
   state,
 }: {
   sessionId: string;
-  state: QualificationState;
+  state: QualificationState | import("@/features/ai-agent/types").AgentSessionState;
 }): Promise<void> {
+  const incoming = state as import("@/features/ai-agent/types").AgentSessionState;
+  if (incoming.proposedInquiry === undefined) {
+    const [current] = await db
+      .select({ state: aiAgentSessions.state })
+      .from(aiAgentSessions)
+      .where(eq(aiAgentSessions.id, sessionId))
+      .limit(1);
+    const existing = (current?.state as { proposedInquiry?: unknown } | null) ?? {};
+    const merged = {
+      ...(incoming as Record<string, unknown>),
+      ...(existing.proposedInquiry !== undefined
+        ? { proposedInquiry: existing.proposedInquiry }
+        : {}),
+    };
+    await db
+      .update(aiAgentSessions)
+      .set({ state: merged, updatedAt: new Date() })
+      .where(eq(aiAgentSessions.id, sessionId));
+    return;
+  }
+
   await db
     .update(aiAgentSessions)
     .set({
       state,
       updatedAt: new Date(),
     })
+    .where(eq(aiAgentSessions.id, sessionId));
+}
+
+/**
+ * Read the staged Proposed Inquiry for a session, if any.
+ */
+export async function getStagedProposal(
+  sessionId: string,
+): Promise<import("@/features/ai-agent/types").ProposedInquiry | null> {
+  const [row] = await db
+    .select({ state: aiAgentSessions.state })
+    .from(aiAgentSessions)
+    .where(eq(aiAgentSessions.id, sessionId))
+    .limit(1);
+  const state = (row?.state as {
+    proposedInquiry?: import("@/features/ai-agent/types").ProposedInquiry | null;
+  } | null) ?? {};
+  return state.proposedInquiry ?? null;
+}
+
+/**
+ * Stage (or supersede) the single Proposed Inquiry on a session. A revision
+ * supersedes rather than versions — the session holds at most one.
+ */
+export async function stageProposedInquiry({
+  sessionId,
+  proposal,
+}: {
+  sessionId: string;
+  proposal: import("@/features/ai-agent/types").ProposedInquiry;
+}): Promise<void> {
+  const [row] = await db
+    .select({ state: aiAgentSessions.state })
+    .from(aiAgentSessions)
+    .where(eq(aiAgentSessions.id, sessionId))
+    .limit(1);
+  const current = (row?.state as Record<string, unknown> | null) ?? {};
+  await db
+    .update(aiAgentSessions)
+    .set({
+      state: { ...current, proposedInquiry: proposal },
+      updatedAt: new Date(),
+    })
+    .where(eq(aiAgentSessions.id, sessionId));
+}
+
+/**
+ * Persist card edits riding along on a chat send before the model runs.
+ * Merges the posted values into the pending proposal so chat revision and
+ * manual editing compose instead of clobbering each other. No-op when no
+ * pending proposal is staged.
+ */
+export async function persistProposalValuesFromCard({
+  sessionId,
+  values,
+}: {
+  sessionId: string;
+  values: Record<string, unknown>;
+}): Promise<void> {
+  const [row] = await db
+    .select({ state: aiAgentSessions.state })
+    .from(aiAgentSessions)
+    .where(eq(aiAgentSessions.id, sessionId))
+    .limit(1);
+  const current = (row?.state as {
+    proposedInquiry?: import("@/features/ai-agent/types").ProposedInquiry | null;
+  } & Record<string, unknown>) ?? {};
+  const pending = current.proposedInquiry;
+  if (!pending || pending.status !== "pending") return;
+
+  const mergedValues = { ...pending.values, ...values };
+  // Drop undefined so partial posts never blank a field with undefined.
+  for (const key of Object.keys(mergedValues)) {
+    if ((mergedValues as Record<string, unknown>)[key] === undefined) {
+      delete (mergedValues as Record<string, unknown>)[key];
+    }
+  }
+
+  await db
+    .update(aiAgentSessions)
+    .set({
+      state: {
+        ...current,
+        proposedInquiry: { ...pending, values: mergedValues },
+      },
+      updatedAt: new Date(),
+    })
+    .where(eq(aiAgentSessions.id, sessionId));
+}
+
+/**
+ * Clear the staged proposal (discard). Leaves the session usable and creates
+ * nothing. The discard is recorded in the transcript by the caller.
+ */
+export async function clearStagedProposal({
+  sessionId,
+}: {
+  sessionId: string;
+}): Promise<void> {
+  const [row] = await db
+    .select({ state: aiAgentSessions.state })
+    .from(aiAgentSessions)
+    .where(eq(aiAgentSessions.id, sessionId))
+    .limit(1);
+  const current = (row?.state as Record<string, unknown> | null) ?? {};
+  if (!("proposedInquiry" in current)) return;
+  const { proposedInquiry: _removed, ...rest } = current as {
+    proposedInquiry?: unknown;
+  } & Record<string, unknown>;
+  await db
+    .update(aiAgentSessions)
+    .set({ state: rest, updatedAt: new Date() })
     .where(eq(aiAgentSessions.id, sessionId));
 }
 

@@ -1,79 +1,464 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, type UIMessage } from "ai";
-import { MessageSquare } from "lucide-react";
+import {
+  DefaultChatTransport,
+  getToolName,
+  isToolUIPart,
+  type UIMessage,
+} from "ai";
+import { Ellipsis, MessageSquarePlus, RotateCcw } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { BusinessAvatar } from "@/components/shared/business-avatar";
+import { ChatComposer } from "@/components/shared/chat/chat-composer";
+import { ChatJumpToLatest } from "@/components/shared/chat/chat-jump-to-latest";
+import { ChatMarkdown } from "@/components/shared/chat/chat-markdown";
+import { ChatStatusLine } from "@/components/shared/chat/chat-status-line";
+import { CopyButton } from "@/components/shared/chat/copy-button";
+import { useChatScroll } from "@/components/shared/chat/use-chat-scroll";
 import { MadeWithRequo } from "@/components/shared/made-with-requo";
-import { createAgentSessionAction } from "@/features/ai-agent/actions";
-import { ChatInput } from "@/features/ai-agent/components/chat-input";
-import { ChatMessage } from "@/features/ai-agent/components/chat-message";
+import {
+  approveAgentProposalAction,
+  createAgentSessionAction,
+  discardAgentProposalAction,
+} from "@/features/ai-agent/actions";
+import {
+  ProposedInquiryCard,
+  toEditableValues,
+  type ProposalValues,
+} from "@/features/ai-agent/components/proposed-inquiry-card";
+import type { ProposedInquiry } from "@/features/ai-agent/types";
 
-interface ChatInterfaceProps {
+type ChatInterfaceProps = {
   businessSlug: string;
   businessName: string;
-  /** Optional short description shown in the header */
-  businessDescription?: string | null;
-  /** Show the "Made with Requo" watermark (false when plan removed it) */
+  /** Public logo URL; falls back to the business initials. */
+  businessLogoUrl?: string | null;
+  /** Show the "Made with Requo" watermark (false when the plan removed it). */
   showWatermark?: boolean;
-  /** Link to the traditional inquiry form as a fallback capture path */
+  /** Link to the traditional inquiry form as a fallback capture path. */
   fallbackFormHref?: string;
-}
+  /** Starter prompts derived from what the business actually offers. */
+  recommendations?: string[];
+};
 
-// --------------------------------------------------------------------------
-// Session storage key
-// --------------------------------------------------------------------------
-
+/** Where the visitor's own conversation token lives for the tab's lifetime. */
 function sessionKey(slug: string) {
   return `requo-agent-session:${slug}`;
 }
 
-// --------------------------------------------------------------------------
-// Component
-// --------------------------------------------------------------------------
+/**
+ * What the visitor is told while a tool runs.
+ *
+ * Deliberately plain-language and business-voiced: internal tool names and
+ * arguments are never surfaced on the public surface, and there is no
+ * expandable process view here (that belongs to the owner assistant).
+ */
+const TOOL_LABELS: Record<string, string> = {
+  search_knowledge: "Checking our information",
+  get_business_info: "Checking business details",
+  get_services: "Checking available services",
+  propose_inquiry: "Putting your inquiry together",
+};
+
+function toolLabel(toolName: string): string {
+  return TOOL_LABELS[toolName] ?? "Working on it";
+}
+
+// ---------------------------------------------------------------------------
+// Turn grouping
+// ---------------------------------------------------------------------------
+
+type Turn = { kind: "user" | "assistant"; id: string; text: string };
 
 /**
- * Full-page chat interface for the public chat.
+ * Collapse the message list into rendered turns.
  *
- * Responsibilities:
- * - Initialise (or resume) a session via the server action
- * - Rehydrate the customer's own transcript so a reload restores it
- * - Render the message list with streaming support over the UI transport
- * - Send messages to /api/ai/agent/chat and stream the response
+ * Only prose reaches the visitor: tool traffic drives the status line while a
+ * turn is in flight and then disappears. Consecutive assistant messages are
+ * merged so a rehydrated transcript (one message per persisted row) reads the
+ * same as a live one.
+ */
+function toTurns(messages: UIMessage[]): Turn[] {
+  const turns: Turn[] = [];
+
+  for (const message of messages) {
+    if (message.role !== "user" && message.role !== "assistant") continue;
+    const text = (message.parts ?? [])
+      .filter((part) => part.type === "text")
+      .map((part) => (part.type === "text" ? part.text : ""))
+      .join("")
+      .trim();
+
+    const last = turns[turns.length - 1];
+    if (message.role === "assistant" && last?.kind === "assistant") {
+      if (text) last.text = last.text ? `${last.text}\n\n${text}` : text;
+      continue;
+    }
+    if (text) turns.push({ kind: message.role, id: message.id, text });
+  }
+
+  return turns;
+}
+
+/** The tool currently executing, if a turn is mid-flight. */
+function findActiveTool(messages: UIMessage[]): string | null {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    for (const part of messages[index].parts ?? []) {
+      if (
+        isToolUIPart(part) &&
+        (part.state === "input-streaming" || part.state === "input-available")
+      ) {
+        return getToolName(part);
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * The latest Proposed Inquiry from the live stream, if any.
+ *
+ * This is the first thing the customer surface renders from a tool part. The
+ * surface deliberately strips all other tool traffic — the carve-out is
+ * intentional and narrow: one tool, one card. A superseding proposal replaces
+ * the old one (latest wins) rather than stacking a second card.
+ */
+function findLatestProposal(messages: UIMessage[]): ProposedInquiry | null {
+  let latest: ProposedInquiry | null = null;
+  for (const message of messages) {
+    for (const part of message.parts ?? []) {
+      if (!isToolUIPart(part)) continue;
+      if (getToolName(part) !== "propose_inquiry") continue;
+      if (part.state !== "output-available") continue;
+      const output = part.output as
+        | { proposal?: ProposedInquiry; message?: string }
+        | ProposedInquiry
+        | null;
+      if (!output || typeof output !== "object") continue;
+      const proposal =
+        "proposal" in output && output.proposal
+          ? (output.proposal as ProposedInquiry)
+          : (output as ProposedInquiry);
+      if (
+        proposal &&
+        typeof proposal.id === "string" &&
+        proposal.values &&
+        typeof proposal.values === "object"
+      ) {
+        latest = proposal;
+      }
+    }
+  }
+  return latest;
+}
+
+/** Errors that mean the stored token can no longer be used. */
+function isSessionGone(message: string): boolean {
+  return (
+    message.includes("Invalid or expired session") ||
+    message.includes("not enabled") ||
+    message.includes("not available on this plan")
+  );
+}
+
+/**
+ * Map provider/raw errors to friendly copy. Provider JSON bodies, internal
+ * model names, and the generic "An error occurred." never reach the
+ * transcript — the visitor gets plain language plus the Inquiry form path.
+ */
+function friendlyAgentError(message: string): string {
+  const lower = message.toLowerCase();
+  if (
+    !message.trim() ||
+    lower.includes("an error occurred") ||
+    lower.includes("{") ||
+    lower.includes("groq") ||
+    lower.includes("cerebras") ||
+    lower.includes("gemini") ||
+    lower.includes("openrouter") ||
+    lower.includes("mistral") ||
+    lower.includes("model") ||
+    lower.includes("429") ||
+    lower.includes("500") ||
+    lower.includes("503")
+  ) {
+    return "Chat is temporarily unavailable. Please try again in a moment, or use the inquiry form so we can still reach you.";
+  }
+  return message;
+}
+
+function cleanProposalForSend(values: ProposalValues): Record<string, unknown> {
+  const cleaned: Record<string, unknown> = {
+    customerName: values.customerName.trim(),
+    customerContactMethod: values.customerContactMethod.trim(),
+    customerContactHandle: values.customerContactHandle.trim(),
+    serviceCategory: values.serviceCategory.trim(),
+    details: values.details.trim(),
+  };
+  const email = values.customerEmail?.trim();
+  if (email) cleaned.customerEmail = email;
+  const budget = values.budgetText?.trim();
+  if (budget) cleaned.budgetText = budget;
+  const deadline = values.requestedDeadline?.trim();
+  if (deadline) cleaned.requestedDeadline = deadline;
+  return cleaned;
+}
+
+function cleanProposalForApproval(values: ProposalValues): Record<string, unknown> {
+  return {
+    customerName: values.customerName.trim(),
+    ...(values.customerEmail?.trim()
+      ? { customerEmail: values.customerEmail.trim() }
+      : {}),
+    customerContactMethod: values.customerContactMethod.trim(),
+    customerContactHandle: values.customerContactHandle.trim(),
+    serviceCategory: values.serviceCategory.trim(),
+    details: values.details.trim(),
+    ...(values.budgetText?.trim()
+      ? { budgetText: values.budgetText.trim() }
+      : {}),
+    ...(values.requestedDeadline?.trim()
+      ? { requestedDeadline: values.requestedDeadline.trim() }
+      : {}),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Surface
+// ---------------------------------------------------------------------------
+
+/**
+ * The public chat surface at `/b/[slug]/chat`.
+ *
+ * The visitor lands on a centred greeting and composer; the first send mints
+ * the session (so a visitor who never types leaves nothing behind) and
+ * collapses the trailing grid row, gliding the composer to the bottom while
+ * the transcript grows above it. The conversation token lives in
+ * `sessionStorage`, so a reload restores the visitor's own transcript — and
+ * only theirs (see ADR 004).
  */
 export function ChatInterface({
   businessSlug,
   businessName,
-  businessDescription,
+  businessLogoUrl,
   showWatermark = false,
   fallbackFormHref,
+  recommendations = [],
 }: ChatInterfaceProps) {
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
-  const [initialMessages, setInitialMessages] = useState<UIMessage[] | null>(
-    null,
-  );
-  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [input, setInput] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [minting, setMinting] = useState(false);
+  const tokenRef = useRef<string | null>(null);
+  const [stagedProposal, setStagedProposal] =
+    useState<ProposedInquiry | null>(null);
+  const [cardValues, setCardValues] = useState<ProposalValues | null>(null);
+  const [approving, setApproving] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
+  const [proposalError, setProposalError] = useState<string | null>(null);
 
-  // -------------------------------------------------------------------------
-  // Session initialisation + transcript rehydration
-  // -------------------------------------------------------------------------
+  const transport = useMemo(
+    () => new DefaultChatTransport({ api: "/api/ai/agent/chat" }),
+    [],
+  );
+
+  const {
+    messages,
+    sendMessage,
+    regenerate,
+    setMessages,
+    status,
+    error,
+    clearError,
+    stop,
+  } = useChat<UIMessage>({ id: "agent-chat", transport });
+
+  const isLoading = status === "submitted" || status === "streaming";
+  const turns = useMemo(() => toTurns(messages), [messages]);
+  const activeTool = useMemo(
+    () => (isLoading ? findActiveTool(messages) : null),
+    [isLoading, messages],
+  );
+  const isEmpty = turns.length === 0 && !isLoading && !minting;
+  const lastTurn = turns[turns.length - 1];
+  const streamingText =
+    isLoading && lastTurn?.kind === "assistant" && lastTurn.text.length > 0;
+  const statusLabel = minting
+    ? "Starting conversation"
+    : !isLoading
+      ? null
+      : activeTool
+        ? toolLabel(activeTool)
+        : streamingText
+          ? null
+          : "Typing";
+
+  /** Drop a token the server no longer accepts; the next send mints a fresh one. */
+  const forgetSession = useCallback(() => {
+    tokenRef.current = null;
+    try {
+      sessionStorage.removeItem(sessionKey(businessSlug));
+    } catch {
+      // Private-mode storage failures are not worth surfacing.
+    }
+    setMessages([]);
+  }, [businessSlug, setMessages]);
+
+  /** Start over without a reload: clear the local transcript so the next send mints a fresh session. */
+  const handleNewChat = useCallback(() => {
+    stop();
+    tokenRef.current = null;
+    try {
+      sessionStorage.removeItem(sessionKey(businessSlug));
+    } catch {
+      // Private-mode storage failures are not worth surfacing.
+    }
+    setMessages([]);
+    setStagedProposal(null);
+    setCardValues(null);
+    setProposalError(null);
+    setNotice(null);
+    clearError();
+    setInput("");
+  }, [businessSlug, clearError, setMessages, stop]);
+
+  // Restore this visitor's own transcript when the tab already holds a token.
+  // A reload brings both the transcript and the pending card back — server
+  // state is authoritative.
+  useEffect(() => {
+    let cancelled = false;
+    let stored: string | null = null;
+    try {
+      stored = sessionStorage.getItem(sessionKey(businessSlug));
+    } catch {
+      stored = null;
+    }
+    if (!stored) return;
+    tokenRef.current = stored;
+
+    void (async () => {
+      try {
+        const response = await fetch(
+          `/api/ai/agent/session?token=${encodeURIComponent(stored)}`,
+        );
+        if (!response.ok) {
+          // Expired or unknown — start clean rather than stranding the visitor.
+          if (!cancelled) forgetSession();
+          return;
+        }
+        const data = await response.json();
+        const rows: Array<{ id: string; role: "user" | "assistant"; content: string }> =
+          Array.isArray(data.messages) ? data.messages : [];
+        if (cancelled) return;
+        if (rows.length > 0) {
+          setMessages(
+            rows.map((row) => ({
+              id: row.id,
+              role: row.role,
+              parts: [{ type: "text", text: row.content }],
+            })) as UIMessage[],
+          );
+        }
+        const restored = (data.proposedInquiry ?? null) as ProposedInquiry | null;
+        if (restored && !cancelled) {
+          setStagedProposal(restored);
+          setCardValues(toEditableValues(restored));
+        }
+      } catch {
+        // Offline or a transient failure: the fresh empty state is fine.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [businessSlug, forgetSession, setMessages]);
+
+  // Derived, not stored: the message follows the chat error, and only the
+  // token cleanup is a side effect.
+  const sessionExpired = Boolean(error && isSessionGone(error.message));
+  const noticeText =
+    notice ??
+    (sessionExpired
+      ? "That conversation expired. Send a message to start a new one."
+      : null);
 
   useEffect(() => {
-    async function init() {
-      // Try to restore a previous session for this business
-      const stored =
-        typeof window !== "undefined"
-          ? sessionStorage.getItem(sessionKey(businessSlug))
-          : null;
+    if (!sessionExpired) return;
+    forgetSession();
+    // Syncing external session expiry into local card state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStagedProposal(null);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCardValues(null);
+  }, [sessionExpired, forgetSession]);
 
-      let token = stored;
+  // Live turns render the proposing tool's output part. A superseding
+  // proposal replaces the old one in place rather than stacking a second
+  // card — latest wins. Server state stays authoritative (reload path above).
+  const liveProposal = useMemo(() => findLatestProposal(messages), [messages]);
 
-      if (!token) {
-        // Create a fresh session
+  useEffect(() => {
+    if (!liveProposal) return;
+    if (stagedProposal?.id === liveProposal.id) return;
+    // A revision supersedes: adopt the new values. The revision was built
+    // from the staged values the server already merged, so a manual edit
+    // the visitor typed survives here rather than being clobbered.
+    // Syncing the external message stream into local card state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStagedProposal(liveProposal);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCardValues(toEditableValues(liveProposal));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setProposalError(null);
+  }, [liveProposal, stagedProposal?.id]);
+
+  const transcriptKey = useMemo(() => {
+    const lastText = lastTurn?.text.length ?? 0;
+    return `${turns.length}:${lastText}:${statusLabel ?? ""}:${messages.length}:${stagedProposal?.id ?? ""}`;
+  }, [turns.length, lastTurn, statusLabel, messages.length, stagedProposal?.id]);
+
+  const { containerRef, detached, scrollToLatestSmooth, jumpToLatest } =
+    useChatScroll({
+      contentKey: transcriptKey,
+      streaming: isLoading,
+    });
+
+  /**
+   * Send, minting the session first when this is the visitor's opening
+   * message. If minting fails the text is handed back to the composer so
+   * nothing the visitor typed is lost.
+   *
+   * Card edits ride along on the existing chat request body: every send
+   * persists the current card values before the model runs.
+   */
+  const handleSend = useCallback(
+    async (text: string) => {
+      if (isLoading || minting) return;
+      setInput("");
+      setNotice(null);
+      clearError();
+
+      // Read at send time so edits typed into the card survive the next chat
+      // message instead of being clobbered by it.
+      const ridingValues =
+        stagedProposal?.status === "pending" && cardValues
+          ? cleanProposalForSend(cardValues)
+          : undefined;
+
+      if (!tokenRef.current) {
+        setMinting(true);
         const result = await createAgentSessionAction({
           businessSlug,
           metadata: {
@@ -81,310 +466,344 @@ export function ChatInterface({
               typeof navigator !== "undefined" ? navigator.userAgent : undefined,
           },
         });
+        setMinting(false);
 
         if (!result.success) {
-          setSessionError(
+          setNotice(
             result.error ?? "Unable to start a conversation. Please try again.",
           );
-          setInitialMessages([]);
+          setInput(text);
           return;
         }
 
-        token = result.sessionToken;
-        sessionStorage.setItem(sessionKey(businessSlug), token);
-      }
-
-      setSessionToken(token);
-
-      // Rehydrate the customer's own transcript (token-possession auth).
-      try {
-        const response = await fetch(
-          `/api/ai/agent/session?token=${encodeURIComponent(token)}`,
-        );
-        if (response.ok) {
-          const data = await response.json();
-          const rows = Array.isArray(data.messages) ? data.messages : [];
-          setInitialMessages(
-            rows.map(
-              (row: { id: string; role: "user" | "assistant"; content: string }) => ({
-                id: row.id,
-                role: row.role,
-                parts: [{ type: "text", text: row.content }],
-              }),
-            ),
-          );
-        } else {
-          // Token expired or unknown — drop it so the next visit starts fresh.
-          sessionStorage.removeItem(sessionKey(businessSlug));
-          setInitialMessages([]);
+        tokenRef.current = result.sessionToken;
+        try {
+          sessionStorage.setItem(sessionKey(businessSlug), result.sessionToken);
+        } catch {
+          // Without storage the conversation still works for this page view.
         }
-      } catch {
-        setInitialMessages([]);
       }
-    }
 
-    void init();
-  }, [businessSlug]);
-
-  if (!sessionToken || initialMessages === null) {
-    return (
-      <ChatShell
-        businessSlug={businessSlug}
-        businessName={businessName}
-        businessDescription={businessDescription}
-        showWatermark={showWatermark}
-        fallbackFormHref={fallbackFormHref}
-        sessionError={sessionError}
-        ready={false}
-      >
-        {/* Empty state — shown while session is initialising */}
-        {!sessionError && (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-            <div
-              aria-hidden="true"
-              className="flex size-12 items-center justify-center rounded-full bg-muted"
-            >
-              <MessageSquare className="size-5 text-muted-foreground" />
-            </div>
-            <p className="text-sm font-medium">Starting conversation…</p>
-          </div>
-        )}
-      </ChatShell>
-    );
-  }
-
-  return (
-    <ChatReady
-      businessSlug={businessSlug}
-      businessName={businessName}
-      businessDescription={businessDescription}
-      showWatermark={showWatermark}
-      fallbackFormHref={fallbackFormHref}
-      sessionToken={sessionToken}
-      initialMessages={initialMessages}
-      onSessionInvalid={() => {
-        sessionStorage.removeItem(sessionKey(businessSlug));
-        setSessionToken(null);
-        setInitialMessages(null);
-        setSessionError("This conversation expired. Starting a new one…");
-        setTimeout(() => window.location.reload(), 1200);
-      }}
-    />
-  );
-}
-
-function ChatReady({
-  businessSlug,
-  businessName,
-  businessDescription,
-  showWatermark,
-  fallbackFormHref,
-  sessionToken,
-  initialMessages,
-  onSessionInvalid,
-}: ChatInterfaceProps & {
-  sessionToken: string;
-  initialMessages: UIMessage[];
-  onSessionInvalid: () => void;
-}) {
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        api: "/api/ai/agent/chat",
-        body: { sessionToken },
-      }),
-    [sessionToken],
+      // The token is read here rather than captured in the transport, so the
+      // one minted just above is attached to this very first send.
+      void sendMessage(
+        { text },
+        {
+          body: {
+            sessionToken: tokenRef.current,
+            ...(ridingValues ? { proposedInquiryValues: ridingValues } : {}),
+          },
+        },
+      );
+      scrollToLatestSmooth();
+    },
+    [
+      businessSlug,
+      cardValues,
+      clearError,
+      isLoading,
+      minting,
+      scrollToLatestSmooth,
+      sendMessage,
+      stagedProposal,
+    ],
   );
 
-  const { messages, sendMessage, status, error: chatError, clearError } =
-    useChat<UIMessage>({
-      id: sessionToken,
-      messages: initialMessages,
-      transport,
+  const handleApprove = useCallback(async () => {
+    const token = tokenRef.current;
+    const proposal = stagedProposal;
+    if (!token || !proposal || proposal.status !== "pending" || !cardValues)
+      return;
+    setApproving(true);
+    setProposalError(null);
+    const cleaned = cleanProposalForApproval(cardValues);
+    const result = await approveAgentProposalAction({
+      sessionToken: token,
+      values: cleaned,
+      proposalId: proposal.id,
     });
-
-  const isStreaming = status === "submitted" || status === "streaming";
-
-  // Auto-scroll
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, status]);
-
-  useEffect(() => {
-    if (!chatError) return;
-    if (
-      chatError.message.includes("Invalid or expired session") ||
-      chatError.message.includes("not enabled") ||
-      chatError.message.includes("not available on this plan")
-    ) {
-      onSessionInvalid();
+    setApproving(false);
+    if (!result.success) {
+      setProposalError(result.error);
+      return;
     }
-  }, [chatError, onSessionInvalid]);
+    // The card stays as the receipt of what was submitted. The composer stays
+    // live so the visitor can ask a follow-up without opening a new
+    // conversation.
+    setStagedProposal({
+      ...proposal,
+      status: "approved",
+      inquiryId: result.inquiryId,
+      values: cleaned as ProposedInquiry["values"],
+    });
+    scrollToLatestSmooth();
+  }, [stagedProposal, cardValues, scrollToLatestSmooth]);
 
-  const handleSend = (content: string) => {
-    if (isStreaming) return;
-    clearError();
-    void sendMessage({ text: content });
-  };
-
-  const viewMessages = messages.map((message) => ({
-    id: message.id,
-    role: message.role as "user" | "assistant",
-    content: (message.parts ?? [])
-      .filter((part) => part.type === "text")
-      .map((part) => (part.type === "text" ? part.text : ""))
-      .join(""),
-  }));
-
-  const streamingId =
-    isStreaming && messages.length > 0
-      ? messages[messages.length - 1].id
-      : null;
+  const handleDiscard = useCallback(async () => {
+    const token = tokenRef.current;
+    const proposal = stagedProposal;
+    if (!token || !proposal || proposal.status !== "pending") return;
+    setDiscarding(true);
+    setProposalError(null);
+    const result = await discardAgentProposalAction({
+      sessionToken: token,
+      proposalId: proposal.id,
+    });
+    setDiscarding(false);
+    if (!result.success) {
+      setProposalError(result.error);
+      return;
+    }
+    // Discarding leaves the conversation open — no confirmation, no new
+    // session. The persisted assistant line tells the model it was declined.
+    setStagedProposal(null);
+    setCardValues(null);
+  }, [stagedProposal]);
 
   return (
-    <ChatShell
-      businessSlug={businessSlug}
-      businessName={businessName}
-      businessDescription={businessDescription}
-      showWatermark={showWatermark}
-      fallbackFormHref={fallbackFormHref}
-      ready
-    >
-      {/* Empty state */}
-      {viewMessages.length === 0 && (
-        <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-          <div
-            aria-hidden="true"
-            className="flex size-12 items-center justify-center rounded-full bg-muted"
-          >
-            <MessageSquare className="size-5 text-muted-foreground" />
-          </div>
-          <div>
-            <p className="text-sm font-medium">{`Chat with ${businessName}`}</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Tell us what you&apos;re looking for and we&apos;ll get back to you.
-            </p>
-            {fallbackFormHref && (
-              <Link
-                className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-                href={fallbackFormHref}
-              >
-                Prefer to use the inquiry form instead?
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Messages */}
-      <div className="flex flex-col gap-4">
-        {viewMessages.map((msg) => (
-          <ChatMessage
-            key={msg.id}
-            message={msg}
-            isStreaming={msg.role === "assistant" && msg.id === streamingId}
-          />
-        ))}
-      </div>
-
-      {/* Send error */}
-      {chatError && (
-        <Alert variant="destructive" className="mt-4">
-          <AlertDescription>
-            {chatError.message || "Something went wrong. Please try again."}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div ref={bottomRef} aria-hidden="true" />
-
-      {/* Input */}
-      <div className="sticky bottom-0 -mx-4 bg-background px-4 pb-4 pt-2 sm:-mx-6 sm:px-6">
-        <ChatInput
-          onSend={handleSend}
-          disabled={isStreaming}
-          placeholder={isStreaming ? "Waiting for response…" : "Type your message…"}
-        />
-      </div>
-    </ChatShell>
-  );
-}
-
-function ChatShell({
-  businessName,
-  businessDescription,
-  showWatermark,
-  fallbackFormHref,
-  sessionError,
-  ready,
-  children,
-}: Pick<
-  ChatInterfaceProps,
-  "businessName" | "businessDescription" | "showWatermark" | "fallbackFormHref"
-> & {
-  businessSlug: string;
-  sessionError?: string | null;
-  ready?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex h-svh flex-col bg-background">
-      {/* Header */}
+    <div className="flex h-svh flex-col overflow-hidden bg-background">
+      {/* Slim header: whose chat this is, and nothing else. */}
       <header className="flex shrink-0 items-center gap-3 border-b bg-background px-4 py-3 sm:px-6">
-        <div
-          aria-hidden="true"
-          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
-        >
-          <MessageSquare className="size-4" />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold leading-tight">
-            {businessName}
-          </p>
-          {businessDescription ? (
-            <p className="truncate text-xs text-muted-foreground">
-              {businessDescription}
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">Chat with us</p>
-          )}
-        </div>
-        {fallbackFormHref && (
-          <Button
-            asChild
-            className="ml-auto shrink-0"
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <Link href={fallbackFormHref}>Use inquiry form</Link>
-          </Button>
-        )}
+        <BusinessAvatar
+          loading="eager"
+          logoUrl={businessLogoUrl}
+          name={businessName}
+        />
+        <p className="min-w-0 truncate text-sm leading-tight font-semibold">
+          {businessName}
+        </p>
+        {!isEmpty ? (
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            <Button
+              onClick={handleNewChat}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              <MessageSquarePlus data-icon="inline-start" />
+              New chat
+            </Button>
+            {fallbackFormHref ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    aria-label="More options"
+                    size="icon-sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    <Ellipsis />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild>
+                      <Link href={fallbackFormHref}>Use inquiry form</Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+          </div>
+        ) : null}
       </header>
 
-      {/* Message list */}
-      <main
-        className="flex-1 overflow-y-auto px-4 py-6 sm:px-6"
-        aria-label="Conversation"
-        aria-live="polite"
-        aria-atomic="false"
+      {/* Three grid rows: transcript, composer, and a trailing spacer that
+          collapses on the first send so the composer glides to the bottom. */}
+      <div
+        className="chat-stage min-h-0 flex-1"
+        data-conversation={isEmpty ? "empty" : "active"}
       >
-        {sessionError && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{sessionError}</AlertDescription>
-          </Alert>
-        )}
+        <div
+          aria-atomic="false"
+          aria-label="Conversation"
+          aria-live="polite"
+          className="chat-stage-transcript ai-chat-scrollbar px-4 sm:px-6"
+          ref={containerRef}
+        >
+          <div className="chat-stage-transcript-inner mx-auto flex w-full max-w-3xl flex-1 flex-col gap-7 pt-6 pb-2">
+            {isEmpty ? (
+              <div className="motion-card-enter my-auto flex w-full flex-col items-center gap-5 py-6 text-center">
+                <BusinessAvatar
+                  loading="eager"
+                  logoUrl={businessLogoUrl}
+                  name={businessName}
+                  size="lg"
+                />
+                <p className="text-xl font-medium tracking-tight text-balance sm:text-2xl">
+                  How can we help?
+                </p>
+                {fallbackFormHref ? (
+                  <p className="motion-delay-2 text-center text-xs text-muted-foreground">
+                    Prefer a form?{" "}
+                    <Link
+                      className="underline underline-offset-4 hover:text-foreground"
+                      href={fallbackFormHref}
+                    >
+                      Use the inquiry form
+                    </Link>
+                  </p>
+                ) : null}
+                <div className="w-full">
+                  <ChatComposer
+                    ariaLabel={`Message ${businessName}`}
+                    autoFocus
+                    busy={isLoading}
+                    disabled={minting}
+                    maxLength={2000}
+                    onStop={stop}
+                    onSubmit={(text) => void handleSend(text)}
+                    onValueChange={setInput}
+                    placeholder="Tell us what you're looking for"
+                    value={input}
+                  />
+                </div>
+                {recommendations.length > 0 ? (
+                  <div className="w-full">
+                    <p className="px-1 pb-1 text-left text-sm font-medium text-foreground">
+                      Recommended for you
+                    </p>
+                    <div className="flex flex-col divide-y divide-border/60">
+                      {recommendations.map((prompt) => (
+                        <button
+                          className="group flex w-full items-center gap-2 truncate px-1 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          key={prompt}
+                          onClick={() => void handleSend(prompt)}
+                          type="button"
+                        >
+                          <span className="truncate">{prompt}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
-        {children}
-      </main>
+            {turns.map((turn) =>
+              turn.kind === "user" ? (
+                <VisitorTurn key={turn.id} text={turn.text} />
+              ) : (
+                <ReplyTurn
+                  key={turn.id}
+                  streaming={isLoading && turn === lastTurn}
+                  text={turn.text}
+                />
+              ),
+            )}
+
+            {stagedProposal && cardValues ? (
+              <ProposedInquiryCard
+                approving={approving}
+                discarding={discarding}
+                onApprove={() => void handleApprove()}
+                onDiscard={() => void handleDiscard()}
+                onValuesChange={setCardValues}
+                proposal={stagedProposal}
+                serverError={proposalError}
+                values={cardValues}
+              />
+            ) : proposalError && !stagedProposal ? (
+              <p className="text-sm text-destructive" role="alert">
+                {proposalError}
+              </p>
+            ) : null}
+
+            {statusLabel ? <ChatStatusLine label={statusLabel} /> : null}
+
+            {noticeText ? (
+              <Alert variant="destructive">
+                <AlertDescription>{noticeText}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            {error && !noticeText ? (
+              <Alert variant="destructive">
+                <AlertDescription>
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    {friendlyAgentError(error.message || "")}
+                    {fallbackFormHref ? (
+                      <Link
+                        className="underline underline-offset-4 hover:text-foreground"
+                        href={fallbackFormHref}
+                      >
+                        Use the inquiry form
+                      </Link>
+                    ) : null}
+                    <Button
+                      aria-label="Retry response"
+                      onClick={() => void regenerate()}
+                      size="icon-xs"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <RotateCcw />
+                    </Button>
+                  </span>
+                </AlertDescription>
+              </Alert>
+            ) : null}
+          </div>
+        </div>
+
+        {!isEmpty ? (
+          <div className="sticky bottom-0 z-10 bg-background/95 backdrop-blur-xs px-4 pb-4 pt-2 sm:px-6">
+            {detached ? <ChatJumpToLatest onJump={jumpToLatest} /> : null}
+            <div className="mx-auto w-full max-w-3xl">
+              <ChatComposer
+                ariaLabel={`Message ${businessName}`}
+                busy={isLoading}
+                disabled={minting}
+                maxLength={2000}
+                onStop={stop}
+                onSubmit={(text) => void handleSend(text)}
+                onValueChange={setInput}
+                placeholder="Tell us what you're looking for"
+                value={input}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        <div aria-hidden="true" />
+      </div>
 
       {showWatermark ? (
-        <MadeWithRequo className="bottom-20 right-4 sm:right-6" />
+        <div className="flex shrink-0 justify-center pb-4">
+          <MadeWithRequo className="static" />
+        </div>
       ) : null}
+    </div>
+  );
+}
 
-      {!ready && <div aria-hidden="true" />}
+// ---------------------------------------------------------------------------
+// Turns
+// ---------------------------------------------------------------------------
+
+/** The one bubble on the surface: what the visitor said. */
+function VisitorTurn({ text }: { text: string }) {
+  return (
+    <div className="flex justify-end">
+      <div className="motion-card-enter max-w-[85%] rounded-2xl bg-muted px-4 py-2.5 text-[0.95rem] whitespace-pre-wrap text-foreground">
+        {text}
+      </div>
+    </div>
+  );
+}
+
+/** The business's reply: plain prose, with a copy action once it has landed. */
+function ReplyTurn({
+  streaming,
+  text,
+}: {
+  streaming: boolean;
+  text: string;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <ChatMarkdown content={text} streaming={streaming} />
+      {streaming ? null : <CopyButton label="Copy reply" value={text} />}
     </div>
   );
 }

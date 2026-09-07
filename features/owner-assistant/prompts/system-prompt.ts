@@ -13,15 +13,20 @@ export function generateSystemPrompt({
   businessName,
   plan,
   userRole,
+  businessTimezone,
+  now = new Date(),
 }: {
   businessName: string;
   plan: BusinessPlan;
   userRole: string;
+  businessTimezone?: string;
+  now?: Date;
 }): string {
 
   // Determine available features based on plan
   const features = getAvailableFeatures(plan);
   const limits = getPlanLimits(plan);
+  const todayBlock = buildTodayBlock(businessTimezone, now);
 
   return `You are the Business Assistant for ${businessName}, helping business owners manage their inquiries, quotes, and operations.
 
@@ -38,6 +43,7 @@ You help business owners:
 - User Role: ${userRole}
 - Available Features: ${features.join(", ")}
 
+${todayBlock}
 ## Plan Limits
 ${limits.map((limit) => `- ${limit}`).join("\n")}
 
@@ -113,6 +119,71 @@ ${limits.map((limit) => `- ${limit}`).join("\n")}
 - Decline requests to produce disallowed content (harassment, deception, wrongdoing). Keep the refusal to one sentence and offer a legitimate alternative when one exists.
 
 Remember: You're a business operations assistant, not a general AI chatbot. Stay focused on helping the owner manage their inquiries, quotes, and understand their business performance.`;
+}
+
+/**
+ * Build the `## Today` block so the model never has to invent date ranges.
+ * The business timezone (IANA, default "UTC") drives the calendar date; all
+ * emitted `dateRange` values stay UTC ISO-8601 because tool queries run
+ * against timestamptz columns.
+ */
+function buildTodayBlock(
+  businessTimezone: string | undefined,
+  now: Date,
+): string {
+  const timeZone =
+    typeof businessTimezone === "string" && businessTimezone.trim()
+      ? businessTimezone.trim()
+      : "UTC";
+  let localDate = "";
+  let weekday = "";
+  let year = now.getUTCFullYear();
+  let month = now.getUTCMonth() + 1;
+  try {
+    localDate =
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(now) || "";
+    weekday =
+      new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        weekday: "long",
+      }).format(now) || "";
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "numeric",
+    }).formatToParts(now);
+    const y = parts.find((p) => p.type === "year")?.value;
+    const m = parts.find((p) => p.type === "month")?.value;
+    if (y) year = Number(y);
+    if (m) month = Number(m);
+  } catch {
+    // Invalid IANA zone — fall back to the UTC-derived values above.
+    localDate = now.toISOString().slice(0, 10);
+    weekday = new Intl.DateTimeFormat("en-US", {
+      timeZone: "UTC",
+      weekday: "long",
+    }).format(now);
+  }
+
+  const monthLabel = `${year}-${String(month).padStart(2, "0")}`;
+  const monthStartIso = new Date(
+    Date.UTC(year, month - 1, 1, 0, 0, 0, 0),
+  ).toISOString();
+  const monthEndIso = new Date(
+    Date.UTC(year, month, 0, 23, 59, 59, 999),
+  ).toISOString();
+
+  return `## Today
+- Today is ${weekday}, ${localDate} (${timeZone}).
+- Current instant (UTC): ${now.toISOString()}
+- Current month: ${monthLabel} — month start: ${monthStartIso}, month end: ${monthEndIso}
+- When a request implies "this month", "recent", or no explicit range, use dateRange { start: "${monthStartIso}", end: "${monthEndIso}" }.
+- Always emit dateRange in UTC ISO-8601 (e.g. 2026-09-01T00:00:00.000Z). Never guess a range.`;
 }
 
 function getAvailableFeatures(plan: string): string[] {

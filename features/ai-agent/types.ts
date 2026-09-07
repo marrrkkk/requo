@@ -39,6 +39,38 @@ export type QualificationState = {
   missing: string[]; // Which fields are still needed
 };
 
+/**
+ * A Proposed Inquiry: the structured result of Qualification, put to the
+ * prospective customer (visitor) for approval before it becomes an Inquiry.
+ * Staged in the Agent Session's existing state column alongside Qualification
+ * data. A session holds at most one — a revision supersedes rather than
+ * versions. No schema migration.
+ */
+export type ProposedInquiryStatus = "pending" | "approved" | "discarded";
+
+export type ProposedInquiry = {
+  id: string; // identifies this proposal for exactly-once consumption
+  values: {
+    customerName: string;
+    customerEmail?: string | null;
+    customerContactMethod: string;
+    customerContactHandle: string;
+    serviceCategory: string;
+    details: string;
+    budgetText?: string;
+    requestedDeadline?: string;
+    additionalFields?: Record<string, unknown>;
+  };
+  proposedAt: string;
+  status: ProposedInquiryStatus;
+  inquiryId?: string; // set once approved
+};
+
+/** Full session state: Qualification plus the single staged proposal. */
+export type AgentSessionState = QualificationState & {
+  proposedInquiry?: ProposedInquiry | null;
+};
+
 // Session metadata
 export type SessionMetadata = {
   userAgent?: string;
@@ -123,6 +155,9 @@ export type ServicesResult = {
   services: Array<{
     value: string;
     label: string;
+    description?: string;
+    highlights?: string[];
+    url?: string;
   }>;
 };
 

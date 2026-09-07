@@ -1,10 +1,16 @@
 import "server-only";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { cache } from "react";
 
 import { db } from "@/lib/db/client";
-import { aiAgentSessions, aiAgentMessages, businesses, inquiries } from "@/lib/db/schema";
+import {
+  aiAgentSessions,
+  aiAgentMessages,
+  businesses,
+  businessInquiryForms,
+  inquiries,
+} from "@/lib/db/schema";
 import type { BusinessPlan } from "@/lib/plans/plans";
 
 export type PublicAgentBusiness = {
@@ -12,6 +18,8 @@ export type PublicAgentBusiness = {
   name: string;
   slug: string;
   shortDescription: string | null;
+  /** Public logo endpoint, cache-busted by the business's last update. */
+  logoUrl: string | null;
   aiAgentEnabled: boolean;
   plan: BusinessPlan;
 };
@@ -29,6 +37,8 @@ export const getPublicAgentBusiness = cache(
         name: businesses.name,
         slug: businesses.slug,
         shortDescription: businesses.shortDescription,
+        logoStoragePath: businesses.logoStoragePath,
+        updatedAt: businesses.updatedAt,
         aiAgentEnabled: businesses.aiAgentEnabled,
         plan: businesses.plan,
       })
@@ -37,9 +47,70 @@ export const getPublicAgentBusiness = cache(
       .limit(1);
 
     if (!row) return null;
-    return row;
+
+    const { logoStoragePath, updatedAt, ...business } = row;
+    return {
+      ...business,
+      logoUrl: logoStoragePath
+        ? `/api/public/businesses/${row.slug}/logo?v=${updatedAt.getTime()}`
+        : null,
+    };
   },
 );
+
+export type PublicAgentStarterForm = {
+  name: string;
+  slug: string;
+};
+
+/**
+ * Active public inquiry forms for starter recommendations. Public data only:
+ * non-archived forms with public inquiry enabled, default first.
+ */
+export const getPublicAgentStarterForms = cache(
+  async (businessId: string): Promise<PublicAgentStarterForm[]> => {
+    const rows = await db
+      .select({
+        name: businessInquiryForms.name,
+        slug: businessInquiryForms.slug,
+      })
+      .from(businessInquiryForms)
+      .where(
+        and(
+          eq(businessInquiryForms.businessId, businessId),
+          isNull(businessInquiryForms.archivedAt),
+          eq(businessInquiryForms.publicInquiryEnabled, true),
+        ),
+      )
+      .orderBy(
+        desc(businessInquiryForms.isDefault),
+        asc(businessInquiryForms.name),
+      )
+      .limit(4);
+    return rows;
+  },
+);
+
+/**
+ * Starter prompts derived from what the business actually offers: its
+ * public inquiry forms, plus a services question answered from its profile.
+ */
+export function buildAgentRecommendations({
+  businessName,
+  forms,
+}: {
+  businessName: string;
+  forms: PublicAgentStarterForm[];
+}): string[] {
+  const recommendations = [`What services does ${businessName} offer?`];
+  for (const form of forms.slice(0, 3)) {
+    recommendations.push(`Start a ${form.name} request`);
+  }
+  if (recommendations.length === 1) {
+    recommendations.push("How do I get a quote?");
+  }
+  return recommendations.slice(0, 5);
+}
 
 // ---------------------------------------------------------------------------
 // Inquiry-scoped transcript

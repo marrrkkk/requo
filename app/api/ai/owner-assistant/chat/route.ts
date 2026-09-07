@@ -89,6 +89,7 @@ export async function POST(request: Request) {
       userId: session.user.id,
       userRole: role,
       plan: business.plan,
+      businessTimezone: business.timezone,
       sessionId,
       messages: messages.map((message) => ({
         role: message.role as "user" | "assistant",

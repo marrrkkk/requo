@@ -20,6 +20,10 @@ function createId(prefix: string): string {
 
 /**
  * Add a message to a session.
+ *
+ * Empty user/assistant rows are dropped: they render as blank turns and, on
+ * the owner surface, poison the next turn at the provider. Tool rows may
+ * legitimately hold `"{}"`, so they are exempt.
  */
 export async function addAgentMessage({
   sessionId,
@@ -40,6 +44,23 @@ export async function addAgentMessage({
   model?: string;
   metadata?: MessageMetadata;
 }): Promise<AgentMessage> {
+  if ((role === "user" || role === "assistant") && !content.trim()) {
+    // Return a lightweight placeholder without a DB write so callers that
+    // chain on the result keep working. The row must never exist.
+    return {
+      id: `skipped-empty-${Date.now()}`,
+      sessionId,
+      role,
+      content: "",
+      toolName: toolName ?? null,
+      toolCallId: toolCallId ?? null,
+      provider: provider ?? null,
+      model: model ?? null,
+      metadata,
+      createdAt: new Date(),
+    } as AgentMessage;
+  }
+
   const messageId = createId("agm");
   const now = new Date();
 
@@ -77,7 +98,8 @@ export async function loadConversationHistory(
     .select()
     .from(aiAgentMessages)
     .where(eq(aiAgentMessages.sessionId, sessionId))
-    .orderBy(asc(aiAgentMessages.createdAt));
+    // (createdAt, id) keeps same-millisecond rows in a stable order.
+    .orderBy(asc(aiAgentMessages.createdAt), asc(aiAgentMessages.id));
 
   if (options?.limit) {
     query.limit(options.limit);
@@ -102,7 +124,8 @@ export async function loadRecentMessages(
     .select()
     .from(aiAgentMessages)
     .where(eq(aiAgentMessages.sessionId, sessionId))
-    .orderBy(desc(aiAgentMessages.createdAt))
+    // (createdAt, id) keeps same-millisecond rows in a stable order.
+    .orderBy(desc(aiAgentMessages.createdAt), desc(aiAgentMessages.id))
     .limit(limit);
 
   // Reverse to get chronological order
@@ -140,7 +163,8 @@ export async function countSessionMessagesByRole(
  * Build conversation history for the AI SDK.
  * Filters to user and assistant messages only, formats for the SDK.
  * Windowed to the most recent `limit` messages so a long session cannot grow
- * the prompt without bound.
+ * the prompt without bound. Empty rows (from before the empty-content guard)
+ * are dropped: the Google provider rejects messages with no parts.
  */
 export async function buildAiSdkMessages(
   sessionId: string,
@@ -151,6 +175,7 @@ export async function buildAiSdkMessages(
   // Filter to user and assistant messages only
   return messages
     .filter((m) => m.role === "user" || m.role === "assistant")
+    .filter((m) => m.content.trim().length > 0)
     .map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,

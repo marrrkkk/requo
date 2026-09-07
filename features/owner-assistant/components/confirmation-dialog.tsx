@@ -119,7 +119,7 @@ export function ConfirmationDialog({
         <AlertDialogHeader>
           {/* Risk warning icon */}
           <div
-            className="mx-auto mb-2 flex size-10 items-center justify-center rounded-full bg-amber-100 sm:mx-0 dark:bg-amber-900/30"
+            className="mx-auto mb-2 flex size-8 items-center justify-center rounded-full bg-amber-100 sm:mx-0 dark:bg-amber-900/30"
             aria-hidden="true"
           >
             <AlertTriangle className="size-5 text-amber-700 dark:text-amber-400" />
@@ -134,7 +134,7 @@ export function ConfirmationDialog({
         {/* Operation parameters */}
         {displayedParams.length > 0 && (
           <div className="rounded-lg border border-border/70 bg-muted/40 px-4 py-3">
-            <p className="mb-2 text-[0.68rem] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+            <p className="mb-2 meta-label">
               Operation details
             </p>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">

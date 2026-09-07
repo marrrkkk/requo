@@ -26,18 +26,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Enable and configure the public chat for customers.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * Public chat settings page at `/[businessSlug]/assistant/settings`.

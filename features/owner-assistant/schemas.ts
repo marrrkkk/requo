@@ -20,7 +20,7 @@ export const dateRangeSchema = z.object({
 
 export const searchInquiriesSchema = z.object({
   status: z
-    .enum(["new", "quoted", "waiting", "won", "lost", "archived"])
+    .enum(["new", "quoted", "waiting", "won", "lost", "archived", "overdue"])
     .optional(),
   dateRange: dateRangeSchema.optional(),
   customerEmail: z.string().email().optional(),

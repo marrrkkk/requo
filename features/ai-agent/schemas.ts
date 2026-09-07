@@ -27,6 +27,32 @@ export const qualificationStateSchema = z.object({
   missing: z.array(z.string()),
 });
 
+// Create inquiry tool (also the propose tool input — every field the
+// inquiry-params schema accepts is editable on the card)
+export const createInquiryParamsSchema = z.object({
+  customerName: z.string().min(1, "Customer name is required"),
+  customerEmail: z.string().email("Invalid email").optional(),
+  customerContactMethod: z.string().min(1, "Contact method is required"),
+  customerContactHandle: z.string().min(1, "Contact handle is required"),
+  serviceCategory: z.string().min(1, "Service category is required"),
+  details: z.string().min(1, "Details are required"),
+  budgetText: z.string().optional(),
+  requestedDeadline: z.string().optional(),
+  additionalFields: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const proposedInquirySchema = z.object({
+  id: z.string().min(1),
+  values: createInquiryParamsSchema,
+  proposedAt: z.string().min(1),
+  status: z.enum(["pending", "approved", "discarded"]),
+  inquiryId: z.string().optional(),
+});
+
+export const agentSessionStateSchema = qualificationStateSchema.extend({
+  proposedInquiry: proposedInquirySchema.nullable().optional(),
+});
+
 // Session metadata schema
 export const sessionMetadataSchema = z.object({
   userAgent: z.string().optional(),
@@ -60,15 +86,32 @@ export const runMetadataSchema = z.object({
 
 // API request schema for chat endpoint.
 // UI transport sends `messages`; the legacy text client sends `content`.
+// Card edits ride along on the existing chat request body: every send persists
+// the current card values to the staged proposal before the model runs, which
+// is what makes chat revision and manual editing compose instead of
+// clobbering each other.
 export const agentChatRequestSchema = z
   .object({
     sessionToken: z.string().min(1, "Session token is required"),
     content: z.string().min(1, "Message content is required").max(2000, "Message too long").optional(),
     messages: z.array(z.unknown()).min(1).optional(),
+    proposedInquiryValues: createInquiryParamsSchema.partial().optional(),
   })
   .refine((value) => value.content ?? value.messages, {
     message: "Message content is required",
   });
+
+// Approval / discard request schemas (authorised by session token, not auth).
+export const approveProposalRequestSchema = z.object({
+  sessionToken: z.string().min(1, "Session token is required"),
+  values: createInquiryParamsSchema,
+  proposalId: z.string().min(1).optional(),
+});
+
+export const discardProposalRequestSchema = z.object({
+  sessionToken: z.string().min(1, "Session token is required"),
+  proposalId: z.string().min(1).optional(),
+});
 
 // Session creation input schema
 export const createSessionInputSchema = z.object({
@@ -127,7 +170,6 @@ export const updateRunInputSchema = z.object({
   completedAt: z.date().optional(),
   metadata: runMetadataSchema.optional(),
 });
-
 // Tool parameter schemas
 
 // Search knowledge tool
@@ -140,19 +182,6 @@ export const getBusinessInfoParamsSchema = z.object({});
 
 // Get services tool (no parameters)
 export const getServicesParamsSchema = z.object({});
-
-// Create inquiry tool
-export const createInquiryParamsSchema = z.object({
-  customerName: z.string().min(1, "Customer name is required"),
-  customerEmail: z.string().email("Invalid email").optional(),
-  customerContactMethod: z.string().min(1, "Contact method is required"),
-  customerContactHandle: z.string().min(1, "Contact handle is required"),
-  serviceCategory: z.string().min(1, "Service category is required"),
-  details: z.string().min(1, "Details are required"),
-  budgetText: z.string().optional(),
-  requestedDeadline: z.string().optional(),
-  additionalFields: z.record(z.string(), z.unknown()).optional(),
-});
 
 // Request human handoff tool
 export const requestHumanHandoffParamsSchema = z.object({

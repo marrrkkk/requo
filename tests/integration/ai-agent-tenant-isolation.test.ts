@@ -11,7 +11,7 @@ vi.mock("@/features/memory/retrieval", () => ({
   retrieveBusinessKnowledge: vi.fn(),
 }));
 
-import { businesses } from "@/lib/db/schema";
+import { businessInquiryForms, businesses } from "@/lib/db/schema";
 import { loadSessionByToken } from "@/features/ai-agent/session-service";
 import { retrieveBusinessKnowledge } from "@/features/memory/retrieval";
 import { getBusinessInfoTool } from "@/features/ai-agent/tools/get-business-info";
@@ -84,11 +84,11 @@ describe("ai-agent tenant isolation", () => {
     expect(Object.keys(result).sort()).toEqual(["contact", "description", "name"]);
   });
 
-  it("returns no services when the form config has no service category options", async () => {
+  it("returns no services when services are disabled for public inquiry", async () => {
     await testDb
-      .update(businesses)
-      .set({ inquiryFormConfig: null })
-      .where(eq(businesses.id, ids.businessId));
+      .update(businessInquiryForms)
+      .set({ publicInquiryEnabled: false })
+      .where(eq(businessInquiryForms.businessId, ids.businessId));
 
     const session = await createActiveAgentSession(ids.businessId);
     const context = await createAgentToolContext(session.publicToken);
@@ -99,38 +99,14 @@ describe("ai-agent tenant isolation", () => {
       { experimental_context: context },
     );
 
-    expect(result).toEqual({ services: [] });
+    expect(result.services).toEqual([]);
   });
 
-  it("returns service options from the session business's own form config", async () => {
+  it("returns live services scoped to the session business only", async () => {
     await testDb
-      .update(businesses)
-      .set({
-        inquiryFormConfig: {
-          version: 1,
-          businessType: "print_signage",
-          groupLabels: { contact: "Contact", project: "Project" },
-          contactFields: {
-            customerName: { label: "Name", placeholder: "Name", enabled: true, required: true },
-            preferredContact: { label: "Preferred contact", placeholder: "Email", enabled: true, required: false },
-          },
-          projectFields: [
-            {
-              kind: "custom",
-              id: "serviceCategory",
-              fieldType: "select",
-              label: "Service needed",
-              placeholder: "Choose a service",
-              required: true,
-              options: [
-                { id: "storefront-signage", value: "Storefront signage", label: "Storefront signage" },
-                { id: "vehicle-decals", value: "Vehicle decals", label: "Vehicle decals" },
-              ],
-            },
-          ],
-        },
-      })
-      .where(eq(businesses.id, ids.businessId));
+      .update(businessInquiryForms)
+      .set({ publicInquiryEnabled: true })
+      .where(eq(businessInquiryForms.businessId, ids.businessId));
 
     const session = await createActiveAgentSession(ids.businessId);
     const context = await createAgentToolContext(session.publicToken);
@@ -141,14 +117,10 @@ describe("ai-agent tenant isolation", () => {
       { experimental_context: context },
     );
 
-    expect(result).toEqual({
-      services: [
-        { value: "Storefront signage", label: "Storefront signage" },
-        { value: "Vehicle decals", label: "Vehicle decals" },
-      ],
-    });
+    expect(result.services.map((s) => s.label)).toEqual(["Workflow Form"]);
+    expect(result.services.map((s) => s.value)).toEqual(["workflow-form"]);
 
-    // The other business keeps its own (empty) config and never sees A's options.
+    // The other business never sees business A's services.
     const otherSession = await createActiveAgentSession(ids.otherBusinessId);
     const otherContext = await createAgentToolContext(otherSession.publicToken);
     const otherResult = await runAgentTool<{ services: Array<{ value: string; label: string }> }>(
@@ -157,7 +129,7 @@ describe("ai-agent tenant isolation", () => {
       { experimental_context: otherContext },
     );
 
-    expect(otherResult).toEqual({ services: [] });
+    expect(otherResult.services.map((s) => s.label)).toEqual(["Other Workflow Form"]);
   });
 
   it("forwards the session business id to the knowledge retriever", async () => {

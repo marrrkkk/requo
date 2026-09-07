@@ -244,7 +244,11 @@ describe("owner assistant sessions & messages", () => {
       });
 
       // All sessions should belong to the specified business and user
-      sessions.forEach((session: any) => {
+      type SessionRow = Awaited<
+        ReturnType<typeof listRecentSessions>
+      >[number];
+
+      sessions.forEach((session: SessionRow) => {
         expect(session.businessId).toBe(ids.businessId);
         expect(session.userId).toBe(ids.ownerUserId);
       });

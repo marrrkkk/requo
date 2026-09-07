@@ -3,24 +3,42 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ChevronsLeft,
-  ChevronsRight,
-  History,
-  MessageSquarePlus,
-  Pencil,
-  Trash2,
-} from "lucide-react";
+import { History, MessageSquareDashed, Pencil, Trash2 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { getBusinessAssistantPath } from "@/features/businesses/routes";
 import {
   deleteAssistantSessionAction,
   listAssistantSessionsAction,
   renameAssistantSessionAction,
 } from "@/features/owner-assistant/actions";
+import { forgetLiveConversation } from "@/features/owner-assistant/live-chat-store";
 
 type HistoryItem = {
   id: string;
@@ -31,90 +49,85 @@ type HistoryItem = {
 
 const PAGE_SIZE = 20;
 
-export function AssistantHistorySidebar({
+/**
+ * Conversation history for the Assistant, opened from a button in the chat
+ * header. Mirrors the notification bell: a popover on desktop, a bottom sheet
+ * on mobile.
+ */
+export function AssistantHistoryPanel({
   businessSlug,
   activeSessionId,
 }: {
   businessSlug: string;
   activeSessionId?: string | null;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const isMobile = useIsMobile();
+  const [open, setOpen] = useState(false);
+
+  const trigger = (
+    <Button
+      aria-label="Open conversation history"
+      size="icon-sm"
+      type="button"
+      variant="ghost"
+    >
+      <History className="size-4" />
+    </Button>
+  );
+
+  const content = (
+    <HistoryList
+      businessSlug={businessSlug}
+      activeSessionId={activeSessionId}
+      open={open}
+      onNavigate={() => setOpen(false)}
+    />
+  );
+
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger asChild>{trigger}</SheetTrigger>
+        <SheetContent
+          className="h-[min(34rem,calc(100dvh-0.75rem))] rounded-t-2xl"
+          side="bottom"
+          showCloseButton={false}
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Conversations</SheetTitle>
+            <SheetDescription>
+              Open, rename, or delete a saved conversation.
+            </SheetDescription>
+          </SheetHeader>
+          <SheetBody className="gap-0 p-0">{content}</SheetBody>
+        </SheetContent>
+      </Sheet>
+    );
+  }
 
   return (
-    <>
-      {/* Desktop sidebar */}
-      <aside
-        className={cn(
-          "hidden md:flex flex-col border-r border-border/60 bg-card/30 transition-all",
-          collapsed ? "w-12" : "w-72",
-        )}
-        aria-label="Conversation history"
+    <Popover modal={false} onOpenChange={setOpen} open={open}>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="overlay-surface w-[min(23rem,calc(100vw-1.5rem))] rounded-2xl p-0"
+        sideOffset={10}
       >
-        <div className="flex items-center justify-between gap-1 p-2 border-b border-border/60">
-          {!collapsed && (
-            <span className="meta-label px-2">Conversations</span>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            onClick={() => setCollapsed((value) => !value)}
-            aria-label={collapsed ? "Expand history" : "Collapse history"}
-            aria-expanded={!collapsed}
-          >
-            {collapsed ? (
-              <ChevronsRight className="size-4" />
-            ) : (
-              <ChevronsLeft className="size-4" />
-            )}
-          </Button>
-        </div>
-        {!collapsed && (
-          <HistoryList
-            businessSlug={businessSlug}
-            activeSessionId={activeSessionId}
-            onNavigate={() => {}}
-          />
-        )}
-      </aside>
-
-      {/* Mobile: history in a sheet */}
-      <div className="md:hidden absolute left-3 top-3 z-10">
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="icon" aria-label="Open conversation history">
-              <History className="size-4" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-80 p-0 flex flex-col">
-            <SheetHeader className="p-4 pb-2 text-left">
-              <SheetTitle>Conversations</SheetTitle>
-              <SheetDescription className="sr-only">
-                Your past assistant conversations. Select one to resume it.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="flex-1 min-h-0">
-              <HistoryList
-                businessSlug={businessSlug}
-                activeSessionId={activeSessionId}
-                onNavigate={() => setMobileOpen(false)}
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
-    </>
+        {content}
+      </PopoverContent>
+    </Popover>
   );
 }
 
 function HistoryList({
   businessSlug,
   activeSessionId,
+  open,
   onNavigate,
 }: {
   businessSlug: string;
   activeSessionId?: string | null;
+  open: boolean;
   onNavigate: () => void;
 }) {
   const router = useRouter();
@@ -135,6 +148,7 @@ function HistoryList({
       if ("error" in result) {
         setError(result.error);
       } else {
+        setError(null);
         setItems((prev) =>
           append ? [...prev, ...result.sessions] : result.sessions,
         );
@@ -156,7 +170,10 @@ function HistoryList({
     applyResult(result, true);
   }, [businessSlug, items.length, applyResult]);
 
+  // Refresh when the panel opens, and whenever a turn completes so titles and
+  // ordering stay current without a page reload.
   useEffect(() => {
+    if (!open) return;
     let cancelled = false;
     const refresh = async () => {
       const result = await listAssistantSessionsAction({
@@ -174,7 +191,7 @@ function HistoryList({
       cancelled = true;
       window.removeEventListener("assistant:history-changed", refresh);
     };
-  }, [businessSlug, activeSessionId, applyResult]);
+  }, [businessSlug, activeSessionId, applyResult, open]);
 
   const hasMore = items.length < total;
 
@@ -206,31 +223,38 @@ function HistoryList({
     if (!("error" in result)) {
       setItems((prev) => prev.filter((item) => item.id !== id));
       setTotal((prev) => Math.max(0, prev - 1));
+      // Drop the live copy too, or the deleted conversation would come straight
+      // back as this business's last-active chat.
+      forgetLiveConversation({ businessSlug, sessionId: id });
       if (id === activeSessionId) {
-        router.push(`/${businessSlug}/assistant`);
+        router.push(getBusinessAssistantPath(businessSlug));
       }
     }
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0">
-      <div className="p-2">
-        <Button
-          variant="outline"
-          className="w-full justify-start gap-2"
-          onClick={() => {
-            onNavigate();
-            router.push(`/${businessSlug}/assistant`);
-          }}
-        >
-          <MessageSquarePlus className="size-4" />
-          New chat
-        </Button>
+    <>
+      <div className="flex items-center justify-between gap-3 px-4 py-4">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground">Conversations</p>
+          <p className="text-xs text-muted-foreground">
+            {total
+              ? `${total} saved ${total === 1 ? "conversation" : "conversations"}`
+              : "Your past chats appear here"}
+          </p>
+        </div>
       </div>
-
-      <div className="flex-1 overflow-y-auto px-2 pb-2 min-h-0" role="list" aria-label="Past conversations">
+      <Separator />
+      <div
+        aria-label="Past conversations"
+        className="max-h-[min(26rem,calc(100dvh-11rem))] overflow-y-auto overscroll-contain p-2 sm:max-h-[26rem]"
+        role="list"
+      >
         {loading ? (
-          <div className="flex flex-col gap-2 p-1" aria-label="Loading conversations">
+          <div
+            aria-label="Loading conversations"
+            className="flex flex-col gap-2 p-1"
+          >
             {[0, 1, 2, 3].map((index) => (
               <Skeleton key={index} className="h-12 w-full" />
             ))}
@@ -238,9 +262,17 @@ function HistoryList({
         ) : error ? (
           <p className="p-2 text-sm text-destructive">{error}</p>
         ) : items.length === 0 ? (
-          <p className="p-2 text-sm text-muted-foreground">
-            No conversations yet. Start a new chat above.
-          </p>
+          <Empty className="min-h-48 border-none bg-transparent p-6 shadow-none">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <MessageSquareDashed />
+              </EmptyMedia>
+              <EmptyTitle>No conversations yet</EmptyTitle>
+              <EmptyDescription>
+                Ask about your inquiries or quotes and the chat is saved here.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <ul className="flex flex-col gap-0.5">
             {items.map((item) => {
@@ -272,12 +304,12 @@ function HistoryList({
                   ) : (
                     <div
                       className={cn(
-                        "group flex items-center gap-1 rounded-lg px-2 py-2 hover:bg-muted/60",
-                        isActive && "bg-muted",
+                        "group flex items-center gap-1 rounded-xl px-2 py-2 transition-colors hover:bg-accent/45",
+                        isActive && "bg-accent/25",
                       )}
                     >
                       <Link
-                        href={`/${businessSlug}/assistant/chat/${item.id}`}
+                        href={`${getBusinessAssistantPath(businessSlug)}?session=${item.id}`}
                         onClick={onNavigate}
                         className="min-w-0 flex-1"
                         aria-current={isActive ? "page" : undefined}
@@ -342,11 +374,13 @@ function HistoryList({
               disabled={loadingMore}
               onClick={() => void loadMore()}
             >
-              {loadingMore ? "Loading…" : `Show more (${total - items.length} remaining)`}
+              {loadingMore
+                ? "Loading…"
+                : `Show more (${total - items.length} remaining)`}
             </Button>
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

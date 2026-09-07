@@ -136,6 +136,35 @@ describe("ai-agent telemetry runs", () => {
     expect(stored?.completedAt).toBeInstanceOf(Date);
   });
 
+  it("clears a prior error and reattributes the serving model on recovery", async () => {
+    const session = await createActiveAgentSession(ids.businessId);
+
+    const run = await startAgentRun({
+      businessId: ids.businessId,
+      sessionId: session.sessionId,
+      model: "openai/gpt-oss-20b",
+      provider: "groq",
+    });
+
+    await failAgentRun({ runId: run.id, error: "first candidate refused" });
+
+    await updateAgentRun({
+      runId: run.id,
+      status: "completed",
+      error: null,
+      model: "openai/gpt-oss-120b",
+      provider: "groq",
+      completedAt: new Date("2026-09-06T00:00:00.000Z"),
+    });
+
+    const stored = await loadAgentRun(run.id);
+
+    expect(stored?.status).toBe("completed");
+    expect(stored?.error).toBeNull();
+    expect(stored?.model).toBe("openai/gpt-oss-120b");
+    expect(stored?.provider).toBe("groq");
+  });
+
   it("loads runs by session and business with ordering and paging", async () => {
     const session = await createActiveAgentSession(ids.businessId);
     const session2 = await createActiveAgentSession(ids.businessId);

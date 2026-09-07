@@ -1,35 +1,67 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, type UIMessage } from "ai";
+import { getToolName, isToolUIPart, type UIMessage } from "ai";
+import { MessageSquarePlus, RotateCcw } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Send, Sparkles, Wrench } from "lucide-react";
+import { ChatComposer } from "@/components/shared/chat/chat-composer";
+import { ChatJumpToLatest } from "@/components/shared/chat/chat-jump-to-latest";
+import { ChatMarkdown } from "@/components/shared/chat/chat-markdown";
+import { ChatStatusLine } from "@/components/shared/chat/chat-status-line";
+import { CopyButton } from "@/components/shared/chat/copy-button";
+import { useChatScroll } from "@/components/shared/chat/use-chat-scroll";
+import {
+  ToolProcessDisclosure,
+  type ToolStep,
+} from "@/components/shared/chat/tool-process-disclosure";
+import { getBusinessAssistantPath } from "@/features/businesses/routes";
 import type { BusinessPlan } from "@/lib/plans/plans";
+import { cn } from "@/lib/utils";
+import { AssistantHistoryPanel } from "@/features/owner-assistant/components/assistant-history-panel";
 import { ToolResultRenderer } from "@/features/owner-assistant/components/tool-result-cards";
 import {
   confirmAssistantToolAction,
-  deleteAssistantSessionAction,
+  listAssistantSessionsAction,
 } from "@/features/owner-assistant/actions";
 import { UpgradePrompt } from "@/features/paywall/components/upgrade-prompt";
 import {
   historyToUIMessages,
   type AssistantHistoryRow,
 } from "@/features/owner-assistant/components/message-mapping";
+import {
+  getLiveChatVersion,
+  markConversationAnnounced,
+  markConversationAutoSent,
+  resolveLiveConversation,
+  setConversationDraft,
+  setConversationLimitMessage,
+  startNewConversation,
+  subscribeToLiveChat,
+} from "@/features/owner-assistant/live-chat-store";
 
 type OwnerAssistantChatProps = {
   businessSlug: string;
   businessId: string;
   userId: string;
   plan: BusinessPlan;
-  sessionId: string;
+  /** From `?session=`; null for a new chat, whose session the first send mints. */
+  sessionId: string | null;
+  /** Server-rendered transcript for `sessionId`, used only on a cold load. */
   initialMessages: AssistantHistoryRow[];
   /** Pre-filled prompt (e.g. from the dashboard home box) sent once on arrival. */
   autoPrompt?: string | null;
 };
 
+/** Present-participle labels for the tools the assistant can run. */
 const TOOL_LABELS: Record<string, string> = {
   search_inquiries: "Searching inquiries",
   get_inquiry_stats: "Calculating inquiry stats",
@@ -49,6 +81,155 @@ function toolLabel(toolName: string): string {
   return TOOL_LABELS[toolName] ?? `Using ${toolName}`;
 }
 
+/**
+ * Map provider/raw errors to plain language. Raw JSON bodies and the bare
+ * "An error occurred." string never render — detail stays in the logs.
+ */
+function friendlyAssistantError(message: string): string {
+  const lower = (message || "").toLowerCase();
+  if (
+    !message.trim() ||
+    lower.includes("an error occurred") ||
+    lower.includes("{") ||
+    lower.includes("groq") ||
+    lower.includes("cerebras") ||
+    lower.includes("gemini") ||
+    lower.includes("openrouter") ||
+    lower.includes("mistral") ||
+    lower.includes("model_not_found") ||
+    lower.includes("429") ||
+    lower.includes("500") ||
+    lower.includes("503")
+  ) {
+    return "The assistant is temporarily unavailable. Please try again in a minute.";
+  }
+  return message;
+}
+
+// ---------------------------------------------------------------------------
+// Turn grouping
+// ---------------------------------------------------------------------------
+
+/** A structured tool payload, as produced by `features/owner-assistant/tools`. */
+type ToolPayload = {
+  type?: string;
+  summary?: string;
+  confirmationId?: string;
+};
+
+type TurnBlock =
+  | { kind: "user"; id: string; text: string }
+  | {
+      kind: "assistant";
+      id: string;
+      text: string;
+      steps: ToolStep[];
+      cards: Array<{ key: string; result: ToolPayload }>;
+    };
+
+/**
+ * Collapse the message list into rendered turns.
+ *
+ * Live streaming puts a reply's text and its tool calls on one assistant
+ * message, while rehydrated history arrives as one synthetic assistant message
+ * per persisted row. Grouping consecutive assistant messages makes both shapes
+ * render identically: one reply, one tool disclosure, one copy button.
+ */
+function toTurnBlocks(messages: UIMessage[]): TurnBlock[] {
+  const blocks: TurnBlock[] = [];
+
+  for (const message of messages) {
+    if (message.role !== "user" && message.role !== "assistant") continue;
+    const parts = message.parts ?? [];
+
+    if (message.role === "user") {
+      const text = parts
+        .filter((part) => part.type === "text")
+        .map((part) => (part.type === "text" ? part.text : ""))
+        .join("")
+        .trim();
+      if (text) blocks.push({ kind: "user", id: message.id, text });
+      continue;
+    }
+
+    const last = blocks[blocks.length - 1];
+    const block: TurnBlock =
+      last && last.kind === "assistant"
+        ? last
+        : { kind: "assistant", id: message.id, text: "", steps: [], cards: [] };
+    if (block !== last) blocks.push(block);
+    if (block.kind !== "assistant") continue;
+
+    for (const part of parts) {
+      if (part.type === "text" && part.text.trim()) {
+        block.text = block.text ? `${block.text}\n\n${part.text}` : part.text;
+        continue;
+      }
+      // Live turns stream `tool-<name>` parts; rehydrated history arrives as
+      // `dynamic-tool`. Both settle here once the call has an outcome.
+      if (!isToolUIPart(part)) continue;
+      if (part.state !== "output-available" && part.state !== "output-error") {
+        continue;
+      }
+      const toolName = getToolName(part);
+      const output =
+        part.state === "output-available" &&
+        part.output &&
+        typeof part.output === "object"
+          ? (part.output as ToolPayload)
+          : null;
+      const hasArgs =
+        part.input && typeof part.input === "object"
+          ? Object.keys(part.input as Record<string, unknown>).length > 0
+          : false;
+      block.steps.push({
+        id: part.toolCallId,
+        toolName,
+        label: toolLabel(toolName),
+        input: hasArgs ? part.input : undefined,
+        failed: part.state === "output-error" || output?.type === "error",
+      });
+      if (output?.type) {
+        block.cards.push({ key: part.toolCallId, result: output });
+      }
+    }
+  }
+
+  return blocks;
+}
+
+/** The tool currently executing, if a turn is mid-flight. */
+function findActiveTool(messages: UIMessage[]): string | null {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    for (const part of messages[index].parts ?? []) {
+      if (
+        isToolUIPart(part) &&
+        (part.state === "input-streaming" || part.state === "input-available")
+      ) {
+        return getToolName(part);
+      }
+    }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Surface
+// ---------------------------------------------------------------------------
+
+/**
+ * The Assistant surface — one component for a new chat and for any saved
+ * conversation, mounted once per visit to the section.
+ *
+ * With no conversation yet the title and composer sit centred as one block;
+ * the first send collapses the trailing grid row so the composer glides to
+ * the bottom and the transcript grows above it. The session is minted by
+ * that first request (the route returns `X-Session-Id`) and recorded in the
+ * URL as `?session=…`, so a reload lands back on it.
+ *
+ * The conversation is held in a module-level store rather than in React state,
+ * which is what lets it survive route refreshes and navigation away.
+ */
 export function OwnerAssistantChat({
   businessSlug,
   businessId,
@@ -58,393 +239,493 @@ export function OwnerAssistantChat({
   initialMessages,
   autoPrompt,
 }: OwnerAssistantChatProps) {
-  const router = useRouter();
-  const [input, setInput] = useState("");
-  const [limitMessage, setLimitMessage] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
-  const cleanedEmptyRef = useRef(false);
-  const autoSentRef = useRef(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const assistantPath = getBusinessAssistantPath(businessSlug);
 
-  const limitFetch: typeof fetch = useCallback(
-    async (requestInput, requestInit) => {
-      const response = await fetch(requestInput, requestInit);
-      if (response.status === 429) {
-        const data = await response
-          .clone()
-          .json()
-          .catch(() => null);
-        if (data && typeof data === "object" && "upgradeRequired" in data) {
-          setLimitMessage(
-            typeof data.error === "string"
-              ? data.error
-              : "You've reached your Assistant message limit.",
-          );
-        }
-      }
-      return response;
-    },
-    [],
+  /**
+   * The conversation itself lives outside React (`live-chat-store`), so a route
+   * refresh, a server action, or a trip to another dashboard page cannot throw
+   * away the transcript or cut off a stream. Coming back through the sidebar
+   * reopens whatever was last open in this business.
+   */
+  const [conversation, setConversation] = useState(() =>
+    resolveLiveConversation({
+      userId,
+      businessSlug,
+      sessionId,
+      // A `?q=` hand-off from the dashboard is a new question, not a resume.
+      preferNew: Boolean(autoPrompt),
+      // Read lazily: the server transcript is only touched when a conversation
+      // has to be built from scratch — a live one always outranks a snapshot.
+      history: () => initialMessages,
+    }),
   );
 
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        api: "/api/ai/owner-assistant/chat",
-        body: { businessSlug, sessionId },
-        fetch: limitFetch,
-      }),
-    [businessSlug, sessionId, limitFetch],
+  // Store writes (a minted session, composer text, a plan-limit notice) happen
+  // outside React state, so re-render on the store's version instead.
+  useSyncExternalStore(
+    subscribeToLiveChat,
+    getLiveChatVersion,
+    getLiveChatVersion,
   );
 
-  const startingMessages = useMemo(
-    () => historyToUIMessages(initialMessages),
-    [initialMessages],
+  const conversationKey = conversation.key;
+  const activeSessionId = conversation.sessionId;
+  const input = conversation.draft;
+  const limitMessage = conversation.limitMessage;
+
+  const setInput = useCallback(
+    (value: string) => setConversationDraft(conversationKey, value),
+    [conversationKey],
   );
 
-  const { messages, sendMessage, status, error, setMessages, stop } =
-    useChat<UIMessage>({
-      id: sessionId,
-      messages: startingMessages,
-      transport,
+  const setLimitMessage = useCallback(
+    (value: string | null) =>
+      setConversationLimitMessage(conversationKey, value),
+    [conversationKey],
+  );
+
+  // The URL can point at a different conversation than the one on screen — the
+  // history panel links to `?session=…`, and a reload arrives cold. Adopt it in
+  // place rather than remounting the surface.
+  useEffect(() => {
+    const next = resolveLiveConversation({
+      userId,
+      businessSlug,
+      sessionId,
+      history: () => initialMessages,
     });
+    // Syncing the router's URL — an external system — into the mounted surface.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setConversation((current) => (current === next ? current : next));
+  }, [businessSlug, initialMessages, sessionId, userId]);
+
+  const { messages, sendMessage, regenerate, status, error, setMessages, stop } =
+    useChat<UIMessage>({ chat: conversation.chat });
 
   const isLoading = status === "submitted" || status === "streaming";
+  const blocks = useMemo(() => toTurnBlocks(messages), [messages]);
+  const activeTool = useMemo(
+    () => (isLoading ? findActiveTool(messages) : null),
+    [isLoading, messages],
+  );
+  const isEmpty = blocks.length === 0 && !isLoading;
+  const lastBlock = blocks[blocks.length - 1];
+  const streamingText =
+    isLoading && lastBlock?.kind === "assistant" && lastBlock.text.length > 0;
+  const statusLabel = !isLoading
+    ? null
+    : activeTool
+      ? toolLabel(activeTool)
+      : streamingText
+        ? null
+        : "Thinking";
+
+  const transcriptKey = useMemo(() => {
+    const lastText =
+      lastBlock?.kind === "assistant"
+        ? lastBlock.text.length
+        : lastBlock?.kind === "user"
+          ? lastBlock.text.length
+          : 0;
+    return `${blocks.length}:${lastText}:${statusLabel ?? ""}:${messages.length}`;
+  }, [blocks.length, lastBlock, messages.length, statusLabel]);
+
+  const { containerRef, detached, scrollToLatestSmooth, jumpToLatest } =
+    useChatScroll({
+      contentKey: transcriptKey,
+      streaming: isLoading,
+    });
 
   const refreshFromSession = useCallback(async () => {
+    const id = activeSessionId;
+    if (!id) return;
     const response = await fetch(
-      `/api/ai/owner-assistant/session/${sessionId}?businessSlug=${businessSlug}`,
+      `/api/ai/owner-assistant/session/${id}?businessSlug=${businessSlug}`,
     );
     if (!response.ok) return;
     const data = await response.json();
     setMessages(historyToUIMessages(data.messages ?? []));
-  }, [sessionId, businessSlug, setMessages]);
+  }, [activeSessionId, businessSlug, setMessages]);
 
-  // Deliver the home-box prompt without a second user action.
-  useEffect(() => {
-    if (!autoPrompt || autoSentRef.current || status !== "ready") return;
-    if (startingMessages.length > 0) return;
-    autoSentRef.current = true;
-    void sendMessage({ text: autoPrompt });
-    router.replace(`/${businessSlug}/assistant/chat/${sessionId}`);
-  }, [
-    autoPrompt,
-    status,
-    startingMessages.length,
-    sendMessage,
-    router,
-    businessSlug,
-    sessionId,
-  ]);
-
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, status]);
-
-  // Tell the history sidebar to refresh once a turn completes (titles,
-  // ordering) without a full page reload.
-  const announcedRef = useRef(0);
-  useEffect(() => {
-    if (status === "ready" && messages.length > announcedRef.current) {
-      announcedRef.current = messages.length;
-      window.dispatchEvent(new CustomEvent("assistant:history-changed"));
-    }
-  }, [status, messages.length]);
+  /**
+   * Read at send time rather than captured once, so the session id minted by
+   * the first send is attached to every message after it.
+   */
+  const requestBody = useCallback(
+    () => ({
+      businessSlug,
+      sessionId: activeSessionId ?? undefined,
+    }),
+    [activeSessionId, businessSlug],
+  );
 
   const handleSend = useCallback(
-    (messageContent?: string) => {
-      const content = (messageContent ?? input).trim();
-      if (!content || isLoading) return;
+    (text: string) => {
+      if (isLoading) return;
       setInput("");
       setLimitMessage(null);
-      void sendMessage({ text: content });
+      void sendMessage({ text }, { body: requestBody() });
+      // Deliberate, smooth — acknowledges the reader's own send.
+      scrollToLatestSmooth();
     },
-    [input, isLoading, sendMessage],
+    [
+      isLoading,
+      requestBody,
+      scrollToLatestSmooth,
+      sendMessage,
+      setInput,
+      setLimitMessage,
+    ],
   );
 
-  // If the very first send fails, remove the otherwise-empty session so
-  // history contains only real conversations.
+  // Start over without a navigation: a fresh conversation, whose session the
+  // next send mints.
+  const handleNewChat = useCallback(() => {
+    stop();
+    setConversation(startNewConversation({ userId, businessSlug }));
+  }, [businessSlug, stop, userId]);
+
+  /**
+   * Keep the URL on the live conversation, as a search param on this same
+   * route. A path change (the old `/assistant/chat/<id>`) leaves the router's
+   * canonical URL disagreeing with the mounted page, and the next refresh
+   * settles that by swapping the page segment out from under an open stream.
+   * Rewriting in place also drops `?q=`, so a reload cannot resend a hand-off.
+   *
+   * No dependency list on purpose: the guard is two string reads, and the URL
+   * changes underneath this surface (sidebar link, history traversal) without
+   * any prop or store value changing.
+   */
   useEffect(() => {
-    if (
-      error &&
-      startingMessages.length === 0 &&
-      messages.filter((m) => m.role === "user").length <= 1 &&
-      !cleanedEmptyRef.current
-    ) {
-      cleanedEmptyRef.current = true;
-      void deleteAssistantSessionAction({ businessSlug, sessionId }).catch(
-        () => {},
-      );
+    // A render that lands while the router is already on another page must not
+    // drag the URL back to the Assistant.
+    if (window.location.pathname !== assistantPath) return;
+    const target = activeSessionId
+      ? `${assistantPath}?session=${activeSessionId}`
+      : assistantPath;
+    if (`${window.location.pathname}${window.location.search}` === target) {
+      return;
     }
-  }, [error, startingMessages.length, messages, businessSlug, sessionId]);
+    window.history.replaceState(null, "", target);
+  });
 
-  const handleConfirm = useCallback(
-    async (confirmationId: string) => {
-      setConfirmingId(confirmationId);
-      const result = await confirmAssistantToolAction({
-        businessSlug,
-        sessionId,
-        confirmationId,
-        decision: "approved",
-      });
-      setConfirmingId(null);
-      if ("error" in result) {
-        await refreshFromSession();
-        return;
-      }
-      await refreshFromSession();
-    },
-    [businessSlug, sessionId, refreshFromSession],
-  );
+  // Deliver a prompt handed over from the dashboard home box without a second
+  // user action. The flag belongs to the conversation, so a remount mid-send
+  // cannot fire it twice.
+  useEffect(() => {
+    if (!autoPrompt || conversation.autoSent || status !== "ready") return;
+    markConversationAutoSent(conversationKey);
+    if (messages.length > 0) return;
+    void sendMessage({ text: autoPrompt }, { body: requestBody() });
+  }, [
+    autoPrompt,
+    conversation,
+    conversationKey,
+    messages.length,
+    requestBody,
+    sendMessage,
+    status,
+  ]);
 
-  const handleCancel = useCallback(
-    async (confirmationId: string) => {
+  // Let the history panel pick up new titles and ordering once a turn lands.
+  useEffect(() => {
+    if (status !== "ready" || messages.length <= conversation.announced) return;
+    markConversationAnnounced(conversationKey, messages.length);
+    window.dispatchEvent(new CustomEvent("assistant:history-changed"));
+  }, [conversation, conversationKey, messages.length, status]);
+
+  const handleDecision = useCallback(
+    async (confirmationId: string, decision: "approved" | "rejected") => {
+      const id = activeSessionId;
+      if (!id) return;
       setConfirmingId(confirmationId);
       await confirmAssistantToolAction({
         businessSlug,
-        sessionId,
+        sessionId: id,
         confirmationId,
-        decision: "rejected",
+        decision,
       });
       setConfirmingId(null);
       await refreshFromSession();
     },
-    [businessSlug, sessionId, refreshFromSession],
+    [activeSessionId, businessSlug, refreshFromSession],
   );
 
-  const activeTool = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const message = messages[i];
-      for (const part of message.parts ?? []) {
-        if (
-          part.type === "dynamic-tool" &&
-          (part.state === "input-streaming" ||
-            part.state === "input-available")
-        ) {
-          return part.toolName;
-        }
-      }
-      const textPart = (message.parts ?? []).find(
-        (part) => part.type === "text",
-      );
-      if (textPart && "text" in textPart && textPart.text) break;
-    }
-    return null;
-  }, [messages]);
+  const handleConfirm = useCallback(
+    (confirmationId: string) => void handleDecision(confirmationId, "approved"),
+    [handleDecision],
+  );
+
+  const handleCancel = useCallback(
+    (confirmationId: string) => void handleDecision(confirmationId, "rejected"),
+    [handleDecision],
+  );
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && !isLoading ? (
-          <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold">Assistant</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Ask about your inquiries, quotes, or business performance
-              </p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-2xl w-full mt-6">
-              <ExamplePrompt onClick={() => handleSend("Show me this week's inquiries")}>
-                Show this week&apos;s inquiries
-              </ExamplePrompt>
-              <ExamplePrompt onClick={() => handleSend("What's my conversion rate?")}>
-                What&apos;s my conversion rate?
-              </ExamplePrompt>
-              <ExamplePrompt onClick={() => handleSend("Find quotes over $5000")}>
-                Find quotes over $5000
-              </ExamplePrompt>
-              <ExamplePrompt onClick={() => handleSend("How many new inquiries this month?")}>
-                New inquiries this month
-              </ExamplePrompt>
-            </div>
-          </div>
-        ) : (
-          <>
-            {messages.map((message) => (
-              <ChatMessageView
-                key={message.id}
-                message={message}
-                businessSlug={businessSlug}
-                onConfirm={handleConfirm}
-                onCancel={handleCancel}
-                confirming={confirmingId !== null}
-              />
-            ))}
-          </>
-        )}
-
-        {isLoading && activeTool && (
-          <div className="flex justify-start">
-            <div className="flex items-center gap-2 rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
-              <Wrench className="size-4 animate-pulse" aria-hidden />
-              <span>
-                {toolLabel(activeTool)}
-                {"…"}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {limitMessage && (
-          <div className="flex justify-center">
-            <div className="w-full max-w-2xl">
-              <UpgradePrompt
-                variant="card"
-                size="md"
-                description={limitMessage}
-                plan={plan}
-                upgradeAction={{ userId, businessId, businessSlug, currentPlan: plan }}
-              />
-            </div>
-          </div>
-        )}
-
-        {error && !limitMessage && (
-          <div className="flex justify-center">
-            <div className="bg-destructive/10 text-destructive rounded-lg px-4 py-3 text-sm max-w-[80%]">
-              {error.message || "Something went wrong. Please try again."}
-            </div>
-          </div>
-        )}
-
-        <div ref={bottomRef} />
+    <div className="flex min-h-0 flex-1 flex-col" data-assistant-pane="">
+      {/* New chat on the left, history on the right. */}
+      <div className="flex items-center justify-between gap-2 px-3 pt-3 md:px-6">
+        <Button
+          disabled={isEmpty}
+          onClick={handleNewChat}
+          size="sm"
+          type="button"
+          variant="ghost"
+        >
+          <MessageSquarePlus data-icon="inline-start" />
+          New chat
+        </Button>
+        <AssistantHistoryPanel
+          activeSessionId={activeSessionId}
+          businessSlug={businessSlug}
+        />
       </div>
 
-      {/* Input */}
-      <div className="border-t p-4">
-        <div className="flex gap-2">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            placeholder="Ask about inquiries, quotes, or create records..."
-            className="min-h-[60px] resize-none"
-            disabled={isLoading}
-            aria-label="Message the assistant"
-          />
-          <div className="flex flex-col gap-2">
-            {isLoading ? (
-              <Button onClick={() => stop()} variant="outline" size="icon" aria-label="Stop generating">
-                <span className="size-3 rounded-sm bg-current" aria-hidden />
-              </Button>
-            ) : (
-              <Button
-                onClick={() => handleSend()}
-                disabled={!input.trim()}
-                size="icon"
-                aria-label="Send message"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
+      {/* Three grid rows: transcript, composer, and a trailing spacer that
+          collapses on the first send so the composer glides to the bottom. */}
+      <div
+        className="chat-stage min-h-0 flex-1"
+        data-conversation={isEmpty ? "empty" : "active"}
+      >
+        <div
+          className="chat-stage-transcript ai-chat-scrollbar px-3 md:px-6"
+          ref={containerRef}
+        >
+          <div className="chat-stage-transcript-inner mx-auto flex w-full max-w-3xl flex-1 flex-col gap-7 pt-6 pb-2">
+            {isEmpty ? (
+              <div className="motion-card-enter my-auto flex w-full flex-col items-center gap-5 py-6 text-center">
+                <p className="text-xl font-medium tracking-tight text-balance sm:text-2xl">
+                  How can I help with your business?
+                </p>
+                <div className="w-full">
+                  <ChatComposer
+                    ariaLabel="Message the assistant"
+                    autoFocus
+                    busy={isLoading}
+                    maxLength={2000}
+                    onStop={stop}
+                    onSubmit={handleSend}
+                    onValueChange={setInput}
+                    placeholder="Ask about inquiries, quotes, or customers"
+                    value={input}
+                  />
+                </div>
+                <RecentConversations businessSlug={businessSlug} />
+              </div>
+            ) : null}
+
+            {blocks.map((block) =>
+              block.kind === "user" ? (
+                <UserTurn key={block.id} text={block.text} />
+              ) : (
+                <AssistantTurn
+                  block={block}
+                  businessSlug={businessSlug}
+                  confirmingId={confirmingId}
+                  key={block.id}
+                  onCancel={handleCancel}
+                  onConfirm={handleConfirm}
+                  streaming={isLoading && block === lastBlock}
+                />
+              ),
             )}
+
+            {statusLabel ? <ChatStatusLine label={statusLabel} /> : null}
+
+            {limitMessage ? (
+              <UpgradePrompt
+                description={limitMessage}
+                plan={plan}
+                size="md"
+                upgradeAction={{
+                  userId,
+                  businessId,
+                  businessSlug,
+                  currentPlan: plan,
+                }}
+                variant="card"
+              />
+            ) : null}
+
+            {error && !limitMessage ? (
+              <div className="flex items-center gap-2 text-sm text-destructive" role="alert">
+                <p>{friendlyAssistantError(error.message || "")}</p>
+                <Button
+                  aria-label="Retry response"
+                  onClick={() => void regenerate()}
+                  size="icon-xs"
+                  type="button"
+                  variant="ghost"
+                >
+                  <RotateCcw />
+                </Button>
+              </div>
+            ) : null}
           </div>
         </div>
+
+        {!isEmpty ? (
+          <div className="sticky bottom-0 z-10 bg-background/95 backdrop-blur-xs px-3 pb-4 pt-2 md:px-6">
+            {detached ? <ChatJumpToLatest onJump={jumpToLatest} /> : null}
+            <div className="mx-auto w-full max-w-3xl">
+              <ChatComposer
+                ariaLabel="Message the assistant"
+                busy={isLoading}
+                maxLength={2000}
+                onStop={stop}
+                onSubmit={handleSend}
+                onValueChange={setInput}
+                placeholder="Ask about inquiries, quotes, or customers"
+                value={input}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        <div aria-hidden="true" />
       </div>
     </div>
   );
 }
 
-function ChatMessageView({
-  message,
-  businessSlug,
-  onConfirm,
-  onCancel,
-  confirming,
-}: {
-  message: UIMessage;
-  businessSlug: string;
-  onConfirm: (confirmationId: string) => void;
-  onCancel: (confirmationId: string) => void;
-  confirming: boolean;
-}) {
-  if (message.role !== "user" && message.role !== "assistant") return null;
+// ---------------------------------------------------------------------------
+// Recent history
+// ---------------------------------------------------------------------------
 
-  const textParts = (message.parts ?? []).filter(
-    (part) => part.type === "text",
-  );
-  const toolParts = (message.parts ?? []).filter(
-    (part) => part.type === "dynamic-tool",
-  );
+type RecentHistoryItem = {
+  id: string;
+  title: string | null;
+  lastMessageAt: string;
+};
 
-  // Skip assistant messages that only carry in-flight tool calls without output.
-  const hasVisibleContent =
-    textParts.some((part) => part.type === "text" && part.text.trim()) ||
-    toolParts.some(
-      (part) =>
-        part.type === "dynamic-tool" && part.state === "output-available",
-    );
-  if (!hasVisibleContent) return null;
+/**
+ * The newest saved conversations under the empty-state composer. Renders
+ * nothing until the first page loads — and nothing at all for a brand-new
+ * account — so the empty state keeps fitting the viewport.
+ */
+function RecentConversations({ businessSlug }: { businessSlug: string }) {
+  const [items, setItems] = useState<RecentHistoryItem[] | null>(null);
 
-  const isUser = message.role === "user";
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      const result = await listAssistantSessionsAction({
+        businessSlug,
+        limit: 5,
+        offset: 0,
+      });
+      if (cancelled || "error" in result) return;
+      setItems(
+        result.sessions.map((session) => ({
+          id: session.id,
+          title: session.title,
+          lastMessageAt: session.lastMessageAt,
+        })),
+      );
+    };
+    void refresh();
+    window.addEventListener("assistant:history-changed", refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("assistant:history-changed", refresh);
+    };
+  }, [businessSlug]);
+
+  if (!items || items.length === 0) return null;
 
   return (
-    <div className={`flex flex-col gap-2 ${isUser ? "items-end" : "items-start"}`}>
-      {textParts.map((part, index) =>
-        part.type === "text" && part.text ? (
-          <div
-            key={`${message.id}-text-${index}`}
-            className={`max-w-[80%] rounded-lg px-4 py-3 ${
-              isUser
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted"
-            }`}
+    <div className="w-full">
+      <p className="px-1 pb-1 text-left text-sm font-medium text-foreground">
+        Recent conversations
+      </p>
+      <div className="flex flex-col divide-y divide-border/60">
+        {items.map((item) => (
+          <Link
+            className="group flex w-full items-center gap-2 truncate px-1 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            href={`${getBusinessAssistantPath(businessSlug)}?session=${item.id}`}
+            key={item.id}
+            prefetch
           >
-            <div className="whitespace-pre-wrap break-words">{part.text}</div>
-          </div>
-        ) : null,
-      )}
-      {toolParts.map((part) => {
-        if (part.type !== "dynamic-tool" || part.state !== "output-available") {
-          return null;
-        }
-        const output = part.output as {
-          type?: string;
-          summary?: string;
-          confirmationId?: string;
-        } | null;
-        if (!output || typeof output !== "object" || !output.type) return null;
+            <span className="truncate">{item.title ?? "New conversation"}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Turns
+// ---------------------------------------------------------------------------
+
+/** The one bubble on the surface: what the owner said. */
+function UserTurn({ text }: { text: string }) {
+  return (
+    <div className="flex justify-end">
+      <div className="motion-card-enter max-w-[85%] rounded-2xl bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap text-foreground">
+        {text}
+      </div>
+    </div>
+  );
+}
+
+const noop = () => {};
+
+/**
+ * A reply: the tool process on top (collapsed to one line), the prose, any
+ * structured result cards, then the copy action once the turn has landed.
+ */
+function AssistantTurn({
+  block,
+  businessSlug,
+  confirmingId,
+  onCancel,
+  onConfirm,
+  streaming,
+}: {
+  block: Extract<TurnBlock, { kind: "assistant" }>;
+  businessSlug: string;
+  confirmingId: string | null;
+  onCancel: (confirmationId: string) => void;
+  onConfirm: (confirmationId: string) => void;
+  streaming: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      {block.steps.length > 0 ? (
+        <ToolProcessDisclosure steps={block.steps} />
+      ) : null}
+
+      {block.text ? (
+        <ChatMarkdown content={block.text} streaming={streaming} />
+      ) : null}
+
+      {block.cards.map((card) => {
+        const busy =
+          Boolean(card.result.confirmationId) &&
+          card.result.confirmationId === confirmingId;
         return (
-          <div key={part.toolCallId} className="w-full max-w-2xl">
+          <div
+            aria-busy={busy || undefined}
+            className={cn(busy && "pointer-events-none opacity-60")}
+            key={card.key}
+          >
             <ToolResultRenderer
+              businessSlug={businessSlug}
+              onCancel={busy ? noop : onCancel}
+              onConfirm={busy ? noop : onConfirm}
               result={
-                output as unknown as Parameters<
+                card.result as unknown as Parameters<
                   typeof ToolResultRenderer
                 >[0]["result"]
               }
-              businessSlug={businessSlug}
-              onConfirm={confirming ? () => {} : onConfirm}
-              onCancel={confirming ? () => {} : onCancel}
             />
           </div>
         );
       })}
-    </div>
-  );
-}
 
-function ExamplePrompt({
-  children,
-  onClick,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="p-3 text-left rounded-lg border border-border/60 bg-muted/25 hover:bg-muted/40 transition-colors text-sm"
-    >
-      {children}
-    </button>
+      {block.text && !streaming ? <CopyButton value={block.text} /> : null}
+    </div>
   );
 }

@@ -35,6 +35,25 @@ export async function GET(request: Request) {
 
     const rows = await loadRecentMessages(sessionData.id, 50);
 
+    // Server state is authoritative: after a reload the staged proposal comes
+    // back alongside the transcript it already returns. Pending renders as an
+    // editable card, approved as the submitted receipt. Nothing extra when no
+    // proposal is staged (discarded/cleared or never proposed).
+    const state = (sessionData.state ?? {}) as {
+      proposedInquiry?: {
+        id: string;
+        values: Record<string, unknown>;
+        proposedAt: string;
+        status: "pending" | "approved" | "discarded";
+        inquiryId?: string;
+      } | null;
+    };
+    const staged = state.proposedInquiry;
+    const proposedInquiry =
+      staged && (staged.status === "pending" || staged.status === "approved")
+        ? staged
+        : null;
+
     return NextResponse.json({
       businessName: sessionData.business.name,
       status: sessionData.status,
@@ -46,6 +65,7 @@ export async function GET(request: Request) {
           content: row.content,
           createdAt: row.createdAt.toISOString(),
         })),
+      proposedInquiry,
     });
   } catch (error) {
     console.error("Agent session load error:", error);

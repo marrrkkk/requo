@@ -11,9 +11,27 @@ vi.mock("@/lib/ai/registry", () => ({
   registry: { languageModel: vi.fn() },
 }));
 
-vi.mock("@/lib/ai/capacity-selector", () => ({
-  selectModels: vi.fn(async () => ["mock:model"]),
+const orchestratorEnv = vi.hoisted(() => ({
+  groq: true,
+  cerebras: true,
+  gemini: true,
+  openrouter: true,
+  mistral: true,
+  cloudflare: true,
+  nvidia: true,
 }));
+
+vi.mock("@/lib/env", () => ({
+  isGroqConfigured: orchestratorEnv.groq,
+  isCerebrasConfigured: orchestratorEnv.cerebras,
+  isGeminiConfigured: orchestratorEnv.gemini,
+  isOpenRouterConfigured: orchestratorEnv.openrouter,
+  isMistralConfigured: orchestratorEnv.mistral,
+  isCloudflareAiConfigured: orchestratorEnv.cloudflare,
+  isNvidiaNimConfigured: orchestratorEnv.nvidia,
+}));
+
+const orchestratorCache = vi.hoisted(() => ({ map: new Map<string, unknown>() }));
 
 vi.mock("@/lib/ai/usage-limiter", () => ({
   checkUsageLimit: vi.fn(async () => ({ allowed: true })),
@@ -23,10 +41,23 @@ vi.mock("@/lib/ai/usage-limiter", () => ({
 
 vi.mock("@/lib/ai/cache-layer", () => ({
   cacheLayer: {
-    get: vi.fn(async () => null),
-    set: vi.fn(async () => {}),
-    delete: vi.fn(async () => {}),
-    incrementBy: vi.fn(async () => {}),
+    get: vi.fn(async (key: string) => orchestratorCache.map.get(key) ?? null),
+    set: vi.fn(async (key: string, value: unknown) => {
+      orchestratorCache.map.set(key, value);
+    }),
+    delete: vi.fn(async (key: string) => {
+      orchestratorCache.map.delete(key);
+    }),
+    increment: vi.fn(async (key: string) => {
+      const next = (Number(orchestratorCache.map.get(key) ?? 0) || 0) + 1;
+      orchestratorCache.map.set(key, next);
+      return next;
+    }),
+    incrementBy: vi.fn(async (key: string, amount: number) => {
+      const next = (Number(orchestratorCache.map.get(key) ?? 0) || 0) + amount;
+      orchestratorCache.map.set(key, next);
+      return next;
+    }),
   },
 }));
 
@@ -55,7 +86,6 @@ import { runAgent } from "@/features/ai-agent/orchestrator";
 import { loadConversationHistory } from "@/features/ai-agent/message-service";
 import { loadAgentRun } from "@/features/ai-agent/telemetry";
 import { registry } from "@/lib/ai/registry";
-import { selectModels } from "@/lib/ai/capacity-selector";
 import { checkUsageLimit, recordUsage } from "@/lib/ai/usage-limiter";
 
 import { closeTestDb, testDb } from "@/tests/support/db";
@@ -97,7 +127,14 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    vi.mocked(selectModels).mockResolvedValue(["mock:model"]);
+    orchestratorCache.map.clear();
+    orchestratorEnv.groq = true;
+    orchestratorEnv.cerebras = true;
+    orchestratorEnv.gemini = true;
+    orchestratorEnv.openrouter = true;
+    orchestratorEnv.mistral = true;
+    orchestratorEnv.cloudflare = true;
+    orchestratorEnv.nvidia = true;
     await enableAgent();
   });
 
@@ -109,7 +146,6 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
       runAgent({ sessionToken: "f".repeat(64), userMessage: "Hi" }),
     ).rejects.toThrow("Invalid or expired session");
 
-    expect(selectModels).not.toHaveBeenCalled();
     expect(model.doStreamCalls).toHaveLength(0);
   });
 
@@ -148,11 +184,16 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
   });
 
   it("rejects when no suitable model is available", async () => {
+    orchestratorEnv.groq = false;
+    orchestratorEnv.cerebras = false;
+    orchestratorEnv.gemini = false;
+    orchestratorEnv.openrouter = false;
+    orchestratorEnv.mistral = false;
+    orchestratorEnv.cloudflare = false;
+    orchestratorEnv.nvidia = false;
     const session = await createActiveAgentSession(ids.businessId);
     const model = mockModelForTurns([textTurn("Hello")]);
     vi.mocked(registry.languageModel).mockReturnValue(model as never);
-
-    vi.mocked(selectModels).mockResolvedValueOnce([]);
 
     await expect(
       runAgent({ sessionToken: session.publicToken, userMessage: "Hi" }),
@@ -194,8 +235,8 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
     expect(history[1]).toMatchObject({
       role: "assistant",
       content: "Thanks! What service are you looking for?",
-      provider: "mock",
-      model: "model",
+      provider: "groq",
+      model: "openai/gpt-oss-20b",
     });
 
     expect(checkUsageLimit).toHaveBeenCalledWith(
@@ -215,8 +256,8 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
     expect(latestRun).toMatchObject({
       businessId: ids.businessId,
       status: "completed",
-      model: "model",
-      provider: "mock",
+      model: "openai/gpt-oss-20b",
+      provider: "groq",
     });
 
     const loaded = await loadAgentRun(latestRun!.id);
@@ -301,10 +342,10 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
     expect(String(call.system)).not.toContain("warm, approachable");
   });
 
-  it("a scripted create_inquiry call writes a real inquiry and completes the session", async () => {
+  it("a scripted propose_inquiry call stages a proposal and creates no inquiry", async () => {
     const session = await createActiveAgentSession(ids.businessId);
     const model = mockModelForTurns([
-      toolCallTurn("create_inquiry", "call_1", {
+      toolCallTurn("propose_inquiry", "call_1", {
         customerName: "Sam Rivera",
         customerContactMethod: "email",
         customerContactHandle: "sam@example.com",
@@ -312,7 +353,7 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
         serviceCategory: "Banners",
         details: "Two vinyl banners for a weekend sale.",
       }),
-      textTurn("Your inquiry is in!"),
+      textTurn("Review what I'll send below."),
     ]);
     vi.mocked(registry.languageModel).mockReturnValue(model as never);
 
@@ -321,26 +362,135 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
       userMessage: "Please file it: Sam Rivera, sam@example.com, banners, two vinyl banners for a weekend sale.",
     });
     const body = await readStreamText(response);
-    expect(body).toContain("Your inquiry is in!");
+    expect(body).toContain("Review what I'll send below.");
 
+    // No Inquiry row — the model lost commit authority.
     const { inquiries } = await import("@/lib/db/schema");
     const rows = await testDb
       .select()
       .from(inquiries)
       .where(eq(inquiries.businessId, ids.businessId));
-    const created = rows.find((row) => row.customerEmail === "sam@example.com");
-    expect(created).toMatchObject({
-      source: "ai_agent",
-      aiAssisted: true,
-      escalated: false,
+    expect(
+      rows.find((row) => row.customerEmail === "sam@example.com"),
+    ).toBeUndefined();
+
+    // A staged Proposed Inquiry sits on the session; the session itself is
+    // unchanged until approval completes it.
+    const [stored] = await testDb
+      .select()
+      .from(aiAgentSessions)
+      .where(eq(aiAgentSessions.id, session.sessionId));
+    expect(stored.status).toBe("active");
+    expect(stored.inquiryId).toBeNull();
+    const state = stored.state as {
+      proposedInquiry?: {
+        id: string;
+        values: Record<string, unknown>;
+        status: string;
+      } | null;
+    };
+    expect(state.proposedInquiry).toMatchObject({
+      id: expect.any(String),
+      status: "pending",
+      values: expect.objectContaining({
+        customerName: "Sam Rivera",
+        serviceCategory: "Banners",
+      }),
     });
+  });
+
+  it("a second proposing turn supersedes the first; the session holds one proposal", async () => {
+    const session = await createActiveAgentSession(ids.businessId);
+    const first = mockModelForTurns([
+      toolCallTurn("propose_inquiry", "call_1", {
+        customerName: "Sam Rivera",
+        customerContactMethod: "email",
+        customerContactHandle: "sam@example.com",
+        serviceCategory: "Banners",
+        details: "Two vinyl banners.",
+      }),
+      textTurn("First draft."),
+    ]);
+    vi.mocked(registry.languageModel).mockReturnValue(first as never);
+    await readStreamText(
+      await runAgent({
+        sessionToken: session.publicToken,
+        userMessage: "Sam Rivera, sam@example.com, banners, two vinyl banners.",
+      }),
+    );
+
+    const second = mockModelForTurns([
+      toolCallTurn("propose_inquiry", "call_2", {
+        customerName: "Sam Rivera",
+        customerContactMethod: "email",
+        customerContactHandle: "sam@example.com",
+        serviceCategory: "Banners",
+        details: "Three vinyl banners.",
+      }),
+      textTurn("Revised."),
+    ]);
+    vi.mocked(registry.languageModel).mockReturnValue(second as never);
+    await readStreamText(
+      await runAgent({
+        sessionToken: session.publicToken,
+        userMessage: "Actually make it three banners.",
+      }),
+    );
 
     const [stored] = await testDb
       .select()
       .from(aiAgentSessions)
       .where(eq(aiAgentSessions.id, session.sessionId));
-    expect(stored.status).toBe("completed");
-    expect(stored.inquiryId).toBe(created!.id);
+    const state = stored.state as {
+      proposedInquiry?: { id: string; values: { details: string } } | null;
+    };
+    expect(state.proposedInquiry?.values.details).toContain("Three");
+  });
+
+  it("card values sent with a chat request persist before the model runs", async () => {
+    const session = await createActiveAgentSession(ids.businessId);
+    const proposing = mockModelForTurns([
+      toolCallTurn("propose_inquiry", "call_1", {
+        customerName: "Sam Rivera",
+        customerContactMethod: "email",
+        customerContactHandle: "sam@example.com",
+        serviceCategory: "Banners",
+        details: "Two vinyl banners.",
+      }),
+      textTurn("Draft ready."),
+    ]);
+    vi.mocked(registry.languageModel).mockReturnValue(proposing as never);
+    await readStreamText(
+      await runAgent({
+        sessionToken: session.publicToken,
+        userMessage: "Sam Rivera, sam@example.com, banners, two vinyl banners.",
+      }),
+    );
+
+    const followUp = mockModelForTurns([textTurn("Noted.")]);
+    vi.mocked(registry.languageModel).mockReturnValue(followUp as never);
+    await readStreamText(
+      await runAgent({
+        sessionToken: session.publicToken,
+        userMessage: "Actually the budget is closer to 2,000.",
+        proposedInquiryValues: { budgetText: "closer to 2,000" },
+      }),
+    );
+
+    const [stored] = await testDb
+      .select()
+      .from(aiAgentSessions)
+      .where(eq(aiAgentSessions.id, session.sessionId));
+    const state = stored.state as {
+      proposedInquiry?: { values: Record<string, unknown> } | null;
+    };
+    expect(state.proposedInquiry?.values).toMatchObject({
+      budgetText: "closer to 2,000",
+    });
+
+    const { firstModelCall } = await import("@/tests/support/mock-model");
+    const call = firstModelCall(followUp);
+    expect(JSON.stringify(call.system)).toContain("closer to 2,000");
   });
 
   it("marks the run failed when the stream throws immediately", async () => {
@@ -362,5 +512,83 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
 
     expect(latestRun).toMatchObject({ status: "failed" });
     expect(latestRun?.error).toBe("Provider unavailable");
+  });
+
+  it("tells the model to use the services and business-info tools", async () => {
+    const session = await createActiveAgentSession(ids.businessId);
+    const model = mockModelForTurns([
+      textTurn("We do branding, web, and marketing design."),
+    ]);
+    vi.mocked(registry.languageModel).mockReturnValue(model as never);
+
+    await readStreamText(
+      await runAgent({
+        sessionToken: session.publicToken,
+        userMessage: "What services do you offer?",
+      }),
+    );
+
+    // AI SDK v6 delivers the system prompt as prompt entries (not a top-level
+    // `system` field), so assert on the serialized prompt the model received.
+    const recorded = model.doStreamCalls[0] as unknown as {
+      prompt?: unknown;
+    };
+    const promptText = JSON.stringify(recorded.prompt);
+    expect(promptText).toContain("get_services");
+    expect(promptText).toContain("get_business_info");
+  });
+
+  it("recovers when the first candidate fails and attributes the serving model", async () => {
+    const session = await createActiveAgentSession(ids.businessId);
+    const model = mockModelForTurns([textTurn("Recovered via fallback.")]);
+    const serveScripted = model.doStream.bind(model);
+    let doStreamCalls = 0;
+    model.doStream = (async (
+      options: Parameters<typeof serveScripted>[0],
+    ) => {
+      doStreamCalls += 1;
+      if (doStreamCalls === 1) throw new Error("first candidate refused");
+      return serveScripted(options);
+    }) as typeof model.doStream;
+    vi.mocked(registry.languageModel).mockReturnValue(model as never);
+
+    const body = await readStreamText(
+      await runAgent({
+        sessionToken: session.publicToken,
+        userMessage: "What services do you offer?",
+      }),
+    );
+    expect(body).toContain("Recovered via fallback.");
+
+    const latestRun = await testDb.query.aiAgentRuns.findFirst({
+      where: (runs, { eq: rawEq }) => rawEq(runs.sessionId, session.sessionId),
+      orderBy: (runs, { desc }) => [desc(runs.startedAt)],
+    });
+
+    // A recovered turn ends clean: completed, no error text, and the run
+    // names the model that actually served it rather than the first
+    // candidate that refused.
+    expect(latestRun).toMatchObject({
+      status: "completed",
+      error: null,
+      model: "openai/gpt-oss-120b",
+      provider: "groq",
+    });
+    const metadata = latestRun?.metadata as {
+      servingModelId?: string;
+      attemptTrail?: Array<{ modelId: string }>;
+    };
+    expect(metadata.servingModelId).toBe("groq:openai/gpt-oss-120b");
+    expect(metadata.attemptTrail?.map((t) => t.modelId)).toEqual([
+      "groq:openai/gpt-oss-20b",
+    ]);
+
+    const history = await loadConversationHistory(session.sessionId);
+    expect(history.at(-1)).toMatchObject({
+      role: "assistant",
+      content: "Recovered via fallback.",
+      provider: "groq",
+      model: "openai/gpt-oss-120b",
+    });
   });
 });

@@ -78,7 +78,8 @@ export async function GET(request: Request, { params }: RouteParams) {
       })
       .from(ownerAssistantMessages)
       .where(eq(ownerAssistantMessages.sessionId, sessionData.sessionId))
-      .orderBy(asc(ownerAssistantMessages.createdAt))
+      // (createdAt, id) keeps same-millisecond tool rows in a stable order.
+      .orderBy(asc(ownerAssistantMessages.createdAt), asc(ownerAssistantMessages.id))
       .limit(100);
 
     // Return session data

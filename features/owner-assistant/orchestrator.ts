@@ -14,8 +14,16 @@
 import "server-only";
 
 import { stepCountIs, streamText } from "ai";
-import { registry } from "@/lib/ai/registry";
-import { selectModels } from "@/lib/ai/capacity-selector";
+import { CHAT_MAX_ATTEMPTS, correctTokenUsage, selectModels } from "@/lib/ai/capacity-selector";
+import type { FallbackAttemptTrailEntry } from "@/lib/ai/fallback-model";
+import { createFallbackLanguageModel } from "@/lib/ai/fallback-model";
+import {
+  CHAT_TOKEN_BUDGETS,
+  compactMessages,
+  estimateChatRequestTokens,
+  measurePromptOverhead,
+} from "@/lib/ai/token-budget";
+import { truncateToolOutput } from "@/lib/ai/tool-truncator";
 import {
   checkUsageLimit,
   recordUsage,
@@ -47,6 +55,7 @@ type RunOwnerAssistantParams = {
   userId: string;
   userRole: string;
   plan: BusinessPlan;
+  businessTimezone?: string;
   sessionId?: string;
   messages: AssistantChatMessage[];
 };
@@ -64,6 +73,37 @@ const PROMPT_LEAK_FRAGMENTS = [
   "You're a business operations assistant, not a general AI chatbot",
 ];
 
+/** Surface copy when every candidate fails — plain language, no raw JSON. */
+export const ASSISTANT_UNAVAILABLE_COPY =
+  "The assistant is temporarily unavailable. Please try again in a minute. If this keeps happening, something is wrong on our side.";
+
+/**
+ * Narrow active tools per step: twelve schemas re-sent on each of five steps
+ * is the single largest fixed cost on the surface with the tightest budget.
+ * Early steps search, later steps act, the final step answers.
+ */
+const ASSISTANT_SEARCH_TOOLS = [
+  "search_inquiries",
+  "get_inquiry_stats",
+  "search_quotes",
+  "get_quote_stats",
+  "search_customers",
+  "get_conversion_analytics",
+  "search_knowledge",
+  "get_follow_up_stats",
+] as const;
+
+function getActiveAssistantTools(stepNumber: number) {
+  if (stepNumber <= 1) {
+    return Object.fromEntries(
+      Object.entries(ownerAssistantTools).filter(([name]) =>
+        (ASSISTANT_SEARCH_TOOLS as readonly string[]).includes(name),
+      ),
+    );
+  }
+  return ownerAssistantTools;
+}
+
 /**
  * Run the owner assistant for one turn of conversation.
  * Returns the UI message stream response plus the canonical session id.
@@ -75,6 +115,7 @@ export async function runOwnerAssistant({
   userId,
   userRole,
   plan,
+  businessTimezone,
   sessionId,
   messages: clientMessages,
 }: RunOwnerAssistantParams): Promise<{ response: Response; sessionId: string }> {
@@ -137,15 +178,52 @@ export async function runOwnerAssistant({
 
   // …and build the prompt from the conversation AFTER the persist, so the
   // model receives the user's text on every turn (including the first).
-  const conversationMessages: AssistantChatMessage[] = [
-    ...session.messages
-      .filter((m) => m.role === "user" || m.role === "assistant")
-      .map((m) => ({
+  //
+  // History hygiene:
+  // - Empty user/assistant rows (written before the empty-content guard) are
+  //   dropped: the Google provider rejects messages with no parts.
+  // - Tool rows are replayed as compact text context (`[data from <tool>]`),
+  //   not as real `tool` role messages: our rows record results without the
+  //   matching tool-call ids in the same assistant message, and a mismatched
+  //   pair is a provider 400. Replaying the data as text keeps follow-ups
+  //   grounded in retrieved values instead of prose paraphrase.
+  const historyParts: AssistantChatMessage[] = [];
+  for (const m of session.messages) {
+    if (m.role === "tool") {
+      const toolName =
+        (m as { toolName?: string | null }).toolName ?? "tool";
+      const raw = typeof m.content === "string" ? m.content : "";
+      if (!raw.trim()) continue;
+      const { output } = truncateToolOutput(raw, false);
+      historyParts.push({
+        role: "assistant",
+        content: `[data from ${toolName}] ${output}`,
+      });
+    } else if (m.role === "user" || m.role === "assistant") {
+      if (!m.content.trim()) continue;
+      historyParts.push({
         role: m.role as "user" | "assistant",
         content: m.content,
-      })),
-    { role: "user", content: safeUserText },
-  ];
+      });
+    }
+  }
+  historyParts.push({ role: "user", content: safeUserText });
+
+  // Build system prompt first so overhead is measured, not guessed.
+  // (Plan-aware, with the business-local date so the model fills dateRange
+  // without inventing it.)
+  const systemPrompt = generateSystemPrompt({
+    businessName,
+    plan,
+    userRole,
+    businessTimezone,
+  });
+  const measuredOverhead = measurePromptOverhead(systemPrompt, ownerAssistantTools);
+
+  const conversationMessages: AssistantChatMessage[] = compactMessages(
+    historyParts,
+    CHAT_TOKEN_BUDGETS.assistant.input,
+  );
 
   // Build tool context (pre-validated, never from user input or LLM output)
   const toolContext: ToolExecutionContext = {
@@ -156,27 +234,54 @@ export async function runOwnerAssistant({
     session,
   };
 
-  // Select model using capacity-aware selection
+  const estimatedTokens = estimateChatRequestTokens(
+    conversationMessages,
+    CHAT_TOKEN_BUDGETS.assistant.output,
+    measuredOverhead,
+  );
+
+  // Owner Assistant: most generous tool-capable allowance first (Groq's 8K
+  // TPM sits late — one turn can consume a whole Groq minute).
   const selectedModels = await selectModels({
-    needsTools: true,
-    minQuality: 6,
+    profile: "assistant_chat",
+    estimatedTokens,
   });
 
   if (selectedModels.length === 0) {
     throw new Error("No suitable AI model available");
   }
 
-  const modelId = selectedModels[0];
-  const colonIndex = modelId.indexOf(":");
-  const provider = colonIndex >= 0 ? modelId.slice(0, colonIndex) : modelId;
-  const model = colonIndex >= 0 ? modelId.slice(colonIndex + 1) : modelId;
+  // The model that actually serves the final step. Updated by the fallback
+  // wrapper per step (streamText calls doStream once per step), and read in
+  // onFinish so persistence and logging attribute the serving model — not the
+  // first candidate that may never have been used.
+  const firstId = selectedModels[0];
+  const firstColon = firstId.indexOf(":");
+  let servingModelId = firstId;
+  let servingProvider =
+    firstColon >= 0 ? firstId.slice(0, firstColon) : firstId;
+  let servingModel =
+    firstColon >= 0 ? firstId.slice(firstColon + 1) : firstId;
+  const attemptTrail: FallbackAttemptTrailEntry[] = [];
 
-  // Build system prompt (plan-aware)
-  const systemPrompt = generateSystemPrompt({
-    businessName,
-    plan,
-    userRole,
+  const fallbackModel = createFallbackLanguageModel({
+    modelIds: selectedModels,
+    maxAttempts: CHAT_MAX_ATTEMPTS,
+    estimatedTokens,
+    onModelSelected: (selected) => {
+      servingModelId = selected.modelId;
+      servingProvider = selected.provider;
+      servingModel = selected.model;
+    },
+    onAttemptFailed: (selected, error) => {
+      attemptTrail.push({
+        modelId: selected.modelId,
+        reason:
+          error instanceof Error ? error.message.slice(0, 200) : "unknown error",
+      });
+    },
   });
+  void servingModelId;
 
   const startedAt = Date.now();
 
@@ -184,28 +289,50 @@ export async function runOwnerAssistant({
     // Invoke AI SDK with streaming and tools over the UI message stream, so
     // tool calls and tool results reach the client as structured parts.
     const result = streamText({
-      model: registry.languageModel(modelId),
+      model: fallbackModel,
       system: systemPrompt,
       messages: conversationMessages,
       tools: ownerAssistantTools,
       toolChoice: "auto",
-      stopWhen: stepCountIs(5), // Prevent infinite loops
-      temperature: 0.7,
-      maxOutputTokens: 2000,
+      // Up to four tool steps plus a final text step: three chained tool
+      // calls must still leave room for the closing answer, otherwise the
+      // turn ends with zero text.
+      stopWhen: stepCountIs(5),
+      // Narrow active tools per step — twelve schemas on every step is the
+      // largest fixed cost on this surface.
+      prepareStep: async ({ stepNumber }) => {
+        if (stepNumber >= 4) return { toolChoice: "none" as const };
+        return { tools: getActiveAssistantTools(stepNumber) as typeof ownerAssistantTools };
+      },
+      // Retry a step that dies after emitting content so a half-written
+      // reply is finished rather than abandoned.
+      maxRetries: 2,
+      // Retrieval and arithmetic over the business's own data, not prose.
+      temperature: 0.2,
+      maxOutputTokens: CHAT_TOKEN_BUDGETS.assistant.output,
+      providerOptions: {
+        // gemini-2.5-flash thinks by default with no cap: reasoning tokens
+        // can eat the whole per-step budget and emit no candidate text.
+        // Keys for other providers are ignored, so this is safe shared.
+        google: { thinkingConfig: { thinkingBudget: 0, includeThoughts: false } },
+      },
       experimental_context: toolContext,
       onStepFinish: async (step) => {
         // Remember created/found entities for conversation continuity.
         const mentions: Record<string, string> = {};
         // Persist tool calls/results so history (and reloads) show what ran.
+        // Live output is truncated like replayed output (4K cap).
         for (const toolResult of step.toolResults ?? []) {
+          const raw = JSON.stringify(toolResult.output);
+          const { output: capped } = truncateToolOutput(raw, false);
           await addMessage({
             sessionId: session.sessionId,
             role: "tool",
-            content: JSON.stringify(toolResult.output),
+            content: capped,
             toolName: toolResult.toolName,
             toolCallId: toolResult.toolCallId,
-            provider,
-            model,
+            provider: servingProvider,
+            model: servingModel,
           }).catch((err) => {
             console.error(
               "[owner-assistant] Failed to persist tool result:",
@@ -248,20 +375,61 @@ export async function runOwnerAssistant({
           });
         }
       },
-      onFinish: async ({ text, usage }) => {
+      onFinish: async ({ text, usage, finishReason }) => {
         const inputTokens = usage?.inputTokens ?? 0;
         const outputTokens = usage?.outputTokens ?? 0;
 
+        void correctTokenUsage(servingModelId, estimatedTokens, {
+          inputTokens,
+          outputTokens,
+        }).catch(() => {});
+        if (attemptTrail.length > 0) {
+          console.warn(
+            `[owner-assistant] Attempt trail for session ${session.sessionId}: ${attemptTrail.map((t) => `${t.modelId} (${t.reason})`).join("; ")} — served by ${servingModelId}`,
+          );
+        }
+
         // Filter model output before it is stored.
         const filtered = filterAiOutput(text, PROMPT_LEAK_FRAGMENTS);
+        const isEmpty = !filtered.output.trim();
+
+        // A zero-text turn is a failure, not a success: persisting an empty
+        // assistant row poisons the next turn (Google rejects part-less
+        // messages), and logging it as success hid the regression.
+        if (isEmpty) {
+          recordUsage(
+            userId,
+            businessId,
+            "assistant_message",
+            TASK_WEIGHTS["assistant_message"],
+          ).catch((err) => {
+            console.warn("[owner-assistant] Failed to record usage:", err);
+          });
+          void logAiInvocation({
+            userId,
+            businessId,
+            taskType: "assistant_message",
+            model: servingModel,
+            provider: servingProvider,
+            inputTokens,
+            outputTokens,
+            cacheHit: false,
+            latencyMs: Date.now() - startedAt,
+            status: "error",
+            errorMessage: `empty_completion finishReason=${finishReason ?? "unknown"} serving=${servingModelId} trail=${attemptTrail.map((t) => t.modelId).join(",")}`,
+          }).catch((err) => {
+            console.warn("[owner-assistant] Failed to log invocation:", err);
+          });
+          return;
+        }
 
         // Persist assistant message
         await addMessage({
           sessionId: session.sessionId,
           role: "assistant",
           content: filtered.output,
-          provider,
-          model,
+          provider: servingProvider,
+          model: servingModel,
         }).catch((err) => {
           console.error("[owner-assistant] Failed to persist message:", err);
         });
@@ -281,8 +449,8 @@ export async function runOwnerAssistant({
           userId,
           businessId,
           taskType: "assistant_message",
-          model,
-          provider,
+          model: servingModel,
+          provider: servingProvider,
           inputTokens,
           outputTokens,
           cacheHit: false,
@@ -298,8 +466,8 @@ export async function runOwnerAssistant({
           userId,
           businessId,
           taskType: "assistant_message",
-          model,
-          provider,
+          model: servingModel,
+          provider: servingProvider,
           inputTokens: 0,
           outputTokens: 0,
           cacheHit: false,
@@ -311,7 +479,9 @@ export async function runOwnerAssistant({
     });
 
     return {
-      response: result.toUIMessageStreamResponse(),
+      response: result.toUIMessageStreamResponse({
+        onError: () => ASSISTANT_UNAVAILABLE_COPY,
+      }),
       sessionId: session.sessionId,
     };
   } catch (error) {

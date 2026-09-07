@@ -27,9 +27,27 @@ vi.mock("@/lib/ai/registry", () => ({
   registry: { languageModel: vi.fn() },
 }));
 
-vi.mock("@/lib/ai/capacity-selector", () => ({
-  selectModels: vi.fn(async () => ["mock:model"]),
+const assistantEnv = vi.hoisted(() => ({
+  groq: true,
+  cerebras: true,
+  gemini: true,
+  openrouter: true,
+  mistral: true,
+  cloudflare: true,
+  nvidia: true,
 }));
+
+vi.mock("@/lib/env", () => ({
+  isGroqConfigured: assistantEnv.groq,
+  isCerebrasConfigured: assistantEnv.cerebras,
+  isGeminiConfigured: assistantEnv.gemini,
+  isOpenRouterConfigured: assistantEnv.openrouter,
+  isMistralConfigured: assistantEnv.mistral,
+  isCloudflareAiConfigured: assistantEnv.cloudflare,
+  isNvidiaNimConfigured: assistantEnv.nvidia,
+}));
+
+const assistantCache = vi.hoisted(() => ({ map: new Map<string, unknown>() }));
 
 vi.mock("@/lib/ai/usage-limiter", () => ({
   checkUsageLimit: vi.fn(async () => ({ allowed: true })),
@@ -39,10 +57,23 @@ vi.mock("@/lib/ai/usage-limiter", () => ({
 
 vi.mock("@/lib/ai/cache-layer", () => ({
   cacheLayer: {
-    get: vi.fn(async () => null),
-    set: vi.fn(async () => {}),
-    delete: vi.fn(async () => {}),
-    incrementBy: vi.fn(async () => {}),
+    get: vi.fn(async (key: string) => assistantCache.map.get(key) ?? null),
+    set: vi.fn(async (key: string, value: unknown) => {
+      assistantCache.map.set(key, value);
+    }),
+    delete: vi.fn(async (key: string) => {
+      assistantCache.map.delete(key);
+    }),
+    increment: vi.fn(async (key: string) => {
+      const next = (Number(assistantCache.map.get(key) ?? 0) || 0) + 1;
+      assistantCache.map.set(key, next);
+      return next;
+    }),
+    incrementBy: vi.fn(async (key: string, amount: number) => {
+      const next = (Number(assistantCache.map.get(key) ?? 0) || 0) + amount;
+      assistantCache.map.set(key, next);
+      return next;
+    }),
   },
 }));
 
@@ -64,7 +95,6 @@ vi.mock("@/features/inquiries/defaults", () => ({
 
 import { POST } from "@/app/api/ai/owner-assistant/chat/route";
 import { registry } from "@/lib/ai/registry";
-import { selectModels } from "@/lib/ai/capacity-selector";
 import {
   auditLogs,
   inquiries,
@@ -115,8 +145,40 @@ describe("owner-assistant chat API route (provider seam)", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(selectModels).mockResolvedValue(["mock:model"]);
+    assistantCache.map.clear();
+    assistantEnv.groq = true;
+    assistantEnv.cerebras = true;
+    assistantEnv.gemini = true;
+    assistantEnv.openrouter = true;
+    assistantEnv.mistral = true;
+    assistantEnv.cloudflare = true;
+    assistantEnv.nvidia = true;
     authState.userId = ids.ownerUserId;
+  });
+
+  it("recovers past a dead head identifier without losing the turn", async () => {
+    const healthy = mockModelForTurns([textTurn("Still here.")]);
+    vi.mocked(registry.languageModel).mockImplementation(((modelId: string) => {
+      if (modelId === "google:gemini-2.5-flash-lite") {
+        return {
+          provider: "mock",
+          modelId,
+          doGenerate: async () => {
+            throw Object.assign(new Error("model_not_found"), { status: 404 });
+          },
+          doStream: async () => {
+            throw Object.assign(new Error("model_not_found"), { status: 404 });
+          },
+        } as never;
+      }
+      return healthy as never;
+    }) as never);
+
+    const response = await POST(
+      chatRequest({ businessSlug: ids.businessSlug, messages: uiMessages("Hello?") }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain("Still here.");
   });
 
   it("sends the user's text to the model on the first turn and persists both sides", async () => {
@@ -148,8 +210,8 @@ describe("owner-assistant chat API route (provider seam)", () => {
     expect(rows[1]).toMatchObject({
       role: "assistant",
       content: "You have 3 open inquiries.",
-      provider: "mock",
-      model: "model",
+      provider: "google",
+      model: "gemini-2.5-flash-lite",
     });
   });
 

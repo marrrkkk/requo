@@ -20,11 +20,47 @@ authentication and authorization.
 ### Session Management
 - **Persisted sessions**: `owner_assistant_sessions` + `owner_assistant_messages`.
   The server owns identifiers (`oas_*`); the client never mints one.
-- Each session has its own URL (`/assistant/chat/[sessionId]`), a title
-  derived from the opening message (renamable, deletable), and a member-scoped,
-  paginated history sidebar (sheet on mobile). The section root is a composer
-  that creates nothing until a message is sent.
+- The section root creates nothing until a message is sent: the first chat
+  request mints the session and returns it in `X-Session-Id`, and the client
+  rewrites the URL in place to `/[businessSlug]/assistant?session=<id>` — a
+  search param on the same route, so the page segment is never swapped and the
+  streaming reply is never interrupted. `/assistant/chat/[sessionId]` still
+  works and redirects here.
+- Each session has a title derived from the opening message (renamable,
+  deletable) and appears in a member-scoped, paginated history panel opened from
+  the chat header (popover on desktop, bottom sheet on mobile).
 - Sessions are scoped to the member who created them and retained indefinitely.
+
+### Live Conversations
+Conversations live in a module-level client store (`live-chat-store.ts`), not in
+component state: each entry owns an AI SDK `Chat` plus the composer draft, so
+leaving for another dashboard page and returning through the sidebar reopens the
+same conversation with an in-flight stream still running. Entries are keyed by
+`userId + businessSlug` (a second sign-in in the same tab can never adopt the
+previous member's transcript — ADR 004), capped at five per tab, and evicted
+oldest-first, never while streaming. A hard refresh clears the store, and the
+transcript is rebuilt from the database by `loadAssistantTranscript()`.
+
+Consequences worth keeping: the rendered chat carries no React `key` and the URL
+is only ever rewritten in place, because a remount mid-mint would restart the
+conversation the server just created. Deleting a session calls
+`forgetLiveConversation()` so it cannot come back as the last-active chat.
+
+### Chat Surface
+One mounted component (`owner-assistant-chat.tsx`) serves both the section root
+and a saved conversation:
+- **Empty state**: the assistant mark, one line of greeting, and the composer
+  sit centred; example prompts sit beneath. The first send collapses a trailing
+  grid row so the composer glides to the bottom (CSS transition on the
+  `chat-stage` grid, not a layout animation library).
+- **Replies** render as plain markdown prose — no bubble — with a copy action
+  once the turn lands. Only the member's own messages are bubbled.
+- **Status**: a shimmering single line ("Thinking", or the running tool's
+  present-participle label such as "Searching inquiries").
+- **Tool process**: a one-line disclosure above the reply that expands to the
+  steps, their arguments, and any failures. Owner surface only — see ADR 004.
+- **Header**: `New chat` on the left (disabled until there is something to start
+  over from), history on the right.
 
 ### Transport
 UI message stream (`toUIMessageStreamResponse` + `useChat`), so tool calls and
@@ -83,24 +119,21 @@ features/owner-assistant/
 ├── tools/
 │   ├── index.ts            # Tool registry
 │   └── [tool-name].ts      # Individual tool implementations
-├── components/             # Chat, composer, history sidebar, result cards
+├── components/             # Chat surface, history panel, result cards
 └── prompts/
     └── system-prompt.ts    # Plan-aware system prompt
 ```
 
 ## Usage
 
-### Create a session (server owns the id)
-```typescript
-import { createAssistantSessionAction } from "@/features/owner-assistant/actions";
-
-const result = await createAssistantSessionAction({ businessSlug });
-// → { sessionId: "oas_..." }; navigate to /[slug]/assistant/chat/[sessionId]
-```
-
-### Chat
+### Chat (this is also how a session is created)
 `POST /api/ai/owner-assistant/chat` with `{ businessSlug, sessionId?, messages: UIMessage[] }`
-returns the UI message stream; the canonical session id arrives in `X-Session-Id`.
+returns the UI message stream; the canonical session id arrives in
+`X-Session-Id`. Omit `sessionId` and the route mints one — the surface has no
+separate create step.
+
+`createAssistantSessionAction({ businessSlug })` still returns
+`{ sessionId: "oas_..." }` for programmatic creation, but no UI calls it.
 
 ### Confirm a staged operation
 ```typescript
@@ -125,8 +158,12 @@ await confirmAssistantToolAction({ businessSlug, sessionId, confirmationId, deci
   through the route handler (`tests/support/mock-model.ts`,
   `tests/integration/assistant-chat-route.test.ts`).
 - Unit: title generation, schemas, limit arithmetic.
-- Component: history sidebar (collapse/sheet/rename/delete), confirmation
-  callbacks, card rendering.
+- Component: history panel (load-on-open, labelling, rename, two-step delete,
+  mobile sheet) in `tests/components/assistant-history-panel.test.tsx`; tool
+  disclosure, copy button, confirmation callbacks, and card rendering in
+  `tests/components/assistant-reply-chrome.test.tsx`.
+- E2E: `tests/e2e/assistant-conversation.spec.ts` (dashboard hand-off → minted
+  session URL → streamed reply; section root chrome).
 
 ## Related Documentation
 

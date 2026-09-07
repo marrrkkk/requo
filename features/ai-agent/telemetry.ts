@@ -68,15 +68,21 @@ export async function updateAgentRun({
   error,
   completedAt,
   metadata,
+  model,
+  provider,
 }: {
   runId: string;
   status?: RunStatus;
   inputTokens?: number;
   outputTokens?: number;
   estimatedCostCents?: number;
-  error?: string;
+  /** Pass null to clear a previously recorded error (e.g. a retried step recovered). */
+  error?: string | null;
   completedAt?: Date;
   metadata?: RunMetadata;
+  /** Serving model/provider — the run starts with the first candidate. */
+  model?: string;
+  provider?: string;
 }): Promise<void> {
   const updates: Partial<AgentRun> = {};
 
@@ -98,6 +104,14 @@ export async function updateAgentRun({
 
   if (error !== undefined) {
     updates.error = error;
+  }
+
+  if (model !== undefined) {
+    updates.model = model;
+  }
+
+  if (provider !== undefined) {
+    updates.provider = provider;
   }
 
   if (completedAt !== undefined) {
@@ -195,42 +209,38 @@ export async function loadBusinessRuns(
   return await query;
 }
 
+import { computeEstimatedCostCents as sharedEstimate } from "@/lib/ai/token-logger";
+
 /**
  * Compute estimated cost in cents from token counts.
- * This is a simplified version - uses average pricing.
+ * Uses the shared catalog-priced estimator so every run is priced from the
+ * real catalog rather than a default rate.
  */
 export function computeEstimatedCostCents({
   inputTokens,
   outputTokens,
   model,
+  provider = "",
 }: {
   inputTokens: number;
   outputTokens: number;
   model: string;
+  provider?: string;
 }): number {
-  // Simplified pricing model (USD cents per 1M tokens)
-  // These are rough averages; actual costs vary by provider
-  const pricing: Record<string, { input: number; output: number }> = {
-    default: { input: 50, output: 150 }, // ~$0.50 input, $1.50 output per 1M tokens
-    "gpt-4": { input: 3000, output: 6000 },
-    "gpt-3.5": { input: 50, output: 150 },
-    "claude-3": { input: 300, output: 1500 },
-    gemini: { input: 35, output: 105 },
-    llama: { input: 20, output: 20 },
-  };
-
-  // Find matching pricing tier
-  let tier = pricing.default;
-  for (const [key, value] of Object.entries(pricing)) {
-    if (model.toLowerCase().includes(key)) {
-      tier = value;
-      break;
-    }
+  let resolvedProvider = provider;
+  let resolvedModel = model;
+  if (!resolvedProvider && model.includes(":")) {
+    const idx = model.indexOf(":");
+    resolvedProvider = model.slice(0, idx);
+    resolvedModel = model.slice(idx + 1);
   }
-
-  // Calculate cost in cents
-  const inputCost = (inputTokens / 1_000_000) * tier.input;
-  const outputCost = (outputTokens / 1_000_000) * tier.output;
-
-  return Math.round((inputCost + outputCost) * 100) / 100; // Round to 2 decimal places
+  if (!resolvedProvider) {
+    const lower = model.toLowerCase();
+    if (lower.includes("gemini")) resolvedProvider = "google";
+    else if (lower.includes("mistral")) resolvedProvider = "mistral";
+    else resolvedProvider = "groq";
+  }
+  const cost = sharedEstimate(resolvedProvider, resolvedModel, inputTokens, outputTokens);
+  if (cost !== null) return Math.round(cost * 100) / 100;
+  return 0;
 }

@@ -18,7 +18,13 @@ export interface OwnerAssistantSession {
   state: {
     lastMentioned: LastMentionedEntities;
   };
-  messages: Array<{ role: string; content: string }>; // Loaded from DB
+  messages: Array<{
+    role: string;
+    content: string;
+    toolName?: string | null;
+    toolCallId?: string | null;
+    id?: string;
+  }>; // Loaded from DB
   createdAt: Date;
   updatedAt: Date;
 }

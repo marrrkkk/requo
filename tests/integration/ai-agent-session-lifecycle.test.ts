@@ -182,6 +182,52 @@ describe("ai-agent sessions & messages", () => {
     ).rejects.toThrow("Session not found");
   });
 
+  it("stages, supersedes, and clears a Proposed Inquiry without touching session status", async () => {
+    const { stageProposedInquiry, getStagedProposal, clearStagedProposal } =
+      await import("@/features/ai-agent/session-service");
+    const result = await createActiveAgentSession(ids.businessId);
+
+    const first = {
+      id: "prop_first",
+      values: {
+        customerName: "Ana Torres",
+        customerContactMethod: "email",
+        customerContactHandle: "ana@example.com",
+        serviceCategory: "Signage",
+        details: "Two panels.",
+      },
+      proposedAt: new Date().toISOString(),
+      status: "pending" as const,
+    };
+    await stageProposedInquiry({ sessionId: result.sessionId, proposal: first });
+    expect(await getStagedProposal(result.sessionId)).toMatchObject({
+      id: "prop_first",
+      status: "pending",
+    });
+
+    const second = {
+      ...first,
+      id: "prop_second",
+      values: { ...first.values, details: "Three panels." },
+    };
+    await stageProposedInquiry({ sessionId: result.sessionId, proposal: second });
+    expect(await getStagedProposal(result.sessionId)).toMatchObject({
+      id: "prop_second",
+    });
+
+    await clearStagedProposal({ sessionId: result.sessionId });
+    expect(await getStagedProposal(result.sessionId)).toBeNull();
+
+    const [session] = await testDb
+      .select()
+      .from(aiAgentSessions)
+      .where(eq(aiAgentSessions.id, result.sessionId));
+    // Pending, approved and discarded are properties of the proposal; the
+    // session's own lifecycle is unchanged.
+    expect(session.status).toBe("active");
+    expect(session.inquiryId).toBeNull();
+  });
+
   it("expires only active sessions that are past their expiry", async () => {
     const activeExpired = await createActiveAgentSession(ids.businessId);
     const activeFresh = await createActiveAgentSession(ids.businessId);

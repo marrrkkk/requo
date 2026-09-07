@@ -302,7 +302,7 @@ export function QuoteListCard({ result, businessSlug }: QuoteListCardProps) {
                       {quote.customerName}
                     </span>
                     {quote.quoteNumber && (
-                      <span className="font-mono text-[0.72rem] text-muted-foreground">
+                      <span className="font-mono text-xs text-muted-foreground">
                         #{quote.quoteNumber}
                       </span>
                     )}
@@ -396,7 +396,7 @@ export function StatsSummaryCard({ result }: StatsSummaryCardProps) {
                 key={stat.label}
                 className="rounded-lg bg-muted/50 px-3 py-2.5"
               >
-                <dt className="text-[0.68rem] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                <dt className="meta-label">
                   {stat.label}
                 </dt>
                 <dd className="mt-1 flex items-baseline gap-1.5">
@@ -406,7 +406,7 @@ export function StatsSummaryCard({ result }: StatsSummaryCardProps) {
                   {stat.delta !== undefined && (
                     <span
                       className={cn(
-                        "text-[0.7rem] font-medium",
+                        "text-xs font-medium",
                         stat.delta >= 0
                           ? "text-green-600 dark:text-green-400"
                           : "text-destructive",
@@ -507,7 +507,7 @@ export function ChartDataCard({ result }: ChartDataCardProps) {
                   className="w-full rounded-sm bg-primary/80 transition-all group-hover:bg-primary"
                   style={{ height: `${height}px` }}
                 />
-                <span className="text-[0.6rem] text-muted-foreground truncate w-full text-center">
+                <span className="text-xs text-muted-foreground truncate w-full text-center">
                   {point.label}
                 </span>
               </div>
@@ -668,7 +668,7 @@ export function CustomerListCard({ result, businessSlug }: CustomerListCardProps
           {results.map((customer) => (
             <li key={customer.email} className="py-2.5">
               <div className="flex items-center gap-3">
-                <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[0.65rem] font-semibold text-muted-foreground uppercase">
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground uppercase">
                   {(customer.name ?? customer.email).charAt(0)}
                 </div>
                 <div className="min-w-0 flex-1">

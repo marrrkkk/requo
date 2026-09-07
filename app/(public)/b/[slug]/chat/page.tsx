@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { ChatInterface } from "@/features/ai-agent/components/chat-interface";
-import { getPublicAgentBusiness } from "@/features/ai-agent/queries";
+import {
+  buildAgentRecommendations,
+  getPublicAgentBusiness,
+  getPublicAgentStarterForms,
+} from "@/features/ai-agent/queries";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 
@@ -45,11 +49,17 @@ export default async function AgentChatPage({
     notFound();
   }
 
+  const starterForms = await getPublicAgentStarterForms(business.id);
+
   return (
     <ChatInterface
       businessSlug={business.slug}
       businessName={business.name}
-      businessDescription={business.shortDescription}
+      businessLogoUrl={business.logoUrl}
+      recommendations={buildAgentRecommendations({
+        businessName: business.name,
+        forms: starterForms,
+      })}
       showWatermark={!hasFeatureAccess(business.plan, "removeWatermark")}
       fallbackFormHref={getBusinessPublicInquiryUrl(business.slug)}
     />

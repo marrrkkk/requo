@@ -50,7 +50,11 @@ export async function loadOrCreateSession({
       ),
       with: {
         messages: {
-          orderBy: [desc(ownerAssistantMessages.createdAt)],
+          // (createdAt, id) keeps same-millisecond tool rows in a stable order.
+          orderBy: [
+            desc(ownerAssistantMessages.createdAt),
+            desc(ownerAssistantMessages.id),
+          ],
           limit: 50, // Last 50 messages for context
         },
       },
@@ -71,7 +75,21 @@ export async function loadOrCreateSession({
         },
         messages: existing.messages
           .reverse()
-          .map((m: { role: string; content: string }) => ({ role: m.role, content: m.content })),
+          .map(
+            (m: {
+              role: string;
+              content: string;
+              toolName?: string | null;
+              toolCallId?: string | null;
+              id?: string;
+            }) => ({
+              role: m.role,
+              content: m.content,
+              toolName: m.toolName ?? null,
+              toolCallId: m.toolCallId ?? null,
+              id: m.id,
+            }),
+          ),
         createdAt: existing.createdAt,
         updatedAt: existing.updatedAt,
       };
@@ -177,7 +195,11 @@ export async function loadAssistantSession({
     ),
     with: {
       messages: {
-        orderBy: [desc(ownerAssistantMessages.createdAt)],
+        // (createdAt, id) keeps same-millisecond tool rows in a stable order.
+        orderBy: [
+          desc(ownerAssistantMessages.createdAt),
+          desc(ownerAssistantMessages.id),
+        ],
         limit: messageLimit,
       },
     },
@@ -199,9 +221,79 @@ export async function loadAssistantSession({
     },
     messages: existing.messages
       .reverse()
-      .map((m: { role: string; content: string }) => ({ role: m.role, content: m.content })),
+      .map(
+        (m: {
+          role: string;
+          content: string;
+          toolName?: string | null;
+          toolCallId?: string | null;
+          id?: string;
+        }) => ({
+          role: m.role,
+          content: m.content,
+          toolName: m.toolName ?? null,
+          toolCallId: m.toolCallId ?? null,
+          id: m.id,
+        }),
+      ),
     createdAt: existing.createdAt,
     updatedAt: existing.updatedAt,
+  };
+}
+
+export type AssistantTranscriptRow = {
+  id: string;
+  role: string;
+  content: string;
+  toolName: string | null;
+  toolCallId: string | null;
+};
+
+/**
+ * Server-rendered transcript for one conversation.
+ *
+ * Returns null when the id does not belong to this member — a stale link or a
+ * deleted conversation. Callers treat that as "start a new chat" rather than a
+ * 404, because conversation identity now travels in `?session=`, which the
+ * client rewrites as it mints.
+ */
+export async function loadAssistantTranscript({
+  businessId,
+  userId,
+  sessionId,
+  limit = 100,
+}: {
+  businessId: string;
+  userId: string;
+  sessionId: string;
+  limit?: number;
+}): Promise<{
+  sessionId: string;
+  title: string | null;
+  rows: AssistantTranscriptRow[];
+} | null> {
+  const session = await loadAssistantSession({
+    businessId,
+    userId,
+    sessionId,
+    messageLimit: limit,
+  });
+
+  if (!session) return null;
+
+  return {
+    sessionId: session.sessionId,
+    title: session.title,
+    // Rows arrive oldest-first from `loadAssistantSession`. Ids are only
+    // missing for rows written before the column existed; a positional
+    // fallback keeps React keys stable for those.
+    rows: session.messages.map((message, index) => ({
+      id: message.id ?? `${session.sessionId}-${index}`,
+      role: message.role,
+      content: message.content,
+      toolName: message.toolName ?? null,
+      toolCallId: message.toolCallId ?? null,
+    })),
   };
 }
 
@@ -308,6 +400,11 @@ export async function listAssistantSessions({
 
 /**
  * Add a message to an owner assistant session.
+ *
+ * Empty user/assistant rows are dropped: persisting `{role: "assistant",
+ * content: ""}` poisons the next turn (the Google provider rejects messages
+ * with no parts, and the UI renders a blank turn). Tool rows may legitimately
+ * hold `"{}"`, so they are exempt.
  */
 export async function addMessage({
   sessionId,
@@ -328,6 +425,10 @@ export async function addMessage({
   model?: string;
   metadata?: Record<string, unknown>;
 }): Promise<void> {
+  if ((role === "user" || role === "assistant") && !content.trim()) {
+    return;
+  }
+
   const messageId = `oam_${nanoid(24)}`;
 
   await db.insert(ownerAssistantMessages).values({

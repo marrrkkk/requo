@@ -22,9 +22,15 @@
 import { vi } from "vitest";
 
 /**
- * Mocks `@/lib/resend/client` — the app's single entry point for Resend
- * transactional email sends (auth, invite, inquiry notifications, quote
- * lifecycle emails) and its two error-inspection helpers.
+ * Mocks `@/lib/resend/client` — the app's single entry point for
+ * transactional email sends (auth, member invites, inquiry acknowledgment,
+ * explicit quote delivery, quote auto-follow-ups) and its two
+ * error-inspection helpers.
+ *
+ * Owner-notification email helpers (new-inquiry, quote-sent, quote-response)
+ * were removed: those events use in-app + push notifications only. The
+ * obsolete invoice email template was also removed (invoicing is out of
+ * scope).
  *
  * Call at the top of the test file, outside any `beforeEach`.
  */
@@ -34,10 +40,9 @@ export function mockResend(): void {
     sendPasswordResetEmail: vi.fn(async () => undefined),
     sendVerificationEmail: vi.fn(async () => undefined),
     sendBusinessMemberInviteEmail: vi.fn(async () => true),
-    sendPublicInquiryNotificationEmail: vi.fn(async () => undefined),
+    sendInquiryAcknowledgmentEmail: vi.fn(async () => undefined),
     sendQuoteEmail: vi.fn(async () => undefined),
-    sendQuoteSentOwnerNotificationEmail: vi.fn(async () => undefined),
-    sendQuoteResponseOwnerNotificationEmail: vi.fn(async () => undefined),
+    sendQuoteAutoFollowUpEmail: vi.fn(async () => undefined),
     getResendFromEmailConfigurationError: vi.fn(() => null),
     getResendSendFailureMessage: vi.fn(() => null),
   }));

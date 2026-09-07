@@ -155,7 +155,8 @@ describe("owner assistant tenant isolation", () => {
     });
 
     // Owner should only see their own sessions
-    const ownerSessionIds = ownerList.map((s: any) => s.id);
+    type SessionRow = Awaited<ReturnType<typeof listRecentSessions>>[number];
+    const ownerSessionIds = ownerList.map((s: SessionRow) => s.id);
     expect(ownerSessionIds).toContain(ownerSession.sessionId);
     expect(ownerSessionIds).not.toContain(staffSession.sessionId);
 
@@ -167,7 +168,7 @@ describe("owner assistant tenant isolation", () => {
     });
 
     // Staff should only see their own sessions
-    const staffSessionIds = staffList.map((s: any) => s.id);
+    const staffSessionIds = staffList.map((s: SessionRow) => s.id);
     expect(staffSessionIds).toContain(staffSession.sessionId);
     expect(staffSessionIds).not.toContain(ownerSession.sessionId);
   });

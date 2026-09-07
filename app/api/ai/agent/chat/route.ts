@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { sessionToken } = parsed.data;
+    const { sessionToken, proposedInquiryValues } = parsed.data;
     const uiMessages = Array.isArray(
       (body as { messages?: unknown }).messages,
     )
@@ -104,6 +104,9 @@ export async function POST(request: Request) {
             .map((part) => part.text as string)
             .join("\n"),
       })),
+      proposedInquiryValues: proposedInquiryValues as
+        | Record<string, unknown>
+        | undefined,
     });
 
     return response;

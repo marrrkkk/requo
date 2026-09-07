@@ -4,76 +4,47 @@ vi.mock("@/lib/db/client", () => ({ db: {} }));
 
 import { computeEstimatedCostCents } from "@/features/ai-agent/telemetry";
 
-describe("computeEstimatedCostCents", () => {
-  it("uses the default tier for unknown models", () => {
+describe("computeEstimatedCostCents (catalog-priced)", () => {
+  it("prices catalog entries from the real catalog", () => {
+    // groq gpt-oss-120b: 15 in / 60 out per 1M
+    expect(
+      computeEstimatedCostCents({
+        inputTokens: 1_000_000,
+        outputTokens: 1_000_000,
+        model: "openai/gpt-oss-120b",
+        provider: "groq",
+      }),
+    ).toBe(75);
+  });
+
+  it("accepts a full registry ID", () => {
     expect(
       computeEstimatedCostCents({
         inputTokens: 1_000_000,
         outputTokens: 0,
-        model: "some-custom-model",
+        model: "groq:openai/gpt-oss-20b",
       }),
-    ).toBe(50);
+    ).toBe(7.5);
+  });
 
+  it("prices free-tier overflow at zero, not the default rate", () => {
     expect(
       computeEstimatedCostCents({
-        inputTokens: 0,
+        inputTokens: 1_000_000,
+        outputTokens: 1_000_000,
+        model: "z-ai/glm-4.5-air:free",
+        provider: "openrouter",
+      }),
+    ).toBe(0);
+  });
+
+  it("returns zero for unknown models instead of a default rate", () => {
+    expect(
+      computeEstimatedCostCents({
+        inputTokens: 1_000_000,
         outputTokens: 1_000_000,
         model: "some-custom-model",
       }),
-    ).toBe(150);
-  });
-
-  it("matches gpt-family models to their tier", () => {
-    expect(
-      computeEstimatedCostCents({
-        inputTokens: 1_000_000,
-        outputTokens: 0,
-        model: "gpt-4",
-      }),
-    ).toBe(3000);
-
-    expect(
-      computeEstimatedCostCents({
-        inputTokens: 1_000_000,
-        outputTokens: 0,
-        model: "gpt-3.5-turbo",
-      }),
-    ).toBe(50);
-  });
-
-  it("matches gemini and llama tiers case-insensitively", () => {
-    expect(
-      computeEstimatedCostCents({
-        inputTokens: 100_000,
-        outputTokens: 100_000,
-        model: "Gemini-2.0-flash",
-      }),
-    ).toBe(14); // (0.1 * 35) + (0.1 * 105)
-
-    expect(
-      computeEstimatedCostCents({
-        inputTokens: 1_000_000,
-        outputTokens: 0,
-        model: "LLAMA-3-70B",
-      }),
-    ).toBe(20);
-  });
-
-  it("rounds the result to two decimal places", () => {
-    expect(
-      computeEstimatedCostCents({
-        inputTokens: 1,
-        outputTokens: 0,
-        model: "gpt-4",
-      }),
-    ).toBe(0); // (1 / 1M * 3000) * 100 rounds to 0
-
-    expect(
-      computeEstimatedCostCents({
-        inputTokens: 500_000,
-        outputTokens: 0,
-        model: "claude-3-opus",
-      }),
-    ).toBe(150); // 0.5 * 300
+    ).toBe(0);
   });
 });
