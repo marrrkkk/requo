@@ -12,14 +12,14 @@ import {
 import { timed } from "@/lib/dev/server-timing";
 import {
   getBusinessDashboardPath,
-  getBusinessInquiryPageEditorPath,
+  getBusinessServicePath,
 } from "@/features/businesses/routes";
 import { dashboardPath } from "@/features/businesses/routes";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
-  title: "Inquiry form preview",
-  description: "Internal preview of a business inquiry form before publishing.",
+  title: "Service preview",
+  description: "Internal preview of a business service before publishing.",
 });
 
 
@@ -55,7 +55,7 @@ export default async function BusinessInquiryFormPreviewPage({
     notFound();
   }
 
-  const settingsHref = getBusinessInquiryPageEditorPath(businessSlug, formSlug);
+  const settingsHref = getBusinessServicePath(businessSlug, formSlug);
   const submitPublicInquiry = submitPublicInquiryAction.bind(
     null,
     business.slug,

@@ -156,7 +156,7 @@ function AppearanceMenuRadioGroup({
             <span className="flex-1">{themePreferenceLabels[themePreference]}</span>
             <span
               className={cn(
-                "text-[0.68rem] uppercase tracking-[0.14em] text-muted-foreground",
+                "text-xs uppercase tracking-[0.14em] text-muted-foreground",
                 activeTheme === themePreference ? "opacity-100" : "opacity-0",
               )}
             >

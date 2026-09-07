@@ -1019,7 +1019,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .dashboard-page {
-    @apply flex min-w-0 flex-col gap-6 sm:gap-7 xl:gap-8;
+    @apply flex min-w-0 flex-col gap-6;
   }
 
   .dashboard-actions {
@@ -1031,22 +1031,22 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .dashboard-detail-layout {
-    @apply grid min-w-0 gap-6 lg:gap-7 xl:grid-cols-[minmax(0,1.2fr)_0.8fr];
+    @apply grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.2fr)_0.8fr];
   }
 
   .dashboard-detail-header {
-    @apply flex flex-col gap-5 rounded-xl border border-border/85 px-4 py-4 sm:px-6 sm:py-6 xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start xl:gap-6;
+    @apply flex flex-col gap-4 rounded-xl border border-border/85 px-4 py-4 sm:px-5 sm:py-5 xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start xl:gap-5;
     background: var(--surface-elevated-bg);
     border-color: var(--surface-stroke);
     box-shadow: var(--surface-shadow-lg);
   }
 
   .dashboard-detail-header-copy {
-    @apply flex min-w-0 flex-col gap-4;
+    @apply flex min-w-0 flex-col gap-3;
   }
 
   .dashboard-detail-header-meta {
-    @apply flex flex-wrap items-center gap-2.5;
+    @apply flex flex-wrap items-center gap-2;
   }
 
   .dashboard-detail-header-actions {
@@ -1054,7 +1054,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .dashboard-detail-support-grid {
-    @apply flex min-w-0 flex-col gap-6;
+    @apply flex min-w-0 flex-col gap-4;
   }
 
   .dashboard-detail-feed {
@@ -1077,7 +1077,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .dashboard-detail-feed-body {
-    @apply text-sm leading-7 text-foreground;
+    @apply text-sm leading-6 text-foreground;
   }
 
   .dashboard-meta-pill {
@@ -1103,7 +1103,11 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .dashboard-table-shell-inner {
-    @apply p-2 sm:p-3;
+    @apply p-0;
+  }
+
+  .data-list-toolbar-strip {
+    @apply flex min-w-0 flex-col gap-2 border-b border-border/70 px-4 py-2.5;
   }
 
   .data-list-toolbar-summary {
@@ -1111,20 +1115,17 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .data-list-toolbar-count {
-    @apply inline-flex w-fit items-center rounded-full border border-border/80 px-3 py-1 text-sm font-medium text-foreground;
-    background: var(--surface-muted-bg);
-    border-color: color-mix(in srgb, var(--surface-stroke) 88%, transparent);
-    box-shadow: var(--surface-shadow-sm);
+    @apply text-sm whitespace-nowrap text-muted-foreground;
   }
 
   .data-list-toolbar-grid {
-    @apply flex min-w-0 w-full flex-col gap-3;
-    @apply xl:flex-row xl:flex-nowrap xl:items-end xl:gap-3;
+    @apply flex min-w-0 w-full flex-col gap-2;
+    @apply sm:flex-row sm:flex-nowrap sm:items-center sm:gap-2;
   }
 
   .data-list-toolbar-actions {
-    @apply flex flex-row items-center gap-2 sm:gap-3;
-    @apply xl:ml-auto xl:shrink-0 xl:justify-end;
+    @apply flex flex-row items-center gap-2;
+    @apply sm:ml-auto sm:shrink-0 sm:justify-end;
   }
 
 
@@ -1160,19 +1161,19 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .table-meta-stack {
-    @apply flex min-w-0 flex-col gap-1.5;
+    @apply flex min-w-0 flex-col gap-0.5;
   }
 
   .table-link {
-    @apply block truncate text-sm font-semibold text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline group-hover/row:text-primary;
+    @apply block truncate text-sm leading-5 font-semibold text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline group-hover/row:text-primary;
   }
 
   .table-supporting-text {
-    @apply truncate text-sm leading-6 text-muted-foreground;
+    @apply truncate text-sm leading-5 text-muted-foreground;
   }
 
   .table-emphasis {
-    @apply truncate text-sm font-medium text-foreground;
+    @apply truncate text-sm leading-5 font-medium text-foreground;
   }
 
   .dashboard-topbar {
@@ -1184,7 +1185,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .dashboard-main {
-    @apply flex flex-1 flex-col px-3 py-5 sm:px-6 sm:py-7 xl:px-8 xl:py-8;
+    @apply flex flex-1 flex-col px-3 py-4 sm:px-5 sm:py-5 xl:px-6 xl:py-6;
   }
 
   /* When AI panel is open, reduce max-width and padding so content adapts */
@@ -1697,7 +1698,14 @@ html[data-reload-loading="fade-out"] #app-root-content {
     @apply inline-flex w-fit max-w-max self-start items-center rounded-full border border-border/80 bg-secondary px-2.5 py-1 text-[0.68rem] font-medium uppercase tracking-[0.16em] text-muted-foreground whitespace-nowrap;
   }
 
-  .section-panel {
+  .section-panel:not([data-padding="none"]) {
+    @apply rounded-xl border border-border/85 px-4 py-4 sm:px-5 sm:py-5;
+    background: var(--surface-elevated-bg);
+    border-color: var(--surface-stroke);
+    box-shadow: var(--surface-shadow-lg);
+  }
+
+  .section-panel[data-padding="none"] {
     @apply rounded-xl border border-border/85;
     background: var(--surface-elevated-bg);
     border-color: var(--surface-stroke);
@@ -1711,7 +1719,14 @@ html[data-reload-loading="fade-out"] #app-root-content {
     box-shadow: var(--surface-shadow-md);
   }
 
-  .soft-panel {
+  .soft-panel:not([data-padding="none"]) {
+    @apply rounded-lg border border-border/80 px-4 py-4;
+    background: var(--surface-muted-bg);
+    border-color: color-mix(in srgb, var(--surface-stroke) 88%, transparent);
+    box-shadow: var(--surface-shadow-sm);
+  }
+
+  .soft-panel[data-padding="none"] {
     @apply rounded-lg border border-border/80;
     background: var(--surface-muted-bg);
     border-color: color-mix(in srgb, var(--surface-stroke) 88%, transparent);
@@ -2482,3 +2497,153 @@ html[data-reload-loading="fade-out"] #app-root-content {
     transform: translateY(8px);
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Chat surface — shared by the owner assistant and the customer chat.
+ *
+ * Sticky bottom composer: the transcript scrolls internally while the composer
+ * stays pinned at the bottom in both empty and active conversation states.
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+@layer utilities {
+  .chat-stage {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto minmax(0, 0fr);
+    min-height: 0;
+  }
+
+  .chat-stage[data-conversation="empty"] {
+    grid-template-rows: minmax(0, 1fr) auto minmax(0, 0fr);
+  }
+
+  /* Row 1 holds the transcript. It is the only thing that scrolls. Content
+     is bottom-aligned by an automatic top margin on the single inner wrapper,
+     not by end-justifying the scroll container: end-justifying an overflowing
+     column reports scrollHeight == clientHeight and strands early content
+     above the box. The margin variant keeps scrollHeight > clientHeight with
+     the first item reachable. */
+  .chat-stage-transcript {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .chat-stage-transcript-inner {
+    margin-top: auto;
+  }
+
+  /* ── Assistant pane height opt-in (scoped, no arithmetic) ──
+     Nothing in the dashboard shell chain establishes a resolvable height
+     (minimum-height all the way down), so the pane's full-height request
+     resolves to auto and the transcript never scrolls. The persistent shell
+     derives [data-assistant-route] from the current pathname; this avoids
+     leaking these styles to the next page while React retains the previous
+     Assistant subtree during a client navigation. */
+  [data-slot="sidebar-inset"][data-assistant-route] {
+    height: 100svh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  [data-slot="sidebar-inset"][data-assistant-route]
+    [data-slot="dashboard-scroll-area"],
+  [data-slot="sidebar-inset"][data-assistant-route] .dashboard-main,
+  [data-slot="sidebar-inset"][data-assistant-route] .dashboard-content,
+  [data-slot="sidebar-inset"][data-assistant-route] [data-slot="archived-scope"],
+  [data-slot="sidebar-inset"][data-assistant-route] .dashboard-page {
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 0%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  [data-slot="sidebar-inset"][data-assistant-route] .dashboard-page {
+    gap: 0;
+  }
+
+  [data-slot="sidebar-inset"][data-assistant-route] .dashboard-main {
+    padding-bottom: 0;
+  }
+
+  /* Text shimmer for streaming status lines ("Thinking…", tool progress). */
+  .text-shimmer {
+    background-image: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--foreground) 38%, transparent) 0%,
+      color-mix(in srgb, var(--foreground) 38%, transparent) 42%,
+      var(--foreground) 50%,
+      color-mix(in srgb, var(--foreground) 38%, transparent) 58%,
+      color-mix(in srgb, var(--foreground) 38%, transparent) 100%
+    );
+    background-size: 200% auto;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    animation: shimmer 2.2s linear infinite;
+  }
+
+  /* The global reduced-motion rule only freezes the animation, which would
+     leave transparent text behind. Restore a solid colour explicitly. */
+  @media (prefers-reduced-motion: reduce) {
+    .text-shimmer {
+      background-image: none;
+      color: var(--muted-foreground);
+      -webkit-text-fill-color: currentColor;
+      animation: none !important;
+    }
+  }
+
+  /*
+   * Subtle per-link navigation feedback (`NavLinkStatus` + `useLinkStatus`).
+   * A fixed-size dot that reserves space without shifting layout: invisible
+   * by default, fading in only after a short delay so fast transitions never
+   * flash, then pulsing gently while the navigation stays pending.
+   */
+  .nav-link-hint {
+    display: inline-block;
+    width: 0.375rem;
+    height: 0.375rem;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    background: currentColor;
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .nav-link-hint.is-pending {
+    visibility: visible;
+    animation-name: nav-hint-fade-in, nav-hint-pulse;
+    animation-duration: 200ms, 1s;
+    animation-delay: 150ms, 150ms;
+    animation-timing-function: ease, ease-in-out;
+    animation-iteration-count: 1, infinite;
+    animation-fill-mode: forwards, none;
+  }
+
+  @keyframes nav-hint-fade-in {
+    to {
+      opacity: 0.45;
+    }
+  }
+
+  @keyframes nav-hint-pulse {
+    50% {
+      opacity: 0.18;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .nav-link-hint.is-pending {
+      animation-name: nav-hint-fade-in;
+      animation-duration: 200ms;
+      animation-delay: 150ms;
+      animation-iteration-count: 1;
+    }
+  }
+}
+

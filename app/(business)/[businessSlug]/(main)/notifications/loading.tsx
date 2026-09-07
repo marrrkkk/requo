@@ -7,7 +7,6 @@ export default function NotificationsLoading() {
     <DashboardPage>
       <PageHeader
         title="Notifications"
-        description="All notifications for this business."
       />
       <DashboardListResultsSkeleton />
     </DashboardPage>

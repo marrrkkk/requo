@@ -9,14 +9,14 @@ import {
 } from "@/lib/db/business-access";
 import {
   getBusinessDashboardPath,
-  getBusinessInquiryFormPreviewPath,
+  getBusinessServicePreviewPath,
 } from "@/features/businesses/routes";
 import { dashboardPath } from "@/features/businesses/routes";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
-  title: "Inquiry page preview",
-  description: "Redirects to the current inquiry form preview.",
+  title: "Service page preview",
+  description: "Redirects to the current service preview.",
 });
 
 export default async function BusinessInquiryPagePreviewRedirect({
@@ -42,5 +42,5 @@ export default async function BusinessInquiryPagePreviewRedirect({
     businessContext.business.id,
   );
 
-  redirect(getBusinessInquiryFormPreviewPath(businessSlug, form?.slug ?? "main"));
+  redirect(getBusinessServicePreviewPath(businessSlug, form?.slug ?? "main"));
 }

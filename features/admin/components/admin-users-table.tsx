@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { DashboardTableContainer } from "@/components/shared/dashboard-layout";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -50,12 +49,12 @@ function formatTableDate(value: Date | null): string {
  * `createdAt desc` (Req 3.4); the caption surfaces that so screen
  * readers announce the ordering too.
  *
- * Reuses the shared `DashboardTableContainer` + `Table` wrappers per
- * DESIGN.md. No new visual primitives.
+ * Reuses the shared list-card + `Table` wrappers per DESIGN.md.
+ * No new visual primitives.
  */
 export function AdminUsersTable({ users }: AdminUsersTableProps) {
   return (
-    <DashboardTableContainer>
+    <div className="overflow-x-auto no-scrollbar">
       <Table className="min-w-[60rem] table-fixed">
         <TableCaption className="sr-only">
           Newest users appear first.
@@ -141,6 +140,6 @@ export function AdminUsersTable({ users }: AdminUsersTableProps) {
           })}
         </TableBody>
       </Table>
-    </DashboardTableContainer>
+    </div>
   );
 }

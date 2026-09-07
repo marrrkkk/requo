@@ -3,7 +3,6 @@ import { CreditCard } from "lucide-react";
 import { DataListPagination } from "@/components/shared/data-list-pagination";
 import {
   DashboardEmptyState,
-  DashboardTableContainer,
 } from "@/components/shared/dashboard-layout";
 import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
 import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
@@ -50,24 +49,26 @@ export async function AdminSubscriptionsListContentSection({
 
   if (items.length === 0) {
     return (
-      <DashboardEmptyState
-        description={
-          hasFilters
-            ? "No subscriptions match the current filters."
-            : "No account subscriptions have been created yet."
-        }
-        icon={CreditCard}
-        title="No subscriptions found"
-        variant="list"
-      />
+      <div className="p-4">
+        <DashboardEmptyState
+          description={
+            hasFilters
+              ? "No subscriptions match the current filters."
+              : "No account subscriptions have been created yet."
+          }
+          icon={CreditCard}
+          title="No subscriptions found"
+          variant="list"
+        />
+      </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <DashboardTableContainer>
+    <>
+      <div className="overflow-x-auto no-scrollbar">
         <AdminSubscriptionsTableBody items={items} />
-      </DashboardTableContainer>
+      </div>
       <DataListPagination
         currentPage={currentPage}
         pageSize={filters.pageSize}
@@ -76,7 +77,7 @@ export async function AdminSubscriptionsListContentSection({
         totalItems={total}
         totalPages={totalPages}
       />
-    </div>
+    </>
   );
 }
 

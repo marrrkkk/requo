@@ -13,24 +13,7 @@ import {
 } from "@/features/admin/components/admin-subscriptions-list-sections";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-      searchParams: {
-        page: null,
-        perPage: null,
-        status: null,
-        plan: null,
-        q: null,
-      },
-    },
-  ],
-};
+export const instant = true;
 
 export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "Subscriptions - Requo admin",
@@ -55,8 +38,10 @@ export default function AdminSubscriptionsPage({
             eyebrow="Admin"
             title="Subscriptions"
           />
-          <AdminListControlsFallback />
-          <AdminListContentFallback />
+          <div className="dashboard-table-shell" data-list-card>
+            <AdminListControlsFallback />
+            <AdminListContentFallback />
+          </div>
         </DashboardPage>
       }
     >
@@ -79,12 +64,14 @@ async function AdminSubscriptionsPageContent({
           eyebrow="Admin"
           title="Subscriptions"
         />
-        <Suspense fallback={<AdminListControlsFallback />}>
-          <AdminSubscriptionsListControlsSection rawParams={rawParams} />
-        </Suspense>
-        <Suspense fallback={<AdminListContentFallback />}>
-          <AdminSubscriptionsListContentSection rawParams={rawParams} />
-        </Suspense>
+        <div className="dashboard-table-shell" data-list-card>
+          <Suspense fallback={<AdminListControlsFallback />}>
+            <AdminSubscriptionsListControlsSection rawParams={rawParams} />
+          </Suspense>
+          <Suspense fallback={<AdminListContentFallback />}>
+            <AdminSubscriptionsListContentSection rawParams={rawParams} />
+          </Suspense>
+        </div>
       </DashboardPage>
     ),
     {

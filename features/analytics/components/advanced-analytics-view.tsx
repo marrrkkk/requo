@@ -28,6 +28,12 @@ type AdvancedAnalyticsViewProps = {
   };
   /** AI-generated one-sentence summary for the operations panel. */
   aiSummary?: string | null;
+  /**
+   * Streaming alternative to `aiSummary`. When provided, the insight card
+   * streams in behind its own boundary so LLM latency never holds back
+   * the charts. Prefer this from progressively-loaded regions.
+   */
+  aiSummaryPromise?: Promise<string | null>;
   /** Revenue forecast data for operations panel. */
   revenueForecast?: RevenueForecast | null;
   /** Top referrer sources for performance panel. */
@@ -77,6 +83,7 @@ export function AdvancedAnalyticsView({
   currency,
   data,
   aiSummary,
+  aiSummaryPromise,
   revenueForecast,
   topSources,
   upgradeAction,
@@ -120,7 +127,7 @@ export function AdvancedAnalyticsView({
             title="Operations"
             description="Timing, follow-up discipline, and revenue signals."
           >
-            <AnalyticsBusinessPanel data={data.business} currency={currency} aiSummary={aiSummary} businessSlug={businessSlug} revenueForecast={revenueForecast} />
+            <AnalyticsBusinessPanel data={data.business} currency={currency} aiSummary={aiSummary} aiSummaryPromise={aiSummaryPromise} businessSlug={businessSlug} revenueForecast={revenueForecast} />
           </AnalyticsSection>
         </Suspense>
       ) : null}

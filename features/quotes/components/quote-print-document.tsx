@@ -13,6 +13,7 @@ export function QuotePrintDocument({
 
   return (
     <article
+      data-padding="none"
       className="section-panel mx-auto flex w-full max-w-[58rem] flex-col gap-6 px-6 py-6 sm:px-8 sm:py-8 print:max-w-none print:gap-4 print:rounded-none print:border-0 print:bg-transparent print:px-0 print:py-0 print:shadow-none"
       data-export-document
     >
@@ -40,7 +41,7 @@ export function QuotePrintDocument({
         </div>
 
         <div className="grid gap-3 md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-          <div className="soft-panel px-4 py-4 shadow-none print:border-border/70">
+          <div data-padding="none" className="soft-panel px-4 py-4 shadow-none print:border-border/70">
             <p className="meta-label">Prepared for</p>
             <p className="mt-2 text-lg font-semibold tracking-tight text-foreground">
               {quote.customerName}
@@ -53,7 +54,7 @@ export function QuotePrintDocument({
             </p>
           </div>
 
-          <div className="soft-panel px-4 py-4 shadow-none print:border-border/70">
+          <div data-padding="none" className="soft-panel px-4 py-4 shadow-none print:border-border/70">
             <p className="meta-label">Overview</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <DetailRow
@@ -127,7 +128,7 @@ export function QuotePrintDocument({
         </div>
 
         <aside className="flex flex-col gap-4">
-          <section className="soft-panel px-4 py-4 shadow-none print:border-border/70">
+          <section data-padding="none" className="soft-panel px-4 py-4 shadow-none print:border-border/70">
             <p className="meta-label">Totals</p>
             <div className="mt-4 flex flex-col gap-3">
               <SummaryRow
@@ -148,7 +149,7 @@ export function QuotePrintDocument({
             </div>
           </section>
 
-          <section className="soft-panel px-4 py-4 shadow-none print:border-border/70">
+          <section data-padding="none" className="soft-panel px-4 py-4 shadow-none print:border-border/70">
             <p className="meta-label">Quote details</p>
             <div className="mt-4 flex flex-col gap-3">
               <DetailRow label="Business" value={businessName} />
@@ -174,7 +175,7 @@ function DetailCard({
   value: string;
 }) {
   return (
-    <div className="soft-panel px-4 py-4 shadow-none print:border-border/70">
+    <div data-padding="none" className="soft-panel px-4 py-4 shadow-none print:border-border/70">
       <p className="meta-label">{label}</p>
       <p className="mt-2 text-sm font-medium text-foreground">{value}</p>
     </div>

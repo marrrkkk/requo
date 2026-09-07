@@ -17,18 +17,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Edit the email templates Requo sends on behalf of this business.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * Email template settings page — non-blocking structural shell.

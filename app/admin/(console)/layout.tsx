@@ -13,9 +13,9 @@ export const preferredRegion = "syd1";
  * cookie check always redirects unauthenticated users, which prevents
  * validation from reaching the page segment. Sibling navigations within
  * the console (e.g. /admin/users → /admin/businesses) are still validated
- * by the `unstable_instant` exports on each page.
+ * by the `instant` exports on each page.
  */
-export const unstable_instant = false;
+export const instant = false;
 
 /**
  * Admin console layout (auth-gated).

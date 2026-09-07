@@ -83,7 +83,7 @@ export function AuthShell({
             </div>
           </div>
 
-          <div className="soft-panel grid gap-3 p-5">
+          <div data-padding="none" className="soft-panel grid gap-3 p-5">
             {[
               "Collect scope, timing, budget, and files without extra back-and-forth.",
               "Qualify the lead before pricing and keep notes attached to the inquiry.",

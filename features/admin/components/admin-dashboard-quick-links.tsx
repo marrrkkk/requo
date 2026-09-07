@@ -71,7 +71,7 @@ export function AdminDashboardQuickLinks() {
         return (
           <Link
             className={cn(
-              "group soft-panel flex items-start gap-4 px-4 py-4",
+ "group soft-panel flex items-start gap-4",
               "transition-[border-color,box-shadow]",
               "[transition-duration:var(--motion-duration-fast)]",
               "hover:border-primary/20 hover:shadow-[var(--surface-shadow-md)]",

@@ -109,10 +109,10 @@ export function DashboardDetailHeader({
   return (
     <div className={cn("dashboard-detail-header", className)}>
       <div className="dashboard-detail-header-copy">
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           {eyebrow ? <span className="meta-label">{eyebrow}</span> : null}
-          <div className="flex flex-col gap-3">
-            <h1 className="font-heading text-[1.65rem] font-semibold leading-tight tracking-tight text-balance sm:text-[2rem] lg:text-[2.3rem]">
+          <div className="flex flex-col gap-2">
+            <h1 className="font-heading text-xl font-semibold leading-tight tracking-tight text-balance sm:text-2xl">
               {plainTitle ? (
                 <TruncatedTextWithTooltip text={plainTitle} lines={2} />
               ) : (
@@ -120,7 +120,7 @@ export function DashboardDetailHeader({
               )}
             </h1>
             {description ? (
-              <p className="max-w-2xl text-sm leading-normal sm:leading-7 text-muted-foreground sm:text-[0.96rem]">
+              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
                 {plainDescription ? (
                   <TruncatedTextWithTooltip text={plainDescription} lines={2} />
                 ) : (
@@ -217,8 +217,8 @@ export function DashboardSection({
   return (
     <Card className={cn("gap-0", className)}>
       {hasHeader ? (
-        <CardHeader className={cn("gap-3 pb-5", headerClassName)}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <CardHeader className={cn("gap-2 pb-4", headerClassName)}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               {title ? <CardTitle>{title}</CardTitle> : null}
               {description ? (
@@ -239,7 +239,7 @@ export function DashboardSection({
       <CardContent
         className={cn(
           "dashboard-section-body",
-          hasHeader ? "pt-0" : "pt-6",
+          hasHeader ? "pt-0" : "pt-5",
           contentClassName,
         )}
       >

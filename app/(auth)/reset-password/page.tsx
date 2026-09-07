@@ -13,18 +13,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   title: "Choose a new password",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-      searchParams: { token: "sample-reset-token" },
-    },
-  ],
-};
+export const instant = true;
 
 export default function ResetPasswordPage() {
   return (

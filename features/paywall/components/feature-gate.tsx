@@ -34,6 +34,7 @@ import {
   getUpgradeCtaText,
   getUpgradeDescription,
   getFeatureLabel,
+  resolveRequiredPlan,
   safeHasFeatureAccess,
 } from "../lib/utils";
 import type { UpgradeActionProps } from "../types";
@@ -188,7 +189,7 @@ function ActionGate({
 
   const requiredPlanLabel = getRequiredPlanLabel(feature);
   const featureDescription = description ?? getUpgradeDescription(feature);
-  const ctaText = getUpgradeCtaText(plan);
+  const ctaText = getUpgradeCtaText(plan, resolveRequiredPlan(feature));
 
   const trigger = (
     <div
@@ -213,7 +214,7 @@ function ActionGate({
         }
       }}
     >
-      <div className="pointer-events-none opacity-50" aria-hidden="true">
+      <div className="pointer-events-none opacity-50" aria-hidden="true" inert={true}>
         {children}
       </div>
     </div>
@@ -283,7 +284,7 @@ function BlockGate({
   const featureLabel = getFeatureLabel(feature);
   const planLabel = getRequiredPlanLabel(feature);
   const featureDescription = description ?? getUpgradeDescription(feature);
-  const ctaText = getUpgradeCtaText(plan);
+  const ctaText = getUpgradeCtaText(plan, resolveRequiredPlan(feature));
 
   return (
     <div
@@ -294,7 +295,7 @@ function BlockGate({
       <Card className="border-border/70 bg-card/50">
         <CardHeader className="gap-3 pb-4">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-muted/40">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
               <Lock className="size-4 text-muted-foreground" aria-hidden="true" />
             </div>
             <div className="min-w-0 flex-1">
@@ -351,7 +352,7 @@ function PageGate({
   const featureLabel = getFeatureLabel(feature);
   const planLabel = getRequiredPlanLabel(feature);
   const featureDescription = description ?? getUpgradeDescription(feature);
-  const ctaText = getUpgradeCtaText(plan);
+  const ctaText = getUpgradeCtaText(plan, resolveRequiredPlan(feature));
 
   // With preview content: show demo + badge + banner
   if (previewContent) {
@@ -376,7 +377,7 @@ function PageGate({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-semibold text-foreground">{featureLabel}</p>
-                  <Badge variant="secondary" className="text-[10px]">
+                  <Badge variant="secondary" className="text-xs">
                     {planLabel}
                   </Badge>
                 </div>

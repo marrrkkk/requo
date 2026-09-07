@@ -53,6 +53,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Spinner } from "@/components/ui/spinner";
 import { DashboardEmptyState } from "@/components/shared/dashboard-layout";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { useAnimatedList, type MotionState } from "@/hooks/use-animated-list";
@@ -465,13 +466,13 @@ function KnowledgeEntryRow({
               {entry.title}
             </p>
             {entry.kind === "memory" ? (
-              <Badge variant="outline" className="shrink-0 text-[0.65rem]">
+              <Badge variant="outline" className="shrink-0 text-xs">
                 {categoryLabel}
               </Badge>
             ) : fileStatus && FileStatusIcon ? (
               <Badge
                 variant={fileStatus.badgeVariant}
-                className="shrink-0 text-[0.65rem] gap-1"
+                className="shrink-0 text-xs gap-1"
               >
                 <FileStatusIcon className={cn("size-3", fileStatus.className)} />
                 {fileStatus.label}
@@ -596,7 +597,7 @@ function UploadFileButton({
         onClick={() => fileInputRef.current?.click()}
       >
         {isPending ? (
-          <Loader2 className="size-3.5 animate-spin" />
+          <Spinner className="size-3.5" />
         ) : (
           <FileUp data-icon="inline-start" />
         )}
@@ -640,7 +641,7 @@ function AddMemoryEntryDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-start gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
               <BookOpen className="size-5 text-muted-foreground" />
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -676,7 +677,7 @@ function AddMemoryEntryDialog({
               </FieldDescription>
               <FieldContent>
                 <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-9 w-full rounded-md border border-input sm:h-8 bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   defaultValue="business_rules"
                   id="add-category"
                   name="category"
@@ -765,7 +766,7 @@ function EditMemoryEntryDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-start gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
               <BookOpen className="size-5 text-muted-foreground" />
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -800,7 +801,7 @@ function EditMemoryEntryDialog({
               </FieldDescription>
               <FieldContent>
                 <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-9 w-full rounded-md border border-input sm:h-8 bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   defaultValue={memory.category}
                   id="edit-category"
                   name="category"

@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { MotionState } from "@/hooks/use-animated-list";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { DashboardTableContainer } from "@/components/shared/dashboard-layout";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import {
   Table,
@@ -46,7 +45,7 @@ export function QuoteListTable({
   getMotionState,
 }: QuoteListTableProps) {
   return (
-    <DashboardTableContainer className="hidden xl:block">
+    <div className="hidden overflow-x-auto no-scrollbar xl:block">
       <Table className="min-w-[66rem] table-fixed 2xl:min-w-[72rem]">
         <TableCaption className="sr-only">Newest quotes appear first.</TableCaption>
         <TableHeader>
@@ -163,7 +162,7 @@ export function QuoteListTable({
           })}
         </TableBody>
       </Table>
-    </DashboardTableContainer>
+    </div>
   );
 }
 

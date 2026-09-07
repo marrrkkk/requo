@@ -80,7 +80,7 @@ export function MobileSettingsBottomNav({
                 href={tab.href}
                 prefetch={true}
                 className={cn(
-                  "flex h-full flex-col items-center justify-center gap-1 py-1 text-[0.74rem] transition-colors",
+                  "flex h-full flex-col items-center justify-center gap-1 py-1 text-xs transition-colors",
                   tab.isActive
                     ? "text-primary font-semibold"
                     : "text-muted-foreground hover:text-foreground active:text-foreground font-medium",
@@ -103,7 +103,7 @@ export function MobileSettingsBottomNav({
             type="button"
             onClick={() => setMenuOpen(true)}
             className={cn(
-              "flex h-full flex-col items-center justify-center gap-1 py-1 text-[0.74rem] transition-colors",
+              "flex h-full flex-col items-center justify-center gap-1 py-1 text-xs transition-colors",
               menuOpen
                 ? "text-primary font-semibold"
                 : "text-muted-foreground hover:text-foreground active:text-foreground font-medium",

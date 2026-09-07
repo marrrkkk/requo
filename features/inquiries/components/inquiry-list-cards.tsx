@@ -1,4 +1,5 @@
-import { Bot, Copy, FileText, PenLine } from "lucide-react";
+import { Briefcase, Copy, PenLine } from "lucide-react";
+import { RequoIcon } from "@/components/shared/requo-icon";
 import type { MotionState } from "@/hooks/use-animated-list";
 import { MobileRecordRow } from "@/components/shared/mobile-record-row";
 import type { DashboardInquiryListItem } from "@/features/inquiries/types";
@@ -8,16 +9,15 @@ import {
   getInquirySourceLabel,
 } from "@/features/inquiries/utils";
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
-import { InquiryEscalatedBadge } from "@/features/inquiries/components/inquiry-escalated-badge";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
 
 function getInquiryChannelDisplay(inquiry: DashboardInquiryListItem) {
   if (inquiry.inquiryFormName) {
-    return { label: inquiry.inquiryFormName, icon: FileText };
+    return { label: inquiry.inquiryFormName, icon: Briefcase };
   }
   if (inquiry.source && AI_AGENT_SOURCES.has(inquiry.source)) {
-    return { label: getInquirySourceLabel(inquiry.source), icon: Bot };
+    return { label: getInquirySourceLabel(inquiry.source), icon: RequoIcon };
   }
   return { label: "Manual", icon: PenLine };
 }
@@ -40,7 +40,7 @@ export function InquiryListCards({
   getMotionState,
 }: InquiryListCardsProps) {
   return (
-    <div className="flex flex-col gap-2.5 xl:hidden">
+    <div className="flex flex-col gap-2.5 p-4 xl:hidden">
       {inquiries.map((inquiry) => {
         const checked = isSelected?.(inquiry.id) ?? false;
         const disabled = !checked && (isAtLimit ?? false);
@@ -74,12 +74,9 @@ export function InquiryListCards({
             }
             statusBadge={<InquiryStatusBadge status={inquiry.status} />}
             stateBadge={
-              <>
-                {inquiry.escalated ? <InquiryEscalatedBadge /> : null}
-                {inquiry.recordState !== "active" ? (
-                  <InquiryRecordStateBadge state={inquiry.recordState} />
-                ) : null}
-              </>
+              inquiry.recordState !== "active" ? (
+                <InquiryRecordStateBadge state={inquiry.recordState} />
+              ) : null
             }
             metadata={
               <>

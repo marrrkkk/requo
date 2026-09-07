@@ -243,7 +243,7 @@ function BusinessInquirySpotlight({
   const brandTagline = getResolvedBrandTagline(business);
 
   return (
-    <div className="soft-panel flex h-full flex-col justify-between gap-5 bg-secondary/70 p-6 shadow-none">
+    <div data-padding="none" className="soft-panel flex h-full flex-col justify-between gap-5 bg-secondary/70 p-6 shadow-none">
       <BusinessBrandBadge business={business} size="lg" />
       <div className="space-y-2">
         <p className="meta-label">Business</p>

@@ -14,18 +14,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "View all notifications for this business.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 type NotificationsPageProps = {
   params: Promise<{ businessSlug: string }>;
@@ -40,7 +29,6 @@ export default function NotificationsPage({ params }: NotificationsPageProps) {
     <DashboardPage>
       <PageHeader
         title="Notifications"
-        description="All notifications for this business."
       />
       <Suspense fallback={<DashboardListResultsSkeleton />}>
         <NotificationsContent params={params} />

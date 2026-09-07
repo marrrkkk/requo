@@ -175,7 +175,7 @@ export function QuoteLibrarySheet({
                   <EmptyDescription>
                     {isTemplateMode
                       ? "Create quote templates in Settings → Quotes to pre-fill entire quotes."
-                      : "Save pricing blocks or service packages in Business settings first."}
+                      : "Save pricing blocks or packages in Business settings first."}
                   </EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
@@ -266,7 +266,7 @@ function LibraryEntryCard({
 
   return (
     <div
-      className="soft-panel flex flex-col gap-4 p-4 shadow-none"
+      className="soft-panel flex flex-col gap-4 shadow-none"
       data-testid="quote-library-sheet-entry"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

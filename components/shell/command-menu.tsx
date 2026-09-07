@@ -9,10 +9,10 @@ import {
   FileText,
   GraduationCap,
   Inbox,
-  LayoutGrid,
   Lock,
   Monitor,
   Moon,
+  PencilRuler,
   Search,
   Sparkles,
   Sun,
@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   getBusinessFollowUpsPath,
-  getBusinessFormsPath,
+  getBusinessServicesPath,
   getBusinessKnowledgeBaseSettingsPath,
   getBusinessMembersPath,
   getBusinessNewInquiryPath,
@@ -128,7 +128,7 @@ export function CommandMenu({
 
   function copyPublicChatLink() {
     void navigator.clipboard.writeText(publicChatUrl()).then(
-      () => toast.success("AI assistant link copied"),
+      () => toast.success("Public chat link copied"),
       () => toast.error("Could not copy link"),
     );
   }
@@ -193,9 +193,9 @@ export function CommandMenu({
       visible: canOperate,
     },
     {
-      label: "Create inquiry form",
-      icon: LayoutGrid,
-      navigate: () => router.push(getBusinessFormsPath(businessSlug)),
+      label: "Create service",
+      icon: PencilRuler,
+      navigate: () => router.push(getBusinessServicesPath(businessSlug)),
       visible: canOperate,
     },
     {
@@ -234,7 +234,7 @@ export function CommandMenu({
           <Search className="size-4 shrink-0" />
           <span className="truncate">Quick actions…</span>
         </div>
-        <kbd className="pointer-events-none hidden select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
+        <kbd className="pointer-events-none hidden select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100 sm:flex">
           <span className="text-xs">⌘</span>K
         </kbd>
       </button>
@@ -292,7 +292,7 @@ export function CommandMenu({
                 </CommandItem>
                 <CommandItem onSelect={() => runCommand(copyPublicChatLink)}>
                   <Bot className="mr-2 h-4 w-4" />
-                  <span>Copy AI assistant link</span>
+                  <span>Copy public chat link</span>
                 </CommandItem>
                 <CommandItem onSelect={() => runCommand(handleReplayTour)}>
                   <GraduationCap className="mr-2 h-4 w-4" />

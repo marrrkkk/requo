@@ -8,11 +8,11 @@ import {
   BarChart3,
   BellRing,
   FileText,
-  FormInput,
   Home,
   Inbox,
   LayoutGrid,
   Package,
+  PencilRuler,
   Users,
   Settings,
 } from "lucide-react";
@@ -22,7 +22,7 @@ import {
   getBusinessAssistantPath,
   getBusinessDashboardPath,
   getBusinessFollowUpsPath,
-  getBusinessFormsPath,
+  getBusinessServicesPath,
   getBusinessInquiriesPath,
   getBusinessMembersPath,
   getBusinessProductsPath,
@@ -37,6 +37,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { BusinessAvatar } from "@/components/shared/business-avatar";
+import { NavLinkStatus } from "@/components/shell/nav-link-status";
 import { cn } from "@/lib/utils";
 import { canViewBusinessAnalytics, type BusinessMemberRole } from "@/lib/business-members";
 import { isDashboardNavigationItemActive } from "@/components/shell/dashboard-navigation";
@@ -61,7 +62,7 @@ export function MobileBottomNav({
   const inquiriesHref = getBusinessInquiriesPath(businessSlug);
   const quotesHref = getBusinessQuotesPath(businessSlug);
   const followUpsHref = getBusinessFollowUpsPath(businessSlug);
-  const formsHref = getBusinessFormsPath(businessSlug);
+  const servicesHref = getBusinessServicesPath(businessSlug);
   const productsHref = getBusinessProductsPath(businessSlug);
   const membersHref = getBusinessMembersPath(businessSlug);
   const analyticsHref = getBusinessAnalyticsPath(businessSlug);
@@ -72,14 +73,14 @@ export function MobileBottomNav({
   const isInquiriesActive = isDashboardNavigationItemActive(pathname, inquiriesHref);
   const isQuotesActive = isDashboardNavigationItemActive(pathname, quotesHref);
   const isFollowUpsActive = isDashboardNavigationItemActive(pathname, followUpsHref);
-  const isFormsActive = isDashboardNavigationItemActive(pathname, formsHref);
+  const isServicesActive = isDashboardNavigationItemActive(pathname, servicesHref);
   const isProductsActive = isDashboardNavigationItemActive(pathname, productsHref);
   const isMembersActive = isDashboardNavigationItemActive(pathname, membersHref);
   const isAnalyticsActive = canViewBusinessAnalytics(role) && isDashboardNavigationItemActive(pathname, analyticsHref);
   const isAssistantActive = isDashboardNavigationItemActive(pathname, assistantHref);
 
   const isMoreActive =
-    isFormsActive ||
+    isServicesActive ||
     isProductsActive ||
     isMembersActive ||
     isAnalyticsActive ||
@@ -98,7 +99,7 @@ export function MobileBottomNav({
             href={homeHref}
             prefetch={true}
             className={cn(
-              "flex h-full flex-col items-center justify-center gap-0.5 py-1 text-[0.72rem] transition-colors active:scale-95",
+              "relative flex h-full flex-col items-center justify-center gap-0.5 py-1 text-xs transition-colors active:scale-95",
               isHomeActive
                 ? "text-primary font-semibold"
                 : "text-muted-foreground hover:text-foreground active:text-foreground font-medium",
@@ -113,6 +114,7 @@ export function MobileBottomNav({
               <Home className={cn("size-4", isHomeActive ? "text-primary" : "text-muted-foreground")} />
             </div>
             <span className="truncate leading-none">Home</span>
+            <NavLinkStatus className="absolute top-1.5 right-3" />
           </Link>
 
           {/* 2. Inquiries */}
@@ -120,7 +122,7 @@ export function MobileBottomNav({
             href={inquiriesHref}
             prefetch={true}
             className={cn(
-              "flex h-full flex-col items-center justify-center gap-0.5 py-1 text-[0.72rem] transition-colors active:scale-95",
+              "relative flex h-full flex-col items-center justify-center gap-0.5 py-1 text-xs transition-colors active:scale-95",
               isInquiriesActive
                 ? "text-primary font-semibold"
                 : "text-muted-foreground hover:text-foreground active:text-foreground font-medium",
@@ -135,6 +137,7 @@ export function MobileBottomNav({
               <Inbox className={cn("size-4", isInquiriesActive ? "text-primary" : "text-muted-foreground")} />
             </div>
             <span className="truncate leading-none">Inquiries</span>
+            <NavLinkStatus className="absolute top-1.5 right-3" />
           </Link>
 
           {/* 3. Quotes */}
@@ -142,7 +145,7 @@ export function MobileBottomNav({
             href={quotesHref}
             prefetch={true}
             className={cn(
-              "flex h-full flex-col items-center justify-center gap-0.5 py-1 text-[0.72rem] transition-colors active:scale-95",
+              "relative flex h-full flex-col items-center justify-center gap-0.5 py-1 text-xs transition-colors active:scale-95",
               isQuotesActive
                 ? "text-primary font-semibold"
                 : "text-muted-foreground hover:text-foreground active:text-foreground font-medium",
@@ -157,6 +160,7 @@ export function MobileBottomNav({
               <FileText className={cn("size-4", isQuotesActive ? "text-primary" : "text-muted-foreground")} />
             </div>
             <span className="truncate leading-none">Quotes</span>
+            <NavLinkStatus className="absolute top-1.5 right-3" />
           </Link>
 
           {/* 4. Follow-ups */}
@@ -164,7 +168,7 @@ export function MobileBottomNav({
             href={followUpsHref}
             prefetch={true}
             className={cn(
-              "flex h-full flex-col items-center justify-center gap-0.5 py-1 text-[0.72rem] transition-colors active:scale-95",
+              "relative flex h-full flex-col items-center justify-center gap-0.5 py-1 text-xs transition-colors active:scale-95",
               isFollowUpsActive
                 ? "text-primary font-semibold"
                 : "text-muted-foreground hover:text-foreground active:text-foreground font-medium",
@@ -179,6 +183,7 @@ export function MobileBottomNav({
               <BellRing className={cn("size-4", isFollowUpsActive ? "text-primary" : "text-muted-foreground")} />
             </div>
             <span className="truncate leading-none">Follow-ups</span>
+            <NavLinkStatus className="absolute top-1.5 right-3" />
           </Link>
 
           {/* 5. More */}
@@ -186,7 +191,7 @@ export function MobileBottomNav({
             type="button"
             onClick={() => setMoreOpen(true)}
             className={cn(
-              "flex h-full flex-col items-center justify-center gap-0.5 py-1 text-[0.72rem] transition-colors active:scale-95",
+              "flex h-full flex-col items-center justify-center gap-0.5 py-1 text-xs transition-colors active:scale-95",
               isMoreActive || moreOpen
                 ? "text-primary font-semibold"
                 : "text-muted-foreground hover:text-foreground active:text-foreground font-medium",
@@ -214,7 +219,7 @@ export function MobileBottomNav({
           <SheetHeader className="pb-3 text-left">
             <SheetTitle>More</SheetTitle>
             <SheetDescription className="sr-only">
-              Forms, products, team members, analytics, and settings
+              Services, products, team members, analytics, and settings
             </SheetDescription>
           </SheetHeader>
 
@@ -234,20 +239,22 @@ export function MobileBottomNav({
               >
                 <Astroid className="size-4 shrink-0 text-muted-foreground" />
                 <span>Assistant</span>
+                <NavLinkStatus className="ml-auto" />
               </Link>
               <Link
-                href={formsHref}
+                href={servicesHref}
                 prefetch={true}
                 onClick={() => setMoreOpen(false)}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  isFormsActive
+                  isServicesActive
                     ? "bg-sidebar-primary/12 text-primary font-semibold"
                     : "text-foreground hover:bg-muted",
                 )}
               >
-                <FormInput className="size-4 shrink-0 text-muted-foreground" />
-                <span>Forms</span>
+                <PencilRuler className="size-4 shrink-0 text-muted-foreground" />
+                <span>Services</span>
+                <NavLinkStatus className="ml-auto" />
               </Link>
 
               <Link
@@ -263,6 +270,7 @@ export function MobileBottomNav({
               >
                 <Package className="size-4 shrink-0 text-muted-foreground" />
                 <span>Products</span>
+                <NavLinkStatus className="ml-auto" />
               </Link>
 
               <Link
@@ -278,6 +286,7 @@ export function MobileBottomNav({
               >
                 <Users className="size-4 shrink-0 text-muted-foreground" />
                 <span>Members</span>
+                <NavLinkStatus className="ml-auto" />
               </Link>
 
               {canViewBusinessAnalytics(role) ? (
@@ -294,6 +303,7 @@ export function MobileBottomNav({
                 >
                   <BarChart3 className="size-4 shrink-0 text-muted-foreground" />
                   <span>Analytics</span>
+                  <NavLinkStatus className="ml-auto" />
                 </Link>
               ) : null}
 
@@ -310,6 +320,7 @@ export function MobileBottomNav({
               >
                 <Settings className="size-4 shrink-0 text-muted-foreground" />
                 <span>Settings</span>
+                <NavLinkStatus className="ml-auto" />
               </Link>
             </div>
 

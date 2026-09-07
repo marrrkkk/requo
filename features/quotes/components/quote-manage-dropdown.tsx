@@ -206,14 +206,15 @@ export function QuoteManageDropdown({
     <>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <button
+          <Button
             aria-label="Manage quote"
+            size="icon"
             type="button"
-            className="inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            variant="ghost"
           >
-            <Settings className="size-5" />
+            <Settings />
             <OptimisticPendingIndicator pending={isPending} />
-          </button>
+          </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
           {saveAsTemplateAction ? (

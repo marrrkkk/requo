@@ -118,7 +118,7 @@ export function BusinessQuoteSettingsForm({
         </div>
 
         {/* Settings fields */}
-        <section className="section-panel p-5 sm:p-6">
+ <section className="section-panel">
           <div className="flex flex-col gap-6">
             <Field
               data-invalid={
@@ -226,7 +226,7 @@ export function BusinessQuoteSettingsForm({
         </section>
 
         {/* Workflow defaults */}
-        <section className="section-panel p-5 sm:p-6">
+ <section className="section-panel">
           <div className="flex flex-col gap-6">
             <Field>
               <div className="flex items-center justify-between gap-4">

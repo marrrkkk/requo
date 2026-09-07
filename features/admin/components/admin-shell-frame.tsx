@@ -1,12 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Fragment,
-  type CSSProperties,
-  type ReactNode,
-  useMemo,
-} from "react";
+import { Fragment, type ReactNode, useMemo } from "react";
 import { LayoutDashboard as LayoutDashboardIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 
@@ -67,18 +62,10 @@ export function AdminShellFrame({
   const ActiveIcon = activeNavItem?.icon ?? LayoutDashboardIcon;
 
   return (
-    <SidebarProvider
-      defaultOpen
-      style={
-        {
-          "--sidebar-width": "17.5rem",
-          "--sidebar-width-icon": "4.25rem",
-        } as CSSProperties
-      }
-    >
+    <SidebarProvider defaultOpen>
       <Sidebar collapsible="icon">
         <SidebarHeader className="gap-0 p-0">
-          <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-3.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <div className="flex h-12 items-center justify-between border-b border-sidebar-border px-3.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
             <BrandMark
               collapseLabel
               className="min-w-0 px-2 py-1.5 group-data-[collapsible=icon]:p-0"
@@ -105,7 +92,7 @@ export function AdminShellFrame({
       </Sidebar>
 
       <SidebarInset className="min-h-svh min-w-0">
-        <header className="dashboard-topbar flex h-14 items-center">
+        <header className="dashboard-topbar flex h-12 items-center">
           <DesktopSidebarTrigger />
           <div className="dashboard-topbar-inner min-w-0 flex-1">
             <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
@@ -165,7 +152,7 @@ export function AdminShellFrame({
         <div className="flex flex-1 flex-col pb-16 lg:pb-0">
           <main className="dashboard-main">
             <div className="dashboard-content">
-              <div className="flex min-w-0 flex-col gap-6 pb-16 sm:gap-7 xl:pb-24">
+              <div className="flex min-w-0 flex-col gap-6 pb-16 xl:pb-24">
                 {children}
               </div>
             </div>

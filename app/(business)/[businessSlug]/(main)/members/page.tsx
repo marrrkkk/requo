@@ -25,18 +25,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Invite and manage team members for this business.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * Members page — returns the structural shell synchronously.
@@ -51,8 +40,8 @@ export default function BusinessMembersPage({
   params: Promise<{ businessSlug: string }>;
 }) {
   return (
-    <div className="flex flex-col gap-6 lg:gap-8">
-      <PageHeader title="Members" description="Members with access to this business." />
+    <div className="flex flex-col gap-6">
+      <PageHeader title="Members" />
       <Suspense fallback={<MemberListFallback />}>
         <MembersRegion params={params} />
       </Suspense>

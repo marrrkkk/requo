@@ -7,18 +7,7 @@ type BusinessSlugIndexPageProps = {
   params: Promise<{ businessSlug: string }>;
 };
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * Businesses hub index page — non-blocking structural shell.

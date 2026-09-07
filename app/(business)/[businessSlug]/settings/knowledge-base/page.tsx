@@ -26,18 +26,7 @@ export const metadata: Metadata = createNoIndexMetadata({
     "Manage the business knowledge used to ground AI quote drafts.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 type KnowledgeBaseSettingsPageProps = {
   params: Promise<{ businessSlug: string }>;

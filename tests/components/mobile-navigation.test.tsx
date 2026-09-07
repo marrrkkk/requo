@@ -43,7 +43,7 @@ describe("MobileBottomNav", () => {
 
     await user.click(moreBtn);
     expect(await screen.findByRole("heading", { name: "More" })).toBeDefined();
-    expect(screen.getByRole("link", { name: /forms/i })).toBeDefined();
+    expect(screen.getByRole("link", { name: /services/i })).toBeDefined();
     expect(screen.getByRole("link", { name: /analytics/i })).toBeDefined();
   });
 });

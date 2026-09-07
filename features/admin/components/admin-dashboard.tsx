@@ -209,7 +209,7 @@ async function QuotesSentTile({ countsPromise }: TileProps) {
 
 function StatCardSkeleton() {
   return (
-    <div aria-busy className="section-panel flex flex-col gap-4 px-5 py-5">
+ <div aria-busy className="section-panel flex flex-col gap-4">
       <div className="flex items-center gap-3">
         <Skeleton className="size-9 rounded-lg" />
         <Skeleton className="h-4 w-24 rounded" />
@@ -226,7 +226,7 @@ function HealthBannerSkeleton() {
   return (
     <div
       aria-busy
-      className="section-panel border-l-4 border-l-border px-5 py-5 sm:px-6 sm:py-6"
+ className="section-panel border-l-4 border-l-border"
     >
       <div className="flex items-center gap-4">
         <Skeleton className="size-11 shrink-0 rounded-xl" />

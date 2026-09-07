@@ -36,7 +36,6 @@ export function InquiryListFilters({
   const [status, setStatus] = useState<InquiryStatusFilterValue>(filters.status);
   const [form, setForm] = useState(filters.form);
   const [sort, setSort] = useState(filters.sort);
-  const [escalatedOnly, setEscalatedOnly] = useState(filters.escalated ?? false);
   const view = filters.view;
 
   const hasMountedRef = useRef(false);
@@ -48,7 +47,6 @@ export function InquiryListFilters({
     nextForm: string,
     nextSort: "newest" | "oldest",
     nextView: InquiryListFilters["view"],
-    nextEscalated: boolean,
   ) => {
     const params = new URLSearchParams();
     const trimmedQuery = nextQuery.trim();
@@ -73,10 +71,6 @@ export function InquiryListFilters({
       params.set("sort", nextSort);
     }
 
-    if (nextEscalated) {
-      params.set("escalated", "1");
-    }
-
     const href = params.size ? `${pathname}?${params.toString()}` : pathname;
     const currentHref = searchParams.size
       ? `${pathname}?${searchParams.toString()}`
@@ -99,13 +93,12 @@ export function InquiryListFilters({
     }
 
     const timer = setTimeout(() => {
-      navigate(query, status, form, sort, view, escalatedOnly);
+      navigate(query, status, form, sort, view);
     }, 400);
     return () => clearTimeout(timer);
-  }, [form, navigate, query, sort, status, view, escalatedOnly]);
+  }, [form, navigate, query, sort, status, view]);
 
   return (
-    <div className="flex flex-col gap-2">
     <DataListToolbar
       description="Search by customer, email, or service category."
       resultLabel={`${resultCount} ${resultCount === 1 ? "inquiry" : "inquiries"}`}
@@ -120,19 +113,19 @@ export function InquiryListFilters({
       onFilterChange={(value) => {
         const nextStatus = value as InquiryStatusFilterValue;
         setStatus(nextStatus);
-        navigate(query, nextStatus, form, sort, view, escalatedOnly);
+        navigate(query, nextStatus, form, sort, view);
       }}
       filterOptions={statusOptions.map((option) => ({
         value: option,
         label:
           option === "all" ? "All statuses" : getInquiryStatusLabel(option),
       }))}
-      secondaryFilterId="inquiry-form-filter"
-      secondaryFilterLabel="Form"
+      secondaryFilterId="inquiry-service-filter"
+      secondaryFilterLabel="Service"
       secondaryFilterValue={form}
       onSecondaryFilterChange={(value) => {
         setForm(value);
-        navigate(query, status, value, sort, view, escalatedOnly);
+        navigate(query, status, value, sort, view);
       }}
       secondaryFilterOptions={formOptions}
       sortId="inquiry-sort"
@@ -141,7 +134,7 @@ export function InquiryListFilters({
       onSortChange={(value) => {
         const nextSort = value as "newest" | "oldest";
         setSort(nextSort);
-        navigate(query, status, form, nextSort, view, escalatedOnly);
+        navigate(query, status, form, nextSort, view);
       }}
       sortOptions={[
         { label: "Newest first", value: "newest" },
@@ -153,36 +146,11 @@ export function InquiryListFilters({
         setStatus("all");
         setForm("all");
         setSort("newest");
-        setEscalatedOnly(false);
-        navigate("", "all", "all", "newest", view, false);
+        navigate("", "all", "all", "newest", view);
       }}
       canClear={Boolean(
-        query.trim() || status !== "all" || form !== "all" || sort !== "newest" || escalatedOnly,
+        query.trim() || status !== "all" || form !== "all" || sort !== "newest",
       )}
     />
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            const next = !escalatedOnly;
-            setEscalatedOnly(next);
-            navigate(query, status, form, sort, view, next);
-          }}
-          aria-pressed={escalatedOnly}
-          className={
-            escalatedOnly
-              ? "inline-flex items-center gap-1.5 rounded-full border border-primary/50 bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition-colors"
-              : "inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          }
-        >
-          Needs human
-        </button>
-        {escalatedOnly ? (
-          <span className="text-xs text-muted-foreground">
-            Showing inquiries escalated from public chat
-          </span>
-        ) : null}
-      </div>
-    </div>
   );
 }

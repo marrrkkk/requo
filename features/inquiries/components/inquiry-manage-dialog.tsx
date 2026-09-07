@@ -51,10 +51,9 @@ export function InquiryManageDialog({
         <Button
           type="button"
           variant="outline"
-          className="sm:!size-10 sm:!p-0"
         >
-          <Settings data-icon="inline-start" className="sm:!m-0" />
-          <span className="sm:hidden">Manage</span>
+          <Settings data-icon="inline-start" />
+          Manage
         </Button>
       </ResponsiveOverlayTrigger>
       <ResponsiveOverlayContent className="sm:max-w-[26rem]">
@@ -92,7 +91,7 @@ export function InquiryManageDialog({
             </>
           ) : (
             <section className="flex flex-col gap-3">
-              <div className="soft-panel flex flex-col gap-2 px-4 py-4 shadow-none">
+              <div className="soft-panel flex flex-col gap-2 shadow-none">
                 <p className="text-sm font-medium text-foreground">
                   This inquiry is archived.
                 </p>

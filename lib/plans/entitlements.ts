@@ -106,8 +106,8 @@ export function getRequiredPlan(feature: PlanFeature): BusinessPlan | null {
 export const planFeatureLabels: Record<PlanFeature, string> = {
   analyticsConversion: "Performance analytics",
   analyticsWorkflow: "Operations analytics",
-  multipleForms: "Multiple inquiry forms",
-  inquiryPageCustomization: "Inquiry page customization",
+  multipleForms: "Multiple services",
+  inquiryPageCustomization: "Service page customization",
   emailTemplates: "Email templates",
   aiQuoteDrafting: "AI quote drafting",
   quoteLibrary: "Quote library",
@@ -128,9 +128,9 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
   analyticsWorkflow:
     "Workflow timing, operational alerts, revenue tracking, and follow-up analytics.",
   multipleForms:
-    "Create additional inquiry forms for different services or audiences.",
+    "Create additional services for different offerings or audiences.",
   inquiryPageCustomization:
-    "Customize your public inquiry page layout, showcase image, and supporting cards.",
+    "Customize your public service page layout, showcase image, and supporting cards.",
   emailTemplates:
     "Customize the email message used when sending quotes through Requo.",
   aiQuoteDrafting:

@@ -118,7 +118,7 @@ export function BusinessSwitcher({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
         <button
-          className="group/business-switcher w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-accent dark:data-[state=open]:bg-accent group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none hover:group-data-[collapsible=icon]:bg-sidebar-accent"
+          className="group/business-switcher w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-accent dark:data-[state=open]:bg-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none hover:group-data-[collapsible=icon]:bg-sidebar-accent"
           data-tour="business-switcher"
           type="button"
         >
@@ -184,7 +184,7 @@ export function BusinessSwitcher({
                       /{membership.business.slug}
                     </p>
                   </div>
-                  <span className="text-[0.68rem] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                  <span className="meta-label">
                     {membership.role}
                   </span>
                   {membership.business.recordState === "locked" ? (
@@ -585,7 +585,7 @@ export function MobileBusinessSwitcher({
                         /{membership.business.slug}
                       </p>
                     </div>
-                    <span className="text-[0.68rem] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                    <span className="meta-label">
                       {membership.role}
                     </span>
                     {membership.business.recordState === "locked" ? (
@@ -863,7 +863,7 @@ export {
 
 function BusinessSwitcherSkeleton() {
   return (
-    <div className="w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 dark:border-white/8 dark:bg-card/90 group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none">
+    <div className="w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 dark:border-white/8 dark:bg-card/90 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none">
       <div className="flex items-start gap-3.5 group-data-[collapsible=icon]:gap-0">
         <div className="size-14 group-data-[collapsible=icon]:size-8 shrink-0 animate-pulse rounded-[0.9rem] group-data-[collapsible=icon]:rounded-lg bg-muted" />
         <div className="min-w-0 flex-1 space-y-2 group-data-[collapsible=icon]:hidden">

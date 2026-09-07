@@ -12,18 +12,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   title: "Check your email",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-      searchParams: { email: null, reason: null },
-    },
-  ],
-};
+export const instant = true;
 
 export default function CheckEmailPage({
   searchParams,

@@ -60,14 +60,14 @@ export function DashboardSettingsQuoteSkeleton() {
       <div className="dashboard-side-stack">
         <SettingsPageHeader descriptionWidth="w-[22rem]" titleWidth="max-w-sm" />
 
-        <section className="section-panel p-6">
+ <section className="section-panel">
           <div className="space-y-5">
             <div className="space-y-2">
               <Skeleton className="h-6 w-24 rounded-lg" />
               <Skeleton className="h-4 w-40 rounded-md" />
             </div>
 
-            <div className="rounded-2xl border border-border/70 bg-muted/15 px-4 py-4">
+            <div className="rounded-xl border border-border/70 bg-muted/15 px-4 py-4">
               <Skeleton className="h-5 w-48 rounded-md" />
               <Skeleton className="mt-2 h-4 w-full max-w-xl rounded-md" />
               <Skeleton className="mt-1 h-4 w-full max-w-lg rounded-md" />
@@ -77,14 +77,14 @@ export function DashboardSettingsQuoteSkeleton() {
           </div>
         </section>
 
-        <section className="section-panel p-6">
+ <section className="section-panel">
           <div className="space-y-5">
             <div className="space-y-2">
               <Skeleton className="h-6 w-40 rounded-lg" />
               <Skeleton className="h-4 w-44 rounded-md" />
             </div>
 
-            <FieldSkeleton className="h-48 rounded-2xl" />
+            <FieldSkeleton className="h-40 rounded-md" />
           </div>
         </section>
       </div>
@@ -98,23 +98,23 @@ export function DashboardSettingsInquiryListSkeleton() {
       <div className="flex flex-col gap-4">
         <SettingsPageHeader descriptionWidth="w-[22rem]" titleWidth="max-w-sm" />
         <div className="flex flex-wrap gap-2">
-          <Skeleton className="h-7 w-28 rounded-full" />
-          <Skeleton className="h-7 w-24 rounded-full" />
+          <Skeleton className="h-6 w-28 rounded-full" />
+          <Skeleton className="h-6 w-24 rounded-full" />
         </div>
       </div>
 
       <SettingsCardSkeleton titleWidth="w-44">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_14rem]">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem]">
           <FieldSkeleton />
           <FieldSkeleton />
         </div>
         <div className="flex justify-start">
-          <Skeleton className="h-10 w-full rounded-xl sm:w-36" />
+          <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-36" />
         </div>
       </SettingsCardSkeleton>
 
       <SettingsCardSkeleton titleWidth="w-20">
-        <div className="overflow-hidden rounded-2xl border border-border/70 bg-background/70">
+        <div className="overflow-hidden rounded-xl border border-border/70 bg-background/70">
           {Array.from({ length: 3 }).map((_, index) => (
             <div
               className={cn(
@@ -142,7 +142,7 @@ export function DashboardSettingsInquiryListSkeleton() {
 
         <div className="grid gap-3">
           <Skeleton className="h-4 w-16 rounded-md" />
-          <div className="overflow-hidden rounded-2xl border border-border/70 bg-background/70">
+          <div className="overflow-hidden rounded-xl border border-border/70 bg-background/70">
             {Array.from({ length: 2 }).map((_, index) => (
               <div
                 className={cn(
@@ -170,24 +170,24 @@ export function DashboardSettingsInquiryDetailSkeleton() {
     <>
       <div className="flex flex-col gap-3">
         <Skeleton className="h-4 w-14 rounded-md" />
-        <Skeleton className="h-10 w-full max-w-xl rounded-2xl" />
+        <Skeleton className="h-6 w-full max-w-xl rounded-lg sm:h-7" />
         <Skeleton className="h-4 w-full max-w-2xl rounded-md" />
       </div>
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-1">
-            <Skeleton className="h-9 w-[5.25rem] rounded-md" />
-            <Skeleton className="h-9 w-[4.75rem] rounded-md" />
-            <Skeleton className="h-9 w-[5.75rem] rounded-md" />
+            <Skeleton className="h-9 w-[5.25rem] rounded-md sm:h-8" />
+            <Skeleton className="h-9 w-[4.75rem] rounded-md sm:h-8" />
+            <Skeleton className="h-9 w-[5.75rem] rounded-md sm:h-8" />
           </div>
-          <Skeleton className="h-10 w-full rounded-lg sm:ml-auto sm:w-36" />
+          <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:ml-auto sm:w-36" />
         </div>
 
         <div className="min-w-0 space-y-6">
           <section className="space-y-4">
             <div className="space-y-2">
-              <Skeleton className="h-8 w-48 rounded-lg" />
+              <Skeleton className="h-5 w-48 rounded-md" />
               <Skeleton className="h-4 w-full max-w-xl rounded-md" />
             </div>
 
@@ -205,12 +205,12 @@ export function DashboardSettingsInquiryDetailSkeleton() {
             </div>
 
             <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
-              <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-4">
                 <Skeleton className="h-24 rounded-xl" />
-                <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
                   <div className="space-y-5">
                     <FieldSkeleton />
-                    <div className="grid gap-5 lg:grid-cols-2">
+                    <div className="grid gap-4 lg:grid-cols-2">
                       <FieldSkeleton />
                       <FieldSkeleton />
                     </div>
@@ -223,7 +223,7 @@ export function DashboardSettingsInquiryDetailSkeleton() {
 
           <section className="space-y-4">
             <div className="space-y-2">
-              <Skeleton className="h-7 w-40 rounded-lg" />
+              <Skeleton className="h-5 w-40 rounded-md" />
               <Skeleton className="h-4 w-56 rounded-md" />
             </div>
             <div className="space-y-4">
@@ -255,10 +255,10 @@ export function DashboardSettingsProfileSkeleton() {
       <div className="dashboard-side-stack">
         <SettingsPageHeader descriptionWidth="w-48" titleWidth="max-w-sm" />
 
-        <section className="section-panel p-6">
-          <div className="grid gap-6 xl:grid-cols-[19rem_minmax(0,1fr)] xl:gap-7">
+ <section className="section-panel">
+          <div className="grid gap-4 xl:grid-cols-[19rem_minmax(0,1fr)] xl:gap-6">
             <div className="self-start">
-              <div className="soft-panel flex flex-col gap-5 p-5 shadow-none sm:p-6">
+    <div className="soft-panel flex flex-col gap-5 shadow-none">
                 <div className="space-y-2">
                   <Skeleton className="h-3 w-24 rounded-md" />
                   <Skeleton className="h-6 w-36 rounded-lg" />
@@ -277,34 +277,34 @@ export function DashboardSettingsProfileSkeleton() {
                 </div>
 
                 <div className="border-t border-border/70 pt-5">
-                  <Skeleton className="h-10 w-full rounded-xl" />
+                  <Skeleton className="h-9 w-full rounded-md sm:h-8" />
                 </div>
               </div>
             </div>
 
             <div className="space-y-5">
-              <section className="soft-panel px-5 py-5 shadow-none sm:px-6">
+ <section className="soft-panel shadow-none">
                 <div className="space-y-5">
                   <div className="space-y-2">
                     <Skeleton className="h-6 w-36 rounded-lg" />
                     <Skeleton className="h-4 w-40 rounded-md" />
                   </div>
 
-                  <div className="grid gap-5 lg:grid-cols-2">
+                  <div className="grid gap-4 lg:grid-cols-2">
                     <FieldSkeleton />
                     <FieldSkeleton />
                   </div>
                 </div>
               </section>
 
-              <section className="soft-panel px-5 py-5 shadow-none sm:px-6">
+ <section className="soft-panel shadow-none">
                 <div className="space-y-5">
                   <div className="space-y-2">
                     <Skeleton className="h-6 w-32 rounded-lg" />
                     <Skeleton className="h-4 w-36 rounded-md" />
                   </div>
 
-                  <div className="grid gap-5 lg:grid-cols-2">
+                  <div className="grid gap-4 lg:grid-cols-2">
                     <FieldSkeleton />
                     <FieldSkeleton />
                   </div>
@@ -315,7 +315,7 @@ export function DashboardSettingsProfileSkeleton() {
         </section>
 
         <div className="flex justify-end">
-          <Skeleton className="h-12 w-full rounded-xl sm:w-40" />
+          <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-40" />
         </div>
       </div>
     </DashboardSettingsShellSkeleton>
@@ -328,7 +328,7 @@ export function DashboardSettingsEmailSkeleton() {
       <div className="dashboard-side-stack">
         <SettingsPageHeader descriptionWidth="w-[24rem]" titleWidth="max-w-sm" />
 
-        <section className="section-panel p-6">
+ <section className="section-panel">
           <div className="space-y-5">
             <div className="space-y-2">
               <Skeleton className="h-6 w-36 rounded-lg" />
@@ -337,33 +337,33 @@ export function DashboardSettingsEmailSkeleton() {
 
             <div className="flex flex-wrap gap-2">
               {Array.from({ length: 4 }).map((_, index) => (
-                <Skeleton className="h-9 w-24 rounded-lg" key={index} />
+                <Skeleton className="h-9 w-24 rounded-md sm:h-8" key={index} />
               ))}
             </div>
 
-            <div className="rounded-2xl border border-border/70 bg-muted/15 px-4 py-4">
+            <div className="rounded-xl border border-border/70 bg-muted/15 px-4 py-4">
               <Skeleton className="h-5 w-24 rounded-md" />
-              <Skeleton className="mt-3 h-4 w-full rounded-md" />
+              <Skeleton className="mt-2 h-4 w-full rounded-md" />
             </div>
 
-            <div className="grid gap-5">
+            <div className="grid gap-4">
               <FieldSkeleton />
               <FieldSkeleton />
-              <FieldSkeleton className="h-24 rounded-2xl" />
+              <FieldSkeleton className="h-20 rounded-md" />
               <FieldSkeleton />
-              <FieldSkeleton className="h-24 rounded-2xl" />
+              <FieldSkeleton className="h-20 rounded-md" />
             </div>
           </div>
         </section>
 
-        <section className="section-panel p-6">
+ <section className="section-panel">
           <div className="space-y-5">
             <div className="space-y-2">
               <Skeleton className="h-6 w-20 rounded-lg" />
               <Skeleton className="h-4 w-64 rounded-md" />
             </div>
 
-            <div className="rounded-2xl border border-border/70 bg-muted/15 px-5 py-5">
+            <div className="rounded-xl border border-border/70 bg-muted/15 px-4 py-4">
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <Skeleton className="h-3 w-16 rounded-md" />
@@ -373,8 +373,8 @@ export function DashboardSettingsEmailSkeleton() {
                 <div className="space-y-3">
                   <Skeleton className="h-4 w-28 rounded-md" />
                   <Skeleton className="h-4 w-full rounded-md" />
-                  <Skeleton className="h-20 w-full rounded-2xl" />
-                  <Skeleton className="h-10 w-32 rounded-full" />
+                  <Skeleton className="h-20 w-full rounded-md" />
+                  <Skeleton className="h-8 w-32 rounded-full" />
                   <Skeleton className="h-4 w-36 rounded-md" />
                 </div>
               </div>
@@ -448,20 +448,20 @@ export function DashboardSettingsSecuritySkeleton() {
       <div className="dashboard-side-stack">
         <SettingsPageHeader descriptionWidth="w-[24rem]" titleWidth="max-w-sm" />
 
-        <section className="section-panel p-6">
+ <section className="section-panel">
           <div className="space-y-5">
             <div className="space-y-1">
               <Skeleton className="h-6 w-36 rounded-md" />
               <Skeleton className="h-4 w-52 rounded-md" />
             </div>
 
-            <div className="grid gap-5">
+            <div className="grid gap-4">
               <FieldSkeleton />
-              <div className="grid gap-5 lg:grid-cols-2">
+              <div className="grid gap-4 lg:grid-cols-2">
                 <FieldSkeleton />
                 <FieldSkeleton />
               </div>
-              <div className="rounded-2xl border border-border/70 bg-muted/15 px-4 py-4">
+              <div className="rounded-xl border border-border/70 bg-muted/15 px-4 py-4">
                 <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                   <div className="space-y-1">
                     <Skeleton className="h-4 w-32 rounded-md" />
@@ -473,47 +473,47 @@ export function DashboardSettingsSecuritySkeleton() {
             </div>
 
             <div className="flex justify-end">
-              <Skeleton className="h-10 w-40 rounded-xl" />
+              <Skeleton className="h-9 w-40 rounded-md sm:h-8" />
             </div>
           </div>
         </section>
 
-        <section className="section-panel p-6">
+ <section className="section-panel">
           <div className="space-y-5">
             <div className="space-y-1">
               <Skeleton className="h-6 w-32 rounded-md" />
               <Skeleton className="h-4 w-44 rounded-md" />
             </div>
 
-            <div className="rounded-2xl border border-border/70 bg-muted/15 px-4 py-4">
+            <div className="rounded-xl border border-border/70 bg-muted/15 px-4 py-4">
               <Skeleton className="h-4 w-32 rounded-md" />
               <Skeleton className="mt-2 h-4 w-56 rounded-md" />
             </div>
 
-            <Skeleton className="h-10 w-44 rounded-xl" />
+            <Skeleton className="h-9 w-44 rounded-md sm:h-8" />
           </div>
         </section>
 
-        <section className="section-panel border-destructive/25 p-6">
+ <section className="section-panel border-destructive/25">
           <div className="space-y-5">
             <div className="space-y-1">
               <Skeleton className="h-6 w-28 rounded-md" />
               <Skeleton className="h-4 w-56 rounded-md" />
             </div>
 
-            <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-4">
+            <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-4">
               <Skeleton className="h-5 w-36 rounded-md" />
               <Skeleton className="mt-2 h-4 w-full rounded-md" />
               <Skeleton className="mt-2 h-4 w-5/6 rounded-md" />
             </div>
 
-            <div className="grid gap-5">
+            <div className="grid gap-4">
               <FieldSkeleton />
               <FieldSkeleton />
             </div>
 
             <div className="flex justify-end">
-              <Skeleton className="h-10 w-40 rounded-xl" />
+              <Skeleton className="h-9 w-40 rounded-md sm:h-8" />
             </div>
           </div>
         </section>
@@ -528,14 +528,14 @@ export function DashboardSettingsIntegrationSkeleton() {
       <div className="dashboard-side-stack">
         <SettingsPageHeader descriptionWidth="w-[22rem]" titleWidth="max-w-sm" />
 
-        <section className="section-panel p-6">
-          <div className="flex flex-col gap-5">
+ <section className="section-panel">
+          <div className="flex flex-col gap-4">
             <div className="space-y-1">
               <Skeleton className="h-6 w-36 rounded-md" />
               <Skeleton className="h-4 w-56 rounded-md" />
             </div>
 
-            <div className="soft-panel flex items-center gap-3 px-4 py-4 shadow-none">
+            <div className="soft-panel flex items-center gap-3 shadow-none">
               <Skeleton className="size-5 rounded-full" />
               <div className="space-y-2">
                 <Skeleton className="h-4 w-24 rounded-md" />
@@ -544,7 +544,7 @@ export function DashboardSettingsIntegrationSkeleton() {
             </div>
 
             <div className="flex justify-start">
-              <Skeleton className="h-10 w-52 rounded-xl" />
+              <Skeleton className="h-9 w-52 rounded-md sm:h-8" />
             </div>
           </div>
         </section>
@@ -566,17 +566,17 @@ export function DashboardSettingsCollectionSkeleton() {
             <Skeleton className="h-4 w-28 rounded-md" />
             <Skeleton className={`h-8 rounded-md ${metricWidth}`} />
           </div>
-          <Skeleton className="h-10 w-36 rounded-xl" />
+          <Skeleton className="h-9 w-36 rounded-md sm:h-8" />
         </div>
 
-        <section className="section-panel p-6">
-          <div className="flex flex-col gap-5">
+ <section className="section-panel">
+          <div className="flex flex-col gap-4">
             <div className="space-y-1">
               <Skeleton className="h-6 w-32 rounded-md" />
               <Skeleton className="h-4 w-44 rounded-md" />
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-border/70 bg-background/50 shadow-sm">
+            <div className="overflow-hidden rounded-xl border border-border/70 bg-background/50 shadow-sm">
               <div className="flex flex-col">
                 {Array.from({ length: 3 }).map((_, index) => (
                   <div
@@ -606,7 +606,7 @@ function FieldSkeleton({ className }: { className?: string }) {
   return (
     <div className="grid gap-3">
       <Skeleton className="h-4 w-24 rounded-md" />
-      <Skeleton className={className ?? "h-12 rounded-xl"} />
+      <Skeleton className={className ?? "h-9 rounded-md sm:h-8"} />
     </div>
   );
 }
@@ -617,7 +617,7 @@ function InquiryFieldCardSkeleton({
   hasMetaCard?: boolean;
 }) {
   return (
-    <div className="soft-panel flex flex-col gap-5 px-4 py-4 shadow-none">
+    <div className="soft-panel flex flex-col gap-5 shadow-none">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2">
           <Skeleton className="h-5 w-28 rounded-md" />
@@ -629,7 +629,7 @@ function InquiryFieldCardSkeleton({
       <div className={cn("grid gap-4", hasMetaCard ? "xl:grid-cols-[minmax(0,1fr)_12rem]" : "md:grid-cols-2")}>
         <FieldSkeleton />
         {hasMetaCard ? (
-          <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
+          <div className="rounded-xl border border-border/70 bg-background/70 p-4">
             <Skeleton className="h-4 w-16 rounded-md" />
             <Skeleton className="mt-2 h-4 w-24 rounded-md" />
           </div>
@@ -651,7 +651,7 @@ function SettingsPageHeader({
   return (
     <div className="flex flex-col gap-3">
       <Skeleton className="h-4 w-20 rounded-md" />
-      <Skeleton className={cn("h-11 w-full rounded-2xl", titleWidth)} />
+      <Skeleton className={cn("h-6 w-full rounded-lg sm:h-7", titleWidth)} />
       <Skeleton className={cn("h-4 rounded-md", descriptionWidth)} />
     </div>
   );
@@ -669,11 +669,11 @@ function SettingsCardSkeleton({
   return (
     <section
       className={cn(
-        "section-panel p-6",
+ "section-panel",
         destructive && "border-destructive/25",
       )}
     >
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         <Skeleton className={cn("h-6 rounded-md", titleWidth)} />
         {children}
       </div>
@@ -727,22 +727,22 @@ function DashboardSettingsGeneralSkeletonContent() {
     <>
       <SettingsPageHeader descriptionWidth="w-56" titleWidth="max-w-sm" />
 
-      <section className="section-panel p-5 sm:p-6">
-        <div className="flex flex-col gap-7">
+ <section className="section-panel">
+        <div className="flex flex-col gap-4">
           {/* Identity & contact */}
           <div className="space-y-5">
             <div className="space-y-2">
               <Skeleton className="h-6 w-48 rounded-lg" />
               <Skeleton className="h-4 w-full max-w-md rounded-md" />
             </div>
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
               <Skeleton className="size-20 shrink-0 rounded-xl sm:size-24" />
-              <div className="grid min-w-0 flex-1 gap-5 sm:grid-cols-2">
+              <div className="grid min-w-0 flex-1 gap-4 sm:grid-cols-2">
                 <FieldSkeleton />
                 <FieldSkeleton />
               </div>
             </div>
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <FieldSkeleton />
             </div>
           </div>
@@ -755,7 +755,7 @@ function DashboardSettingsGeneralSkeletonContent() {
               <Skeleton className="h-6 w-36 rounded-lg" />
               <Skeleton className="h-4 w-full max-w-sm rounded-md" />
             </div>
-            <FieldSkeleton className="h-28 rounded-2xl" />
+            <FieldSkeleton className="h-20 rounded-md" />
           </div>
 
           <Skeleton className="h-px w-full rounded-full" />
@@ -766,7 +766,7 @@ function DashboardSettingsGeneralSkeletonContent() {
               <Skeleton className="h-6 w-32 rounded-lg" />
               <Skeleton className="h-4 w-72 rounded-md" />
             </div>
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
               <FieldSkeleton />
               <FieldSkeleton />
             </div>
@@ -778,7 +778,7 @@ function DashboardSettingsGeneralSkeletonContent() {
         <Skeleton className="h-4 w-60 rounded-md" />
         <FieldSkeleton />
         <div className="flex justify-end">
-          <Skeleton className="h-11 w-full rounded-xl sm:w-36" />
+          <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-36" />
         </div>
       </SettingsCardSkeleton>
     </>

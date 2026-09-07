@@ -369,7 +369,7 @@ export function BusinessLogoField({
                   <FieldLabel htmlFor="logo-crop-zoom">Zoom</FieldLabel>
                   <FieldContent>
                     <input
-                      className="h-10 w-full accent-primary"
+                      className="h-8 w-full accent-primary"
                       id="logo-crop-zoom"
                       max="4"
                       min="1"
@@ -383,7 +383,7 @@ export function BusinessLogoField({
               </FieldGroup>
 
               {draftAsset ? (
-                <div className="soft-panel flex items-start gap-3 px-4 py-4 text-sm">
+                <div className="soft-panel flex items-start gap-3 text-sm">
                   <div className="space-y-1">
                     <p className="font-medium text-foreground">{draftAsset.file.name}</p>
                     <p className="text-muted-foreground">Replaces the upload.</p>

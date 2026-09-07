@@ -29,7 +29,7 @@ export const planMeta: Record<BusinessPlan, PlanMeta> = {
   free: {
     label: "Free",
     description:
-      "Run your inquiry and quote workflow for one business.",
+      "Run your inquiry and quote workflow for one service business.",
     ctaLabel: "Get started free",
     highlighted: false,
   },

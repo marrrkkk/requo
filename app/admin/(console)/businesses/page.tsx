@@ -13,23 +13,7 @@ import {
 } from "@/features/admin/components/admin-businesses-list-sections";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-      searchParams: {
-        page: null,
-        perPage: null,
-        status: null,
-        q: null,
-      },
-    },
-  ],
-};
+export const instant = true;
 
 export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "Businesses - Requo admin",
@@ -46,7 +30,7 @@ export default function AdminBusinessesPage({
   searchParams,
 }: AdminBusinessesPageProps) {
   return (
-    <Suspense
+      <Suspense
       fallback={
         <DashboardPage>
           <PageHeader
@@ -54,8 +38,10 @@ export default function AdminBusinessesPage({
             eyebrow="Admin"
             title="Businesses"
           />
-          <AdminListControlsFallback />
-          <AdminListContentFallback />
+          <div className="dashboard-table-shell" data-list-card>
+            <AdminListControlsFallback />
+            <AdminListContentFallback />
+          </div>
         </DashboardPage>
       }
     >
@@ -78,12 +64,14 @@ async function AdminBusinessesPageContent({
           eyebrow="Admin"
           title="Businesses"
         />
-        <Suspense fallback={<AdminListControlsFallback />}>
-          <AdminBusinessesListControlsSection rawParams={rawParams} />
-        </Suspense>
-        <Suspense fallback={<AdminListContentFallback />}>
-          <AdminBusinessesListContentSection rawParams={rawParams} />
-        </Suspense>
+        <div className="dashboard-table-shell" data-list-card>
+          <Suspense fallback={<AdminListControlsFallback />}>
+            <AdminBusinessesListControlsSection rawParams={rawParams} />
+          </Suspense>
+          <Suspense fallback={<AdminListContentFallback />}>
+            <AdminBusinessesListContentSection rawParams={rawParams} />
+          </Suspense>
+        </div>
       </DashboardPage>
     ),
     {

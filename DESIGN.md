@@ -61,32 +61,64 @@ Use role-based typography instead of ad hoc text sizes.
 | Role | Standard treatment | Use |
 | --- | --- | --- |
 | Display hero | `font-heading text-5xl leading-[0.96] font-semibold tracking-tight` | Marketing and auth hero only |
-| Page title | `font-heading text-[2rem] sm:text-[2.3rem] leading-tight font-semibold tracking-tight` | `PageHeader`, detail headers |
-| Section title | `font-heading text-lg leading-tight font-semibold tracking-tight` | `CardTitle`, `DashboardSection` |
+| Page title | `font-heading text-xl sm:text-2xl leading-tight font-semibold tracking-tight` | `PageHeader`, detail headers (two steps: 20px, 24px) |
+| Section title | `font-heading text-base leading-tight font-semibold tracking-tight` | `CardTitle`, `DashboardSection` |
 | Form section title | `text-[0.95rem] font-semibold tracking-tight` | `FormSection` titles |
 | Body | `text-sm leading-6` | Default UI copy |
 | Supporting body | `text-sm leading-6 text-muted-foreground` | Descriptions and help text |
-| Long-form supporting | `text-sm leading-7 text-muted-foreground` | Page descriptions and detail copy |
+| Long-form supporting | `text-sm leading-6 text-muted-foreground` | Page descriptions and detail copy |
 | Field label | `text-sm leading-[1.35] font-medium` | `FieldLabel` |
-| Meta label | `text-[0.68rem] font-medium uppercase tracking-[0.14em] text-muted-foreground` | Filters, eyebrow labels, meta chips |
+| Meta label | `meta-label` (`text-[0.68rem] font-medium uppercase tracking-[0.14em] text-muted-foreground`) | Filters, eyebrow labels, meta chips |
 | Caption/code | `font-mono text-[0.72rem]` | IDs, tokens, technical metadata |
+
+Control text is a single size: `text-sm` on every control primitive at every
+size. Do not add per-size font-size overrides to primitive variants.
 
 ### Spacing and Radius
 
 Use a compact spacing scale consistently: `1.5`, `2`, `2.5`, `3`, `4`, `5`, `6`, `8`, `10`, `12`, `16`.
+
+Implemented density scale (authenticated surfaces):
+
+- Interactive controls stand 32px tall on desktop (`h-8` from the `sm`
+  breakpoint up) and 36px on phones (`h-9` mobile-first). Primary mobile tap
+  targets stay at 44px or more (`h-11`); nothing interactive goes below the
+  24px WCAG 2.5.8 floor. Table headers match the controls above them (`h-8`
+  on desktop). Table rows sit at a 52px pitch with two lines per row
+  (customer name above email address — the email is the only available
+  disambiguator, so rows never collapse to one line).
+- Page titles render on the two-step 20-to-24px scale above.
+- The sidebar rail is 240px wide with 32px navigation items; the desktop top
+  bar is 48px. Page sections are separated by 24px (`gap-6` on
+  `DashboardPage`).
+- Marketing, authentication, public inquiry pages, the public Agent chat,
+  and print/PDF rendering keep their generous scale. Density applies to the
+  business dashboard, business settings, and the admin console only.
 
 Spacing rules:
 
 - Prefer `gap-*` over `space-y-*` and `space-x-*`.
 - Use `gap-2` to `gap-3` for tight control groups and inline actions.
 - Use `gap-4` to `gap-6` for card bodies, form sections, and stacked content.
-- Use `gap-6` to `gap-8` for page sections and dashboard page flow.
-- Use `px-4 sm:px-6 xl:px-8` and matching `py-*` for page shells and major surfaces.
-- Use `px-6 py-6` as the default card section rhythm, with `size="sm"` only for compact surfaces.
+- Use `gap-6` for page sections and dashboard page flow.
+- Use `px-3 py-4 sm:px-5 sm:py-5 xl:px-6 xl:py-6` for the dashboard page shell
+  (`dashboard-main`).
+- Panel padding is baked into the shared utilities (see below), not declared
+  per surface.
+
+Panel padding (see ADR 008):
+
+- `section-panel` carries `px-4 py-4 sm:px-5 sm:py-5`; `soft-panel` carries
+  `px-4 py-4` — like the already-padded `info-tile`. Do not re-declare
+  padding on the same class attribute; the cascade silently ignores it and
+  `audit-density` fails.
+- Surfaces that legitimately supply their own padding (full-bleed card
+  headers, floating bars, tighter option rows, document previews, and every
+  out-of-scope surface) opt out with `data-padding="none"`.
 
 Radius rules:
 
-- Controls: `rounded-lg`
+- Controls: `rounded-md`
 - Cards, tables, sections, empty states: `rounded-xl`
 - Large overlays: `rounded-2xl`
 - Avoid arbitrary radius values in feature code unless the value is promoted into tokens or shared classes.
@@ -154,7 +186,20 @@ Do not invent new variant or size names in feature code. Add a new name only if 
 
 ### Tables and Lists
 
-- Standard list pattern: `DashboardToolbar` + `DashboardTableContainer` + `Table`.
+- Standard list pattern: `PageHeader` (title + actions, no filler
+  description) + results card (`dashboard-table-shell` holding the toolbar
+  strip, the table, and pagination as one object).
+- The bare `toolbar-panel` container and the composed list toolbar are
+  different things: `DashboardToolbar` renders the bare `toolbar-panel`
+  shell, while `DataListToolbar` is the composed list toolbar built on top
+  of it — a single control-height row of search, filters, and clear with
+  the result count as plain muted text underneath. The filter row merges
+  into the top of the results card as a header strip
+  (`data-list-toolbar-strip`); the table wrapper carries no padding so rows
+  sit edge to edge.
+- Desktop filter labels are visually hidden (hints live in placeholders)
+  with accessible names preserved; the mobile filter sheet keeps visible
+  labels.
 - Use table helper classes and shared text treatments for row titles, supporting text, and metadata.
 - Empty state uses `Empty` or the shared list empty wrapper.
 - Loading state uses `Skeleton`; async filtering/search uses `Spinner`.
@@ -255,23 +300,30 @@ const nameError = "";
   <PageHeader
     eyebrow="Inquiries"
     title="Customer requests"
-    description="Review, filter, and follow up from one place."
+    actions={<ListHeaderActions />}
   />
 
-  <DataListToolbar
-    description="Search by customer, request, or form."
-    resultLabel={`${count} results`}
-    {...toolbarProps}
-  />
-
-  <DashboardTableContainer>
-    <Table>{/* rows */}</Table>
-  </DashboardTableContainer>
+  <div className="dashboard-table-shell" data-list-card>
+    <Suspense fallback={<ListControlsFallback />}>
+      <ListControlsRegion />
+    </Suspense>
+    <Suspense fallback={<ListContentFallback />}>
+      <ListContentRegion />
+    </Suspense>
+  </div>
 </DashboardPage>
 ```
+
+List pages drop the `PageHeader` description (it restates the title);
+settings and detail pages keep theirs. Each list route's loading shell
+mirrors this composition so the shell and the resolved page agree.
 
 ## Cleanup Targets
 
 - Replace remaining `space-y-*` and `space-x-*` stacks with `flex`/`grid` plus `gap-*`.
 - Replace raw status color utilities with centralized badge, alert, or shared status patterns.
 - Reduce repeated arbitrary radii, shadows, and hard-coded visual values by promoting reusable classes or tokens when a pattern repeats.
+- The quote editor `<form>` carries the raw `dashboard-detail-layout` grid
+  class directly because the shared layout wrapper cannot currently be used
+  there. Migrate it to the shared wrapper when the wrapper supports form
+  elements instead of fixing it opportunistically.

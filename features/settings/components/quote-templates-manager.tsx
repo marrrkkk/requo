@@ -171,7 +171,7 @@ export function QuoteTemplatesManager({
             <>
               <ResponsiveOverlayHeader>
                 <div className="flex items-start gap-3">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
                     <FileText className="size-5 text-muted-foreground" />
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -296,7 +296,7 @@ function TemplateRow({
               {entry.name}
             </p>
             {entry.title ? (
-              <Badge variant="outline" className="shrink-0 text-[0.65rem]">
+              <Badge variant="outline" className="shrink-0 text-xs">
                 {entry.title}
               </Badge>
             ) : null}

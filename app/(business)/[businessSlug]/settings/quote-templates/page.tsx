@@ -24,18 +24,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Manage reusable quote templates for this business.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * Quote templates settings page — non-blocking structural shell.

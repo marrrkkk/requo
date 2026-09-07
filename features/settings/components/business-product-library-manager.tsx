@@ -249,10 +249,10 @@ export function BusinessProductLibraryManager({
         <DashboardEmptyState
           description={
             filter === "package"
-              ? "Create your first package to bundle services together."
+              ? "Create your first package to bundle offerings together."
               : filter === "block"
                 ? "Create your first product block to speed up quoting."
-                : "Add your first product block or service package to get started."
+                : "Add your first block or package to get started."
           }
           icon={filter === "package" ? Package : Layers}
           title={
@@ -278,7 +278,7 @@ export function BusinessProductLibraryManager({
             <>
               <ResponsiveOverlayHeader>
                 <div className="flex items-start gap-3">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
                     {(editorState.mode === "create"
                       ? editorState.kind
                       : editorState.entry.kind) === "package" ? (
@@ -295,14 +295,14 @@ export function BusinessProductLibraryManager({
                     <ResponsiveOverlayTitle>
                       {editorState.mode === "create" ? (
                         editorState.kind === "package" ? (
-                          "Create service package"
+                          "Create package"
                         ) : editorState.kind === "template" ? (
                           "Create quote template"
                         ) : (
                           "Create product block"
                         )
                       ) : editorState.entry.kind === "package" ? (
-                        "Edit service package"
+                        "Edit package"
                       ) : editorState.entry.kind === "template" ? (
                         "Edit quote template"
                       ) : (
@@ -466,7 +466,7 @@ function EntryRow({
             <p className="truncate text-sm font-medium text-foreground">
               {entry.name}
             </p>
-            <Badge variant="outline" className="shrink-0 text-[0.65rem]">
+            <Badge variant="outline" className="shrink-0 text-xs">
               {isTemplate ? "Template" : isPackage ? "Package" : "Block"}
             </Badge>
           </div>

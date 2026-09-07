@@ -8,6 +8,8 @@ import {
   InquiryListContentSection,
   InquiryListControlsFallback,
   InquiryListControlsSection,
+  InquiryListHeaderActions,
+  InquiryListHeaderActionsFallback,
 } from "@/features/inquiries/components/inquiry-list-page-sections";
 import { inquiryListFiltersSchema } from "@/features/inquiries/schemas";
 import {
@@ -64,18 +66,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "List, filter, and manage inquiries for this business.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * Inquiries list page — non-blocking structural shell.
@@ -92,17 +83,91 @@ export default function InquiriesPage({
     <DashboardPage>
       <PageHeader
         title="Inquiries"
-        description="List, filter, and manage inquiries for this business."
+        actions={
+          <Suspense fallback={<InquiryListHeaderActionsFallback />}>
+            <InquiriesHeaderActionsRegion params={params} searchParams={searchParams} />
+          </Suspense>
+        }
       />
 
-      <Suspense fallback={<InquiryListControlsFallback />}>
-        <InquiriesControlsRegion params={params} searchParams={searchParams} />
-      </Suspense>
+      <div className="dashboard-table-shell" data-list-card>
+        <Suspense fallback={<InquiryListControlsFallback />}>
+          <InquiriesControlsRegion params={params} searchParams={searchParams} />
+        </Suspense>
 
-      <Suspense fallback={<InquiryListContentFallback />}>
-        <InquiriesListRegion params={params} searchParams={searchParams} />
-      </Suspense>
+        <Suspense fallback={<InquiryListContentFallback />}>
+          <InquiriesListRegion params={params} searchParams={searchParams} />
+        </Suspense>
+      </div>
     </DashboardPage>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Header actions region — page-level actions hoisted into PageHeader
+// ---------------------------------------------------------------------------
+
+async function InquiriesHeaderActionsRegion({
+  params,
+  searchParams,
+}: InquiriesPageProps) {
+  const [{ businessSlug }, resolvedSearchParams] = await Promise.all([
+    params,
+    searchParams,
+  ]);
+  const { businessContext } = await getAppShellContext(businessSlug);
+
+  const parsedFilters = inquiryListFiltersSchema.safeParse(resolvedSearchParams);
+  const filters = parsedFilters.success
+    ? parsedFilters.data
+    : {
+        q: undefined,
+        view: "active" as const,
+        status: "all" as const,
+        form: "all",
+        sort: "newest" as const,
+        escalated: false,
+        page: 1,
+      };
+  const baseFilters = {
+    q: filters.q,
+    view: filters.view,
+    status: filters.status,
+    form: filters.form,
+    sort: filters.sort,
+    escalated: filters.escalated ?? false,
+  };
+
+  const canExport = hasFeatureAccess(
+    businessContext.business.plan,
+    "exports",
+  );
+
+  const inquiryCountPromise = getInquiryListCountForBusiness({
+    businessId: businessContext.business.id,
+    filters: baseFilters,
+  });
+  const inquiryFormOptionsPromise = getBusinessInquiryFormOptionsForBusiness(
+    businessContext.business.id,
+  );
+  const archivedItemsPromise = getInquiryListPageForBusiness({
+    businessId: businessContext.business.id,
+    filters: { view: "archived", status: "all", form: "all", sort: "newest", escalated: false },
+    page: 1,
+    pageSize: 50,
+  });
+
+  return (
+    <InquiryListHeaderActions
+      businessSlug={businessSlug}
+      canExport={canExport}
+      filters={filters}
+      formOptionsPromise={inquiryFormOptionsPromise}
+      archivedItemsPromise={archivedItemsPromise}
+      unarchiveAction={unarchiveInquiryAction}
+      searchParams={resolvedSearchParams}
+      totalItemsPromise={inquiryCountPromise}
+    />
   );
 }
 

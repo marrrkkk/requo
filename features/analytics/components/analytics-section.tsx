@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import { DashboardSection } from "@/components/shared/dashboard-layout";
-import { cn } from "@/lib/utils";
 
 export function AnalyticsSection({
   eyebrow,
@@ -21,7 +20,7 @@ export function AnalyticsSection({
       title={
         <div className="flex flex-col gap-1">
           {eyebrow ? <span className="meta-label">{eyebrow}</span> : null}
-          <div className="font-heading text-lg font-semibold tracking-tight">
+          <div className="font-heading text-base font-semibold tracking-tight">
             {title}
           </div>
           {description ? (
@@ -31,7 +30,7 @@ export function AnalyticsSection({
           ) : null}
         </div>
       }
-      className={cn("section-panel", className)}
+      className={className}
     >
       {children}
     </DashboardSection>

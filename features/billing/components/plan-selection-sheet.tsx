@@ -183,7 +183,7 @@ export function PlanSelectionSheet({
                 )}
               >
                 Annual
-                <Badge variant="secondary" className="px-1 font-medium text-[10px]">
+                <Badge variant="secondary" className="px-1 font-medium text-xs">
                   -{getYearlySavingsPercent("pro", "USD")}%
                 </Badge>
               </button>

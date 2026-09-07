@@ -3,7 +3,9 @@
 import { useLayoutEffect, useRef } from "react";
 
 import { useTheme } from "@/components/theme-provider";
+import { updateThemePreferenceAction } from "@/features/theme/actions";
 import {
+  isThemePreference,
   themeStorageKey,
   themeUserStorageKey,
   type ThemePreference,
@@ -34,6 +36,23 @@ export function ThemePreferenceSync({
     const storedTheme = window.localStorage.getItem(themeStorageKey);
 
     if (storedUserId === userId && storedTheme === themePreference) {
+      return;
+    }
+
+    // A visitor can choose a theme on marketing pages before signing in. Keep
+    // that explicit choice when the dashboard first mounts, then save it as
+    // the authenticated profile preference so future navigations agree.
+    if (
+      !storedUserId &&
+      storedTheme &&
+      isThemePreference(storedTheme) &&
+      storedTheme !== themePreference
+    ) {
+      window.localStorage.setItem(themeUserStorageKey, userId);
+      setTheme(storedTheme);
+      void updateThemePreferenceAction(storedTheme).catch((error) => {
+        console.error("Failed to promote pre-auth theme preference.", error);
+      });
       return;
     }
 

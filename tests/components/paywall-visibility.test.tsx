@@ -316,22 +316,22 @@ describe("Paywall visibility", () => {
     it("page variant with preview: shows demo + upgrade banner", () => {
       render(
         <FeatureGate
-          feature="exports"
+          feature="emailTemplates"
           plan={FREE_PLAN}
           variant="page"
-          previewContent={<div>Demo export preview</div>}
+          previewContent={<div>Demo preview</div>}
           upgradeAction={mockUpgradeAction}
         >
-          <div data-testid="real-export">Real export</div>
+          <div data-testid="real-content">Real content</div>
         </FeatureGate>,
       );
 
       // Preview is visible
-      expect(screen.getByText("Demo export preview")).toBeInTheDocument();
+      expect(screen.getByText("Demo preview")).toBeInTheDocument();
       expect(screen.getByText("Demo data")).toBeInTheDocument();
 
       // Real content is NOT rendered
-      expect(screen.queryByTestId("real-export")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("real-content")).not.toBeInTheDocument();
 
       // Upgrade banner
       expect(screen.getByRole("button", { name: /Upgrade to Pro/i })).toBeInTheDocument();
@@ -500,17 +500,21 @@ describe("Paywall visibility", () => {
           <LockedAction feature="members" plan={FREE_PLAN}>
             <button type="button">Action 1</button>
           </LockedAction>
-          <LockedAction feature="exports" plan={FREE_PLAN}>
+          <LockedAction feature="emailTemplates" plan={FREE_PLAN}>
             <button type="button">Action 2</button>
           </LockedAction>
         </div>,
       );
 
       // Both locked actions are keyboard navigable
+      // Note: In real browsers, `inert` on the inner div prevents child focus.
+      // jsdom does not implement `inert`, so the inner button is still a tab stop.
       await user.tab();
       expect(screen.getAllByRole("group")[0]).toHaveFocus();
 
-      await user.tab();
+      // Tab past the inner button (jsdom ignores inert) to reach the second group
+      await user.tab(); // inner button of first group
+      await user.tab(); // second group
       expect(screen.getAllByRole("group")[1]).toHaveFocus();
     });
   });

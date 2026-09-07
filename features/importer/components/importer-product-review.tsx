@@ -341,7 +341,7 @@ function LineItemRow({
   return (
     <div className="grid grid-cols-1 gap-2 rounded-md border border-border/60 bg-muted/10 px-3 py-3 sm:grid-cols-[1fr_6rem_8rem_auto] sm:items-end">
       <Field>
-        <FieldLabel className="text-[0.68rem]">Description #{position}</FieldLabel>
+        <FieldLabel className="text-xs">Description #{position}</FieldLabel>
         <FieldContent>
           <Input
             maxLength={400}
@@ -353,7 +353,7 @@ function LineItemRow({
       </Field>
 
       <Field>
-        <FieldLabel className="text-[0.68rem]">Qty</FieldLabel>
+        <FieldLabel className="text-xs">Qty</FieldLabel>
         <FieldContent>
           <Input
             inputMode="numeric"
@@ -368,7 +368,7 @@ function LineItemRow({
       </Field>
 
       <Field>
-        <FieldLabel className="text-[0.68rem]">Unit price</FieldLabel>
+        <FieldLabel className="text-xs">Unit price</FieldLabel>
         <FieldContent>
           <Input
             inputMode="decimal"

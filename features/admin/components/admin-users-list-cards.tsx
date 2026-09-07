@@ -16,7 +16,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 
 export function AdminUsersListCards({ users }: AdminUsersListCardsProps) {
   return (
-    <div className="data-list-mobile-grid xl:hidden">
+    <div className="data-list-mobile-grid p-4 xl:hidden">
       {users.map((user) => {
         const href = getAdminUserDetailPath(user.id);
 

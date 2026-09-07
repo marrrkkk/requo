@@ -125,7 +125,7 @@ const termsSections: LegalDocumentSection[] = [
           customer communications.
         </LegalParagraph>
         <LegalParagraph>
-          The Service is designed for owner-led service businesses and related
+          The Service is designed for service businesses and related
           workflows such as inquiry intake, lead qualification, quote delivery,
           follow-up scheduling, and internal drafting support.
         </LegalParagraph>

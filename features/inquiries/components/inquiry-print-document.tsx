@@ -41,7 +41,7 @@ export function InquiryPrintDocument({
       className="mx-auto flex w-full max-w-[62rem] flex-col gap-4"
       data-export-document
     >
-      <section className="section-panel overflow-hidden print:rounded-none print:border-0 print:bg-transparent print:shadow-none">
+      <section data-padding="none" className="section-panel overflow-hidden print:rounded-none print:border-0 print:bg-transparent print:shadow-none">
         <div className="flex flex-col gap-3 px-4 py-4">
           <div className="flex flex-col gap-2 border-b border-border/70 pb-3">
             <p className="meta-label">Inquiry printout</p>
@@ -92,15 +92,18 @@ export function InquiryPrintDocument({
             <CardHeader className="gap-1 pb-2">
               <CardTitle>Inquiry summary</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Submitted through the public form.
+                Submitted through the public service page.
               </p>
             </CardHeader>
             <CardContent className="grid gap-2 sm:grid-cols-2">
               <InfoTile
-                label={systemFieldDefaultLabels.serviceCategory}
+                label="Service"
+                value={inquiry.inquiryFormName ?? getInquirySourceLabel(inquiry.source)}
+              />
+              <InfoTile
+                label="Category"
                 value={inquiry.serviceCategory}
               />
-              <InfoTile label="Channel" value={inquiry.inquiryFormName ?? getInquirySourceLabel(inquiry.source)} />
               <InfoTile
                 label={systemFieldDefaultLabels.budgetText}
                 value={formatInquiryBudget(inquiry.budgetText)}
@@ -162,6 +165,7 @@ export function InquiryPrintDocument({
                 <div className="flex flex-col gap-2">
                   {inquiry.attachments.map((attachment) => (
                     <div
+                      data-padding="none"
                       className="soft-panel px-3 py-3 shadow-none print:border print:border-border/70"
                       key={attachment.id}
                     >

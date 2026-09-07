@@ -80,6 +80,8 @@ Write only the message, nothing else.`;
       temperature: 0.7,
       maxOutputTokens: 300,
       qualityTier: "cheap",
+      routingProfile: "short_text",
+      estimatedTokens: prompt.length / 4 + 300,
     });
 
     return NextResponse.json({

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidateTag, updateTag } from "next/cache";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -317,6 +318,8 @@ async function runQuoteRecordAction(
 
   const { user, businessContext } = ownerAccess;
 
+  let redirectTarget: string | null = null;
+
   try {
     const result = await mutation({
       businessId: businessContext.business.id,
@@ -350,20 +353,33 @@ async function runQuoteRecordAction(
     }
 
     if (messages.redirectHref && (result.changed || result.deleted)) {
-      redirect(messages.redirectHref);
+      redirectTarget = messages.redirectHref;
+    } else {
+      return {
+        success:
+          result.changed || result.deleted ? messages.success : messages.unchanged,
+      };
     }
-
-    return {
-      success:
-        result.changed || result.deleted ? messages.success : messages.unchanged,
-    };
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
     console.error(messages.fallbackError, error);
 
     return {
       error: "We couldn't update that quote right now.",
     };
   }
+
+  if (redirectTarget) {
+    redirect(redirectTarget);
+  }
+
+  // Unreachable when redirectTarget is set (redirect throws); keeps the
+  // return type satisfied for the non-redirect fall-through path.
+  return {
+    success: messages.success,
+  };
 }
 
 export async function deleteDraftQuoteAction(

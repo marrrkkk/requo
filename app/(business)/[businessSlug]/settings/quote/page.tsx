@@ -15,18 +15,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Business quote defaults.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * Quote settings page — non-blocking structural shell.

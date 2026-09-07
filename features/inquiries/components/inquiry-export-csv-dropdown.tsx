@@ -147,15 +147,15 @@ export function InquiryExportCsvDropdown({
           </Field>
 
           <Field className="gap-1.5">
-            <FieldLabel htmlFor="inquiry-export-form">Form</FieldLabel>
+            <FieldLabel htmlFor="inquiry-export-service">Service</FieldLabel>
             <FieldContent>
               <Combobox
-                id="inquiry-export-form"
+                id="inquiry-export-service"
                 value={form}
                 onValueChange={setForm}
                 options={formOptions}
-                placeholder="Filter by form"
-                searchPlaceholder="Search form"
+                placeholder="Filter by service"
+                searchPlaceholder="Search service"
               />
             </FieldContent>
           </Field>

@@ -150,9 +150,7 @@ export function InquiryManageDropdown({
       applyOptimistic: () => {},
       revertOptimistic: () => {},
       mutation: async () => {
-        const formData = new FormData();
-        formData.set("redirectHref", businessInquiryListHref);
-        return deleteAction(initialRecordState, formData);
+        return deleteAction(initialRecordState, new FormData());
       },
       pendingKey: "delete",
       refreshOnSuccess: false,
@@ -211,14 +209,15 @@ export function InquiryManageDropdown({
     <>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <button
+          <Button
             aria-label="Manage inquiry"
+            size="icon"
             type="button"
-            className="inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            variant="ghost"
           >
-            <Settings className="size-5" />
+            <Settings />
             <OptimisticPendingIndicator pending={isPending} />
-          </button>
+          </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
           {optimisticRecordState === "active" ? (

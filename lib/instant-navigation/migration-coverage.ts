@@ -2,7 +2,7 @@
  * Migration coverage derivation for the instant-navigation rollout.
  *
  * A route is considered "migrated" if and only if:
- * 1. Instant validation is enabled (unstable_instant present without disable flag), AND
+ * 1. Instant validation is enabled (`instant` present without `instant = false`), AND
  * 2. Every cache tag from every cached query has at least one entry in `tagRevalidatedBy`.
  *
  * A route with any cached-query tag that has no revalidator is never reported as migrated.
@@ -12,7 +12,7 @@
 
 export type MigrationCoverage = {
   route: string;
-  validationEnabled: boolean; // unstable_instant present without disable flag
+  validationEnabled: boolean; // `instant` present without `instant = false`
   cachedQueries: Array<{ name: string; cacheTags: string[] }>;
   // For each cache tag, the mutation actions known to revalidate it.
   tagRevalidatedBy: Record<string, string[]>;

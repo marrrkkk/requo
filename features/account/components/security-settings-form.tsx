@@ -104,7 +104,7 @@ export function SecuritySettingsForm({
 
   return (
     <div className="mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-5">
-      <section className="section-panel p-6">
+ <section className="section-panel">
           <div className="flex flex-col gap-5">
             <div className="space-y-1">
               <h2 className="text-lg font-semibold tracking-tight text-foreground">
@@ -357,7 +357,7 @@ export function SecuritySettingsForm({
           </div>
       </section>
 
-      <section className="section-panel p-6">
+ <section className="section-panel">
           <div className="flex flex-col gap-5">
             <div className="space-y-1">
               <h2 className="text-lg font-semibold tracking-tight text-foreground">
@@ -440,7 +440,7 @@ export function SecuritySettingsForm({
           </div>
       </section>
 
-      <section className="section-panel border-destructive/25 p-6">
+ <section className="section-panel border-destructive/25">
           <div className="flex flex-col gap-5">
             <div className="space-y-1">
               <h2 className="text-lg font-semibold tracking-tight text-foreground">

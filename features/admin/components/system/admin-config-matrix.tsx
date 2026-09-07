@@ -61,7 +61,7 @@ export function AdminConfigMatrix({ rows }: AdminConfigMatrixProps) {
           return (
             <article
               className={cn(
-                "soft-panel flex flex-col gap-3 px-4 py-4",
+ "soft-panel flex flex-col gap-3",
                 row.configured
                   ? "border-primary/15"
                   : "opacity-95",

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   AtSign,
+  Briefcase,
   CalendarClock,
   ClipboardList,
   FileText,
@@ -36,8 +37,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { RequoIcon } from "@/components/shared/requo-icon";
 import { InfoTile } from "@/components/shared/info-tile";
-import { Skeleton } from "@/components/ui/skeleton";
+import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
 import { CustomerHistoryPanel } from "@/features/customers/components/customer-history-panel";
 import { InquiryWorkflowSteps } from "@/features/businesses/components/workflow-steps";
 import { getCustomerHistoryForBusiness } from "@/features/customers/queries";
@@ -60,7 +62,6 @@ import {
 import { CopyEmailButton } from "@/features/inquiries/components/copy-email-button";
 import { AgentTranscriptSection } from "@/features/inquiries/components/agent-transcript-section";
 import { InquiryDuplicateBanner } from "@/features/inquiries/components/inquiry-duplicate-banner";
-import { InquiryEscalatedBadge } from "@/features/inquiries/components/inquiry-escalated-badge";
 import { InquiryNoteForm } from "@/features/inquiries/components/inquiry-note-form";
 import { InquiryQuoteActions } from "@/features/inquiries/components/inquiry-quote-actions";
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
@@ -70,10 +71,12 @@ import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-stat
 import { getInquiryDetailForBusiness, getInquiryDuplicateForBusiness } from "@/features/inquiries/queries";
 import { inquiryRouteParamsSchema } from "@/features/inquiries/schemas";
 import {
+  AI_AGENT_SOURCES,
   formatFileSize,
   formatInquiryBudget,
   formatInquiryDate,
   formatInquiryDateTime,
+  getInquirySourceLabel,
 } from "@/features/inquiries/utils";
 import {
   type DashboardInquiryDetail,
@@ -91,12 +94,12 @@ import {
   getBusinessInquiryPath,
   getBusinessNewQuotePath,
   getBusinessQuotePath,
+  getBusinessServicePath,
 } from "@/features/businesses/routes";
 import { Button } from "@/components/ui/button";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { hasFeatureAccess } from "@/lib/plans";
 import { createNoIndexMetadata } from "@/lib/seo/site";
-import { cn } from "@/lib/utils";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -108,18 +111,7 @@ type InquiryDetailPageProps = {
   params: Promise<{ businessSlug: string; id: string }>;
 };
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo", id: "sample-inquiry-id" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * Inquiry detail page — returns the structural shell synchronously.
@@ -132,13 +124,14 @@ export const unstable_instant = {
 export default function InquiryDetailPage({
   params,
 }: InquiryDetailPageProps) {
-  // No awaits. Return the structural shell synchronously.
+  // No awaits. Return error and suspense boundaries only; the shared
+  // placeholder supplies the page wrapper (Quote detail pattern).
   return (
-    <DashboardPage className="pb-24">
-      <Suspense fallback={<InquiryDetailShellSkeleton />}>
+    <RegionErrorBoundary fallback={<DashboardDetailPageSkeleton variant="inquiry" />}>
+      <Suspense fallback={<DashboardDetailPageSkeleton variant="inquiry" />}>
         <InquiryDetailRegion params={params} />
       </Suspense>
-    </DashboardPage>
+    </RegionErrorBoundary>
   );
 }
 
@@ -214,7 +207,7 @@ async function InquiryDetailRegion({
   );
 
   return (
-    <>
+    <DashboardPage className="pb-24">
       {duplicateRecord && !duplicateRecord.dismissedAt ? (
         <InquiryDuplicateBanner
           duplicate={{
@@ -245,7 +238,6 @@ async function InquiryDetailRegion({
         meta={
           <>
             <InquiryStatusBadge status={inquiry.status} />
-            {inquiry.escalated ? <InquiryEscalatedBadge /> : null}
             {inquiry.recordState !== "active" ? (
               <InquiryRecordStateBadge state={inquiry.recordState} />
             ) : null}
@@ -300,15 +292,31 @@ async function InquiryDetailRegion({
       <DashboardDetailLayout className="xl:grid-cols-[1.45fr_0.95fr]">
         <DashboardSidebarStack>
           <DashboardSection
-            contentClassName="flex flex-col gap-6"
+            contentClassName="flex flex-col gap-4"
             description="What the customer is asking for."
             title="Inquiry overview"
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <InfoTile
-                icon={Tag}
-                label={systemFieldDefaultLabels.serviceCategory}
-                value={inquiry.serviceCategory}
+                icon={Briefcase}
+                label="Service"
+                value={
+                  inquiry.inquiryFormSlug ? (
+                    <Link
+                      href={getBusinessServicePath(
+                        businessSlug,
+                        inquiry.inquiryFormSlug,
+                      )}
+                      className="hover:underline"
+                    >
+                      {inquiry.inquiryFormName ??
+                        getInquirySourceLabel(inquiry.source)}
+                    </Link>
+                  ) : (
+                    inquiry.inquiryFormName ??
+                    getInquirySourceLabel(inquiry.source)
+                  )
+                }
               />
               <InfoTile
                 icon={Wallet}
@@ -321,15 +329,19 @@ async function InquiryDetailRegion({
                 value={inquiry.requestedDeadline ?? "Not provided"}
               />
               <InfoTile
-                icon={ClipboardList}
-                label="Form"
-                value={inquiry.inquiryFormName}
+                icon={Tag}
+                label={
+                  inquiry.submittedFieldSnapshot?.fields?.find(
+                    (f) => f.id === "serviceCategory",
+                  )?.label ?? "Category"
+                }
+                value={inquiry.serviceCategory}
               />
             </div>
 
             {inquiry.subject &&
             inquiry.subject !== inquiry.serviceCategory ? (
-              <div className="soft-panel px-5 py-4 shadow-none">
+              <div className="soft-panel shadow-none">
                 <p className="meta-label">Subject</p>
                 <p className="mt-2 text-sm leading-6 text-foreground">
                   {inquiry.subject}
@@ -337,7 +349,7 @@ async function InquiryDetailRegion({
               </div>
             ) : null}
 
-            <div className="soft-panel flex flex-col gap-3 px-5 py-5 shadow-none">
+            <div className="soft-panel flex flex-col gap-3 shadow-none">
               <div className="flex items-center gap-2">
                 <MessageSquare
                   aria-hidden="true"
@@ -348,7 +360,7 @@ async function InquiryDetailRegion({
                 </p>
               </div>
               <TruncatedTextWithTooltip
-                className="whitespace-pre-wrap text-sm leading-normal sm:leading-7 text-foreground"
+                className="whitespace-pre-wrap text-sm leading-6 text-foreground"
                 lines={6}
                 text={inquiry.details}
               />
@@ -395,7 +407,7 @@ async function InquiryDetailRegion({
               description="Files included with the inquiry."
               title="Attachments"
             >
-              <div className="soft-panel px-4 py-4 shadow-none">
+              <div className="soft-panel shadow-none">
                 <p className="text-sm font-medium text-foreground">
                   {inquiry.attachments.length} file
                   {inquiry.attachments.length === 1 ? "" : "s"} attached
@@ -626,7 +638,7 @@ async function InquiryDetailRegion({
                   <Link
                     key={quote.id}
                     href={getBusinessQuotePath(businessSlug, quote.id)}
-                    className="soft-panel flex items-center justify-between gap-3 px-4 py-3 shadow-none transition-colors hover:bg-accent/50"
+                    className="soft-panel flex items-center justify-between gap-3 shadow-none transition-colors hover:bg-accent/50"
                   >
                     <div className="flex flex-col gap-0.5 min-w-0">
                       <span className="text-sm font-medium text-foreground truncate">
@@ -668,7 +680,7 @@ async function InquiryDetailRegion({
 
         </DashboardSidebarStack>
       </DashboardDetailLayout>
-    </>
+    </DashboardPage>
   );
 }
 
@@ -887,165 +899,8 @@ async function StreamedCustomerHistory({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Fallbacks / skeletons                                                      */
+/*  Fallbacks                                                                  */
 /* -------------------------------------------------------------------------- */
-
-/**
- * Skeleton shown inside the synchronous DashboardPage shell while the
- * main detail region resolves (cold cache). Renders the header and detail
- * layout skeletons without an outer DashboardPage wrapper (the shell
- * provides that synchronously above).
- */
-function InquiryDetailShellSkeleton() {
-  return (
-    <>
-      <header className="dashboard-detail-header">
-        <div className="dashboard-detail-header-copy">
-          <div className="flex flex-col gap-3">
-            <Skeleton className="h-4 w-24 rounded-md" />
-            <Skeleton className="h-11 w-full max-w-xl rounded-2xl" />
-            <Skeleton className="h-4 w-full max-w-2xl rounded-md" />
-          </div>
-          <div className="dashboard-detail-header-meta">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <Skeleton
-                className={cn(
-                  "h-9 rounded-full",
-                  index === 0 ? "w-28" : index === 1 ? "w-32" : "w-36",
-                )}
-                key={index}
-              />
-            ))}
-          </div>
-        </div>
-        <div className="dashboard-detail-header-actions">
-          {["sm:w-28", "sm:w-24", "sm:w-40"].map((width, index) => (
-            <Skeleton
-              className={cn("h-11 w-full rounded-xl", width)}
-              key={index}
-            />
-          ))}
-        </div>
-      </header>
-
-      <DashboardDetailLayout className="xl:grid-cols-[1.45fr_0.95fr]">
-        <DashboardSidebarStack>
-          <section className="section-panel p-5 sm:p-6">
-            <div className="flex flex-col gap-5">
-              <div className="min-w-0">
-                <Skeleton className="h-6 w-32 rounded-md" />
-                <Skeleton className="mt-3 h-4 w-48 rounded-md" />
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <div className="info-tile" key={index}>
-                    <div className="flex flex-col gap-2">
-                      <Skeleton className="h-3 w-20 rounded-md" />
-                      <Skeleton className="h-5 w-full rounded-md" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="soft-panel px-5 py-5 shadow-none">
-                <Skeleton className="h-3 w-20 rounded-md" />
-                <div className="mt-3 flex flex-col gap-2">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                    <Skeleton className="h-4 w-full rounded-md last:w-4/5" key={index} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <div className="dashboard-detail-support-grid">
-            <section className="section-panel p-5 sm:p-6">
-              <div className="flex flex-col gap-5">
-                <Skeleton className="h-6 w-28 rounded-md" />
-                <div className="flex flex-col gap-3">
-                  <div className="soft-panel animate-pulse px-4 py-4 shadow-none">
-                    <Skeleton className="h-4 w-full max-w-sm rounded-md" />
-                    <Skeleton className="mt-3 h-3 w-24 rounded-md" />
-                  </div>
-                </div>
-                <Skeleton className="h-11 w-full rounded-xl" />
-              </div>
-            </section>
-
-            <section className="section-panel p-5 sm:p-6">
-              <div className="flex flex-col gap-5">
-                <Skeleton className="h-6 w-36 rounded-md" />
-                <div className="grid animate-pulse gap-3 sm:grid-cols-2">
-                  <div className="soft-panel px-4 py-4 shadow-none">
-                    <Skeleton className="h-3 w-20 rounded-md" />
-                    <Skeleton className="mt-2 h-5 w-8 rounded-md" />
-                  </div>
-                  <div className="soft-panel px-4 py-4 shadow-none">
-                    <Skeleton className="h-3 w-20 rounded-md" />
-                    <Skeleton className="mt-2 h-5 w-8 rounded-md" />
-                  </div>
-                </div>
-                <Skeleton className="h-11 w-full rounded-xl" />
-              </div>
-            </section>
-
-            <section className="section-panel p-5 sm:p-6">
-              <div className="flex flex-col gap-5">
-                <Skeleton className="h-6 w-28 rounded-md" />
-                <div className="soft-panel animate-pulse px-4 py-4 shadow-none">
-                  <Skeleton className="h-4 w-full max-w-sm rounded-md" />
-                  <Skeleton className="mt-3 h-3 w-24 rounded-md" />
-                </div>
-                <Skeleton className="h-11 w-full rounded-xl" />
-              </div>
-            </section>
-          </div>
-        </DashboardSidebarStack>
-
-        <DashboardSidebarStack>
-          <section className="section-panel p-5 sm:p-6">
-            <div className="flex flex-col gap-5">
-              <Skeleton className="h-6 w-32 rounded-md" />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="info-tile">
-                  <div className="flex flex-col gap-2">
-                    <Skeleton className="h-3 w-20 rounded-md" />
-                    <Skeleton className="h-5 w-full rounded-md" />
-                  </div>
-                </div>
-                <div className="info-tile">
-                  <div className="flex flex-col gap-2">
-                    <Skeleton className="h-3 w-20 rounded-md" />
-                    <Skeleton className="h-5 w-full rounded-md" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="section-panel p-5 sm:p-6">
-            <div className="flex flex-col gap-5">
-              <Skeleton className="h-6 w-24 rounded-md" />
-              <div className="soft-panel animate-pulse px-4 py-4 shadow-none">
-                <Skeleton className="h-4 w-40 rounded-md" />
-                <Skeleton className="mt-2 h-3 w-64 rounded-md" />
-              </div>
-            </div>
-          </section>
-
-          <section className="section-panel p-5 sm:p-6">
-            <div className="flex flex-col gap-5">
-              <Skeleton className="h-6 w-28 rounded-md" />
-              <div className="soft-panel animate-pulse px-4 py-4 shadow-none">
-                <Skeleton className="h-4 w-36 rounded-md" />
-                <Skeleton className="mt-2 h-3 w-52 rounded-md" />
-              </div>
-            </div>
-          </section>
-        </DashboardSidebarStack>
-      </DashboardDetailLayout>
-    </>
-  );
-}
 
 function FollowUpPanelFallback() {
   return (
@@ -1054,7 +909,7 @@ function FollowUpPanelFallback() {
       title="Follow-ups"
     >
       <div className="flex flex-col gap-3">
-        <div className="soft-panel animate-pulse px-4 py-4 shadow-none">
+        <div className="soft-panel animate-pulse shadow-none">
           <div className="h-4 w-40 rounded bg-muted" />
           <div className="mt-2 h-3 w-64 rounded bg-muted" />
         </div>
@@ -1087,11 +942,11 @@ function CustomerHistoryFallback({ locked }: { locked: boolean }) {
       title="Customer history"
     >
       <div className="grid animate-pulse gap-3 sm:grid-cols-2">
-        <div className="soft-panel px-4 py-4 shadow-none">
+        <div className="soft-panel shadow-none">
           <div className="h-3 w-20 rounded bg-muted" />
           <div className="mt-2 h-5 w-8 rounded bg-muted" />
         </div>
-        <div className="soft-panel px-4 py-4 shadow-none">
+        <div className="soft-panel shadow-none">
           <div className="h-3 w-20 rounded bg-muted" />
           <div className="mt-2 h-5 w-8 rounded bg-muted" />
         </div>

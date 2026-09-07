@@ -58,10 +58,9 @@ export function QuoteManageDialog({
         <Button
           type="button"
           variant="outline"
-          className="sm:!size-10 sm:!p-0"
         >
-          <Settings data-icon="inline-start" className="sm:!m-0" />
-          <span className="sm:hidden">Manage</span>
+          <Settings data-icon="inline-start" />
+          Manage
         </Button>
       </ResponsiveOverlayTrigger>
       <ResponsiveOverlayContent className="sm:max-w-[26rem]">

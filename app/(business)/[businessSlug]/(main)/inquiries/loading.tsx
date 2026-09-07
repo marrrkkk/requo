@@ -3,6 +3,7 @@ import { DashboardListResultsSkeleton } from "@/components/shared/dashboard-list
 import { PageHeader } from "@/components/shared/page-header";
 import {
   InquiryListControlsFallback,
+  InquiryListHeaderActionsFallback,
 } from "@/features/inquiries/components/inquiry-list-page-sections";
 
 export default function BusinessDashboardInquiriesLoading() {
@@ -10,10 +11,12 @@ export default function BusinessDashboardInquiriesLoading() {
     <DashboardPage>
       <PageHeader
         title="Inquiries"
-        description="List, filter, and manage inquiries for this business."
+        actions={<InquiryListHeaderActionsFallback />}
       />
-      <InquiryListControlsFallback />
-      <DashboardListResultsSkeleton variant="inquiries" />
+      <div className="dashboard-table-shell" data-list-card>
+        <InquiryListControlsFallback />
+        <DashboardListResultsSkeleton variant="inquiries" />
+      </div>
     </DashboardPage>
   );
 }

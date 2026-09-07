@@ -13,7 +13,7 @@ export function AdminBusinessesListCards({
   items,
 }: AdminBusinessesListCardsProps) {
   return (
-    <div className="data-list-mobile-grid xl:hidden">
+    <div className="data-list-mobile-grid p-4 xl:hidden">
       {items.map((item) => {
         const href = getAdminBusinessDetailPath(item.id);
 

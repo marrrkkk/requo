@@ -11,18 +11,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Personal and business settings for your Requo workspace.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 export default function SettingsPage({
   params,

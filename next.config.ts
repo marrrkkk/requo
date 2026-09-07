@@ -3,6 +3,34 @@ import type { NextConfig } from "next";
 
 const isProduction = process.env.NODE_ENV === "production";
 
+// Dev-only experimental levers. Sourced from this repo's own dev trace
+// (`.next/dev/trace`), where render time — not bundling — dominates request
+// latency: `render-path` accounts for ~2/3 of `handle-request` time, and the
+// dashboard home route stays at a ~2.7s median render long after it compiled.
+//
+// Deliberately NOT set here:
+// - `turbopackMemoryEviction: "full"`: the default `"auto"` already evicts using
+//   OS memory-pressure feedback; `"full"` re-reads every snapshot from disk.
+// - `devValidationWorker: false`: that worker runs validation OFF the main
+//   thread, so disabling it moves the cost back into request handling. It is
+//   spawned lazily, so it costs nothing while validation is opt-in (below).
+// - `cacheComponents: false`: would hide in dev exactly the errors the
+//   production build enforces.
+const devOnlyExperimental = isProduction
+  ? {}
+  : ({
+      // Don't eagerly compile every route entry at boot. This repo has 83 pages,
+      // and warming them competes with the first real navigation for CPU.
+      preloadEntriesOnStart: false,
+      // With Cache Components on, Next implicitly validates every Page and
+      // Default segment on each dev render and each HMR update, re-rendering the
+      // tree to do it (see `applyDefaultValidation` in
+      // next/dist/server/app-render/instant-validation/instant-config.js).
+      // `manual-warning` limits validation to segments that explicitly export
+      // `instant`, making it opt-in per route.
+      instantInsights: { validationLevel: "manual-warning" },
+    } satisfies NextConfig["experimental"]);
+
 const baselineSecurityHeaders = [
   { key: "Permissions-Policy", value: "camera=(), geolocation=(), microphone=()" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -61,6 +89,11 @@ const nextConfig: NextConfig = {
   htmlLimitedBots:
     /facebookexternalhit|Facebot|LinkedInBot|Twitterbot|Pinterest|Slackbot|Discordbot|vkShare|redditbot|Applebot|WhatsApp|TelegramBot|Googlebot|bingbot|Embedly|ChatGPT-User|GPTBot|OAI-SearchBot|anthropic-ai|ClaudeBot|Claude-Web|PerplexityBot|Bytespider|CCBot/i,
   cacheComponents: true,
+  // Partial Prefetching: each visible <Link> prefetches its destination's
+  // App Shell (static + cached content) instead of a full per-link render.
+  // <Link prefetch={true}> additionally resolves per-link runtime data
+  // (params/searchParams). Requires cacheComponents.
+  partialPrefetching: true,
   // Populate entries here only when `ANALYZE=true npm run build` shows a measurable
   // bundle-size win for a specific package. Keep the block present and documented so
   // future wins (e.g., barrel-heavy icon libraries) have a clear home.
@@ -89,7 +122,15 @@ const nextConfig: NextConfig = {
       dynamic: 30,
       static: 180,
     },
-    inlineCss: true,
+    // Inlining critical CSS pays off for production first paint, but in dev it
+    // re-serializes the stylesheet into the HTML on every update.
+    inlineCss: isProduction,
+    // Expose the instant-navigation testing API in production builds so
+    // Playwright `instant()` assertions can run against `next start`.
+    // (Dev exposes it automatically.) Must live outside
+    // `devOnlyExperimental`, which is empty when NODE_ENV=production.
+    exposeTestingApiInProductionBuild: true,
+    ...devOnlyExperimental,
   },
   async redirects() {
     return [
@@ -101,6 +142,61 @@ const nextConfig: NextConfig = {
       {
         source: "/:businessSlug/dashboard",
         destination: "/:businessSlug/home",
+        permanent: true,
+      },
+      {
+        source: "/:businessSlug/forms",
+        destination: "/:businessSlug/services",
+        permanent: true,
+      },
+      {
+        source: "/:businessSlug/forms/:serviceSlug",
+        destination: "/:businessSlug/services/:serviceSlug",
+        permanent: true,
+      },
+      {
+        source: "/:businessSlug/settings/forms",
+        destination: "/:businessSlug/services",
+        permanent: true,
+      },
+      {
+        source: "/:businessSlug/settings/forms/:serviceSlug",
+        destination: "/:businessSlug/services/:serviceSlug",
+        permanent: true,
+      },
+      {
+        source: "/:businessSlug/settings/inquiry-form",
+        destination: "/:businessSlug/services",
+        permanent: true,
+      },
+      {
+        source: "/:businessSlug/settings/inquiry-forms",
+        destination: "/:businessSlug/services",
+        permanent: true,
+      },
+      {
+        source: "/:businessSlug/settings/inquiry-forms/:serviceSlug/:path*",
+        destination: "/:businessSlug/services/:serviceSlug",
+        permanent: true,
+      },
+      {
+        source: "/:businessSlug/settings/inquiry-page",
+        destination: "/:businessSlug/services",
+        permanent: true,
+      },
+      {
+        source: "/:businessSlug/settings/inquiry-page/:path*",
+        destination: "/:businessSlug/services",
+        permanent: true,
+      },
+      {
+        source: "/:businessSlug/settings/inquiry",
+        destination: "/:businessSlug/services",
+        permanent: true,
+      },
+      {
+        source: "/:businessSlug/settings/inquiry/:serviceSlug",
+        destination: "/:businessSlug/services/:serviceSlug",
         permanent: true,
       },
     ];

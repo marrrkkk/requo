@@ -8,6 +8,8 @@ import {
   QuoteListContentSection,
   QuoteListControlsFallback,
   QuoteListControlsSection,
+  QuoteListHeaderActions,
+  QuoteListHeaderActionsFallback,
 } from "@/features/quotes/components/quote-list-page-sections";
 import {
   getQuoteListCountForBusiness,
@@ -65,18 +67,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "List, filter, and manage quotes for this business.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 /**
  * Quotes list page — non-blocking structural shell.
@@ -93,19 +84,85 @@ export default function QuotesPage({
     <DashboardPage>
       <PageHeader
         title="Quotes"
-        description="List, filter, and manage quotes for this business."
+        actions={
+          <Suspense fallback={<QuoteListHeaderActionsFallback />}>
+            <QuotesHeaderActionsRegion params={params} searchParams={searchParams} />
+          </Suspense>
+        }
       />
 
-      <FirstVisitTip {...featureTips.quotes} className="mb-4" />
+      <FirstVisitTip {...featureTips.quotes} />
 
-      <Suspense fallback={<QuoteListControlsFallback />}>
-        <QuotesControlsRegion params={params} searchParams={searchParams} />
-      </Suspense>
+      <div className="dashboard-table-shell" data-list-card>
+        <Suspense fallback={<QuoteListControlsFallback />}>
+          <QuotesControlsRegion params={params} searchParams={searchParams} />
+        </Suspense>
 
-      <Suspense fallback={<QuoteListContentFallback />}>
-        <QuotesListRegion params={params} searchParams={searchParams} />
-      </Suspense>
+        <Suspense fallback={<QuoteListContentFallback />}>
+          <QuotesListRegion params={params} searchParams={searchParams} />
+        </Suspense>
+      </div>
     </DashboardPage>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Header actions region — page-level actions hoisted into PageHeader
+// ---------------------------------------------------------------------------
+
+async function QuotesHeaderActionsRegion({
+  params,
+  searchParams,
+}: QuotesPageProps) {
+  const [{ businessSlug }, resolvedSearchParams] = await Promise.all([
+    params,
+    searchParams,
+  ]);
+  const { businessContext } = await getAppShellContext(businessSlug);
+
+  const parsedFilters = quoteListFiltersSchema.safeParse(resolvedSearchParams);
+  const filters = parsedFilters.success
+    ? parsedFilters.data
+    : {
+        q: undefined,
+        view: "active" as const,
+        status: "all" as const,
+        sort: "newest" as const,
+        page: 1,
+      };
+  const baseFilters = {
+    q: filters.q,
+    view: filters.view,
+    status: filters.status,
+    sort: filters.sort,
+  };
+
+  const canExport = hasFeatureAccess(
+    businessContext.business.plan,
+    "exports",
+  );
+
+  const quoteCountPromise = getQuoteListCountForBusiness({
+    businessId: businessContext.business.id,
+    filters: baseFilters,
+  });
+  const archivedItemsPromise = getQuoteListPageForBusiness({
+    businessId: businessContext.business.id,
+    filters: { view: "archived", status: "all", sort: "newest" },
+    page: 1,
+    pageSize: 50,
+  });
+
+  return (
+    <QuoteListHeaderActions
+      businessSlug={businessSlug}
+      canExport={canExport}
+      filters={filters}
+      searchParams={resolvedSearchParams}
+      totalItemsPromise={quoteCountPromise}
+      archivedItemsPromise={archivedItemsPromise}
+      restoreAction={restoreArchivedQuoteAction}
+    />
   );
 }
 

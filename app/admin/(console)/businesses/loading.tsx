@@ -1,4 +1,3 @@
-import { DashboardTableContainer } from "@/components/shared/dashboard-layout";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -8,33 +7,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 
 /**
  * Structural loading state for the admin businesses page.
  *
- * Renders the toolbar frame and table headers synchronously.
- * Only data rows use `<Skeleton>`.
+ * Mirrors the page composition: filter strip header inside the results
+ * card, then table headers synchronously. Only data rows use `<Skeleton>`.
  *
  * Requirements: 2.1, 2.2, 8.3, 9.1, 9.2
  */
 export default function AdminBusinessesLoading() {
   return (
-    <>
-      {/* Toolbar / filters skeleton */}
-      <div className="toolbar-panel">
-        <div className="flex flex-col gap-4">
-          <div className="data-list-toolbar-summary">
-            <Skeleton className="h-4 w-full max-w-sm rounded-md" />
-            <Skeleton className="h-7 w-28 rounded-full" />
-          </div>
-          <div className="data-list-toolbar-grid">
-            <Skeleton className="h-10 w-full rounded-xl" />
-            <Skeleton className="h-10 w-full rounded-xl" />
-          </div>
-        </div>
-      </div>
+    <div className="dashboard-table-shell" data-list-card>
+      <AdminListControlsFallback />
 
-      <DashboardTableContainer>
+      <div className="hidden overflow-x-auto no-scrollbar xl:block">
         <Table className="min-w-[60rem] table-fixed">
           <TableHeader>
             <TableRow>
@@ -57,7 +45,7 @@ export default function AdminBusinessesLoading() {
             ))}
           </TableBody>
         </Table>
-      </DashboardTableContainer>
-    </>
+      </div>
+    </div>
   );
 }

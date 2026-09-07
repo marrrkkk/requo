@@ -554,7 +554,7 @@ function FollowUpDetailDialog({
 
             {/* Suggested message */}
             {followUp.suggestedMessage && (
-              <div className="soft-panel flex flex-col gap-1.5 px-4 py-3 shadow-none">
+              <div data-padding="none" className="soft-panel flex flex-col gap-1.5 px-4 py-3 shadow-none">
                 <span className="meta-label">Suggested message</span>
                 <p className="text-sm leading-relaxed text-foreground">
                   {followUp.suggestedMessage}

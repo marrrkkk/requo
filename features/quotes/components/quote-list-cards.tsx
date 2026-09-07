@@ -29,7 +29,7 @@ export function QuoteListCards({
   getMotionState,
 }: QuoteListCardsProps) {
   return (
-    <div className="flex flex-col gap-2.5 xl:hidden">
+    <div className="flex flex-col gap-2.5 p-4 xl:hidden">
       {quotes.map((quote) => {
         const reminders = quote.reminders.filter(
           (reminder) => reminder !== "follow_up_due",
@@ -79,7 +79,7 @@ export function QuoteListCards({
                 ) : viewedNoResponse ? (
                   <>
                     <span aria-hidden="true" className="text-muted-foreground/40">·</span>
-                    <Badge variant="secondary" className="px-1.5 py-0 text-[0.65rem]">
+                    <Badge variant="secondary">
                       Viewed
                     </Badge>
                   </>

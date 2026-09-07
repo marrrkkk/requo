@@ -129,7 +129,7 @@ export function BusinessAiAgentSettingsForm({
                 {aiAgentEnabled ? (
                   <Badge
                     variant="ghost"
-                    className="bg-primary/10 text-primary text-[0.68rem] px-2 py-0 h-4.5 font-medium rounded-md border-none"
+                    className="bg-primary/10 text-primary text-xs px-2 py-0 h-4.5 font-medium rounded-md border-none"
                   >
                     Active
                   </Badge>
@@ -168,7 +168,7 @@ export function BusinessAiAgentSettingsForm({
                 </span>
               </div>
 
-              <div className="inline-flex h-10 w-full rounded-lg border border-border/60 bg-muted/30 p-1">
+              <div className="inline-flex h-9 w-full rounded-md border border-border/60 bg-muted/30 p-1 sm:h-8">
                 {toneOptions.map((opt) => {
                   const isSelected = tone === opt.value;
 
@@ -201,7 +201,7 @@ export function BusinessAiAgentSettingsForm({
                 </span>
               </div>
 
-              <div className="flex h-10 items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/30 px-3">
+              <div className="flex h-9 items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/30 px-3 sm:h-8">
                 <span className="min-w-0 truncate font-mono text-xs text-muted-foreground select-all">
                   {chatPath}
                 </span>

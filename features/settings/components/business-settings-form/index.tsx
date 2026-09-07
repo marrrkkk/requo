@@ -177,7 +177,7 @@ export function BusinessSettingsForm({
           value={draftValues.defaultCurrency}
         />
 
-        <section className="section-panel p-5 sm:p-6">
+ <section className="section-panel">
           <div className="flex flex-col gap-7">
             {/* Logo + identity row */}
             <IdentitySection

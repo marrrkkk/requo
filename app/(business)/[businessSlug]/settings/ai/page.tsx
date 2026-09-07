@@ -16,18 +16,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Configure your AI assistant for quote drafting.",
 });
 
-export const unstable_instant = {
-  prefetch: "static",
-  samples: [
-    {
-      params: { businessSlug: "demo" },
-      headers: [
-        ["rsc", "1"],
-        ["next-action", null],
-      ],
-    },
-  ],
-};
+export const instant = true;
 
 type AiSettingsPageProps = {
   params: Promise<{ businessSlug: string }>;

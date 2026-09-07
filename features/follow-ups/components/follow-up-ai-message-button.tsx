@@ -71,7 +71,7 @@ export function FollowUpAiMessageButton({
 
   if (message) {
     return (
-      <div className="soft-panel flex flex-col gap-2.5 px-4 py-3.5 shadow-none">
+      <div data-padding="none" className="soft-panel flex flex-col gap-2.5 px-4 py-3.5 shadow-none">
         <p className="meta-label">AI-generated message</p>
         <p className="text-sm leading-6 text-foreground">{message}</p>
         <div className="flex flex-wrap items-center gap-2">

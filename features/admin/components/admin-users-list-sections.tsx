@@ -52,23 +52,25 @@ export async function AdminUsersListContentSection({
 
   if (items.length === 0) {
     return (
-      <DashboardEmptyState
-        description={
-          hasFilters
-            ? "Try a different email, name, or status filter."
-            : "No users yet. Sign-ups will appear here."
-        }
-        icon={Users}
-        title={hasFilters ? "No users match these filters." : "No users yet"}
-        variant="list"
-      />
+      <div className="p-4">
+        <DashboardEmptyState
+          description={
+            hasFilters
+              ? "Try a different email, name, or status filter."
+              : "No users yet. Sign-ups will appear here."
+          }
+          icon={Users}
+          title={hasFilters ? "No users match these filters." : "No users yet"}
+          variant="list"
+        />
+      </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <>
       <AdminUsersListCards users={items} />
-      <div className="hidden xl:block">
+      <div className="hidden overflow-x-auto no-scrollbar xl:block">
         <AdminUsersTable users={items} />
       </div>
       <DataListPagination
@@ -79,7 +81,7 @@ export async function AdminUsersListContentSection({
         totalItems={total}
         totalPages={totalPages}
       />
-    </div>
+    </>
   );
 }
 

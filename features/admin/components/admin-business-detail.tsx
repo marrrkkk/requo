@@ -111,7 +111,7 @@ export function AdminBusinessDetail({
             title="Members"
           >
             {detail.members.length === 0 ? (
-              <div className="soft-panel px-5 py-6 shadow-none">
+              <div className="soft-panel shadow-none">
                 <p className="meta-label">Members</p>
                 <p className="mt-2 text-sm text-muted-foreground">
                   No members have been invited yet.
@@ -235,7 +235,7 @@ function AdminDetailField({
   value: string;
 }) {
   return (
-    <div className="soft-panel px-4 py-3 shadow-none">
+    <div data-padding="none" className="soft-panel px-4 py-3 shadow-none">
       <p className="meta-label">{label}</p>
       <p className="mt-1.5 text-sm font-medium text-foreground break-words">
         {value}

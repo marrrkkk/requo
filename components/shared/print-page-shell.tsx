@@ -31,7 +31,7 @@ export function PrintPageShell({
 
       <div className="print:hidden">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 pb-5 pt-5 sm:px-6 lg:px-8">
-          <div className="section-panel flex flex-col gap-4 px-4 py-4 shadow-sm sm:flex-row sm:items-start sm:justify-between sm:px-5">
+          <div data-padding="none" className="section-panel flex flex-col gap-4 px-4 py-4 shadow-sm sm:flex-row sm:items-start sm:justify-between sm:px-5">
             <div className="min-w-0">
               <p className="meta-label">Print view</p>
               <h1 className="mt-2 font-heading text-2xl font-semibold tracking-tight text-balance">

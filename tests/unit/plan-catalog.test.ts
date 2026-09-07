@@ -21,7 +21,7 @@ describe("plan catalog", () => {
 
   it("uses the approved description copy", () => {
     expect(planCatalog.free.description).toBe(
-      "Run your inquiry and quote workflow for one business.",
+      "Run your inquiry and quote workflow for one service business.",
     );
     expect(planCatalog.pro.description).toContain("automatic follow-ups");
     expect(planCatalog.business.description).toContain("small team");
@@ -55,7 +55,7 @@ describe("plan catalog", () => {
     const time = pricingComparison[1].features;
     const team = pricingComparison[3].features;
 
-    const liveForms = core.find((row) => row.label === "Live inquiry forms");
+    const liveForms = core.find((row) => row.label === "Live services");
     expect(liveForms?.free).toBe(getUsageLimit("free", "liveFormsPerBusiness"));
     expect(liveForms?.business).toBe(10);
 

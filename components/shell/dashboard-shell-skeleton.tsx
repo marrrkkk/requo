@@ -15,16 +15,16 @@ export function DashboardShellSkeleton() {
       {/* Sidebar frame */}
       <div className="group peer hidden text-sidebar-foreground lg:block">
         <div
-          className="relative w-[17.5rem] bg-transparent transition-[width]"
+          className="relative w-(--sidebar-width) bg-transparent transition-[width]"
           data-slot="sidebar-gap"
         />
         <div
-          className="fixed inset-y-0 left-0 z-10 hidden h-svh w-[17.5rem] border-r border-border/70 lg:flex"
+          className="fixed inset-y-0 left-0 z-10 hidden h-svh w-(--sidebar-width) border-r border-border/70 lg:flex"
           data-slot="sidebar-container"
         >
           <div className="flex size-full flex-col bg-sidebar">
             {/* Real brand mark */}
-            <div className="flex h-14 items-center border-b border-sidebar-border px-3.5">
+            <div className="flex h-12 items-center border-b border-sidebar-border px-3.5">
               <BrandMark collapseLabel className="min-w-0 px-2 py-1.5" subtitle={null} />
             </div>
             {/* Business switcher skeleton */}
@@ -47,7 +47,7 @@ export function DashboardShellSkeleton() {
             {/* Navigation items skeleton */}
             <div className="flex flex-1 flex-col gap-1 px-3 py-3">
               {Array.from({ length: 6 }).map((_, index) => (
-                <Skeleton className="h-10 w-full rounded-lg" key={index} />
+                <Skeleton className="h-8 w-full rounded-md" key={index} />
               ))}
             </div>
             {/* User menu skeleton */}
@@ -67,9 +67,9 @@ export function DashboardShellSkeleton() {
       {/* Main content area */}
       <main className="relative flex min-w-0 flex-1 flex-col bg-transparent">
         {/* Topbar — structural frame with minimal skeletons */}
-        <header className="dashboard-topbar flex h-14 items-center">
+        <header className="dashboard-topbar flex h-12 items-center">
           <div className="dashboard-topbar-inner">
-            <div className="flex min-h-9 min-w-0 flex-wrap items-center gap-2.5 md:flex-nowrap">
+            <div className="flex min-h-8 min-w-0 flex-wrap items-center gap-2.5 md:flex-nowrap">
               <Skeleton className="size-8 shrink-0 rounded-lg" />
               <span
                 aria-hidden="true"
@@ -79,8 +79,8 @@ export function DashboardShellSkeleton() {
                 <Skeleton className="h-4 w-44 rounded-md" />
               </div>
               <div className="flex items-center gap-2">
-                <Skeleton className="hidden h-9 w-64 rounded-lg md:block lg:w-80" />
-                <Skeleton className="size-9 rounded-lg" />
+                <Skeleton className="hidden h-8 w-64 rounded-lg md:block lg:w-80" />
+                <Skeleton className="size-8 rounded-lg" />
               </div>
             </div>
           </div>

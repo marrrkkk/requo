@@ -406,7 +406,7 @@ export function ManualInquiryEditor({
           footerClassName="w-full sm:justify-between"
           title="Save inquiry"
         >
-          <div className="soft-panel flex flex-col gap-3 px-4 py-4 shadow-none">
+          <div className="soft-panel flex flex-col gap-3 shadow-none">
             <p className="text-sm font-medium text-foreground">
               This will be saved as a new inquiry in {businessName}.
             </p>

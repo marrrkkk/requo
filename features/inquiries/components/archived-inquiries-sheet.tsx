@@ -151,7 +151,7 @@ export function ArchivedInquiriesSheet({
                     onClick={() => setFormFilter("all")}
                     type="button"
                   >
-                    All forms
+                    All services
                   </button>
                   {formOptions.map((form) => (
                     <button

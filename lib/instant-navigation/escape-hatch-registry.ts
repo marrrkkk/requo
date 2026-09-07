@@ -27,7 +27,7 @@ import type { EscapeHatchEntry } from "./escape-hatches";
  * redirected during instant validation. That auth was replaced with
  * database-backed Better Auth role authorization, which resolves the session
  * via `headers()` like every other authenticated dashboard route. The six
- * admin console routes now ship `unstable_instant` config blocks with
- * `samples` and no longer require an exemption.
+ * admin console routes now ship `instant` config blocks
+ * and no longer require an exemption.
  */
 export const escapeHatchRegistry: EscapeHatchEntry[] = [];
