@@ -27,6 +27,11 @@ import { getBusinessAssistantPath } from "@/features/businesses/routes";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
 import { AssistantHistoryPanel } from "@/features/owner-assistant/components/assistant-history-panel";
+import {
+  ASSISTANT_HISTORY_CHANGED_EVENT,
+  getCachedAssistantHistory,
+  notifyAssistantHistoryChanged,
+} from "@/features/owner-assistant/components/assistant-history-cache";
 import { ToolResultRenderer } from "@/features/owner-assistant/components/tool-result-cards";
 import {
   confirmAssistantToolAction,
@@ -432,7 +437,7 @@ export function OwnerAssistantChat({
   useEffect(() => {
     if (status !== "ready" || messages.length <= conversation.announced) return;
     markConversationAnnounced(conversationKey, messages.length);
-    window.dispatchEvent(new CustomEvent("assistant:history-changed"));
+    notifyAssistantHistoryChanged();
   }, [conversation, conversationKey, messages.length, status]);
 
   const handleDecision = useCallback(
@@ -600,12 +605,23 @@ type RecentHistoryItem = {
 };
 
 /**
- * The newest saved conversations under the empty-state composer. Renders
- * nothing until the first page loads — and nothing at all for a brand-new
- * account — so the empty state keeps fitting the viewport.
+ * The newest saved conversations under the empty-state composer. Seeds from
+ * the shared history cache when the panel has already warmed it, so returning
+ * to a new chat paints instantly; otherwise renders nothing until the first
+ * page loads — and nothing at all for a brand-new account — so the empty
+ * state keeps fitting the viewport.
  */
 function RecentConversations({ businessSlug }: { businessSlug: string }) {
-  const [items, setItems] = useState<RecentHistoryItem[] | null>(null);
+  const [items, setItems] = useState<RecentHistoryItem[] | null>(
+    () =>
+      getCachedAssistantHistory(businessSlug)?.items.slice(0, 5).map(
+        (session) => ({
+          id: session.id,
+          title: session.title,
+          lastMessageAt: session.lastMessageAt,
+        }),
+      ) ?? null,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -625,10 +641,10 @@ function RecentConversations({ businessSlug }: { businessSlug: string }) {
       );
     };
     void refresh();
-    window.addEventListener("assistant:history-changed", refresh);
+    window.addEventListener(ASSISTANT_HISTORY_CHANGED_EVENT, refresh);
     return () => {
       cancelled = true;
-      window.removeEventListener("assistant:history-changed", refresh);
+      window.removeEventListener(ASSISTANT_HISTORY_CHANGED_EVENT, refresh);
     };
   }, [businessSlug]);
 

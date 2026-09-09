@@ -38,6 +38,15 @@ import {
   listAssistantSessionsAction,
   renameAssistantSessionAction,
 } from "@/features/owner-assistant/actions";
+import {
+  ASSISTANT_HISTORY_CHANGED_EVENT,
+  appendCachedAssistantHistory,
+  assistantHistoriesEqual,
+  getCachedAssistantHistory,
+  patchCachedAssistantHistoryTitle,
+  removeCachedAssistantHistory,
+  setCachedAssistantHistory,
+} from "@/features/owner-assistant/components/assistant-history-cache";
 import { forgetLiveConversation } from "@/features/owner-assistant/live-chat-store";
 
 type HistoryItem = {
@@ -63,6 +72,26 @@ export function AssistantHistoryPanel({
 }) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+
+  // Keep the cache warm while the panel is closed, so the next open paints
+  // instantly with fresh titles and ordering. The open list fetches for
+  // itself; this only covers the closed state to avoid a double fetch.
+  useEffect(() => {
+    if (open) return;
+    const warm = async () => {
+      const result = await listAssistantSessionsAction({
+        businessSlug,
+        limit: PAGE_SIZE,
+        offset: 0,
+      });
+      if ("error" in result) return;
+      setCachedAssistantHistory(businessSlug, result.sessions, result.total);
+    };
+    window.addEventListener(ASSISTANT_HISTORY_CHANGED_EVENT, warm);
+    return () => {
+      window.removeEventListener(ASSISTANT_HISTORY_CHANGED_EVENT, warm);
+    };
+  }, [businessSlug, open]);
 
   const trigger = (
     <Button
@@ -131,9 +160,17 @@ function HistoryList({
   onNavigate: () => void;
 }) {
   const router = useRouter();
-  const [items, setItems] = useState<HistoryItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  // Seed from the module cache so a reopen paints instantly; the skeleton
+  // only shows on a cold first open with nothing cached.
+  const [items, setItems] = useState<HistoryItem[]>(
+    () => getCachedAssistantHistory(businessSlug)?.items ?? [],
+  );
+  const [total, setTotal] = useState(
+    () => getCachedAssistantHistory(businessSlug)?.total ?? 0,
+  );
+  const [loading, setLoading] = useState(
+    () => getCachedAssistantHistory(businessSlug) == null,
+  );
   const [loadingMore, setLoadingMore] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -149,15 +186,39 @@ function HistoryList({
         setError(result.error);
       } else {
         setError(null);
-        setItems((prev) =>
-          append ? [...prev, ...result.sessions] : result.sessions,
-        );
+        if (append) {
+          appendCachedAssistantHistory(
+            businessSlug,
+            result.sessions,
+            result.total,
+          );
+          setItems((prev) => {
+            const seen = new Set(prev.map((item) => item.id));
+            return [
+              ...prev,
+              ...result.sessions.filter((item) => !seen.has(item.id)),
+            ];
+          });
+        } else {
+          setCachedAssistantHistory(
+            businessSlug,
+            result.sessions,
+            result.total,
+          );
+          // A silent background revalidate that changed nothing keeps the
+          // cached rows as-is instead of flashing the list.
+          setItems((prev) =>
+            assistantHistoriesEqual(prev, result.sessions)
+              ? prev
+              : result.sessions,
+          );
+        }
         setTotal(result.total);
       }
       setLoading(false);
       setLoadingMore(false);
     },
-    [],
+    [businessSlug],
   );
 
   const loadMore = useCallback(async () => {
@@ -171,7 +232,10 @@ function HistoryList({
   }, [businessSlug, items.length, applyResult]);
 
   // Refresh when the panel opens, and whenever a turn completes so titles and
-  // ordering stay current without a page reload.
+  // ordering stay current without a page reload. The list seeds from the
+  // module cache in `useState` above, so a warm reopen paints instantly and
+  // this fetch is a silent revalidate — no skeleton. State updates happen in
+  // the async callback below, never synchronously in the effect body.
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -186,10 +250,10 @@ function HistoryList({
       }
     };
     void refresh();
-    window.addEventListener("assistant:history-changed", refresh);
+    window.addEventListener(ASSISTANT_HISTORY_CHANGED_EVENT, refresh);
     return () => {
       cancelled = true;
-      window.removeEventListener("assistant:history-changed", refresh);
+      window.removeEventListener(ASSISTANT_HISTORY_CHANGED_EVENT, refresh);
     };
   }, [businessSlug, activeSessionId, applyResult, open]);
 
@@ -207,6 +271,7 @@ function HistoryList({
       title: value,
     });
     if (!("error" in result)) {
+      patchCachedAssistantHistoryTitle(businessSlug, id, value);
       setItems((prev) =>
         prev.map((item) => (item.id === id ? { ...item, title: value } : item)),
       );
@@ -221,6 +286,7 @@ function HistoryList({
     });
     setDeletingId(null);
     if (!("error" in result)) {
+      removeCachedAssistantHistory(businessSlug, id);
       setItems((prev) => prev.filter((item) => item.id !== id));
       setTotal((prev) => Math.max(0, prev - 1));
       // Drop the live copy too, or the deleted conversation would come straight

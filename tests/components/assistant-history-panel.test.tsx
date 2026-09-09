@@ -50,6 +50,7 @@ vi.mock("@/features/owner-assistant/actions", () => ({
 }));
 
 import { AssistantHistoryPanel } from "@/features/owner-assistant/components/assistant-history-panel";
+import { clearAssistantHistoryCache } from "@/features/owner-assistant/components/assistant-history-cache";
 
 const SESSIONS = [
   {
@@ -82,6 +83,7 @@ async function openHistory(user: ReturnType<typeof userEvent.setup>) {
 
 describe("AssistantHistoryPanel", () => {
   beforeEach(() => {
+    clearAssistantHistoryCache();
     pushMock.mockReset();
     useIsMobileMock.mockReset();
     useIsMobileMock.mockReturnValue(false);
@@ -213,5 +215,31 @@ describe("AssistantHistoryPanel", () => {
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith("/demo/assistant");
     });
+  });
+
+  it("reopens instantly from cache while revalidating in the background", async () => {
+    const user = userEvent.setup();
+    render(<AssistantHistoryPanel activeSessionId="oas_1" businessSlug="demo" />);
+
+    await openHistory(user);
+    expect(listAssistantSessionsActionMock).toHaveBeenCalledTimes(1);
+
+    // Close the popover, then hang the next fetch: cached rows must still
+    // paint immediately with no loading skeleton.
+    await user.keyboard("{Escape}");
+    listAssistantSessionsActionMock.mockImplementationOnce(
+      () => new Promise(() => {}),
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Open conversation history" }),
+    );
+
+    // Cached content is synchronous — no `findBy` wait, no skeleton.
+    expect(screen.getByText("First conversation")).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Loading conversations"),
+    ).not.toBeInTheDocument();
+    expect(listAssistantSessionsActionMock).toHaveBeenCalledTimes(2);
   });
 });
