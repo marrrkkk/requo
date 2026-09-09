@@ -557,9 +557,17 @@ export async function updateBusinessEmailTemplateSettings({
     };
   }
 
+  const { normalizeQuoteEmailTemplate, defaultQuoteEmailTemplate } =
+    await import("@/features/settings/email-templates");
+
+  const normalized = normalizeQuoteEmailTemplate({
+    version: 2,
+    subject: values.subject,
+    blocks: values.blocks,
+  });
+  const defaults = defaultQuoteEmailTemplate();
   const hasAnyOverride =
-    values.subject || values.greeting || values.introText ||
-    values.ctaLabel || values.closingText;
+    JSON.stringify(normalized) !== JSON.stringify(defaults);
 
   const now = new Date();
 
@@ -567,15 +575,7 @@ export async function updateBusinessEmailTemplateSettings({
     await tx
       .update(businesses)
       .set({
-        quoteEmailTemplate: hasAnyOverride
-          ? {
-              subject: values.subject ?? undefined,
-              greeting: values.greeting ?? undefined,
-              introText: values.introText ?? undefined,
-              ctaLabel: values.ctaLabel ?? undefined,
-              closingText: values.closingText ?? undefined,
-            }
-          : null,
+        quoteEmailTemplate: hasAnyOverride ? normalized : null,
         updatedAt: now,
       })
       .where(eq(businesses.id, businessId));
@@ -588,6 +588,10 @@ export async function updateBusinessEmailTemplateSettings({
       summary: "Email template settings updated.",
       metadata: {
         hasCustomTemplate: Boolean(hasAnyOverride),
+        blockCount: normalized.blocks.length,
+        hiddenBlockCount: normalized.blocks.filter(
+          (block) => block.visible === false,
+        ).length,
       },
       createdAt: now,
       updatedAt: now,

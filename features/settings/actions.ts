@@ -450,12 +450,21 @@ export async function updateBusinessEmailTemplateSettingsAction(
   }
 
   const { user, businessContext } = ownerAccess;
+  const rawBlocks = formData.get("blocks");
+  let parsedBlocks: unknown = [];
+  if (typeof rawBlocks === "string" && rawBlocks.trim()) {
+    try {
+      parsedBlocks = JSON.parse(rawBlocks);
+    } catch {
+      return {
+        error: "Check the email template settings and try again.",
+        fieldErrors: { blocks: ["Email blocks are invalid."] },
+      };
+    }
+  }
   const validationResult = businessEmailTemplateSettingsSchema.safeParse({
     subject: formData.get("subject"),
-    greeting: formData.get("greeting"),
-    introText: formData.get("introText"),
-    ctaLabel: formData.get("ctaLabel"),
-    closingText: formData.get("closingText"),
+    blocks: parsedBlocks,
   });
 
   if (!validationResult.success) {

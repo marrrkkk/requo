@@ -92,7 +92,7 @@ export type BusinessMessagingSettings = {
   shortDescription: string | null;
   contactEmail: string | null;
   defaultEmailSignature: string | null;
-  quoteEmailTemplate: import("@/features/settings/email-templates").QuoteEmailTemplateConfig | null;
+  quoteEmailTemplate: import("@/features/settings/email-templates").QuoteEmailTemplateConfigV2;
   notifyOnNewInquiry: boolean;
   notifyOnQuoteSent: boolean;
   notifyOnQuoteResponse: boolean;
@@ -683,5 +683,20 @@ export const getBusinessMessagingSettings = cache(async (businessId: string) => 
     .where(eq(businesses.id, businessId))
     .limit(1);
 
-  return business satisfies BusinessMessagingSettings | undefined;
+  if (!business) {
+    return business satisfies BusinessMessagingSettings | undefined;
+  }
+
+  const { normalizeQuoteEmailTemplate } = await import(
+    "@/features/settings/email-templates"
+  );
+
+  return {
+    ...business,
+    quoteEmailTemplate: normalizeQuoteEmailTemplate(
+      business.quoteEmailTemplate as Parameters<
+        typeof normalizeQuoteEmailTemplate
+      >[0],
+    ),
+  } satisfies BusinessMessagingSettings;
 });

@@ -6,7 +6,7 @@ import type {
 } from "@/features/inquiries/form-config";
 import type { InquiryPageConfig } from "@/features/inquiries/page-config";
 import type { BusinessInquiryFormSummary } from "@/features/inquiries/types";
-import type { QuoteEmailTemplateConfig } from "@/features/settings/email-templates";
+import type { QuoteEmailTemplateConfigV2 } from "@/features/settings/email-templates";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 export type BusinessSettingsView = {
@@ -28,7 +28,7 @@ export type BusinessSettingsView = {
   defaultEmailSignature: string | null;
   defaultQuoteNotes: string | null;
   defaultQuoteTerms: string | null;
-  quoteEmailTemplate: QuoteEmailTemplateConfig | null;
+  quoteEmailTemplate: QuoteEmailTemplateConfigV2;
   defaultQuoteValidityDays: number;
   sendInquiryAckEmail: boolean;
   autoDraftQuoteOnQualify: boolean;
@@ -129,12 +129,7 @@ export type BusinessQuoteSettingsActionState = {
   fieldErrors?: BusinessQuoteSettingsFieldErrors;
 };
 
-export type BusinessEmailTemplateFieldName =
-  | "subject"
-  | "greeting"
-  | "introText"
-  | "ctaLabel"
-  | "closingText";
+export type BusinessEmailTemplateFieldName = "subject" | "blocks";
 
 export type BusinessEmailTemplateFieldErrors = Partial<
   Record<BusinessEmailTemplateFieldName, string[] | undefined>

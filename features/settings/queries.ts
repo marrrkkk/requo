@@ -92,8 +92,17 @@ export async function getBusinessSettingsForBusiness(
     | null
     | undefined;
 
+  const { normalizeQuoteEmailTemplate } = await import(
+    "@/features/settings/email-templates"
+  );
+
   return {
     ...business,
+    quoteEmailTemplate: normalizeQuoteEmailTemplate(
+      business.quoteEmailTemplate as Parameters<
+        typeof normalizeQuoteEmailTemplate
+      >[0],
+    ),
     aiAgentTone:
       typeof agentConfig?.tone === "string" &&
       ["friendly", "professional", "casual"].includes(agentConfig.tone)
