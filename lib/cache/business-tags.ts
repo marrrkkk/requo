@@ -122,6 +122,27 @@ export function getBusinessFollowUpListCacheTags(businessId: string) {
   ]);
 }
 
+export function getBusinessInvoiceListCacheTags(businessId: string) {
+  const scopeTag = getBusinessScopeTag(businessId);
+
+  return uniqueCacheTags([
+    scopeTag,
+    `${scopeTag}:dashboard`,
+    `${scopeTag}:invoices`,
+  ]);
+}
+
+export function getBusinessInvoiceDetailCacheTags(businessId: string, invoiceId: string) {
+  const scopeTag = getBusinessScopeTag(businessId);
+
+  return uniqueCacheTags([
+    scopeTag,
+    `${scopeTag}:dashboard`,
+    `${scopeTag}:invoices`,
+    `${scopeTag}:invoice:${invoiceId}`,
+  ]);
+}
+
 export function getBusinessProductCacheTags(businessId: string) {
   const scopeTag = getBusinessScopeTag(businessId);
 

@@ -68,6 +68,18 @@ Example: Customer chats with AI, then completes a Service submission → `source
 
 No cross-inquiry identity or deduplication in MVP. Tools like "create_customer" are misnomers; they should be understood as "set inquiry customer fields."
 
+### Invoice
+An Invoice is a business-issued request for payment that can originate from an accepted Quote or be created independently. An Invoice owns an immutable snapshot of its customer details and line items once it is sent; its payment state is determined from recorded payments and the due date.
+_Avoid_: Bill, subscription, payment gateway
+
+### Payment
+A Payment is a manually recorded amount received against one Invoice. Payments are tenant-scoped, auditable, and excluded from balance calculations when voided; Requo records payments but does not process them.
+_Avoid_: Payment attempt (that term is reserved for Polar subscription billing), transaction
+
+### Invoice payment state
+The effective state derived from an Invoice total, its non-void Payments, due date, and lifecycle: unpaid, partially paid, paid, or overdue. Draft and void are lifecycle states and take precedence where applicable.
+_Avoid_: Stored balance, accounting status
+
 ### Business Memory
 Knowledge entries maintained by the business owner. Used for RAG retrieval during AI conversations. Categories:
 - `business_rules`: How the business operates
@@ -620,6 +632,8 @@ Customer exceeds per-session message limit (50 messages). Agent returns polite e
 - Analytics dashboard
 - A/B testing
 - Autonomous pricing
+
+Invoice V1 is intentionally limited to document snapshots, manual payment tracking, derived balances/statuses, PDF/share support, and audit history. It does not process payments or claim Philippine tax compliance.
 
 ### Why These Boundaries Matter
 The AI agent in V1 is **a conversational inquiry form**, not a full customer service automation platform. It collects the same information as the form, just through natural conversation.

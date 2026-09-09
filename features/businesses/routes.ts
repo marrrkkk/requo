@@ -90,6 +90,38 @@ export function getBusinessQuotePath(slug: string, quoteId: string) {
   return `${getBusinessQuotesPath(slug)}/${quoteId}`;
 }
 
+export function getBusinessInvoicesPath(slug: string) {
+  return `${getBusinessPath(slug)}/invoices`;
+}
+
+export function getBusinessInvoicePath(slug: string, invoiceId: string) {
+  return `${getBusinessInvoicesPath(slug)}/${invoiceId}`;
+}
+
+export function getBusinessNewInvoicePath(slug: string, quoteId?: string | null) {
+  const basePath = `${getBusinessInvoicesPath(slug)}/new`;
+  if (!quoteId) return basePath;
+  return `${basePath}?${new URLSearchParams({ quoteId }).toString()}`;
+}
+
+export function getBusinessInvoiceEditPath(slug: string, invoiceId: string) {
+  return `${getBusinessInvoicesPath(slug)}/${invoiceId}/edit`;
+}
+
+export function getBusinessInvoicePrintPath(slug: string, invoiceId: string) {
+  return `${getBusinessPath(slug)}/print/invoices/${invoiceId}`;
+}
+
+export function getBusinessInvoiceExportPath(slug: string, invoiceId: string, format?: "pdf" | "png") {
+  const basePath = `/api/business/${slug}/invoices/${invoiceId}/export`;
+  if (!format || format === "pdf") return basePath;
+  return `${basePath}?${new URLSearchParams({ format }).toString()}`;
+}
+
+export function getBusinessInvoicesExportPath(slug: string) {
+  return `/api/business/${slug}/invoices/export`;
+}
+
 export function getBusinessQuotePreviewPath(slug: string, quoteId: string) {
   return `${getBusinessQuotesPath(slug)}/${quoteId}/preview`;
 }

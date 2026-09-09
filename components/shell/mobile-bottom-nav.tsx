@@ -8,6 +8,7 @@ import {
   BarChart3,
   BellRing,
   FileText,
+  Receipt,
   Home,
   Inbox,
   LayoutGrid,
@@ -27,6 +28,7 @@ import {
   getBusinessMembersPath,
   getBusinessProductsPath,
   getBusinessQuotesPath,
+  getBusinessInvoicesPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 import {
@@ -61,6 +63,7 @@ export function MobileBottomNav({
   const homeHref = getBusinessDashboardPath(businessSlug);
   const inquiriesHref = getBusinessInquiriesPath(businessSlug);
   const quotesHref = getBusinessQuotesPath(businessSlug);
+  const invoicesHref = getBusinessInvoicesPath(businessSlug);
   const followUpsHref = getBusinessFollowUpsPath(businessSlug);
   const servicesHref = getBusinessServicesPath(businessSlug);
   const productsHref = getBusinessProductsPath(businessSlug);
@@ -72,6 +75,7 @@ export function MobileBottomNav({
   const isHomeActive = isDashboardNavigationItemActive(pathname, homeHref);
   const isInquiriesActive = isDashboardNavigationItemActive(pathname, inquiriesHref);
   const isQuotesActive = isDashboardNavigationItemActive(pathname, quotesHref);
+  const isInvoicesActive = isDashboardNavigationItemActive(pathname, invoicesHref);
   const isFollowUpsActive = isDashboardNavigationItemActive(pathname, followUpsHref);
   const isServicesActive = isDashboardNavigationItemActive(pathname, servicesHref);
   const isProductsActive = isDashboardNavigationItemActive(pathname, productsHref);
@@ -85,6 +89,7 @@ export function MobileBottomNav({
     isMembersActive ||
     isAnalyticsActive ||
     isAssistantActive ||
+    isInvoicesActive ||
     pathname.includes("/settings");
 
   return (
@@ -239,6 +244,21 @@ export function MobileBottomNav({
               >
                 <Astroid className="size-4 shrink-0 text-muted-foreground" />
                 <span>Assistant</span>
+                <NavLinkStatus className="ml-auto" />
+              </Link>
+              <Link
+                href={invoicesHref}
+                prefetch={true}
+                onClick={() => setMoreOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  isInvoicesActive
+                    ? "bg-sidebar-primary/12 text-primary font-semibold"
+                    : "text-foreground hover:bg-muted",
+                )}
+              >
+                <Receipt className="size-4 shrink-0 text-muted-foreground" />
+                <span>Invoices</span>
                 <NavLinkStatus className="ml-auto" />
               </Link>
               <Link

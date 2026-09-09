@@ -11,6 +11,9 @@ import {
   type EnableQuoteAutoFollowUpEventData,
   type InquiryQualifiedEventData,
   type PushInquiryReceivedEventData,
+  type PushInvoiceOverdueEventData,
+  type PushInvoicePaidEventData,
+  type PushInvoiceSentEventData,
   type PushQuoteResponseEventData,
   type PushQuoteSentEventData,
 } from "@/lib/inngest/events";
@@ -82,6 +85,30 @@ export async function sendPushQuoteResponseEvent(
     inngestEvents.pushQuoteResponse,
     recipients,
   );
+}
+
+export async function sendPushInvoiceSentEvent(data: PushInvoiceSentEventData): Promise<void> {
+  const recipients = await resolveBusinessPushRecipients(data.businessId, data);
+
+  if (recipients.length === 0) return;
+
+  await sendBatchedNotification(inngestEvents.pushInvoiceSent, recipients);
+}
+
+export async function sendPushInvoicePaidEvent(data: PushInvoicePaidEventData): Promise<void> {
+  const recipients = await resolveBusinessPushRecipients(data.businessId, data);
+
+  if (recipients.length === 0) return;
+
+  await sendBatchedNotification(inngestEvents.pushInvoicePaid, recipients);
+}
+
+export async function sendPushInvoiceOverdueEvent(data: PushInvoiceOverdueEventData): Promise<void> {
+  const recipients = await resolveBusinessPushRecipients(data.businessId, data);
+
+  if (recipients.length === 0) return;
+
+  await sendBatchedNotification(inngestEvents.pushInvoiceOverdue, recipients);
 }
 
 export async function sendEnableQuoteAutoFollowUpEvent(

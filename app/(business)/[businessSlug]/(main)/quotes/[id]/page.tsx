@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AtSign, ExternalLink, Mail } from "lucide-react";
+import { AtSign, ExternalLink, Mail, Receipt } from "lucide-react";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
@@ -84,11 +84,14 @@ import {
 } from "@/features/quotes/utils";
 import {
   getBusinessInquiryPath,
+  getBusinessInvoicePath,
+  getBusinessNewInvoicePath,
   getBusinessQuoteExportPath,
   getBusinessQuotePath,
   getBusinessQuotePreviewPath,
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
+import { getInvoiceIdByQuoteId } from "@/features/invoices/queries";
 import { env, isEmailConfigured } from "@/lib/env";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
@@ -144,7 +147,7 @@ async function QuoteDetailContent({
     businessId: businessContext.business.id,
     quoteId: parsedParams.data.id,
   });
-  const [quote, pricingLibrary, businessSettings, businessContactEmail] = await Promise.all([
+  const [quote, pricingLibrary, businessSettings, businessContactEmail, linkedInvoice] = await Promise.all([
     getQuoteDetailForBusiness({
       businessId: businessContext.business.id,
       quoteId: parsedParams.data.id,
@@ -152,6 +155,13 @@ async function QuoteDetailContent({
     getQuoteLibraryForBusiness(businessContext.business.id),
     getBusinessSettingsForBusiness(businessContext.business.id),
     getBusinessContactEmailForPreview(businessContext.business.id),
+    getInvoiceIdByQuoteId({
+      businessId: businessContext.business.id,
+      quoteId: parsedParams.data.id,
+    }).catch((error) => {
+      console.error("Failed to load linked invoice.", { quoteId: parsedParams.data.id }, error);
+      return null;
+    }),
   ]);
 
   if (!quote) {
@@ -396,6 +406,22 @@ async function QuoteDetailContent({
               businessName={businessContext.business.name}
               openQuoteHref={customerQuoteUrl}
             />
+            {quote.status === "accepted" && linkedInvoice ? (
+              <Button asChild variant="outline">
+                <Link href={getBusinessInvoicePath(businessSlug, linkedInvoice.id)}>
+                  <Receipt data-icon="inline-start" />
+                  View invoice {linkedInvoice.invoiceNumber}
+                </Link>
+              </Button>
+            ) : null}
+            {quote.status === "accepted" && !linkedInvoice ? (
+              <Button asChild>
+                <Link href={getBusinessNewInvoicePath(businessSlug, quote.id)}>
+                  <Receipt data-icon="inline-start" />
+                  Create invoice
+                </Link>
+              </Button>
+            ) : null}
             {quote.status === "draft" ? (
               <SendQuoteDialog
                 sendAction={sendAction}

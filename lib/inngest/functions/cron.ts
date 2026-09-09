@@ -6,6 +6,7 @@ import { computeDailyRollups } from "@/features/analytics/jobs/rollup";
 import { sendAnalyticsScheduledReports } from "@/features/analytics/jobs/scheduled-reports";
 import { processFollowUpReminders } from "@/features/follow-ups/jobs/reminders";
 import { processAutoArchiveStaleInquiries } from "@/features/inquiries/jobs/auto-archive";
+import { processInvoiceOverdue } from "@/features/invoices/jobs/overdue";
 import { processQuoteAutoFollowUps } from "@/features/quotes/jobs/auto-follow-ups";
 import { processQuoteExpiringSoon } from "@/features/quotes/jobs/expiring-soon";
 import { processQuoteViewedFollowUps } from "@/features/quotes/jobs/viewed-follow-ups";
@@ -157,6 +158,17 @@ export const analyticsBenchmarksCron = inngest.createFunction(
     step.run("compute-benchmarks", async () => computeAnalyticsBenchmarks()),
 );
 
+export const invoiceOverdueCron = inngest.createFunction(
+  {
+    id: "cron-invoice-overdue",
+    name: "Notify owners about overdue invoices",
+    triggers: [{ cron: "0 8 * * *" }],
+    retries: 2,
+  },
+  async ({ step }) =>
+    step.run("process-invoice-overdue", async () => processInvoiceOverdue()),
+);
+
 export const expireAgentSessionsCron = inngest.createFunction(
   {
     id: "cron-expire-agent-sessions",
@@ -176,6 +188,7 @@ export const cronFunctions = [
   quoteViewedFollowUpsCron,
   quoteExpiringSoonCron,
   autoArchiveStaleInquiriesCron,
+  invoiceOverdueCron,
   expireAgentSessionsCron,
   // expireQuotesCron — migrated to Vercel Cron (/api/cron/expire-quotes)
   // expireSubscriptionsCron — migrated to Vercel Cron (/api/cron/expire-subscriptions)

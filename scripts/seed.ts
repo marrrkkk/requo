@@ -4,7 +4,7 @@
  * Comprehensive demo database seeder for Requo.
  *
  * Creates fully linked data chains:
- *   Inquiry → Quote → Job → Invoice
+ *   Inquiry → Quote → Invoice
  *
  * Run: npm run db:seed
  * Requires: DATABASE_URL, BETTER_AUTH_SECRET, BETTER_AUTH_URL, and other
@@ -511,6 +511,9 @@ const resetTableNames = [
   "email_attempts",
   "email_outbox",
   "follow_ups",
+  "payments",
+  "invoice_line_items",
+  "invoices",
   "quote_items",
   "quotes",
   "inquiry_notes",
@@ -1494,7 +1497,7 @@ async function _seedGeneratedBusinessData(input: {
   await insertMany(analyticsEvents, analyticsRows);
   await insertMany(businessNotifications, notificationRows);
 
-  await seedJobsAndInvoices({
+  await seedInvoicesForAcceptedQuotes({
     businessId: input.businessId,
     ownerUserId: input.ownerUserId,
   });
@@ -1505,16 +1508,16 @@ async function _seedGeneratedBusinessData(input: {
   };
 }
 
-/** Materialize the accepted quote path so the demo exposes jobs and invoices. */
-async function seedJobsAndInvoices(input: {
+/** Materialize the accepted quote path so the demo exposes invoices. */
+async function seedInvoicesForAcceptedQuotes(input: {
   businessId: string;
   ownerUserId: string;
 }) {
-  await ensureWorkflowTables();
   const acceptedQuotes = await db.execute(sql`
     SELECT q.id, q.title, q.customer_name, q.customer_email,
       q.customer_contact_method, q.customer_contact_handle, q.currency,
-      q.total_in_cents, q.inquiry_id
+      q.subtotal_in_cents, q.discount_in_cents, q.tax_amount_in_cents, q.tax_label,
+      q.total_in_cents
     FROM quotes q
     WHERE q.business_id = ${input.businessId} AND q.status = 'accepted'
     ORDER BY q.created_at
@@ -1523,29 +1526,30 @@ async function seedJobsAndInvoices(input: {
 
   for (const quote of acceptedQuotes as unknown as Array<Record<string, unknown>>) {
     const quoteId = String(quote.id);
-    const jobId = `demo_job_${quoteId}`;
     const invoiceId = `demo_invoice_${quoteId}`;
-    const total = Number(quote.total_in_cents ?? 0);
-    const createdAt = daysAgo(10);
-    const status = quoteId.includes("history") ? "done" : "in_progress";
+    const subtotal = Number(quote.subtotal_in_cents ?? quote.total_in_cents ?? 0);
+    const discount = Number(quote.discount_in_cents ?? 0);
+    const tax = Number(quote.tax_amount_in_cents ?? 0);
+    const total = Number(quote.total_in_cents ?? subtotal - discount + tax);
     const invoiceStatus = quoteId.includes("history") ? "paid" : "sent";
-    const startedAt = status === "in_progress" ? daysAgo(3) : daysAgo(8);
-    const completedAt = status === "done" ? daysAgo(2) : null;
-    const issuedAt = daysAgo(4);
-    const dueAt = daysFromNow(10);
+    const issueDate = toDateStr(daysAgo(4));
+    const dueDate = toDateStr(daysFromNow(10));
     const sentAt = daysAgo(3);
-    const paidAt = invoiceStatus === "paid" ? daysAgo(1) : null;
+    const createdAt = daysAgo(4);
 
     await db.execute(sql`
-      INSERT INTO jobs (id, business_id, quote_id, title, customer_name, customer_email,
-        customer_contact_method, customer_contact_handle, status, currency, total_in_cents,
-        notes, position, started_at, completed_at, completed_by, created_at, updated_at)
-      VALUES (${jobId}, ${input.businessId}, ${quoteId}, ${String(quote.title)},
-        ${String(quote.customer_name)}, ${quote.customer_email ? String(quote.customer_email) : null},
+      INSERT INTO invoices (id, business_id, quote_id, invoice_number, title,
+        customer_name, customer_email, customer_contact_method, customer_contact_handle,
+        status, currency, notes, payment_terms, subtotal_in_cents, discount_in_cents, tax_in_cents,
+        tax_label, total_in_cents, issue_date, due_date, sent_at, created_by,
+        created_at, updated_at)
+      VALUES (${invoiceId}, ${input.businessId}, ${quoteId}, ${`INV-${quoteId.slice(-8)}`},
+        ${String(quote.title)}, ${String(quote.customer_name)}, ${quote.customer_email ? String(quote.customer_email) : null},
         ${String(quote.customer_contact_method)}, ${String(quote.customer_contact_handle)},
-        ${status}::job_status, ${String(quote.currency)}, ${total},
-        ${"Demo job created from an accepted quote."}, 0, ${dbDate(startedAt)}, ${dbDate(completedAt)},
-        ${completedAt ? input.ownerUserId : null}, ${dbDate(createdAt)}, ${dbDate(seedNow)})
+        ${invoiceStatus}::invoice_status, ${String(quote.currency)}, ${"Demo invoice created from an accepted quote."},
+        ${"Payment due within 14 days."}, ${subtotal}, ${discount}, ${tax},
+        ${quote.tax_label ? String(quote.tax_label) : null}, ${total}, ${issueDate}, ${dueDate},
+        ${dbDate(sentAt)}, ${input.ownerUserId}, ${dbDate(createdAt)}, ${dbDate(seedNow)})
       ON CONFLICT (id) DO NOTHING
     `);
 
@@ -1555,88 +1559,26 @@ async function seedJobsAndInvoices(input: {
     `);
     for (const item of quoteItemsResult as unknown as Array<Record<string, unknown>>) {
       await db.execute(sql`
-        INSERT INTO job_items (id, business_id, job_id, description, quantity,
-          unit_price_in_cents, line_total_in_cents, position, completed_at, created_at, updated_at)
-        VALUES (${`demo_job_item_${quoteId}_${String(item.position)}`}, ${input.businessId}, ${jobId},
+        INSERT INTO invoice_line_items (id, business_id, invoice_id, description, quantity,
+          unit_price_in_cents, line_total_in_cents, position, created_at, updated_at)
+        VALUES (${`demo_invoice_item_${quoteId}_${String(item.position)}`}, ${input.businessId}, ${invoiceId},
           ${String(item.description)}, ${Number(item.quantity)}, ${Number(item.unit_price_in_cents)},
-          ${Number(item.line_total_in_cents)}, ${Number(item.position)}, ${dbDate(completedAt)}, ${dbDate(createdAt)}, ${dbDate(seedNow)})
+          ${Number(item.line_total_in_cents)}, ${Number(item.position)}, ${dbDate(createdAt)}, ${dbDate(seedNow)})
         ON CONFLICT (id) DO NOTHING
       `);
     }
 
-    await db.execute(sql`
-      INSERT INTO invoices (id, business_id, job_id, quote_id, invoice_number, title,
-        customer_name, customer_email, customer_contact_method, customer_contact_handle,
-        status, currency, notes, terms, subtotal_in_cents, discount_in_cents, tax_in_cents,
-        tax_label, total_in_cents, issued_at, due_at, sent_at, viewed_at, paid_at, paid_by,
-        created_at, updated_at)
-      VALUES (${invoiceId}, ${input.businessId}, ${jobId}, ${quoteId}, ${`INV-${quoteId.slice(-8)}`},
-        ${String(quote.title)}, ${String(quote.customer_name)}, ${quote.customer_email ? String(quote.customer_email) : null},
-        ${String(quote.customer_contact_method)}, ${String(quote.customer_contact_handle)},
-        ${invoiceStatus}::invoice_status, ${String(quote.currency)}, ${"Demo invoice linked to the completed workflow."},
-        ${"Payment due within 14 days."}, ${total}, 0, 0, null, ${total}, ${dbDate(issuedAt)}, ${dbDate(dueAt)},
-        ${dbDate(sentAt)}, ${dbDate(daysAgo(2))}, ${dbDate(paidAt)}, ${paidAt ? input.ownerUserId : null}, ${dbDate(issuedAt)}, ${dbDate(seedNow)})
-      ON CONFLICT (id) DO NOTHING
-    `);
-
-    for (const item of quoteItemsResult as unknown as Array<Record<string, unknown>>) {
+    if (invoiceStatus === "paid" && total > 0) {
       await db.execute(sql`
-        INSERT INTO invoice_items (id, business_id, invoice_id, description, quantity,
-          unit_price_in_cents, line_total_in_cents, position, created_at, updated_at)
-        VALUES (${`demo_invoice_item_${quoteId}_${String(item.position)}`}, ${input.businessId}, ${invoiceId},
-          ${String(item.description)}, ${Number(item.quantity)}, ${Number(item.unit_price_in_cents)},
-          ${Number(item.line_total_in_cents)}, ${Number(item.position)}, ${dbDate(issuedAt)}, ${dbDate(seedNow)})
+        INSERT INTO payments (id, business_id, invoice_id, amount_in_cents, payment_date,
+          method, reference, notes, created_by, created_at, updated_at)
+        VALUES (${`demo_payment_${quoteId}`}, ${input.businessId}, ${invoiceId}, ${total},
+          ${toDateStr(daysAgo(1))}, 'bank_transfer', null, ${"Demo payment recorded in full."},
+          ${input.ownerUserId}, ${dbDate(daysAgo(1))}, ${dbDate(seedNow)})
         ON CONFLICT (id) DO NOTHING
       `);
     }
   }
-}
-
-async function ensureWorkflowTables() {
-  await db.execute(sql`DO $$ BEGIN CREATE TYPE job_status AS ENUM ('todo','in_progress','done'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`);
-  await db.execute(sql`DO $$ BEGIN CREATE TYPE invoice_status AS ENUM ('draft','sent','viewed','paid','overdue','voided'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`);
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS jobs (
-      id text PRIMARY KEY, business_id text NOT NULL, quote_id text NOT NULL,
-      title text NOT NULL, customer_name text NOT NULL, customer_email text,
-      customer_contact_method text NOT NULL DEFAULT 'email', customer_contact_handle text NOT NULL DEFAULT '',
-      status job_status NOT NULL DEFAULT 'todo', currency text NOT NULL DEFAULT 'USD',
-      total_in_cents integer NOT NULL DEFAULT 0, notes text, position integer NOT NULL DEFAULT 0,
-      started_at timestamptz, completed_at timestamptz, completed_by text,
-      archived_at timestamptz, archived_by text, deleted_at timestamptz, deleted_by text,
-      created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
-    )
-  `);
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS job_items (
-      id text PRIMARY KEY, business_id text NOT NULL, job_id text NOT NULL, description text NOT NULL,
-      quantity integer NOT NULL DEFAULT 1, unit_price_in_cents integer NOT NULL DEFAULT 0,
-      line_total_in_cents integer NOT NULL DEFAULT 0, position integer NOT NULL DEFAULT 0,
-      completed_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
-    )
-  `);
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS invoices (
-      id text PRIMARY KEY, business_id text NOT NULL, job_id text, quote_id text, invoice_number text NOT NULL,
-      title text NOT NULL, customer_name text NOT NULL, customer_email text,
-      customer_contact_method text NOT NULL DEFAULT 'email', customer_contact_handle text NOT NULL DEFAULT '',
-      status invoice_status NOT NULL DEFAULT 'draft', currency text NOT NULL DEFAULT 'USD', notes text, terms text,
-      subtotal_in_cents integer NOT NULL DEFAULT 0, discount_in_cents integer NOT NULL DEFAULT 0,
-      tax_in_cents integer NOT NULL DEFAULT 0, tax_label text, total_in_cents integer NOT NULL DEFAULT 0,
-      issued_at timestamptz, due_at timestamptz, sent_at timestamptz, viewed_at timestamptz,
-      paid_at timestamptz, paid_by text, voided_at timestamptz, voided_by text,
-      archived_at timestamptz, archived_by text, deleted_at timestamptz, deleted_by text,
-      created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
-    )
-  `);
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS invoice_items (
-      id text PRIMARY KEY, business_id text NOT NULL, invoice_id text NOT NULL, description text NOT NULL,
-      quantity integer NOT NULL DEFAULT 1, unit_price_in_cents integer NOT NULL DEFAULT 0,
-      line_total_in_cents integer NOT NULL DEFAULT 0, position integer NOT NULL DEFAULT 0,
-      created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
-    )
-  `);
 }
 
 function buildQuoteItems(input: {
@@ -2385,7 +2327,7 @@ async function main() {
         });
       }
 
-      // Seed generated inquiries, quotes, jobs, and invoices.
+      // Seed generated inquiries, quotes, and invoices.
       const linkedCounts = await _seedGeneratedBusinessData({
         business,
         businessId: createdBusiness.businessId,

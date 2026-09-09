@@ -141,6 +141,20 @@
       "when": 1787200000000,
       "tag": "0020_ai_surfaces_repair",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1788792127605,
+      "tag": "0021_invoice_payment_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1788967223654,
+      "tag": "0021_invoice_notifications",
+      "breakpoints": true
     }
   ]
 }

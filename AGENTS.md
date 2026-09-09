@@ -30,10 +30,11 @@ Requo is an owner-led SaaS app for service businesses that handle inbound inquir
 4. **Share or send** professional quotes (public link or Requo email delivery).
 5. **Follow up** consistently (scheduled, auto, and AI-drafted messages).
 6. **Track responses** — quote states: viewed, accepted, rejected, expired.
+7. **Invoice accepted work** — convert accepted quotes (or create manual invoices), send by Requo email, track manual payments to paid, and follow up on overdue balances.
 
 Supporting capabilities: public inquiry pages, public quote pages with response tracking, business-scoped dashboards, quote library / products catalog, AI-assisted drafting, business memory (RAG-backed context for AI drafts), analytics (conversion + workflow/operations), notifications (in-app + web push), data import/export, business membership and roles, subscription billing with plan entitlements, admin console, audit logging, and compliance tracking.
 
-The product **does not** include jobs, invoicing, or a workflow-automation engine. Those were intentionally removed — see Product Constraints.
+The product **does not** include jobs or a workflow-automation engine. Those were intentionally removed — see Product Constraints. Invoices cover manual payment tracking only (no payment gateway or customer payment page).
 
 ## Product Direction
 
@@ -220,7 +221,7 @@ Next.js middleware; keep it to routing and headers only (no auth checks or heavy
 
 ## Product Constraints
 
-Do not add (unless explicitly requested): jobs / job lifecycle, invoicing, workflow-automation engine or visual builder, enterprise CRM positioning, field-service dispatch, scheduling/routing/payroll, marketplace features, mobile app flows, live chat as a product surface (Crisp is support-only), advanced team collaboration beyond owner-first flows, micro-vertical template sprawl, or over-engineered abstractions.
+Do not add (unless explicitly requested): jobs / job lifecycle, workflow-automation engine or visual builder, enterprise CRM positioning, field-service dispatch, scheduling/routing/payroll, marketplace features, mobile app flows, live chat as a product surface (Crisp is support-only), advanced team collaboration beyond owner-first flows, micro-vertical template sprawl, or over-engineered abstractions. Invoices are in scope as manual payment tracking only — do not add payment gateways or customer payment pages.
 
 ## Architecture, Auth, And Security
 

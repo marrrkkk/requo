@@ -3,8 +3,11 @@ import { Suspense } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
+  CalendarClock,
   Clock,
+  ReceiptText,
   Send,
+  TriangleAlert,
   TrendingUp,
   Target,
 } from "lucide-react";
@@ -30,7 +33,11 @@ import {
   getBusinessInquiriesPath,
   getBusinessQuotesPath,
   getBusinessAnalyticsPath,
+  getBusinessInvoicePath,
+  getBusinessInvoicesPath,
 } from "@/features/businesses/routes";
+import { getInvoiceOverviewForBusiness } from "@/features/invoices/queries";
+import { formatQuoteMoney } from "@/features/invoices/utils";
 import { getFollowUpOverviewForBusiness } from "@/features/follow-ups/queries";
 import { DashboardTour } from "@/features/onboarding/components/dashboard-tour";
 import { getCachedDashboardTourCompleted } from "@/features/onboarding/queries";
@@ -84,6 +91,13 @@ export default function DashboardOverviewPage({
       <section className="home-entrance-section w-full max-w-5xl mx-auto mt-5">
         <Suspense fallback={<KpiFallback />}>
           <KpiRegion params={params} />
+        </Suspense>
+      </section>
+
+      {/* Invoices snapshot */}
+      <section className="home-entrance-section w-full max-w-5xl mx-auto mt-5">
+        <Suspense fallback={null}>
+          <InvoiceRegion params={params} />
         </Suspense>
       </section>
 
@@ -231,6 +245,94 @@ async function KpiRegion({
           icon={<Clock className="size-4" />}
         />
       </div>
+    </div>
+  );
+}
+
+async function InvoiceRegion({
+  params,
+}: {
+  params: Promise<{ businessSlug: string }>;
+}) {
+  const { businessSlug } = await params;
+  const { businessContext } = await getAppShellContext(businessSlug);
+  let overview;
+  try {
+    overview = await getInvoiceOverviewForBusiness({ businessId: businessContext.business.id });
+  } catch (error) {
+    console.error("Failed to load invoice overview.", { businessId: businessContext.business.id }, error);
+    return null;
+  }
+
+  if (overview.outstandingCount === 0 && overview.counts.draft === 0) {
+    return null;
+  }
+
+  const balanceLabel = overview.currency
+    ? formatQuoteMoney(overview.outstandingInCents, overview.currency)
+    : `${overview.outstandingCount} open`;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Invoices
+        </p>
+        <Link
+          href={getBusinessInvoicesPath(businessSlug)}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          prefetch={true}
+        >
+          All invoices
+          <ArrowRight className="size-3" />
+        </Link>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <StatCard
+          label="Outstanding"
+          value={balanceLabel}
+          suffix={`${overview.outstandingCount} open`}
+          highlight={overview.outstandingCount > 0}
+          icon={<ReceiptText className="size-4" />}
+        />
+        <StatCard
+          label="Overdue"
+          value={overview.counts.overdue}
+          suffix="past due"
+          highlight={overview.counts.overdue > 0}
+          icon={<TriangleAlert className="size-4" />}
+        />
+        <StatCard
+          label="Due soon"
+          value={overview.counts.dueSoon}
+          suffix="next 7 days"
+          icon={<CalendarClock className="size-4" />}
+        />
+      </div>
+      {overview.overdue.length > 0 ? (
+        <div className="flex flex-col gap-1 rounded-xl border border-border/60 bg-card px-2 py-1">
+          {overview.overdue.slice(0, 3).map((invoice) => (
+            <Link
+              key={invoice.id}
+              href={getBusinessInvoicePath(businessSlug, invoice.id)}
+              className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-accent/50"
+              prefetch={true}
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-foreground">
+                  {invoice.invoiceNumber} · {invoice.customerName}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Due {formatQuoteDate(invoice.dueDate)}
+                </span>
+              </span>
+              <span className="text-sm font-semibold text-foreground">
+                {formatQuoteMoney(invoice.balanceInCents, invoice.currency)}
+              </span>
+            </Link>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

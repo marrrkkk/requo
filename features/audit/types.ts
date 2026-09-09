@@ -5,6 +5,8 @@ export const auditEntityTypes = [
   "member",
   "subscription",
   "account",
+  "invoice",
+  "payment",
 ] as const;
 
 export const auditSources = ["app", "webhook", "system", "admin"] as const;
@@ -50,6 +52,13 @@ export const auditActionLabels = {
   "account.unsuspended": "Account reinstated by support",
   "account.sessions_revoked": "Account sessions revoked by support",
   "account.email_force_verified": "Account email verified by support",
+  "invoice.created": "Invoice created",
+  "invoice.updated": "Invoice updated",
+  "invoice.sent": "Invoice sent",
+  "invoice.paid": "Invoice marked paid",
+  "invoice.voided": "Invoice voided",
+  "payment.recorded": "Payment recorded",
+  "payment.voided": "Payment voided",
 } as const;
 
 export type AuditEntityType = (typeof auditEntityTypes)[number];

@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
 
-import type { QuoteEmailTemplateConfig } from "@/features/settings/email-templates";
+import type { QuoteEmailTemplateStored } from "@/features/settings/email-templates";
 import { renderBusinessMemberInviteEmail } from "@/emails/templates/business-member-invite";
 import { renderEmailVerificationEmail } from "@/emails/templates/email-verification";
 import { renderInquiryAcknowledgmentEmail } from "@/emails/templates/inquiry-acknowledgment";
 import { renderMagicLinkEmail } from "@/emails/templates/magic-link";
 import { renderPasswordResetEmail } from "@/emails/templates/password-reset";
+import { renderInvoiceEmail } from "@/emails/templates/invoice-email";
 import { renderQuoteEmail } from "@/emails/templates/quote-email";
 import {
   EmailSendError,
@@ -77,7 +78,7 @@ type SendQuoteEmailInput = {
     unitPriceInCents: number;
     lineTotalInCents: number;
   }>;
-  templateOverrides?: QuoteEmailTemplateConfig | null;
+  templateOverrides?: QuoteEmailTemplateStored;
   replyToEmail?: string;
   businessId?: string | null;
   userId?: string | null;
@@ -414,6 +415,117 @@ export async function sendQuoteEmail({
     tags: {
       type: "quote",
       event: "quote_sent",
+    },
+  });
+}
+
+export async function sendInvoiceEmail({
+  invoiceId,
+  updatedAt,
+  businessName,
+  customerName,
+  customerEmail,
+  invoiceNumber,
+  title,
+  currency,
+  issueDate,
+  dueDate,
+  subtotalInCents,
+  discountInCents,
+  taxInCents,
+  taxLabel,
+  totalInCents,
+  balanceInCents,
+  notes,
+  paymentTerms,
+  emailSignature,
+  items,
+  replyToEmail,
+  businessId,
+  userId,
+}: {
+  invoiceId: string;
+  updatedAt: Date;
+  businessName: string;
+  customerName: string;
+  customerEmail: string | null;
+  invoiceNumber: string;
+  title: string;
+  currency: string;
+  issueDate: string;
+  dueDate: string;
+  subtotalInCents: number;
+  discountInCents: number;
+  taxInCents?: number;
+  taxLabel?: string | null;
+  totalInCents: number;
+  balanceInCents: number;
+  notes?: string | null;
+  paymentTerms?: string | null;
+  emailSignature?: string | null;
+  items: Array<{
+    description: string;
+    quantity: number;
+    unitPriceInCents: number;
+    lineTotalInCents: number;
+  }>;
+  replyToEmail?: string;
+  businessId?: string | null;
+  userId?: string | null;
+}) {
+  if (!customerEmail) {
+    return;
+  }
+
+  if (!isEmailConfigured) {
+    throw new Error("Invoice delivery email is not configured yet.");
+  }
+
+  const senderConfigurationError = getConfigurationError("quote");
+
+  if (senderConfigurationError) {
+    throw new Error(senderConfigurationError);
+  }
+
+  const template = renderInvoiceEmail({
+    businessName,
+    customerName,
+    invoiceNumber,
+    title,
+    currency,
+    issueDate,
+    dueDate,
+    subtotalInCents,
+    discountInCents,
+    taxInCents,
+    taxLabel,
+    totalInCents,
+    balanceInCents,
+    notes,
+    paymentTerms,
+    emailSignature,
+    items,
+  });
+
+  await sendBrandedEmail({
+    emailType: "quote",
+    to: customerEmail,
+    replyTo: getFallbackReplyTo(replyToEmail),
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+    idempotencyKey: `invoice:${invoiceId}:sent:${getRecipientKey(customerEmail)}`,
+    businessId,
+    userId,
+    metadata: {
+      invoiceId,
+      invoiceNumber,
+      businessId,
+      updatedAt: updatedAt.toISOString(),
+    },
+    tags: {
+      type: "invoice",
+      event: "invoice_sent",
     },
   });
 }

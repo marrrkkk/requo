@@ -16,6 +16,7 @@ type InsertBusinessNotificationInput = {
   businessId: string;
   inquiryId?: string | null;
   quoteId?: string | null;
+  invoiceId?: string | null;
   type: BusinessNotificationType;
   title: string;
   summary: string;
@@ -33,6 +34,7 @@ export async function insertBusinessNotification(
     businessId,
     inquiryId = null,
     quoteId = null,
+    invoiceId = null,
     type,
     title,
     summary,
@@ -45,6 +47,7 @@ export async function insertBusinessNotification(
     businessId,
     inquiryId,
     quoteId,
+    invoiceId,
     type,
     title,
     summary,

@@ -4,6 +4,7 @@ import {
   BarChart3,
   BellRing,
   FileText,
+  Receipt,
   Home,
   Inbox,
   Package,
@@ -30,6 +31,7 @@ import {
   getBusinessNewInquiryPath,
   getBusinessProductsPath,
   getBusinessQuotesPath,
+  getBusinessInvoicesPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 
@@ -67,6 +69,12 @@ export function getDashboardNavigation(
       label: "Quotes",
       description: "Draft, send, and track quotes from one place.",
       icon: FileText,
+    },
+    {
+      href: getBusinessInvoicesPath(slug),
+      label: "Invoices",
+      description: "Track invoices, payments, and balances.",
+      icon: Receipt,
     },
     {
       href: getBusinessFollowUpsPath(slug),
@@ -230,6 +238,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   const followUpsPath = getBusinessFollowUpsPath(slug);
   const inquiriesPath = getBusinessInquiriesPath(slug);
   const quotesPath = getBusinessQuotesPath(slug);
+  const invoicesPath = getBusinessInvoicesPath(slug);
   const servicesPath = getBusinessServicesPath(slug);
   const membersPath = getBusinessMembersPath(slug);
   const notificationsPath = getBusinessNotificationsPath(slug);
@@ -307,6 +316,10 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
 
   if (pathname === quotesPath) {
     return withDashboardHome(slug, [{ label: "Quotes" }]);
+  }
+
+  if (pathname === invoicesPath || pathname.startsWith(`${invoicesPath}/`)) {
+    return withDashboardHome(slug, [{ label: "Invoices" }]);
   }
 
   if (pathname === followUpsPath || pathname.startsWith(`${followUpsPath}/`)) {

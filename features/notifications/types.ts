@@ -9,6 +9,8 @@ export const businessNotificationTypes = [
   "business_member_invite_accepted",
   "business_member_invite_declined",
   "automation",
+  "invoice_paid",
+  "invoice_overdue",
 ] as const;
 
 export type BusinessNotificationType =
@@ -19,6 +21,7 @@ export type BusinessNotificationRecord = {
   businessId: string;
   inquiryId: string | null;
   quoteId: string | null;
+  invoiceId: string | null;
   type: BusinessNotificationType;
   title: string;
   summary: string;

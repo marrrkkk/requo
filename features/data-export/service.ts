@@ -6,6 +6,9 @@ import { db } from "@/lib/db/client";
 import {
   inquiries,
   inquiryAttachments,
+  invoiceLineItems,
+  invoices,
+  payments,
   quotes,
   quoteItems,
   dataExports,
@@ -146,29 +149,39 @@ export async function generateDataExport(
       .where(eq(dataExports.id, exportId));
 
     // Query all business data
-    const [businessInquiries, businessQuotes, businessQuoteItems, businessFiles] =
-      await Promise.all([
-        db
-          .select()
-          .from(inquiries)
-          .where(
-            eq(inquiries.businessId, businessId),
-          ),
-        db
-          .select()
-          .from(quotes)
-          .where(
-            eq(quotes.businessId, businessId),
-          ),
-        db
-          .select()
-          .from(quoteItems)
-          .where(eq(quoteItems.businessId, businessId)),
-        db
-          .select()
-          .from(inquiryAttachments)
-          .where(eq(inquiryAttachments.businessId, businessId)),
-      ]);
+    const [
+      businessInquiries,
+      businessQuotes,
+      businessQuoteItems,
+      businessFiles,
+      businessInvoices,
+      businessInvoiceLineItems,
+      businessPayments,
+    ] = await Promise.all([
+      db
+        .select()
+        .from(inquiries)
+        .where(
+          eq(inquiries.businessId, businessId),
+        ),
+      db
+        .select()
+        .from(quotes)
+        .where(
+          eq(quotes.businessId, businessId),
+        ),
+      db
+        .select()
+        .from(quoteItems)
+        .where(eq(quoteItems.businessId, businessId)),
+      db
+        .select()
+        .from(inquiryAttachments)
+        .where(eq(inquiryAttachments.businessId, businessId)),
+      db.select().from(invoices).where(eq(invoices.businessId, businessId)),
+      db.select().from(invoiceLineItems).where(eq(invoiceLineItems.businessId, businessId)),
+      db.select().from(payments).where(eq(payments.businessId, businessId)),
+    ]);
 
     // Build the export data
     const exportData: Record<string, unknown[]> = {
@@ -176,6 +189,9 @@ export async function generateDataExport(
       quotes: businessQuotes,
       quoteItems: businessQuoteItems,
       files: businessFiles,
+      invoices: businessInvoices,
+      invoiceLineItems: businessInvoiceLineItems,
+      payments: businessPayments,
     };
 
     // Serialize based on format
