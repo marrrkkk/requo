@@ -25,8 +25,8 @@ export const featureTips = {
   },
   followUps: {
     tipKey: "follow-ups-overview",
-    title: "Follow-ups keep deals moving",
+    title: "Recover quiet quotes",
     description:
-      "Schedule reminders for quotes that go quiet or inquiries that need a reply. Requo can also create follow-ups automatically when quotes go quiet.",
+      "Work overdue quotes first, review and send the next message, and record what happened. Automatic sequences appear here too and stop when the customer views or responds.",
   },
 } as const satisfies Record<string, FeatureTipConfig>;

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { DashboardSection } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
+import { Spinner } from "@/components/ui/spinner";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { ConfirmPasswordDialog } from "@/features/admin/components/confirm-password-dialog";
 import { manualPlanOverrideAction } from "@/features/admin/mutations";
@@ -104,8 +105,17 @@ export function AdminUserPlanOverride({
             type="button"
             variant="default"
           >
-            <Crown data-icon="inline-start" />
-            {isPending ? "Applying…" : "Apply override"}
+            {isPending ? (
+              <>
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+                Applying…
+              </>
+            ) : (
+              <>
+                <Crown data-icon="inline-start" />
+                Apply override
+              </>
+            )}
           </Button>
         </div>
       </DashboardSection>

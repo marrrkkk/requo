@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
   CardContent,
@@ -111,8 +112,17 @@ function PendingInviteCard({
             onClick={handleAccept}
             className="flex-1"
           >
-            <Check data-icon="inline-start" />
-            Accept
+            {isAccepting ? (
+              <>
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+                Accepting...
+              </>
+            ) : (
+              <>
+                <Check data-icon="inline-start" />
+                Accept
+              </>
+            )}
           </Button>
           <Button
             size="sm"
@@ -122,8 +132,17 @@ function PendingInviteCard({
             onClick={handleDecline}
             className="flex-1"
           >
-            <X data-icon="inline-start" />
-            Decline
+            {isDeclining ? (
+              <>
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+                Declining...
+              </>
+            ) : (
+              <>
+                <X data-icon="inline-start" />
+                Decline
+              </>
+            )}
           </Button>
         </div>
       </CardContent>
