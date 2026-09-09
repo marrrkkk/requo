@@ -43,10 +43,7 @@ export default function BusinessServicesPage({
 }) {
   return (
     <>
-      <PageHeader
-        title="Services"
-        description="Manage service offerings, intake capture, public URLs, and starting defaults."
-      />
+      <PageHeader title="Services" />
       <Suspense fallback={<ServicesPageSkeleton />}>
         <ServicesRegion params={params} />
       </Suspense>

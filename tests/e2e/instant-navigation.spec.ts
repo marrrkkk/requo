@@ -165,7 +165,6 @@ test("Quotes to Follow-ups paints the destination shell without a reload", async
       page,
       new RegExp(`/${demoBusinessSlug}/follow-ups$`),
       "Follow-ups",
-      "See who needs contact next and when.",
     );
   });
 
@@ -188,7 +187,7 @@ test("Follow-ups to Analytics shows header controls before core metrics", async 
     });
     // Static shell: title resolves while dynamic regions are held.
     await expect(
-      page.locator("h1").filter({ hasText: "Performance" }),
+      page.locator("h1").filter({ hasText: "Analytics" }),
     ).toBeVisible({ timeout: 20_000 });
     // Fast region (searchParams-only date controls) resolves independently.
     await expect(
@@ -211,7 +210,7 @@ test("Analytics to Quotes keeps the shell and resolves records", async ({
   await signIn(page);
   await openDashboard(page, "/analytics");
   await expect(
-    page.locator("h1").filter({ hasText: "Performance" }),
+    page.locator("h1").filter({ hasText: "Analytics" }),
   ).toBeVisible({ timeout: 30_000 });
   await markHeap(page);
   const sidebarHandle = await sidebarNavHandle(page, "nav-quotes");
@@ -260,7 +259,7 @@ test("direct URL navigation renders the destination progressively", async ({
     waitUntil: "domcontentloaded",
   });
   await expect(
-    page.locator("h1").filter({ hasText: "Performance" }),
+    page.locator("h1").filter({ hasText: "Analytics" }),
   ).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("Pipeline overview")).toBeVisible({ timeout: 30_000 });
 });
@@ -401,7 +400,7 @@ test.describe("mobile navigation", () => {
       timeout: 20_000,
     });
     await expect(
-      page.locator("h1").filter({ hasText: "Performance" }),
+      page.locator("h1").filter({ hasText: "Analytics" }),
     ).toBeVisible({ timeout: 30_000 });
   });
 });

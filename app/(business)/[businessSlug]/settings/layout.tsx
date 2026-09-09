@@ -31,8 +31,26 @@ import { requireSession } from "@/lib/auth/session";
  * Mounts BusinessCheckoutProvider so paywall components inside settings
  * (knowledge, pricing, email, members, billing, etc.) can open the plan
  * selection sheet through the same shared state used in the main shell.
+ *
+ * The outer component is synchronous; the `params` await lives inside a
+ * Suspense-wrapped child shell so entering settings never blocks on this
+ * layout and sibling navigations stay instant.
  */
-export default async function SettingsLayout({
+export default function SettingsLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ businessSlug: string }>;
+}) {
+  return (
+    <Suspense fallback={null}>
+      <SettingsShell params={params}>{children}</SettingsShell>
+    </Suspense>
+  );
+}
+
+async function SettingsShell({
   children,
   params,
 }: {

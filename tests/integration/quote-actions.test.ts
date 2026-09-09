@@ -157,7 +157,7 @@ describe("quote actions", () => {
       quoteEmailTemplate: null,
       contactEmail: "hello@brightside.test",
       notifyOnQuoteSent: true,
-    } as Awaited<ReturnType<typeof getBusinessMessagingSettings>>);
+    } as unknown as Awaited<ReturnType<typeof getBusinessMessagingSettings>>);
     vi.mocked(getQuoteSendPayloadForBusiness).mockResolvedValue(
       makeSendPayload(),
     );

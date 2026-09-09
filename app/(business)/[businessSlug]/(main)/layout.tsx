@@ -42,8 +42,29 @@ import { requireSession } from "@/lib/auth/session";
  *
  * This eliminates the full-page skeleton flash on cold loads — only the
  * data-dependent slots show loading indicators.
+ *
+ * The outer component is synchronous; the `params` await and all data reads
+ * live inside a Suspense-wrapped child shell so sibling navigations paint the
+ * destination route instantly instead of blocking on this layout.
  */
-export default async function BusinessMainLayout({
+export default function BusinessMainLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ businessSlug: string }>;
+}) {
+  return (
+    <>
+      <UpgradeSuccessModal />
+      <Suspense fallback={null}>
+        <BusinessMainShell params={params}>{children}</BusinessMainShell>
+      </Suspense>
+    </>
+  );
+}
+
+async function BusinessMainShell({
   children,
   params,
 }: {
@@ -54,7 +75,6 @@ export default async function BusinessMainLayout({
 
   return (
     <>
-      <UpgradeSuccessModal />
       <DashboardShellFrame
         businessSlug={businessSlug}
         businessSwitcherSlot={
