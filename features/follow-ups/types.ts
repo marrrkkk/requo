@@ -41,6 +41,57 @@ export type FollowUpRecurrence = (typeof followUpRecurrences)[number];
 export type FollowUpRelatedKind = "inquiry" | "quote";
 export type FollowUpDueBucket = "overdue" | "today" | "upcoming" | "done";
 
+/**
+ * Where a follow-up activity item came from. Storage remains split for now
+ * (follow_ups rows vs quotes.autoFollowUp* columns); the UI composes both
+ * through a unified read model (see getUnifiedFollowUpActivityForBusiness).
+ */
+export type FollowUpSource = "manual" | "system_suggested" | "automatic_sequence";
+
+/**
+ * Customer-touch outcome recorded when an action is taken. Kept separate from
+ * the DB lifecycle status (pending/completed/skipped) so history can answer
+ * "did the customer reply?" rather than only "did the owner clear the task?".
+ */
+export type FollowUpOutcomeType =
+  | "contacted"
+  | "replied"
+  | "accepted"
+  | "rejected"
+  | "dismissed"
+  | "no_answer"
+  | "other";
+
+export type FollowUpDismissalReason =
+  | "not_relevant"
+  | "already_responded"
+  | "duplicate"
+  | "lost_opportunity"
+  | "revisit_later"
+  | "other";
+
+export type QuoteFollowUpContext = {
+  status: string | null;
+  totalInCents: number | null;
+  currency: string | null;
+  sentAt: Date | null;
+  viewedAt: Date | null;
+  respondedAt: Date | null;
+};
+
+export type FollowUpSequenceState = {
+  enabled: boolean;
+  isActive: boolean;
+  isPaused: boolean;
+  isComplete: boolean;
+  attempts: number;
+  maxAttempts: number;
+  delayDays: number;
+  lastSentAt: Date | null;
+  nextSendAt: Date | null;
+  stoppedAt: Date | null;
+};
+
 export type FollowUpListFilters = {
   q?: string;
   status: FollowUpStatusFilterValue;
@@ -89,6 +140,14 @@ export type FollowUpView = {
   quotePublicUrl: string | null;
   quoteViewedAt: Date | null;
   suggestedMessage: string;
+  /** Which pipeline the item belongs to. Defaults to quote-first ordering. */
+  source: FollowUpSource;
+  /** Short "why contact them now" line (system reason template or custom reason). */
+  whyNow: string | null;
+  /** Primary next-step label, e.g. "Review and send", "Call", "Open quote". */
+  nextActionLabel: string;
+  /** Quote revenue/outcome context for quote-linked follow-ups. */
+  quoteContext: QuoteFollowUpContext | null;
 };
 
 export type FollowUpOverviewData = {
@@ -100,6 +159,35 @@ export type FollowUpOverviewData = {
     dueToday: number;
     upcoming: number;
   };
+};
+
+/**
+ * One row in the unified Follow-ups workspace. Manual follow-ups carry their
+ * FollowUpView; automatic email sequences surface as lightweight activity
+ * items composed from quotes.autoFollowUp* columns (no follow_ups row).
+ */
+export type FollowUpActivityItem =
+  | {
+      kind: "follow_up";
+      followUp: FollowUpView;
+    }
+  | {
+      kind: "auto_sequence";
+      quoteId: string;
+      quoteNumber: string | null;
+      quoteTitle: string | null;
+      customerName: string;
+      customerEmail: string | null;
+      sequence: FollowUpSequenceState;
+      quoteContext: QuoteFollowUpContext;
+    };
+
+export type FollowUpSummaryCounts = {
+  needsAttention: number;
+  dueToday: number;
+  waiting: number;
+  activeSequences: number;
+  history: number;
 };
 
 export type FollowUpCreateFieldErrors = Partial<

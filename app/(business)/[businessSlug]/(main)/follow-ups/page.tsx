@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
+import { ArrowLeft, History } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { getAppShellContext } from "@/lib/app-shell/context";
@@ -9,7 +12,10 @@ import {
   getFollowUpOverviewForBusiness,
   getFollowUpListCountForBusiness,
   getFollowUpListPageForBusiness,
+  getFollowUpSummaryCountsForBusiness,
+  getActiveAutoFollowUpSequencesForBusiness,
   getRecentRecordsForFollowUpCreate,
+  getBusinessMembersForReassign,
 } from "@/features/follow-ups/queries";
 import { FollowUpBoard } from "@/features/follow-ups/components/follow-up-board";
 import {
@@ -23,7 +29,6 @@ import { LockedAction } from "@/features/paywall";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { FirstVisitTip } from "@/features/onboarding/components/first-visit-tip";
 import { featureTips } from "@/features/onboarding/feature-tips";
-import { getBusinessMembersForReassign } from "@/features/follow-ups/queries";
 import { getBusinessFollowUpsPath } from "@/features/businesses/routes";
 import type {
   FollowUpListFilters,
@@ -44,7 +49,7 @@ type FollowUpsPageProps = {
 
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Follow-ups",
-  description: "See who needs contact next and when.",
+  description: "Follow up before these quotes go cold.",
 });
 
 export const instant = true;
@@ -65,10 +70,7 @@ export default function FollowUpsPage({
 }: FollowUpsPageProps) {
   return (
     <DashboardPage>
-      <PageHeader
-        title="Follow-ups"
-        description="See who needs contact next and when."
-      />
+      <PageHeader title="Follow-ups" />
 
       <FirstVisitTip {...featureTips.followUps} />
 
@@ -92,7 +94,7 @@ async function FollowUpsContentRegion({
     searchParams,
   ]);
 
-  // If a status filter is present (e.g. from "View completed & skipped"),
+  // If a status filter is present (e.g. from the History tab),
   // show the filterable list view instead of the board.
   const hasStatusFilter =
     resolvedSearchParams.status &&
@@ -116,19 +118,38 @@ async function StreamedFollowUpBoard({ businessSlug }: { businessSlug: string })
     getFollowUpOverviewForBusiness(businessContext.business.id),
     getRecentRecordsForFollowUpCreate(businessContext.business.id),
   ]);
+  const [summaryCounts, autoSequences] = await Promise.all([
+    getFollowUpSummaryCountsForBusiness(businessContext.business.id, overview),
+    getActiveAutoFollowUpSequencesForBusiness(businessContext.business.id),
+  ]);
+
+  const historyHref = `${getBusinessFollowUpsPath(businessSlug)}?status=all`;
+  const historyLabel =
+    summaryCounts.history > 0 ? `History (${summaryCounts.history})` : "History";
 
   return (
-    <FollowUpBoard
-      overdue={overview.overdue}
-      dueToday={overview.dueToday}
-      upcoming={overview.upcoming}
-      businessSlug={businessSlug}
-      createButton={
-        <LockedAction feature="followUps" plan={businessContext.business.plan}>
-          <CreateFollowUpButton businessSlug={businessSlug} records={recentRecords} />
-        </LockedAction>
-      }
-    />
+    <div className="flex flex-col gap-4">
+      <FollowUpBoard
+        overdue={overview.overdue}
+        dueToday={overview.dueToday}
+        upcoming={overview.upcoming}
+        businessSlug={businessSlug}
+        autoSequences={autoSequences}
+        createButton={
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href={historyHref} prefetch={true}>
+                <History data-icon="inline-start" />
+                {historyLabel}
+              </Link>
+            </Button>
+            <LockedAction feature="followUps" plan={businessContext.business.plan}>
+              <CreateFollowUpButton businessSlug={businessSlug} records={recentRecords} />
+            </LockedAction>
+          </div>
+        }
+      />
+    </div>
   );
 }
 
@@ -187,6 +208,14 @@ async function StreamedFollowUpList({
 
   return (
     <>
+      <div className="flex items-center gap-2">
+        <Button asChild variant="outline" size="sm">
+          <Link href={getBusinessFollowUpsPath(businessSlug)} prefetch={true}>
+            <ArrowLeft data-icon="inline-start" />
+            Back to To do
+          </Link>
+        </Button>
+      </div>
       <Suspense fallback={<FollowUpListControlsFallback />}>
         <FollowUpListControlsSection filters={filters} totalItemsPromise={totalItemsPromise} />
       </Suspense>

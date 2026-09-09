@@ -115,7 +115,7 @@ export function FollowUpPanel({
       ) : followUps.length ? null : (
         <DashboardEmptyState
           action={renderCreateDialog()}
-          description="You're all caught up. Follow-ups help you remember which inquiries or quotes need attention next."
+          description="No action needed here. Set a reminder so this record doesn't go cold."
           icon={BellRing}
           title="No follow-ups"
           variant="section"

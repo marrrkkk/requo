@@ -37,7 +37,7 @@ export async function FollowUpDashboardSection({
         </Button>
       }
       contentClassName="flex flex-col gap-5"
-      description="Overdue and due-today reminders for inquiries and quotes."
+      description="Quiet quotes that need a nudge before they go cold."
       title={`Follow-ups${totalPending ? ` (${totalPending})` : ""}`}
     >
       {hasFollowUps ? (
@@ -73,7 +73,7 @@ export async function FollowUpDashboardSection({
               </Link>
             </Button>
           }
-          description="You're all caught up. Follow-ups help you remember which inquiries or quotes need attention next."
+          description="No action needed today. Quiet quotes will appear here when they need a nudge."
           icon={BellRing}
           title="No follow-ups"
           variant="section"

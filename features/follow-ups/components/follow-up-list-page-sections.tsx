@@ -83,8 +83,8 @@ export async function FollowUpListContentSection({
           hasFilters
             ? "Try another search, status, or due date."
             : filters.status === "pending"
-              ? "You're all caught up. Follow-ups help you remember which inquiries or quotes need attention next."
-              : "Completed and skipped follow-ups will show here as you use the workflow."
+              ? "No action needed today. New quote and inquiry follow-ups will appear in To do."
+              : "Contacted and dismissed follow-ups will show here as you work the queue."
         }
         icon={BellRing}
         title={
