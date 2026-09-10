@@ -65,7 +65,14 @@ export const EMAIL_BUILDER_BLOCK_META: Record<EmailBlockType, BlockMeta> = {
   },
   notes: {
     label: "Notes",
-    description: "Quote notes, when present.",
+    description: "Quote or invoice notes, when present.",
+    deletable: false,
+    hasEditableContent: false,
+    contentMaxLength: 0,
+  },
+  "payment-terms": {
+    label: "Payment terms",
+    description: "Invoice payment terms, when present.",
     deletable: false,
     hasEditableContent: false,
     contentMaxLength: 0,

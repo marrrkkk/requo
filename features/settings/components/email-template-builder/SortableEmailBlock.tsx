@@ -6,12 +6,13 @@ import { CSS } from "@dnd-kit/utilities";
 import { Eye, EyeOff, GripVertical, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { EmailTemplateBlock } from "@/features/settings/email-templates";
+import type {
+  EmailTemplateBlock,
+  EmailTemplateKind,
+} from "@/features/settings/email-templates";
 import { cn } from "@/lib/utils";
 
 import { BlockContent } from "./BlockContent";
-import { BlockControls } from "./BlockControls";
-import { BlockEditor } from "./BlockEditor";
 import {
   EMAIL_BUILDER_BLOCK_META,
   isDeletableBlockType,
@@ -37,10 +38,11 @@ type SortableEmailBlockProps = {
   editing: boolean;
   isPending?: boolean;
   prefersReducedMotion?: boolean;
+  templateKind?: EmailTemplateKind;
   onSelect: (id: string | null) => void;
   onEdit: (id: string | null) => void;
-  onUpdate: (id: string, patch: Partial<EmailTemplateBlock>) => void;
-  onUpdateStyle: (
+  onUpdate?: (id: string, patch: Partial<EmailTemplateBlock>) => void;
+  onUpdateStyle?: (
     id: string,
     key: keyof NonNullable<EmailTemplateBlock["style"]>,
     value: string | undefined,
@@ -50,10 +52,10 @@ type SortableEmailBlockProps = {
 };
 
 /**
- * A visual document block inside the email canvas. Default state is a clean
- * email appearance; hover reveals the drag handle + visibility toggle;
- * selection reveals compact style controls; click on text-like content
- * switches to plain-text editing (no rich text).
+ * Display-only sortable row. Editing + style controls live in the side
+ * inspector so selection never shifts drag positions or overlaps siblings.
+ * The whole row is draggable (editor + controls stop propagation); the grip
+ * stays always-visible for discoverability + touch.
  */
 export function SortableEmailBlock({
   block,
@@ -62,10 +64,9 @@ export function SortableEmailBlock({
   editing,
   isPending,
   prefersReducedMotion,
+  templateKind = "quote",
   onSelect,
   onEdit,
-  onUpdate,
-  onUpdateStyle,
   onToggleVisibility,
   onRemove,
 }: SortableEmailBlockProps) {
@@ -79,7 +80,7 @@ export function SortableEmailBlock({
     isDragging,
   } = useSortable({
     id: block.id,
-    disabled: isPending,
+    disabled: false,
     transition: prefersReducedMotion
       ? null
       : EMAIL_CANVAS_SORTABLE_TRANSITION,
@@ -111,12 +112,16 @@ export function SortableEmailBlock({
     <div
       ref={setNodeRef}
       style={sortableStyle}
+      {...attributes}
+      {...listeners}
       className={cn(
-        "group relative rounded-lg px-2 py-1 transition-[box-shadow,background-color,opacity]",
+        "group relative cursor-grab rounded-lg px-9 py-2 transition-[box-shadow,background-color,opacity] active:cursor-grabbing",
         "hover:bg-muted/40 hover:shadow-[inset_0_0_0_1px_var(--border)]",
-        selected && "bg-muted/40 shadow-[inset_0_0_0_2px_var(--primary)]",
-        isDragging && "relative z-10 bg-background shadow-lg ring-2 ring-primary/20",
+        selected &&
+          "bg-muted/40 shadow-[inset_0_0_0_2px_var(--primary)]",
+        isDragging && "z-10 bg-background opacity-0 shadow-lg",
         hidden && "opacity-70",
+        isDragging && hidden && "opacity-0",
       )}
       data-block-id={block.id}
       data-block-type={block.type}
@@ -125,17 +130,10 @@ export function SortableEmailBlock({
         if (!selected) onSelect(block.id);
       }}
     >
-      <div
-        className={cn(
-          "pointer-events-none absolute -left-1 top-1/2 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity",
-          "group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100",
-          selected && "pointer-events-auto opacity-100",
-        )}
-      >
+      <div className="pointer-events-auto absolute top-1/2 left-1 flex -translate-y-1/2 items-center">
         <Button
           aria-label={dragHandleLabel}
           className="cursor-grab touch-none bg-background shadow-sm active:cursor-grabbing"
-          disabled={isPending}
           ref={setActivatorNodeRef}
           size="icon-xs"
           type="button"
@@ -149,13 +147,7 @@ export function SortableEmailBlock({
         </Button>
       </div>
 
-      <div
-        className={cn(
-          "pointer-events-none absolute -right-1 top-1 flex items-center gap-1 opacity-0 transition-opacity",
-          "group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100",
-          selected && "pointer-events-auto opacity-100",
-        )}
-      >
+      <div className="pointer-events-auto absolute top-1 right-1 flex items-center gap-1">
         <Button
           aria-label={hidden ? `Show ${meta.label} block` : `Hide ${meta.label} block`}
           aria-pressed={hidden}
@@ -194,49 +186,34 @@ export function SortableEmailBlock({
 
       <div className={cn(hidden && "opacity-60")}>
         {hidden ? (
-          <p className="meta-label mb-1 rounded-full bg-muted px-2 py-0.5">
+          <p className="meta-label mb-1 inline-flex rounded-full bg-muted px-2 py-0.5">
             Hidden from email
           </p>
         ) : null}
-        {editing && editable && !isPending ? (
-          <div onClick={(event) => event.stopPropagation()}>
-            <BlockEditor
-              block={block}
-              disabled={isPending}
-              onDone={() => onEdit(null)}
-              onUpdate={onUpdate}
-            />
-          </div>
-        ) : (
-          <div
-            onClick={handleContentClick}
-            onKeyDown={(event) => {
-              if (editable && (event.key === "Enter" || event.key === " ")) {
-                event.preventDefault();
-                handleContentClick();
-              }
-            }}
-            role={editable ? "button" : undefined}
-            tabIndex={editable ? 0 : undefined}
-            aria-label={editable ? `Edit ${meta.label} block` : `${meta.label} block`}
-            className={editable ? "cursor-text rounded-md" : undefined}
-          >
-            <BlockContent block={block} />
-          </div>
-        )}
+        <div
+          onClick={handleContentClick}
+          onKeyDown={(event) => {
+            if (editable && (event.key === "Enter" || event.key === " ")) {
+              event.preventDefault();
+              handleContentClick();
+            }
+          }}
+          role={editable ? "button" : undefined}
+          tabIndex={editable ? 0 : undefined}
+          aria-label={
+            editable ? `Edit ${meta.label} block` : `${meta.label} block`
+          }
+          className={editable ? "cursor-text rounded-md" : undefined}
+        >
+          <BlockContent block={block} templateKind={templateKind} />
+        </div>
         {selected ? (
-          <div onClick={(event) => event.stopPropagation()}>
-            <BlockControls
-              block={block}
-              disabled={isPending}
-              onUpdateStyle={onUpdateStyle}
-            />
-            {block.type === "cta" ? (
-              <p className="mt-2 text-xs text-muted-foreground">
-                One CTA per template. It moves and restyles, but stays visible.
-              </p>
-            ) : null}
-          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Selected — edit in the inspector panel.
+            {block.type === "cta"
+              ? " One CTA per template. It moves and restyles, but stays visible."
+              : null}
+          </p>
         ) : null}
       </div>
     </div>

@@ -6,7 +6,11 @@ import type {
 } from "@/features/inquiries/form-config";
 import type { InquiryPageConfig } from "@/features/inquiries/page-config";
 import type { BusinessInquiryFormSummary } from "@/features/inquiries/types";
-import type { QuoteEmailTemplateConfigV2 } from "@/features/settings/email-templates";
+import type {
+  InvoiceEmailTemplateConfigV2,
+  QuoteEmailTemplateConfigV2,
+  QuoteFollowUpTemplateConfigV2,
+} from "@/features/settings/email-templates";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 export type BusinessSettingsView = {
@@ -29,6 +33,8 @@ export type BusinessSettingsView = {
   defaultQuoteNotes: string | null;
   defaultQuoteTerms: string | null;
   quoteEmailTemplate: QuoteEmailTemplateConfigV2;
+  invoiceEmailTemplate: InvoiceEmailTemplateConfigV2;
+  quoteFollowUpTemplate: QuoteFollowUpTemplateConfigV2;
   defaultQuoteValidityDays: number;
   sendInquiryAckEmail: boolean;
   autoDraftQuoteOnQualify: boolean;

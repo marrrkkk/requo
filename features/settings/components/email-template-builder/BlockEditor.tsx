@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  quoteEmailMergeTags,
+  getMergeTagsForKind,
   type EmailTemplateBlock,
+  type EmailTemplateKind,
 } from "@/features/settings/email-templates";
 
 import { EMAIL_BUILDER_BLOCK_META } from "./builder-types";
@@ -38,21 +39,25 @@ export function insertTagAtCursor(
 type BlockEditorProps = {
   block: EmailTemplateBlock;
   disabled?: boolean;
+  templateKind?: EmailTemplateKind;
   onUpdate: (id: string, patch: Partial<EmailTemplateBlock>) => void;
   onDone?: () => void;
 };
 
 function MergeTagRow({
   disabled,
+  templateKind = "quote",
   onInsert,
 }: {
   disabled?: boolean;
+  templateKind?: EmailTemplateKind;
   onInsert: (tag: string) => void;
 }) {
+  const tags = getMergeTagsForKind(templateKind);
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
       <span className="text-xs text-muted-foreground">Insert:</span>
-      {quoteEmailMergeTags.map((tag) => (
+      {tags.map((tag) => (
         <Button
           key={tag.tag}
           disabled={disabled}
@@ -78,6 +83,7 @@ function MergeTagRow({
 export function BlockEditor({
   block,
   disabled,
+  templateKind = "quote",
   onUpdate,
   onDone,
 }: BlockEditorProps) {
@@ -156,6 +162,7 @@ export function BlockEditor({
       />
       <MergeTagRow
         disabled={disabled}
+        templateKind={templateKind}
         onInsert={(tag) =>
           insertTagAtCursor(
             fieldRef.current as HTMLTextAreaElement | null,

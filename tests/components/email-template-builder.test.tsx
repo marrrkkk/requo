@@ -9,6 +9,7 @@ vi.mock("@dnd-kit/core", () => ({
   DragOverlay: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   KeyboardSensor: vi.fn(),
   PointerSensor: vi.fn(),
+  TouchSensor: vi.fn(),
   useSensor: vi.fn(),
   useSensors: vi.fn(() => []),
 }));
@@ -331,5 +332,36 @@ describe("email template builder (direct canvas)", () => {
       />,
     );
     expect(screen.getByLabelText("Subject line")).toBeInTheDocument();
+  });
+
+  it("switches between quote, invoice, and follow-up templates", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    expect(screen.getByRole("tab", { name: /Quote email/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await user.click(screen.getByRole("tab", { name: /Invoice email/ }));
+    expect(screen.getByRole("tab", { name: /Invoice email/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByText("{{invoiceNumber}}")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: /Quote follow-up/ }));
+    expect(
+      screen.getByRole("tab", { name: /Quote follow-up/ }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText(/View quote/)).toBeInTheDocument();
+  });
+
+  it("edits the selected block in the inspector without shifting the canvas", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    expect(screen.getByText(/Select a block/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Edit Greeting block/ }));
+    expect(screen.getByText("Greeting")).toBeInTheDocument();
+    expect(
+      screen.getByText(/edit in the inspector/i),
+    ).toBeInTheDocument();
   });
 });

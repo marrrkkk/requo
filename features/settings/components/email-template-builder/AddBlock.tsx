@@ -84,7 +84,10 @@ export function AddBlock({
   }
 
   return (
-    <div className="group relative flex items-center gap-2 py-0.5" data-testid={`add-block-${index}`}>
+    <div
+      className="group relative flex min-h-[10px] items-center gap-2"
+      data-testid={`add-block-${index}`}
+    >
       <div className="h-px flex-1 bg-border/60 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100" aria-hidden="true" />
       <Button
         aria-expanded={open}
@@ -94,14 +97,14 @@ export function AddBlock({
         size="icon-xs"
         type="button"
         variant="outline"
-        className="rounded-full opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
+        className="h-5 w-5 rounded-full opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
       >
         <Plus className="size-3" aria-hidden="true" />
       </Button>
       <div className="h-px flex-1 bg-border/60 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100" aria-hidden="true" />
       {open && !isDisabled ? (
         <div
-          className="absolute left-1/2 top-full z-20 flex -translate-x-1/2 gap-1.5 rounded-lg border border-border/70 bg-background p-1.5 shadow-lg"
+          className="absolute top-full left-1/2 z-20 flex -translate-x-1/2 gap-1.5 rounded-lg border border-border/70 bg-background p-1.5 shadow-lg"
           role="group"
           aria-label={`Add block at position ${index + 1}`}
         >

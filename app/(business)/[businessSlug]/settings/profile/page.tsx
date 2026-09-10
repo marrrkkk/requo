@@ -22,11 +22,7 @@ export const instant = true;
 export default function SettingsProfilePage() {
   return (
     <>
-      <PageHeader
-        eyebrow="Settings"
-        title="Profile"
-        description="Update your personal details shown across your account."
-      />
+      <PageHeader title="Profile" />
       <Suspense fallback={<DashboardSettingsProfileSkeleton />}>
         <SettingsProfileContent />
       </Suspense>

@@ -253,69 +253,39 @@ export function DashboardSettingsProfileSkeleton() {
   return (
     <DashboardSettingsShellSkeleton>
       <div className="dashboard-side-stack">
-        <SettingsPageHeader descriptionWidth="w-48" titleWidth="max-w-sm" />
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-6 w-32 rounded-lg sm:h-7" />
+        </div>
 
- <section className="section-panel">
-          <div className="grid gap-4 xl:grid-cols-[19rem_minmax(0,1fr)] xl:gap-6">
-            <div className="self-start">
-    <div className="soft-panel flex flex-col gap-5 shadow-none">
-                <div className="space-y-2">
-                  <Skeleton className="h-3 w-24 rounded-md" />
-                  <Skeleton className="h-6 w-36 rounded-lg" />
-                  <Skeleton className="h-4 w-40 rounded-md" />
-                </div>
-
-                <div className="rounded-3xl border border-border/75 bg-background/80 px-5 py-5">
-                  <div className="flex flex-col items-center gap-4 text-center">
-                    <Skeleton className="size-24 rounded-full" />
-                    <div className="w-full space-y-2">
-                      <Skeleton className="mx-auto h-5 w-32 rounded-md" />
-                      <Skeleton className="mx-auto h-4 w-24 rounded-md" />
-                      <Skeleton className="mx-auto h-4 w-40 rounded-md" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t border-border/70 pt-5">
-                  <Skeleton className="h-9 w-full rounded-md sm:h-8" />
-                </div>
+        <div className="mx-auto flex w-full max-w-[36rem] flex-col gap-4">
+          <div className="soft-panel flex flex-col gap-4 shadow-none">
+            <div className="flex items-center gap-4">
+              <Skeleton className="size-16 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-32 rounded-md" />
+                <Skeleton className="h-4 w-40 rounded-md" />
               </div>
             </div>
-
-            <div className="space-y-5">
- <section className="soft-panel shadow-none">
-                <div className="space-y-5">
-                  <div className="space-y-2">
-                    <Skeleton className="h-6 w-36 rounded-lg" />
-                    <Skeleton className="h-4 w-40 rounded-md" />
-                  </div>
-
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <FieldSkeleton />
-                    <FieldSkeleton />
-                  </div>
-                </div>
-              </section>
-
- <section className="soft-panel shadow-none">
-                <div className="space-y-5">
-                  <div className="space-y-2">
-                    <Skeleton className="h-6 w-32 rounded-lg" />
-                    <Skeleton className="h-4 w-36 rounded-md" />
-                  </div>
-
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <FieldSkeleton />
-                    <FieldSkeleton />
-                  </div>
-                </div>
-              </section>
-            </div>
           </div>
-        </section>
 
-        <div className="flex justify-end">
-          <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-40" />
+          {Array.from({ length: 2 }).map((_, cardIndex) => (
+            <section className="soft-panel shadow-none" key={cardIndex}>
+              <div className="flex flex-col gap-4">
+                <Skeleton className="h-5 w-28 rounded-md" />
+                <div className="divide-y divide-border/70">
+                  {Array.from({ length: 2 }).map((_, rowIndex) => (
+                    <div
+                      className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+                      key={rowIndex}
+                    >
+                      <Skeleton className="h-4 w-24 rounded-md" />
+                      <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-60 sm:max-w-[15rem]" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          ))}
         </div>
       </div>
     </DashboardSettingsShellSkeleton>

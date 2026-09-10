@@ -386,6 +386,7 @@ const emailTemplateBlockSchema = z
       "line-items",
       "totals",
       "notes",
+      "payment-terms",
       "signature",
       "closing",
       "divider",
@@ -420,78 +421,140 @@ const emailTemplateBlockSchema = z
     }
   });
 
-export const businessEmailTemplateSettingsSchema = z
-  .object({
-    subject: z
-      .string()
-      .trim()
-      .min(1, "Enter a subject line.")
-      .max(200, "Use 200 characters or fewer."),
-    blocks: z
-      .array(emailTemplateBlockSchema)
-      .min(1, "Add at least one block.")
-      .max(20, "Use 20 blocks or fewer."),
-  })
-  .strict()
-  .superRefine((value, ctx) => {
-    const singletonCounts = new Map<string, number>();
-    let ctaCount = 0;
-    value.blocks.forEach((block) => {
-      if (
-        block.type === "greeting" ||
-        block.type === "intro" ||
-        block.type === "summary" ||
-        block.type === "line-items" ||
-        block.type === "totals" ||
-        block.type === "notes" ||
-        block.type === "signature" ||
-        block.type === "closing" ||
-        block.type === "cta"
-      ) {
-        singletonCounts.set(block.type, (singletonCounts.get(block.type) ?? 0) + 1);
-      }
-      if (block.type === "cta") {
-        ctaCount += 1;
-        if (block.visible === false) {
+const SINGLETON_BLOCK_TYPES = new Set([
+  "greeting",
+  "intro",
+  "summary",
+  "line-items",
+  "totals",
+  "notes",
+  "payment-terms",
+  "signature",
+  "closing",
+  "cta",
+]);
+
+function makeEmailTemplateSettingsSchema({
+  forbiddenTypes = [],
+  requireCta,
+  allowCta,
+}: {
+  forbiddenTypes?: string[];
+  requireCta: boolean;
+  allowCta: boolean;
+}) {
+  const forbidden = new Set(forbiddenTypes);
+  return z
+    .object({
+      subject: z
+        .string()
+        .trim()
+        .min(1, "Enter a subject line.")
+        .max(200, "Use 200 characters or fewer."),
+      blocks: z
+        .array(emailTemplateBlockSchema)
+        .min(1, "Add at least one block.")
+        .max(20, "Use 20 blocks or fewer."),
+    })
+    .strict()
+    .superRefine((value, ctx) => {
+      const singletonCounts = new Map<string, number>();
+      let ctaCount = 0;
+      value.blocks.forEach((block) => {
+        if (forbidden.has(block.type)) {
           ctx.addIssue({
             code: "custom",
-            message: "The call-to-action block must stay visible.",
+            message: `The ${block.type} block is not available in this template.`,
             path: ["blocks"],
           });
         }
-        if (!block.content?.trim()) {
+        if (SINGLETON_BLOCK_TYPES.has(block.type)) {
+          singletonCounts.set(
+            block.type,
+            (singletonCounts.get(block.type) ?? 0) + 1,
+          );
+        }
+        if (block.type === "cta") {
+          ctaCount += 1;
+          if (!allowCta) {
+            ctx.addIssue({
+              code: "custom",
+              message: "This template does not support a call-to-action block.",
+              path: ["blocks"],
+            });
+          }
+          if (block.visible === false) {
+            ctx.addIssue({
+              code: "custom",
+              message: "The call-to-action block must stay visible.",
+              path: ["blocks"],
+            });
+          }
+          if (!block.content?.trim()) {
+            ctx.addIssue({
+              code: "custom",
+              message: "Enter a button label.",
+              path: ["blocks"],
+            });
+          }
+        }
+      });
+      for (const [type, count] of singletonCounts) {
+        if (count > 1) {
           ctx.addIssue({
             code: "custom",
-            message: "Enter a button label.",
+            message: `Only one ${type} block is allowed.`,
             path: ["blocks"],
           });
         }
       }
-    });
-    for (const [type, count] of singletonCounts) {
-      if (count > 1) {
+      if (requireCta && ctaCount === 0) {
         ctx.addIssue({
           code: "custom",
-          message: `Only one ${type} block is allowed.`,
+          message: "The template needs exactly one call-to-action block.",
           path: ["blocks"],
         });
       }
-    }
-    if (ctaCount === 0) {
-      ctx.addIssue({
-        code: "custom",
-        message: "The template needs exactly one call-to-action block.",
-        path: ["blocks"],
-      });
-    }
-    if (ctaCount > 1) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Only one call-to-action block is allowed.",
-        path: ["blocks"],
-      });
-    }
+      if (ctaCount > 1) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Only one call-to-action block is allowed.",
+          path: ["blocks"],
+        });
+      }
+    });
+}
+
+export const businessEmailTemplateSettingsSchema =
+  makeEmailTemplateSettingsSchema({
+    forbiddenTypes: ["payment-terms"],
+    requireCta: true,
+    allowCta: true,
   });
+
+export const businessInvoiceEmailTemplateSettingsSchema =
+  makeEmailTemplateSettingsSchema({
+    forbiddenTypes: [],
+    requireCta: false,
+    allowCta: true,
+  });
+
+export const businessQuoteFollowUpTemplateSettingsSchema =
+  makeEmailTemplateSettingsSchema({
+    forbiddenTypes: ["summary", "line-items", "totals", "notes", "payment-terms"],
+    requireCta: true,
+    allowCta: true,
+  });
+
+export const emailTemplateKindSchema = z.enum(["quote", "invoice", "follow-up"]);
+
+export function getEmailTemplateSettingsSchemaForKind(
+  kind: "quote" | "invoice" | "follow-up",
+) {
+  if (kind === "invoice") return businessInvoiceEmailTemplateSettingsSchema;
+  if (kind === "follow-up") return businessQuoteFollowUpTemplateSettingsSchema;
+  return businessEmailTemplateSettingsSchema;
+}
 
 export type BusinessEmailTemplateSettingsInput = z.infer<
   typeof businessEmailTemplateSettingsSchema

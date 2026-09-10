@@ -74,6 +74,7 @@ type UpdateBusinessEmailTemplateSettingsInput = {
   businessId: string;
   actorUserId: string;
   values: BusinessEmailTemplateSettingsInput;
+  templateKind?: "quote" | "invoice" | "follow-up";
 };
 
 type DeleteBusinessInput = {
@@ -540,6 +541,7 @@ export async function updateBusinessEmailTemplateSettings({
   businessId,
   actorUserId,
   values,
+  templateKind = "quote",
 }: UpdateBusinessEmailTemplateSettingsInput): Promise<UpdateBusinessSettingsResult> {
   const [business] = await db
     .select({
@@ -557,15 +559,32 @@ export async function updateBusinessEmailTemplateSettings({
     };
   }
 
-  const { normalizeQuoteEmailTemplate, defaultQuoteEmailTemplate } =
-    await import("@/features/settings/email-templates");
+  const emailTemplates = await import("@/features/settings/email-templates");
 
-  const normalized = normalizeQuoteEmailTemplate({
-    version: 2,
-    subject: values.subject,
-    blocks: values.blocks,
-  });
-  const defaults = defaultQuoteEmailTemplate();
+  const normalized =
+    templateKind === "invoice"
+      ? emailTemplates.normalizeInvoiceEmailTemplate({
+          version: 2,
+          subject: values.subject,
+          blocks: values.blocks,
+        })
+      : templateKind === "follow-up"
+        ? emailTemplates.normalizeQuoteFollowUpTemplate({
+            version: 2,
+            subject: values.subject,
+            blocks: values.blocks,
+          })
+        : emailTemplates.normalizeQuoteEmailTemplate({
+            version: 2,
+            subject: values.subject,
+            blocks: values.blocks,
+          });
+  const defaults =
+    templateKind === "invoice"
+      ? emailTemplates.defaultInvoiceEmailTemplate()
+      : templateKind === "follow-up"
+        ? emailTemplates.defaultQuoteFollowUpTemplate()
+        : emailTemplates.defaultQuoteEmailTemplate();
   const hasAnyOverride =
     JSON.stringify(normalized) !== JSON.stringify(defaults);
 
@@ -575,7 +594,11 @@ export async function updateBusinessEmailTemplateSettings({
     await tx
       .update(businesses)
       .set({
-        quoteEmailTemplate: hasAnyOverride ? normalized : null,
+        ...(templateKind === "invoice"
+          ? { invoiceEmailTemplate: hasAnyOverride ? normalized : null }
+          : templateKind === "follow-up"
+            ? { quoteFollowUpTemplate: hasAnyOverride ? normalized : null }
+            : { quoteEmailTemplate: hasAnyOverride ? normalized : null }),
         updatedAt: now,
       })
       .where(eq(businesses.id, businessId));
@@ -587,6 +610,7 @@ export async function updateBusinessEmailTemplateSettings({
       type: "business.email_template_updated",
       summary: "Email template settings updated.",
       metadata: {
+        templateKind,
         hasCustomTemplate: Boolean(hasAnyOverride),
         blockCount: normalized.blocks.length,
         hiddenBlockCount: normalized.blocks.filter(

@@ -2,9 +2,12 @@
 
 import {
   getDefaultContentForBlockType,
+  invoiceEmailSampleMergeValues,
   quoteEmailSampleMergeValues,
+  replaceInvoiceMergeTags,
   replaceMergeTags,
   type EmailTemplateBlock,
+  type EmailTemplateKind,
 } from "@/features/settings/email-templates";
 import { cn } from "@/lib/utils";
 
@@ -36,14 +39,33 @@ export function blockSpacing(spacing: unknown): string {
   return "1rem";
 }
 
+function resolveText(
+  raw: string | undefined,
+  type: EmailTemplateBlock["type"],
+  kind: EmailTemplateKind,
+): string {
+  const fallback = getDefaultContentForBlockType(type, kind);
+  const source = raw?.trim() ? raw : fallback;
+  if (kind === "invoice") {
+    return replaceInvoiceMergeTags(source, invoiceEmailSampleMergeValues);
+  }
+  return replaceMergeTags(source, quoteEmailSampleMergeValues);
+}
+
 /**
- * Email-faithful visual rendering of a single block with sample quote data.
+ * Email-faithful visual rendering of a single block with sample data.
  * Shared by the canvas and the drag overlay. Production HTML stays in
- * `emails/templates/quote-email.ts` — this is the browser approximation that
+ * `emails/templates/*` — this is the browser approximation that
  * shares block order, visibility, content, style values, and merge-tag
  * semantics with the production renderer.
  */
-export function BlockContent({ block }: { block: EmailTemplateBlock }) {
+export function BlockContent({
+  block,
+  templateKind = "quote",
+}: {
+  block: EmailTemplateBlock;
+  templateKind?: EmailTemplateKind;
+}) {
   const align = blockAlign(block.style?.align);
   const marginTop = blockSpacing(block.style?.spacing);
 
@@ -53,10 +75,7 @@ export function BlockContent({ block }: { block: EmailTemplateBlock }) {
     block.type === "text" ||
     block.type === "closing"
   ) {
-    const raw = block.content?.trim()
-      ? block.content
-      : getDefaultContentForBlockType(block.type);
-    const resolved = replaceMergeTags(raw, quoteEmailSampleMergeValues);
+    const resolved = resolveText(block.content, block.type, templateKind);
     return (
       <p
         style={{
@@ -75,10 +94,7 @@ export function BlockContent({ block }: { block: EmailTemplateBlock }) {
   }
 
   if (block.type === "cta") {
-    const raw = block.content?.trim()
-      ? block.content
-      : getDefaultContentForBlockType("cta");
-    const label = replaceMergeTags(raw, quoteEmailSampleMergeValues);
+    const resolved = resolveText(block.content, block.type, templateKind);
     const bg =
       block.style?.buttonColor &&
       /^#[0-9a-fA-F]{6}$/.test(block.style.buttonColor)
@@ -102,36 +118,45 @@ export function BlockContent({ block }: { block: EmailTemplateBlock }) {
             padding: "10px 16px",
           }}
         >
-          {label}
+          {resolved}
         </span>
       </div>
     );
   }
 
   if (block.type === "summary") {
+    const isInvoice = templateKind === "invoice";
     return (
       <div
         className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3"
         style={{ marginTop }}
       >
-        <p className="text-xs font-semibold text-foreground">Quote summary</p>
+        <p className="text-xs font-semibold text-foreground">
+          {isInvoice ? "Invoice summary" : "Quote summary"}
+        </p>
         <dl className="mt-2 space-y-1 text-xs text-muted-foreground">
           <div className="flex justify-between gap-2">
             <dt>Reference</dt>
             <dd className="font-medium text-foreground">
-              {quoteEmailSampleMergeValues.quoteNumber}
+              {isInvoice
+                ? invoiceEmailSampleMergeValues.invoiceNumber
+                : quoteEmailSampleMergeValues.quoteNumber}
             </dd>
           </div>
           <div className="flex justify-between gap-2">
             <dt>Customer</dt>
             <dd className="font-medium text-foreground">
-              {quoteEmailSampleMergeValues.customerName}
+              {isInvoice
+                ? invoiceEmailSampleMergeValues.customerName
+                : quoteEmailSampleMergeValues.customerName}
             </dd>
           </div>
           <div className="flex justify-between gap-2">
-            <dt>Title</dt>
+            <dt>{isInvoice ? "Due" : "Title"}</dt>
             <dd className="font-medium text-foreground">
-              {quoteEmailSampleMergeValues.quoteTitle}
+              {isInvoice
+                ? invoiceEmailSampleMergeValues.dueDate
+                : quoteEmailSampleMergeValues.quoteTitle}
             </dd>
           </div>
         </dl>
@@ -174,6 +199,14 @@ export function BlockContent({ block }: { block: EmailTemplateBlock }) {
           <span className="font-bold text-foreground">Total</span>
           <span className="font-bold text-foreground">$2,500.00</span>
         </div>
+        {templateKind === "invoice" ? (
+          <div className="mt-1 flex justify-between text-xs">
+            <span className="font-semibold text-foreground">Balance due</span>
+            <span className="font-semibold text-foreground">
+              {invoiceEmailSampleMergeValues.balanceDue}
+            </span>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -190,12 +223,26 @@ export function BlockContent({ block }: { block: EmailTemplateBlock }) {
     );
   }
 
+  if (block.type === "payment-terms") {
+    return (
+      <div
+        className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-xs text-muted-foreground"
+        style={{ marginTop }}
+      >
+        <p className="font-semibold text-foreground">Payment terms</p>
+        <p className="mt-1">Due within 14 days. Bank transfer preferred.</p>
+      </div>
+    );
+  }
+
   if (block.type === "signature") {
     return (
       <p className="text-xs text-muted-foreground" style={{ marginTop }}>
         Thanks,
         <br />
-        {quoteEmailSampleMergeValues.businessName}
+        {templateKind === "invoice"
+          ? invoiceEmailSampleMergeValues.businessName
+          : quoteEmailSampleMergeValues.businessName}
       </p>
     );
   }

@@ -15,6 +15,8 @@ import {
 import {
   businessAiAgentSettingsSchema,
   businessEmailTemplateSettingsSchema,
+  emailTemplateKindSchema,
+  getEmailTemplateSettingsSchemaForKind,
   businessGeneralSettingsSchema,
   businessInquiryFormCreateSchema,
   businessInquiryFormPresetSchema,
@@ -450,6 +452,10 @@ export async function updateBusinessEmailTemplateSettingsAction(
   }
 
   const { user, businessContext } = ownerAccess;
+  const kindParsed = emailTemplateKindSchema.safeParse(
+    formData.get("templateKind") ?? "quote",
+  );
+  const templateKind = kindParsed.success ? kindParsed.data : "quote";
   const rawBlocks = formData.get("blocks");
   let parsedBlocks: unknown = [];
   if (typeof rawBlocks === "string" && rawBlocks.trim()) {
@@ -462,7 +468,8 @@ export async function updateBusinessEmailTemplateSettingsAction(
       };
     }
   }
-  const validationResult = businessEmailTemplateSettingsSchema.safeParse({
+  const schema = getEmailTemplateSettingsSchemaForKind(templateKind);
+  const validationResult = schema.safeParse({
     subject: formData.get("subject"),
     blocks: parsedBlocks,
   });
@@ -479,6 +486,7 @@ export async function updateBusinessEmailTemplateSettingsAction(
       businessId: businessContext.business.id,
       actorUserId: user.id,
       values: validationResult.data,
+      templateKind,
     });
 
     if (!result.ok) {

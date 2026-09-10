@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Info } from "lucide-react";
+import { FileText, Info, Receipt, Send } from "lucide-react";
 
 import {
   FloatingFormActions,
@@ -15,13 +15,17 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import {
+  EMAIL_TEMPLATE_KIND_DESCRIPTIONS,
+  EMAIL_TEMPLATE_KIND_LABELS,
+  EMAIL_TEMPLATE_KINDS,
   MAX_EMAIL_TEMPLATE_BLOCKS,
-  normalizeQuoteEmailTemplate,
-  quoteEmailMergeTags,
+  getMergeTagsForKind,
+  normalizeEmailTemplateForKind,
   type EmailTemplateBlock,
-  type QuoteEmailTemplateConfigV2,
+  type EmailTemplateKind,
 } from "@/features/settings/email-templates";
 import type {
   BusinessEmailTemplateActionState,
@@ -29,6 +33,7 @@ import type {
 } from "@/features/settings/types";
 
 import { EmailCanvas } from "./email-template-builder/EmailCanvas";
+import { EmailTemplateInspector } from "./email-template-builder/EmailTemplateInspector";
 import {
   createDividerBlock,
   createSpacerBlock,
@@ -45,13 +50,19 @@ type BusinessEmailTemplateFormProps = {
 
 const initialState: BusinessEmailTemplateActionState = {};
 
+const EMAIL_TEMPLATE_KIND_ICONS = {
+  quote: FileText,
+  invoice: Receipt,
+  "follow-up": Send,
+} as const;
+
 type DraftValues = {
   subject: string;
   blocks: EmailTemplateBlock[];
 };
 
-function toDraft(template: QuoteEmailTemplateConfigV2): DraftValues {
-  const normalized = normalizeQuoteEmailTemplate(template);
+function toDraft(kind: EmailTemplateKind, template: unknown): DraftValues {
+  const normalized = normalizeEmailTemplateForKind(kind, template);
   return {
     subject: normalized.subject,
     blocks: normalized.blocks.map((block) => ({
@@ -65,6 +76,23 @@ function draftSerialized(draft: DraftValues) {
   return JSON.stringify(draft);
 }
 
+function getTemplateForKind(
+  settings: BusinessSettingsView,
+  kind: EmailTemplateKind,
+): unknown {
+  if (kind === "invoice") {
+    return (
+      (settings as Partial<BusinessSettingsView>).invoiceEmailTemplate ?? null
+    );
+  }
+  if (kind === "follow-up") {
+    return (
+      (settings as Partial<BusinessSettingsView>).quoteFollowUpTemplate ?? null
+    );
+  }
+  return settings.quoteEmailTemplate;
+}
+
 export function BusinessEmailTemplateForm({
   action,
   settings,
@@ -74,18 +102,31 @@ export function BusinessEmailTemplateForm({
     action,
     initialState,
   );
-  const initialDraft = useMemo(
-    () => toDraft(settings.quoteEmailTemplate),
-    [settings.quoteEmailTemplate],
+  const [activeKind, setActiveKind] = useState<EmailTemplateKind>("quote");
+  const initialDrafts = useMemo(
+    () =>
+      ({
+        quote: toDraft("quote", getTemplateForKind(settings, "quote")),
+        invoice: toDraft("invoice", getTemplateForKind(settings, "invoice")),
+        "follow-up": toDraft(
+          "follow-up",
+          getTemplateForKind(settings, "follow-up"),
+        ),
+      }) as Record<EmailTemplateKind, DraftValues>,
+    [settings],
   );
-  const [draft, setDraft] = useState<DraftValues>(initialDraft);
-  const [saved, setSaved] = useState<DraftValues>(initialDraft);
+  const [drafts, setDrafts] =
+    useState<Record<EmailTemplateKind, DraftValues>>(initialDrafts);
+  const [saved, setSaved] =
+    useState<Record<EmailTemplateKind, DraftValues>>(initialDrafts);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
-  const hasUnsavedChanges =
-    draftSerialized(draft) !== draftSerialized(saved);
+  const draft = drafts[activeKind];
+  const hasUnsavedChanges = EMAIL_TEMPLATE_KINDS.some(
+    (kind) => draftSerialized(drafts[kind]) !== draftSerialized(saved[kind]),
+  );
   const { shouldRenderFloatingActions, floatingActionsState } =
     useFloatingUnsavedChanges(hasUnsavedChanges);
 
@@ -94,17 +135,17 @@ export function BusinessEmailTemplateForm({
       return;
     }
 
-    setSaved(draft);
+    setSaved(drafts);
     scheduleRefresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleRefresh, state.success]);
 
   useEffect(() => {
-    setDraft(initialDraft);
-    setSaved(initialDraft);
+    setDrafts(initialDrafts);
+    setSaved(initialDrafts);
     setSelectedBlockId(null);
     setEditingBlockId(null);
-  }, [initialDraft]);
+  }, [initialDrafts]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -114,8 +155,14 @@ export function BusinessEmailTemplateForm({
     return () => mediaQuery.removeEventListener("change", update);
   }, []);
 
+  function handleKindChange(kind: EmailTemplateKind) {
+    setActiveKind(kind);
+    setSelectedBlockId(null);
+    setEditingBlockId(null);
+  }
+
   function handleCancelChanges() {
-    setDraft(saved);
+    setDrafts(saved);
     setSelectedBlockId(null);
     setEditingBlockId(null);
   }
@@ -136,15 +183,21 @@ export function BusinessEmailTemplateForm({
   }
 
   function updateSubject(value: string) {
-    setDraft((current) => ({ ...current, subject: value }));
+    setDrafts((current) => ({
+      ...current,
+      [activeKind]: { ...current[activeKind], subject: value },
+    }));
   }
 
   function updateBlock(id: string, patch: Partial<EmailTemplateBlock>) {
-    setDraft((current) => ({
+    setDrafts((current) => ({
       ...current,
-      blocks: current.blocks.map((block) =>
-        block.id === id ? { ...block, ...patch } : block,
-      ),
+      [activeKind]: {
+        ...current[activeKind],
+        blocks: current[activeKind].blocks.map((block) =>
+          block.id === id ? { ...block, ...patch } : block,
+        ),
+      },
     }));
   }
 
@@ -153,39 +206,50 @@ export function BusinessEmailTemplateForm({
     key: keyof NonNullable<EmailTemplateBlock["style"]>,
     value: string | undefined,
   ) {
-    setDraft((current) => ({
+    setDrafts((current) => ({
       ...current,
-      blocks: current.blocks.map((block) => {
-        if (block.id !== id) return block;
-        const nextStyle = { ...(block.style ?? {}) };
-        if (value === undefined || value === "") {
-          delete nextStyle[key];
-        } else {
-          (nextStyle as Record<string, string>)[key] = value;
-        }
-        return {
-          ...block,
-          style: Object.keys(nextStyle).length ? nextStyle : undefined,
-        };
-      }),
+      [activeKind]: {
+        ...current[activeKind],
+        blocks: current[activeKind].blocks.map((block) => {
+          if (block.id !== id) return block;
+          const nextStyle = { ...(block.style ?? {}) };
+          if (value === undefined || value === "") {
+            delete nextStyle[key];
+          } else {
+            (nextStyle as Record<string, string>)[key] = value;
+          }
+          return {
+            ...block,
+            style: Object.keys(nextStyle).length ? nextStyle : undefined,
+          };
+        }),
+      },
     }));
   }
 
   function toggleBlockVisibility(id: string) {
-    setDraft((current) => ({
+    setDrafts((current) => ({
       ...current,
-      blocks: current.blocks.map((block) =>
-        block.id === id
-          ? { ...block, visible: block.visible === false ? true : false }
-          : block,
-      ),
+      [activeKind]: {
+        ...current[activeKind],
+        blocks: current[activeKind].blocks.map((block) =>
+          block.id === id
+            ? { ...block, visible: block.visible === false ? true : false }
+            : block,
+        ),
+      },
     }));
   }
 
   function removeBlock(id: string) {
-    setDraft((current) => ({
+    setDrafts((current) => ({
       ...current,
-      blocks: current.blocks.filter((block) => block.id !== id),
+      [activeKind]: {
+        ...current[activeKind],
+        blocks: current[activeKind].blocks.filter(
+          (block) => block.id !== id,
+        ),
+      },
     }));
     setSelectedBlockId((current) => (current === id ? null : current));
     setEditingBlockId((current) => (current === id ? null : current));
@@ -193,8 +257,9 @@ export function BusinessEmailTemplateForm({
 
   function addBlock(type: "text" | "divider" | "spacer", index?: number) {
     let insertedId: string | null = null;
-    setDraft((current) => {
-      if (current.blocks.length >= MAX_EMAIL_TEMPLATE_BLOCKS) return current;
+    setDrafts((current) => {
+      const active = current[activeKind];
+      if (active.blocks.length >= MAX_EMAIL_TEMPLATE_BLOCKS) return current;
       const next =
         type === "text"
           ? createTextBlock()
@@ -202,12 +267,15 @@ export function BusinessEmailTemplateForm({
             ? createDividerBlock()
             : createSpacerBlock();
       insertedId = next.id;
-      if (index === undefined || index < 0 || index > current.blocks.length) {
-        return { ...current, blocks: [...current.blocks, next] };
+      if (index === undefined || index < 0 || index > active.blocks.length) {
+        return {
+          ...current,
+          [activeKind]: { ...active, blocks: [...active.blocks, next] },
+        };
       }
-      const blocks = [...current.blocks];
+      const blocks = [...active.blocks];
       blocks.splice(index, 0, next);
-      return { ...current, blocks };
+      return { ...current, [activeKind]: { ...active, blocks } };
     });
     if (insertedId) {
       const id = insertedId;
@@ -220,21 +288,58 @@ export function BusinessEmailTemplateForm({
 
   const blocksError = state.fieldErrors?.blocks?.[0];
   const subjectError = state.fieldErrors?.subject?.[0];
+  const mergeTags = getMergeTagsForKind(activeKind);
+  const selectedBlock =
+    draft.blocks.find((block) => block.id === selectedBlockId) ?? null;
 
   return (
     <form action={formAction} className="form-stack pb-28">
       <div className="flex flex-col gap-6">
+        <Tabs
+          value={activeKind}
+          onValueChange={(value) =>
+            handleKindChange(value as EmailTemplateKind)
+          }
+        >
+          <TabsList aria-label="Email templates" className="h-auto max-w-full flex-wrap">
+            {EMAIL_TEMPLATE_KINDS.map((kind) => {
+              const Icon = EMAIL_TEMPLATE_KIND_ICONS[kind];
+              const dirty =
+                draftSerialized(drafts[kind]) !==
+                draftSerialized(saved[kind]);
+              return (
+                <TabsTrigger key={kind} value={kind}>
+                  <Icon aria-hidden="true" />
+                  {EMAIL_TEMPLATE_KIND_LABELS[kind]}
+                  {dirty ? (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        className="size-1.5 rounded-full bg-current opacity-70"
+                      />
+                      <span className="sr-only">(unsaved changes)</span>
+                    </>
+                  ) : null}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </Tabs>
+        <p className="text-xs text-muted-foreground">
+          {EMAIL_TEMPLATE_KIND_DESCRIPTIONS[activeKind]}
+        </p>
+
         <div className="flex items-start gap-3 rounded-xl border border-border/75 bg-muted/30 px-5 py-4">
           <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
           <div className="text-sm text-muted-foreground">
             <span>Available merge tags: </span>
-            {quoteEmailMergeTags.map((tag, index) => (
+            {mergeTags.map((tag, index) => (
               <span key={tag.tag}>
                 <code className="rounded bg-background px-1.5 py-0.5 text-xs font-medium text-foreground">
                   {tag.tag}
                 </code>
                 <span className="text-xs"> ({tag.label})</span>
-                {index < quoteEmailMergeTags.length - 1 ? ", " : ""}
+                {index < mergeTags.length - 1 ? ", " : ""}
               </span>
             ))}
           </div>
@@ -252,7 +357,13 @@ export function BusinessEmailTemplateForm({
                 maxLength={200}
                 name="subject"
                 onChange={(event) => updateSubject(event.currentTarget.value)}
-                placeholder="{{quoteNumber}} from {{businessName}}"
+                placeholder={
+                  activeKind === "invoice"
+                    ? "Invoice {{invoiceNumber}} from {{businessName}} — due {{dueDate}}"
+                    : activeKind === "follow-up"
+                      ? "Following up: {{quoteNumber}} from {{businessName}}"
+                      : "{{quoteNumber}} from {{businessName}}"
+                }
                 value={draft.subject}
               />
               <FieldError
@@ -260,6 +371,7 @@ export function BusinessEmailTemplateForm({
               />
             </FieldContent>
           </Field>
+          <input type="hidden" name="templateKind" value={activeKind} />
           <input
             type="hidden"
             name="blocks"
@@ -270,28 +382,47 @@ export function BusinessEmailTemplateForm({
         <div>
           <p className="text-sm font-medium text-foreground">Email content</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            This is your actual email. Click a block to edit it, drag blocks
-            to reorder, hide blocks to skip them without deleting.
+            This is your actual email. Click a block to edit it in the
+            inspector, drag blocks to reorder, hide blocks to skip them
+            without deleting.
           </p>
         </div>
 
-        <EmailCanvas
-          blocks={draft.blocks}
-          selectedBlockId={selectedBlockId}
-          editingBlockId={editingBlockId}
-          isPending={isPending}
-          prefersReducedMotion={prefersReducedMotion}
-          onReorder={(next) =>
-            setDraft((current) => ({ ...current, blocks: next }))
-          }
-          onSelect={handleSelectBlock}
-          onEdit={handleEditBlock}
-          onUpdate={updateBlock}
-          onUpdateStyle={updateBlockStyle}
-          onToggleVisibility={toggleBlockVisibility}
-          onRemove={removeBlock}
-          onInsert={addBlock}
-        />
+        <div className="mx-auto grid w-full max-w-[1000px] items-start gap-6 lg:grid-cols-[minmax(0,640px)_320px] lg:justify-center">
+          <div className="mx-auto w-full max-w-[640px] min-w-0 lg:mx-0">
+            <EmailCanvas
+              blocks={draft.blocks}
+              selectedBlockId={selectedBlockId}
+              editingBlockId={editingBlockId}
+              isPending={isPending}
+              prefersReducedMotion={prefersReducedMotion}
+              templateKind={activeKind}
+              onReorder={(next) =>
+                setDrafts((current) => ({
+                  ...current,
+                  [activeKind]: { ...current[activeKind], blocks: next },
+                }))
+              }
+              onSelect={handleSelectBlock}
+              onEdit={handleEditBlock}
+              onUpdate={updateBlock}
+              onUpdateStyle={updateBlockStyle}
+              onToggleVisibility={toggleBlockVisibility}
+              onRemove={removeBlock}
+              onInsert={addBlock}
+            />
+          </div>
+          <div className="mx-auto w-full max-w-[640px] min-w-0 lg:mx-0 lg:w-[320px] lg:max-w-none lg:sticky lg:top-4">
+            <EmailTemplateInspector
+              block={selectedBlock}
+              templateKind={activeKind}
+              disabled={isPending}
+              onUpdate={updateBlock}
+              onUpdateStyle={updateBlockStyle}
+              onDone={() => handleEditBlock(null)}
+            />
+          </div>
+        </div>
         {blocksError ? (
           <p className="text-sm text-destructive" role="alert">
             {blocksError}

@@ -32,7 +32,7 @@ export default function BusinessEmailTemplateSettingsPage() {
       <PageHeader
         eyebrow="Settings"
         title="Email templates"
-        description="Customize the automated email sent with your quotes."
+        description="Customize the automated emails sent with your quotes, invoices, and follow-ups."
       />
 
       <Suspense fallback={<SettingsFormBodySkeleton />}>

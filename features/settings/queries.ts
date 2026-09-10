@@ -52,6 +52,8 @@ export async function getBusinessSettingsForBusiness(
       defaultQuoteNotes: businesses.defaultQuoteNotes,
       defaultQuoteTerms: businesses.defaultQuoteTerms,
       quoteEmailTemplate: businesses.quoteEmailTemplate,
+      invoiceEmailTemplate: businesses.invoiceEmailTemplate,
+      quoteFollowUpTemplate: businesses.quoteFollowUpTemplate,
       defaultQuoteValidityDays: businesses.defaultQuoteValidityDays,
       sendInquiryAckEmail: businesses.sendInquiryAckEmail,
       autoDraftQuoteOnQualify: businesses.autoDraftQuoteOnQualify,
@@ -92,15 +94,27 @@ export async function getBusinessSettingsForBusiness(
     | null
     | undefined;
 
-  const { normalizeQuoteEmailTemplate } = await import(
-    "@/features/settings/email-templates"
-  );
+  const {
+    normalizeInvoiceEmailTemplate,
+    normalizeQuoteEmailTemplate,
+    normalizeQuoteFollowUpTemplate,
+  } = await import("@/features/settings/email-templates");
 
   return {
     ...business,
     quoteEmailTemplate: normalizeQuoteEmailTemplate(
       business.quoteEmailTemplate as Parameters<
         typeof normalizeQuoteEmailTemplate
+      >[0],
+    ),
+    invoiceEmailTemplate: normalizeInvoiceEmailTemplate(
+      business.invoiceEmailTemplate as Parameters<
+        typeof normalizeInvoiceEmailTemplate
+      >[0],
+    ),
+    quoteFollowUpTemplate: normalizeQuoteFollowUpTemplate(
+      business.quoteFollowUpTemplate as Parameters<
+        typeof normalizeQuoteFollowUpTemplate
       >[0],
     ),
     aiAgentTone:

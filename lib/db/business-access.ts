@@ -93,6 +93,8 @@ export type BusinessMessagingSettings = {
   contactEmail: string | null;
   defaultEmailSignature: string | null;
   quoteEmailTemplate: import("@/features/settings/email-templates").QuoteEmailTemplateConfigV2;
+  invoiceEmailTemplate: import("@/features/settings/email-templates").InvoiceEmailTemplateConfigV2;
+  quoteFollowUpTemplate: import("@/features/settings/email-templates").QuoteFollowUpTemplateConfigV2;
   notifyOnNewInquiry: boolean;
   notifyOnQuoteSent: boolean;
   notifyOnQuoteResponse: boolean;
@@ -662,6 +664,8 @@ export const getBusinessMessagingSettings = cache(async (businessId: string) => 
       contactEmail: businesses.contactEmail,
       defaultEmailSignature: businesses.defaultEmailSignature,
       quoteEmailTemplate: businesses.quoteEmailTemplate,
+      invoiceEmailTemplate: businesses.invoiceEmailTemplate,
+      quoteFollowUpTemplate: businesses.quoteFollowUpTemplate,
       notifyOnNewInquiry: businesses.notifyOnNewInquiry,
       notifyOnQuoteSent: businesses.notifyOnQuoteSent,
       notifyOnQuoteResponse: businesses.notifyOnQuoteResponse,
@@ -687,15 +691,27 @@ export const getBusinessMessagingSettings = cache(async (businessId: string) => 
     return business satisfies BusinessMessagingSettings | undefined;
   }
 
-  const { normalizeQuoteEmailTemplate } = await import(
-    "@/features/settings/email-templates"
-  );
+  const {
+    normalizeInvoiceEmailTemplate,
+    normalizeQuoteEmailTemplate,
+    normalizeQuoteFollowUpTemplate,
+  } = await import("@/features/settings/email-templates");
 
   return {
     ...business,
     quoteEmailTemplate: normalizeQuoteEmailTemplate(
       business.quoteEmailTemplate as Parameters<
         typeof normalizeQuoteEmailTemplate
+      >[0],
+    ),
+    invoiceEmailTemplate: normalizeInvoiceEmailTemplate(
+      business.invoiceEmailTemplate as Parameters<
+        typeof normalizeInvoiceEmailTemplate
+      >[0],
+    ),
+    quoteFollowUpTemplate: normalizeQuoteFollowUpTemplate(
+      business.quoteFollowUpTemplate as Parameters<
+        typeof normalizeQuoteFollowUpTemplate
       >[0],
     ),
   } satisfies BusinessMessagingSettings;

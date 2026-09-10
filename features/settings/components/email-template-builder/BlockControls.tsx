@@ -160,7 +160,7 @@ export function BlockControls({
   ) {
     return (
       <div
-        className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2"
+        className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2"
         aria-label={`${block.type} style controls`}
       >
         <Segmented
@@ -203,7 +203,7 @@ export function BlockControls({
   if (block.type === "cta") {
     return (
       <div
-        className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2"
+        className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2"
         aria-label="CTA style controls"
       >
         <Segmented
@@ -276,13 +276,18 @@ export function BlockControls({
 
   return (
     <div
-      className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2"
+      className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2"
       aria-label={`${block.type} style controls`}
     >
-      {block.type === "signature" || block.type === "notes" ? (
+      {block.type === "signature" ||
+      block.type === "notes" ||
+      block.type === "payment-terms" ? (
         <span className="text-xs text-muted-foreground">
-          Content comes from the quote
-          {block.type === "signature" ? " (business signature)" : " (quote notes)"}.
+          {block.type === "signature"
+            ? "Content comes from the business signature."
+            : block.type === "payment-terms"
+              ? "Content comes from the invoice payment terms."
+              : "Content comes from the quote or invoice notes."}
         </span>
       ) : null}
       <SpacingControl block={block} disabled={disabled} onUpdateStyle={onUpdateStyle} />

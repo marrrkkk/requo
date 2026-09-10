@@ -11,6 +11,7 @@ import { getInvoiceForBusiness } from "@/features/invoices/queries";
 import { invoiceSchema, paymentSchema } from "@/features/invoices/schemas";
 import type { InvoiceActionState, PaymentActionState } from "@/features/invoices/types";
 import { sendPushInvoicePaidEvent, sendPushInvoiceSentEvent } from "@/lib/inngest/send";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { checkUsageAllowance } from "@/lib/plans/usage";
 import { getResendFromEmailConfigurationError, getResendSendFailureMessage, sendInvoiceEmail } from "@/lib/resend/client";
 
@@ -114,6 +115,12 @@ export async function sendInvoiceAction(invoiceId: string, _prev: InvoiceActionS
         paymentTerms: invoice.paymentTerms,
         emailSignature: businessSettings.defaultEmailSignature,
         items: invoice.items,
+        templateOverrides: hasFeatureAccess(
+          access.businessContext.business.plan,
+          "emailTemplates",
+        )
+          ? businessSettings.invoiceEmailTemplate
+          : null,
         replyToEmail: businessSettings.contactEmail ?? ownerEmails[0],
         businessId: access.businessContext.business.id,
         userId: access.user.id,

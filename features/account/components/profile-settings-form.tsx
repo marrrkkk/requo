@@ -34,7 +34,6 @@ import {
 import {
   Field,
   FieldContent,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -144,14 +143,14 @@ export function ProfileSettingsForm({
   return (
     <form
       action={formAction}
-      className="form-stack"
+      className="form-stack mx-auto w-full max-w-[36rem]"
       onInputCapture={() => setFormRevision((current) => current + 1)}
       ref={formRef}
     >
       <input name="removeAvatar" type="hidden" value={String(removeAvatar)} />
       <input name="jobTitle" type="hidden" value={jobTitle} />
 
-      <div className="grid gap-6 xl:grid-cols-[19rem_minmax(0,1fr)] xl:gap-7">
+      <div className="flex w-full flex-col gap-4">
             <ProfileAvatarField
               disabled={isPending}
               displayName={profile.fullName}
@@ -166,95 +165,102 @@ export function ProfileSettingsForm({
               onRemoveAvatarChange={setRemoveAvatar}
               resetSignal={avatarResetSignal}
             />
-            <div className="flex min-w-0 flex-col gap-5">
+            <div className="flex min-w-0 flex-col gap-4">
               <FormSection
- className="soft-panel shadow-none"
-                description="Shown across the business."
+                className="soft-panel shadow-none"
                 title="Name & role"
               >
-                <FieldGroup>
-                  <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                    <Field data-invalid={Boolean(fullNameError) || undefined}>
-                      <FieldLabel htmlFor="account-full-name">Full name</FieldLabel>
-                      <FieldContent>
-                        <Input
-                          defaultValue={profile.fullName}
-                          disabled={isPending}
-                          id="account-full-name"
-                          maxLength={120}
-                          minLength={2}
-                          name="fullName"
-                          placeholder="Alicia Cruz"
-                          required
-                        />
-                        <FieldError
-                          errors={fullNameError ? [{ message: fullNameError }] : undefined}
-                        />
-                      </FieldContent>
-                    </Field>
+                <FieldGroup className="gap-0 divide-y divide-border/70">
+                  <Field
+                    className="py-3 first:pt-0 last:pb-0"
+                    data-invalid={Boolean(fullNameError) || undefined}
+                    orientation="responsive"
+                  >
+                    <FieldLabel htmlFor="account-full-name">Full name</FieldLabel>
+                    <FieldContent className="@md/field-group:w-60 @md/field-group:max-w-[15rem] @md/field-group:flex-none">
+                      <Input
+                        defaultValue={profile.fullName}
+                        disabled={isPending}
+                        id="account-full-name"
+                        maxLength={120}
+                        minLength={2}
+                        name="fullName"
+                        placeholder="Alicia Cruz"
+                        required
+                      />
+                      <FieldError
+                        errors={fullNameError ? [{ message: fullNameError }] : undefined}
+                      />
+                    </FieldContent>
+                  </Field>
 
-                    <Field data-invalid={Boolean(jobTitleError) || undefined}>
-                      <FieldLabel htmlFor="account-job-title">Role or title</FieldLabel>
-                      <FieldContent>
-                        <Combobox
-                          aria-invalid={Boolean(jobTitleError) || undefined}
-                          disabled={isPending}
-                          id="account-job-title"
-                          onValueChange={(value) => {
-                            setJobTitle(value);
-                            setFormRevision((current) => current + 1);
-                          }}
-                          options={jobTitleOptions}
-                          placeholder="Choose your role"
-                          value={jobTitle}
-                        />
-                        <FieldError
-                          errors={jobTitleError ? [{ message: jobTitleError }] : undefined}
-                        />
-                      </FieldContent>
-                    </Field>
-                  </div>
+                  <Field
+                    className="py-3 first:pt-0 last:pb-0"
+                    data-invalid={Boolean(jobTitleError) || undefined}
+                    orientation="responsive"
+                  >
+                    <FieldLabel htmlFor="account-job-title">Role or title</FieldLabel>
+                    <FieldContent className="@md/field-group:w-60 @md/field-group:max-w-[15rem] @md/field-group:flex-none">
+                      <Combobox
+                        aria-invalid={Boolean(jobTitleError) || undefined}
+                        disabled={isPending}
+                        id="account-job-title"
+                        onValueChange={(value) => {
+                          setJobTitle(value);
+                          setFormRevision((current) => current + 1);
+                        }}
+                        options={jobTitleOptions}
+                        placeholder="Choose your role"
+                        value={jobTitle}
+                      />
+                      <FieldError
+                        errors={jobTitleError ? [{ message: jobTitleError }] : undefined}
+                      />
+                    </FieldContent>
+                  </Field>
                 </FieldGroup>
               </FormSection>
 
               <FormSection
- className="soft-panel shadow-none"
-                description="Your direct contact details."
+                className="soft-panel shadow-none"
                 title="Contact details"
               >
-                <FieldGroup>
-                  <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                    <Field data-invalid={Boolean(phoneError) || undefined}>
-                      <FieldLabel htmlFor="account-phone">Phone</FieldLabel>
-                      <FieldContent>
-                        <Input
-                          defaultValue={profile.phone ?? ""}
-                          disabled={isPending}
-                          id="account-phone"
-                          maxLength={32}
-                          name="phone"
-                          placeholder="+1 555 012 3456"
-                        />
-                        <FieldDescription>Optional.</FieldDescription>
-                        <FieldError
-                          errors={phoneError ? [{ message: phoneError }] : undefined}
-                        />
-                      </FieldContent>
-                    </Field>
+                <FieldGroup className="gap-0 divide-y divide-border/70">
+                  <Field
+                    className="py-3 first:pt-0 last:pb-0"
+                    data-invalid={Boolean(phoneError) || undefined}
+                    orientation="responsive"
+                  >
+                    <FieldLabel htmlFor="account-phone">Phone</FieldLabel>
+                    <FieldContent className="@md/field-group:w-60 @md/field-group:max-w-[15rem] @md/field-group:flex-none">
+                      <Input
+                        defaultValue={profile.phone ?? ""}
+                        disabled={isPending}
+                        id="account-phone"
+                        maxLength={32}
+                        name="phone"
+                        placeholder="+1 555 012 3456"
+                      />
+                      <FieldError
+                        errors={phoneError ? [{ message: phoneError }] : undefined}
+                      />
+                    </FieldContent>
+                  </Field>
 
-                    <Field>
-                      <FieldLabel htmlFor="account-email">Sign-in email</FieldLabel>
-                      <FieldContent>
-                        <Input
-                          disabled
-                          id="account-email"
-                          readOnly
-                          value={profile.email}
-                        />
-                        <FieldDescription>Read only.</FieldDescription>
-                      </FieldContent>
-                    </Field>
-                  </div>
+                  <Field
+                    className="py-3 first:pt-0 last:pb-0"
+                    orientation="responsive"
+                  >
+                    <FieldLabel htmlFor="account-email">Sign-in email</FieldLabel>
+                    <FieldContent className="@md/field-group:w-60 @md/field-group:max-w-[15rem] @md/field-group:flex-none">
+                      <Input
+                        disabled
+                        id="account-email"
+                        readOnly
+                        value={profile.email}
+                      />
+                    </FieldContent>
+                  </Field>
                 </FieldGroup>
               </FormSection>
             </div>
@@ -479,23 +485,11 @@ function ProfileAvatarField({
 
   return (
     <>
-      <div className="self-start xl:sticky xl:top-6">
- <div className="soft-panel flex flex-col gap-5 shadow-none">
-          <div className="space-y-2">
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Profile photo
-            </p>
-            <div className="space-y-2">
-              <h2 className="text-lg font-semibold tracking-tight text-foreground">
-                Profile identity
-              </h2>
-              <p className="text-sm text-muted-foreground">Shown across your business.</p>
-            </div>
-          </div>
-
+      <div className="w-full">
+        <div className="soft-panel flex flex-col gap-4 shadow-none">
           <div>
-            <div className="flex flex-col items-center gap-4 text-center">
-              <div className="group relative">
+            <div className="flex items-center gap-4">
+              <div className="group relative shrink-0">
                 <input
                   ref={inputRef}
                   accept={profileAvatarAccept}
@@ -506,9 +500,9 @@ function ProfileAvatarField({
                   onChange={handleAvatarSelection}
                   type="file"
                 />
-                <Avatar className="size-24 border border-border/75 shadow-[0_10px_28px_rgba(15,23,42,0.08)] transition-transform duration-150 group-hover:scale-[1.01] xl:size-28">
+                <Avatar className="size-16 border border-border/75 shadow-[0_10px_28px_rgba(15,23,42,0.08)] transition-transform duration-150 group-hover:scale-[1.01]">
                   <AvatarImage alt={`${displayName} avatar`} src={effectivePreviewUrl ?? undefined} />
-                  <AvatarFallback className="text-xl">{getInitials(displayName)}</AvatarFallback>
+                  <AvatarFallback className="text-lg">{getInitials(displayName)}</AvatarFallback>
                 </Avatar>
                 <label
                   className={cn(
@@ -540,13 +534,13 @@ function ProfileAvatarField({
                 </label>
               </div>
 
-              <div className="min-w-0 max-w-full space-y-2">
-                <div className="space-y-1">
-                  <p className="text-base font-semibold tracking-tight text-foreground">
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="space-y-0.5">
+                  <p className="truncate text-sm font-semibold tracking-tight text-foreground">
                     {displayName}
                   </p>
                   {jobTitle?.trim() && (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="truncate text-sm text-muted-foreground">
                       {jobTitle.trim()}
                     </p>
                   )}
@@ -557,7 +551,7 @@ function ProfileAvatarField({
             </div>
           </div>
 
-          <div className="border-t border-border/70 pt-5">
+          <div className="border-t border-border/70 pt-4">
             <div className="flex flex-col gap-3">
               {previewUrl ? (
                 <div data-padding="none" className="soft-panel flex flex-col gap-3 px-4 py-3 text-sm shadow-none sm:flex-row sm:items-center sm:justify-between">
@@ -579,7 +573,7 @@ function ProfileAvatarField({
 
               {hasUploadedAvatar && !previewUrl ? (
                 <div className="flex flex-col gap-1 text-sm">
-                  <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                  <div className="flex flex-wrap items-center justify-start gap-2">
                     <Button
                       aria-pressed={removeAvatar}
                       disabled={disabled}

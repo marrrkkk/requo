@@ -15,7 +15,11 @@ import {
 import type { BusinessType } from "@/features/inquiries/business-types";
 import type { InquiryFormConfig } from "@/features/inquiries/form-config";
 import type { InquiryPageConfig } from "@/features/inquiries/page-config";
-import type { QuoteEmailTemplateStored } from "@/features/settings/email-templates";
+import type {
+  InvoiceEmailTemplateStored,
+  QuoteEmailTemplateStored,
+  QuoteFollowUpTemplateStored,
+} from "@/features/settings/email-templates";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { businessMemberRoles } from "@/lib/business-members";
 import { user } from "@/lib/db/schema/auth";
@@ -100,6 +104,10 @@ export const businesses = pgTable(
     defaultQuoteTerms: text("default_quote_terms"),
     quoteEmailTemplate:
       jsonb("quote_email_template").$type<QuoteEmailTemplateStored>(),
+    invoiceEmailTemplate:
+      jsonb("invoice_email_template").$type<InvoiceEmailTemplateStored>(),
+    quoteFollowUpTemplate:
+      jsonb("quote_follow_up_template").$type<QuoteFollowUpTemplateStored>(),
     defaultQuoteValidityDays: integer("default_quote_validity_days")
       .notNull()
       .default(14),

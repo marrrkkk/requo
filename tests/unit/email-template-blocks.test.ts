@@ -1,16 +1,28 @@
 import { describe, expect, it } from "vitest";
 
+import { renderInvoiceEmail } from "@/emails/templates/invoice-email";
 import { renderQuoteEmail } from "@/emails/templates/quote-email";
+import { renderQuoteFollowUpEmail } from "@/emails/templates/quote-follow-up-email";
 import {
   defaultEmailBlocks,
+  defaultInvoiceEmailTemplate,
   defaultQuoteEmailTemplate,
+  defaultQuoteFollowUpTemplate,
   MAX_EMAIL_TEMPLATE_BLOCKS,
   migrateLegacyConfigToBlocks,
+  normalizeInvoiceEmailTemplate,
   normalizeQuoteEmailTemplate,
+  normalizeQuoteFollowUpTemplate,
+  replaceInvoiceMergeTags,
   replaceMergeTags,
+  invoiceEmailSampleMergeValues,
   quoteEmailSampleMergeValues,
 } from "@/features/settings/email-templates";
-import { businessEmailTemplateSettingsSchema } from "@/features/settings/schemas";
+import {
+  businessEmailTemplateSettingsSchema,
+  businessInvoiceEmailTemplateSettingsSchema,
+  businessQuoteFollowUpTemplateSettingsSchema,
+} from "@/features/settings/schemas";
 
 function baseQuoteInput(overrides: Record<string, unknown> = {}) {
   return {
@@ -242,10 +254,10 @@ describe("email template V2 rendering", () => {
           blocks: template.blocks.map((block) =>
             block.type === "cta"
               ? {
-                  ...block,
-                  content: "View <quote>",
-                  style: { buttonColor: "#123456", buttonTextColor: "#ffffff" },
-                }
+                   ...block,
+                   content: "View <quote>",
+                   style: { buttonColor: "#123456", buttonTextColor: "#ffffff" },
+                 }
               : block,
           ),
         },
@@ -255,5 +267,150 @@ describe("email template V2 rendering", () => {
     expect(rendered.html).toContain("&lt;b&gt;Ava&lt;/b&gt;");
     expect(rendered.html).toContain("#123456");
     expect(rendered.html).toContain("View &lt;quote&gt;");
+  });
+});
+
+describe("invoice + follow-up templates", () => {
+  function baseInvoiceInput(overrides: Record<string, unknown> = {}) {
+    return {
+      businessName: "Northline Home Services",
+      customerName: "Alex Rivera",
+      invoiceNumber: "INV-2026-0018",
+      title: "Kitchen renovation — final invoice",
+      currency: "USD",
+      issueDate: "2026-06-16",
+      dueDate: "2026-06-30",
+      subtotalInCents: 250000,
+      discountInCents: 0,
+      totalInCents: 250000,
+      balanceInCents: 125000,
+      notes: "Includes materials.",
+      paymentTerms: "Due within 14 days.",
+      emailSignature: "Thanks,\nNorthline",
+      items: [
+        {
+          description: "Cabinet refacing",
+          quantity: 1,
+          unitPriceInCents: 250000,
+          lineTotalInCents: 250000,
+        },
+      ],
+      ...overrides,
+    };
+  }
+
+  it("normalizes null to per-kind defaults", () => {
+    const invoice = normalizeInvoiceEmailTemplate(null);
+    expect(invoice.blocks.map((block) => block.type)).toContain("payment-terms");
+    expect(invoice.blocks.some((block) => block.type === "cta")).toBe(false);
+    expect(invoice.subject).toContain("{{invoiceNumber}}");
+
+    const followUp = normalizeQuoteFollowUpTemplate(null);
+    expect(followUp.blocks.map((block) => block.type)).toEqual([
+      "greeting",
+      "intro",
+      "cta",
+      "signature",
+      "closing",
+    ]);
+    expect(
+      followUp.blocks.find((block) => block.type === "cta")?.visible,
+    ).toBe(true);
+  });
+
+  it("drops forbidden blocks per kind", () => {
+    const invoice = normalizeInvoiceEmailTemplate({
+      version: 2,
+      subject: "Hi",
+      blocks: [
+        { id: "greeting", type: "greeting", content: "Hi", visible: true },
+        { id: "cta", type: "cta", content: "Reply", visible: true },
+      ],
+    });
+    expect(invoice.blocks.some((block) => block.type === "cta")).toBe(true);
+
+    const followUp = normalizeQuoteFollowUpTemplate({
+      version: 2,
+      subject: "Hi",
+      blocks: [
+        { id: "greeting", type: "greeting", content: "Hi", visible: true },
+        { id: "summary", type: "summary", visible: true },
+        { id: "cta", type: "cta", content: "View", visible: true },
+      ],
+    });
+    expect(followUp.blocks.some((block) => block.type === "summary")).toBe(false);
+    expect(followUp.blocks.some((block) => block.type === "cta")).toBe(true);
+  });
+
+  it("validates per-kind CTA rules", () => {
+    const invoiceDefaults = defaultInvoiceEmailTemplate();
+    expect(
+      businessInvoiceEmailTemplateSettingsSchema.safeParse({
+        subject: invoiceDefaults.subject,
+        blocks: invoiceDefaults.blocks,
+      }).success,
+    ).toBe(true);
+
+    const followUpDefaults = defaultQuoteFollowUpTemplate();
+    expect(
+      businessQuoteFollowUpTemplateSettingsSchema.safeParse({
+        subject: followUpDefaults.subject,
+        blocks: followUpDefaults.blocks,
+      }).success,
+    ).toBe(true);
+
+    // Quote rejects payment-terms.
+    const quoteWithTerms = {
+      subject: defaultQuoteEmailTemplate().subject,
+      blocks: [
+        ...defaultQuoteEmailTemplate().blocks,
+        { id: "pt_1", type: "payment-terms", visible: true },
+      ],
+    };
+    expect(
+      businessEmailTemplateSettingsSchema.safeParse(quoteWithTerms).success,
+    ).toBe(false);
+
+    // Follow-up rejects summary tables.
+    expect(
+      businessQuoteFollowUpTemplateSettingsSchema.safeParse({
+        subject: followUpDefaults.subject,
+        blocks: [
+          ...followUpDefaults.blocks,
+          { id: "summary", type: "summary", visible: true },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("renders invoice blocks with merge tags + balance", () => {
+    const rendered = renderInvoiceEmail(baseInvoiceInput({}));
+    expect(rendered.subject).toContain("INV-2026-0018");
+    expect(rendered.html).toContain("Invoice summary");
+    expect(rendered.html).toContain("Balance due");
+    expect(rendered.html).toContain("Payment terms");
+    expect(
+      replaceInvoiceMergeTags(
+        "Due {{dueDate}} — {{balanceDue}}",
+        invoiceEmailSampleMergeValues,
+      ),
+    ).toContain("Jun 30, 2026");
+  });
+
+  it("renders follow-up with attempt-aware subjects", () => {
+    const base = {
+      businessName: "Northline Home Services",
+      customerName: "Alex Rivera",
+      quoteNumber: "Q-2026-0042",
+      title: "Kitchen renovation",
+      publicQuoteUrl: "https://test.requo.app/quote/q_1",
+      emailSignature: "Thanks,\nNorthline",
+    };
+    const first = renderQuoteFollowUpEmail({ ...base, attemptNumber: 1 });
+    const second = renderQuoteFollowUpEmail({ ...base, attemptNumber: 2 });
+    expect(first.subject).toContain("Following up");
+    expect(second.subject).toContain("Checking in");
+    expect(first.html).toContain("View quote");
+    expect(second.html).toContain("View quote");
   });
 });

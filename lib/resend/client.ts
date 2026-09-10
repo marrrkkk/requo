@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 
-import type { QuoteEmailTemplateStored } from "@/features/settings/email-templates";
+import type {
+  InvoiceEmailTemplateStored,
+  QuoteEmailTemplateStored,
+  QuoteFollowUpTemplateStored,
+} from "@/features/settings/email-templates";
 import { renderBusinessMemberInviteEmail } from "@/emails/templates/business-member-invite";
 import { renderEmailVerificationEmail } from "@/emails/templates/email-verification";
 import { renderInquiryAcknowledgmentEmail } from "@/emails/templates/inquiry-acknowledgment";
@@ -440,6 +444,7 @@ export async function sendInvoiceEmail({
   paymentTerms,
   emailSignature,
   items,
+  templateOverrides,
   replyToEmail,
   businessId,
   userId,
@@ -469,6 +474,7 @@ export async function sendInvoiceEmail({
     unitPriceInCents: number;
     lineTotalInCents: number;
   }>;
+  templateOverrides?: InvoiceEmailTemplateStored;
   replyToEmail?: string;
   businessId?: string | null;
   userId?: string | null;
@@ -505,6 +511,7 @@ export async function sendInvoiceEmail({
     paymentTerms,
     emailSignature,
     items,
+    templateOverrides,
   });
 
   await sendBrandedEmail({
@@ -540,6 +547,7 @@ export async function sendQuoteAutoFollowUpEmail({
   publicQuoteUrl,
   attemptNumber,
   emailSignature,
+  templateOverrides,
   replyToEmail,
   businessId,
 }: {
@@ -552,6 +560,7 @@ export async function sendQuoteAutoFollowUpEmail({
   publicQuoteUrl: string;
   attemptNumber: number;
   emailSignature?: string | null;
+  templateOverrides?: QuoteFollowUpTemplateStored;
   replyToEmail?: string;
   businessId?: string | null;
 }) {
@@ -577,6 +586,7 @@ export async function sendQuoteAutoFollowUpEmail({
     publicQuoteUrl,
     attemptNumber,
     emailSignature,
+    templateOverrides,
   });
 
   await sendBrandedEmail({

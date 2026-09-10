@@ -581,6 +581,32 @@ three tabs — Form, Service page, Settings (publishing & defaults). Completion
 is recorded per user profile.
 _Avoid_: Service tour, editor walkthrough, form tour (a form is the intake mechanism inside a Service)
 
+### Email Templates
+
+**Quote Email Template**:
+The customizable block config for quote delivery email (`businesses.quote_email_template`, V2 blocks). Edited in Settings → Email templates under the Quote tab.
+_Avoid_: using `template` alone when invoice or follow-up is meant
+
+**Invoice Email Template**:
+The customizable block config for invoice delivery email (`businesses.invoice_email_template`, V2 blocks, nullable = defaults). Supports an optional CTA (no public invoice link by design — manual payment tracking only); includes a `payment-terms` block plus balance in totals.
+_Avoid_: invoice PDF, payment page
+
+**Quote Follow-up Email Template**:
+The single shared block config for automatic quote nudges (`businesses.quote_follow_up_template`, V2 blocks). Attempt 1 (`Following up`) vs 2+ (`Checking in`) stays send-time logic, not a merge tag; CTA is exactly one and stays visible; summary/tables/notes are unavailable in this template.
+_Avoid_: Follow-up (owner task), suggested message
+
+**Follow-up** (owner task) vs **Follow-up Email** (auto customer email) vs **Suggested Message** (copy-paste draft):
+A Follow-up is an owner reminder task (`follow_ups`, channel email/phone/etc., no send). A Follow-up Email is the unattended customer sequence (`quotes.autoFollowUp*`, `sendQuoteAutoFollowUpEmail`). A Suggested Message is copy-paste text only. Never use `follow-up` alone for the email.
+_Avoid_: follow-up email (ambiguous), auto-follow-up template (use Quote Follow-up Email Template)
+
+**Reply Snippet**:
+An orphaned `reply_snippets` title/body row with no send path. Distinct from any Email Template; manual replies copy the address for an external mailbox.
+_Avoid_: reply template, inquiry template
+
+**Email Block**:
+One draggable unit in a template (`greeting|intro|text|cta|summary|line-items|totals|notes|payment-terms|signature|closing|divider|spacer`). Singletons exist at most once; `text|divider|spacer` are repeatable/deletable. The canvas row is display-only; text + style editing lives in the inspector so selection never shifts drag positions.
+_Avoid_: Block (ambiguous with other builders), section, widget
+
 ### Reserved / rejected terms
 - ❌ **"Customer"** as a standalone entity — there is none; customer details are fields on an Inquiry or Quote.
 - ❌ **"AI Inquiry"** — an Inquiry created by the Agent is just an Inquiry, distinguished by `source` and `ai_assisted`.

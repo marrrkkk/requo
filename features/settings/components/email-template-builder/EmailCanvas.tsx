@@ -7,6 +7,7 @@ import {
   DragOverlay,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -34,6 +35,7 @@ type EmailCanvasProps = {
   editingBlockId: string | null;
   isPending?: boolean;
   prefersReducedMotion?: boolean;
+  templateKind?: "quote" | "invoice" | "follow-up";
   onReorder: (next: EmailTemplateBlock[]) => void;
   onSelect: (id: string | null) => void;
   onEdit: (id: string | null) => void;
@@ -60,6 +62,7 @@ export function EmailCanvas({
   editingBlockId,
   isPending,
   prefersReducedMotion,
+  templateKind = "quote",
   onReorder,
   onSelect,
   onEdit,
@@ -73,6 +76,9 @@ export function EmailCanvas({
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 5 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -97,10 +103,9 @@ export function EmailCanvas({
     setActiveId(null);
   }
 
-  const activeBlock =
-    activeId && activeId !== editingBlockId
-      ? (blocks.find((block) => block.id === activeId) ?? null)
-      : null;
+  const activeBlock = activeId
+    ? (blocks.find((block) => block.id === activeId) ?? null)
+    : null;
 
   return (
     <DndContext
@@ -117,7 +122,7 @@ export function EmailCanvas({
         strategy={verticalListSortingStrategy}
       >
         <div
-          className="mx-auto w-full max-w-[640px]"
+          className="w-full"
           onClick={() => {
             onSelect(null);
             onEdit(null);
@@ -130,7 +135,7 @@ export function EmailCanvas({
             onClick={(event) => event.stopPropagation()}
           >
             <p className="meta-label pb-3">Email canvas</p>
-            <div className="flex flex-col" aria-label="Email content blocks">
+            <div className="flex flex-col gap-1" aria-label="Email content blocks">
               <AddBlock
                 index={0}
                 blockCount={blocks.length}
@@ -138,7 +143,7 @@ export function EmailCanvas({
                 onInsert={onInsert}
               />
               {blocks.map((block, index) => (
-                <div key={block.id}>
+                <div key={block.id} className="flex flex-col gap-1">
                   <SortableEmailBlock
                     block={block}
                     index={index}
@@ -146,6 +151,7 @@ export function EmailCanvas({
                     editing={editingBlockId === block.id}
                     isPending={isPending}
                     prefersReducedMotion={prefersReducedMotion}
+                    templateKind={templateKind}
                     onSelect={onSelect}
                     onEdit={onEdit}
                     onUpdate={onUpdate}
@@ -153,12 +159,14 @@ export function EmailCanvas({
                     onToggleVisibility={onToggleVisibility}
                     onRemove={onRemove}
                   />
-                  <AddBlock
-                    index={index + 1}
-                    blockCount={blocks.length}
-                    disabled={isPending}
-                    onInsert={onInsert}
-                  />
+                  {index < blocks.length - 1 ? (
+                    <AddBlock
+                      index={index + 1}
+                      blockCount={blocks.length}
+                      disabled={isPending}
+                      onInsert={onInsert}
+                    />
+                  ) : null}
                 </div>
               ))}
               <AddBlock
@@ -184,7 +192,7 @@ export function EmailCanvas({
       >
         {activeBlock ? (
           <div className="rounded-lg border border-border/70 bg-background px-4 py-3 shadow-lg">
-            <BlockContent block={activeBlock} />
+            <BlockContent block={activeBlock} templateKind={templateKind} />
           </div>
         ) : null}
       </DragOverlay>
