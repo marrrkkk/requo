@@ -1,16 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
-import {
-  ArrowRight,
-  CalendarClock,
-  Clock,
-  ReceiptText,
-  Send,
-  TriangleAlert,
-  TrendingUp,
-  Target,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,19 +16,26 @@ import {
   getBusinessDashboardSummaryData,
   getBusinessMoneySnapshot,
 } from "@/features/businesses/queries";
-import { getFreeAnalytics, getDashboardResponseTime } from "@/features/analytics/queries";
-import { formatMoney } from "@/features/analytics/utils";
+import {
+  getFreeAnalytics,
+  getDashboardResponseTime,
+  getDashboardKpiComparison,
+} from "@/features/analytics/queries";
+import {
+  formatMoney,
+  formatRelativeDelta,
+  formatPointsDelta,
+  formatSpeedDelta,
+  type KpiDeltaLabel,
+} from "@/features/analytics/utils";
 import {
   getBusinessInquiryPath,
   getBusinessQuotePath,
   getBusinessInquiriesPath,
   getBusinessQuotesPath,
   getBusinessAnalyticsPath,
-  getBusinessInvoicePath,
-  getBusinessInvoicesPath,
 } from "@/features/businesses/routes";
-import { getInvoiceOverviewForBusiness } from "@/features/invoices/queries";
-import { formatQuoteMoney } from "@/features/invoices/utils";
+import { HomeKpiCards, type HomeKpiStat } from "@/features/businesses/components/home-kpi-cards";
 import { getFollowUpOverviewForBusiness } from "@/features/follow-ups/queries";
 import { DashboardTour } from "@/features/onboarding/components/dashboard-tour";
 import { getCachedDashboardTourCompleted } from "@/features/onboarding/queries";
@@ -91,13 +89,6 @@ export default function DashboardOverviewPage({
       <section className="home-entrance-section w-full max-w-5xl mx-auto mt-5">
         <Suspense fallback={<KpiFallback />}>
           <KpiRegion params={params} />
-        </Suspense>
-      </section>
-
-      {/* Invoices snapshot */}
-      <section className="home-entrance-section w-full max-w-5xl mx-auto mt-5">
-        <Suspense fallback={null}>
-          <InvoiceRegion params={params} />
         </Suspense>
       </section>
 
@@ -183,10 +174,11 @@ async function KpiRegion({
   const { businessContext } = await getAppShellContext(businessSlug);
   const businessId = businessContext.business.id;
 
-  const [money, analytics, responseTime] = await Promise.all([
+  const [money, analytics, responseTime, comparison] = await Promise.all([
     getBusinessMoneySnapshot(businessId),
     getFreeAnalytics(businessId),
     getDashboardResponseTime(businessId),
+    getDashboardKpiComparison(businessId),
   ]);
 
   const hasActivity =
@@ -200,6 +192,102 @@ async function KpiRegion({
 
   // Format response time for display
   const responseTimeDisplay = formatResponseTime(responseTime.avgTimeToQuoteHours);
+
+  const priorAcceptanceRate =
+    comparison.quotesSentPrior > 0
+      ? comparison.quotesAcceptedPrior / comparison.quotesSentPrior
+      : 0;
+
+  const moneyDelta = formatRelativeDelta(
+    money.wonInCents,
+    comparison.wonInCentsPrior,
+    // Zero-to-growth has no meaningful percentage — show the absolute move.
+    (cents) => formatMoney(cents, money.currency),
+  );
+  const acceptanceDelta = formatPointsDelta(
+    analytics.quoteAcceptanceRate,
+    priorAcceptanceRate,
+  );
+  const speedDelta = formatSpeedDelta(
+    responseTime.avgTimeToQuoteHours,
+    comparison.avgTimeToQuoteHoursPrior,
+  );
+
+  // Pill color follows the metric's real movement: lime for genuine gains,
+  // rose for declines, neutral otherwise. "Awaiting reply" is a stock, not a
+  // trend, so it gets no pill — the open-quote count already reads in its
+  // caption. "Time to quote" is inverted: a slower reading is the bad one.
+  const deltaColorFromDirection = (
+    delta: KpiDeltaLabel,
+    inverted = false,
+  ): HomeKpiStat["deltaColor"] => {
+    if (delta.direction === "flat") return "neutral";
+    const good = inverted ? delta.direction === "down" : delta.direction === "up";
+    return good ? "lime" : "rose";
+  };
+
+  const deltas: Array<{
+    delta: KpiDeltaLabel | null;
+    deltaColor: HomeKpiStat["deltaColor"];
+  }> = [
+    { delta: moneyDelta, deltaColor: deltaColorFromDirection(moneyDelta) },
+    { delta: null, deltaColor: "neutral" },
+    {
+      delta: acceptanceDelta,
+      deltaColor: deltaColorFromDirection(acceptanceDelta),
+    },
+    {
+      delta: speedDelta,
+      deltaColor: deltaColorFromDirection(speedDelta, true),
+    },
+  ];
+
+  const statDelta = (
+    index: number,
+  ): Pick<HomeKpiStat, "delta" | "deltaColor" | "deltaDirection"> => ({
+    delta: deltas[index].delta?.label,
+    deltaColor: deltas[index].deltaColor,
+    deltaDirection: deltas[index].delta?.direction,
+  });
+
+  const stats: HomeKpiStat[] = [
+    {
+      icon: "won",
+      label: "Revenue won",
+      value: formatMoney(money.wonInCents, money.currency),
+      ...statDelta(0),
+      tone: "blue",
+      caption: "vs previous 30 days",
+      hint: "Total value of quotes your customers accepted in the last 30 days. The delta compares against the 30 days before that.",
+    },
+    {
+      icon: "in-play",
+      label: "Awaiting reply",
+      value: formatMoney(money.inPlayInCents, money.currency),
+      ...statDelta(1),
+      tone: "orange",
+      caption: `${money.inPlayCount} open quote${money.inPlayCount === 1 ? "" : "s"}`,
+      hint: "Value of sent quotes that haven't expired and are still waiting on a customer reply.",
+    },
+    {
+      icon: "acceptance",
+      label: "Acceptance rate",
+      value: `${Math.round(analytics.quoteAcceptanceRate * 100)}%`,
+      ...statDelta(2),
+      tone: "purple",
+      caption: "vs previous 30 days",
+      hint: "Share of sent quotes that customers accepted in the last 30 days. The delta compares against the 30 days before that.",
+    },
+    {
+      icon: "response-time",
+      label: "Time to quote",
+      value: responseTimeDisplay.value,
+      ...statDelta(3),
+      tone: "emerald",
+      caption: "vs previous 30 days",
+      hint: "Average time from an inquiry arriving to your first quote going out. The delta compares against the 30 days before that.",
+    },
+  ];
 
   return (
     <div className="flex flex-col gap-3">
@@ -216,123 +304,7 @@ async function KpiRegion({
           <ArrowRight className="size-3" />
         </Link>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard
-          label="Won"
-          value={formatMoney(money.wonInCents, money.currency)}
-          suffix="last 30 days"
-          highlight={money.wonInCents > 0}
-          icon={<TrendingUp className="size-4" />}
-        />
-        <StatCard
-          label="In-play"
-          value={formatMoney(money.inPlayInCents, money.currency)}
-          suffix={`${money.inPlayCount} open`}
-          icon={<Send className="size-4" />}
-        />
-        <StatCard
-          label="Acceptance"
-          value={`${Math.round(analytics.quoteAcceptanceRate * 100)}%`}
-          suffix="win rate"
-          highlight={analytics.quoteAcceptanceRate >= 0.5}
-          icon={<Target className="size-4" />}
-        />
-        <StatCard
-          label="Avg. time to quote"
-          value={responseTimeDisplay.value}
-          suffix={responseTimeDisplay.suffix}
-          highlight={responseTimeDisplay.isGood}
-          icon={<Clock className="size-4" />}
-        />
-      </div>
-    </div>
-  );
-}
-
-async function InvoiceRegion({
-  params,
-}: {
-  params: Promise<{ businessSlug: string }>;
-}) {
-  const { businessSlug } = await params;
-  const { businessContext } = await getAppShellContext(businessSlug);
-  let overview;
-  try {
-    overview = await getInvoiceOverviewForBusiness({ businessId: businessContext.business.id });
-  } catch (error) {
-    console.error("Failed to load invoice overview.", { businessId: businessContext.business.id }, error);
-    return null;
-  }
-
-  if (overview.outstandingCount === 0 && overview.counts.draft === 0) {
-    return null;
-  }
-
-  const balanceLabel = overview.currency
-    ? formatQuoteMoney(overview.outstandingInCents, overview.currency)
-    : `${overview.outstandingCount} open`;
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Invoices
-        </p>
-        <Link
-          href={getBusinessInvoicesPath(businessSlug)}
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          prefetch={true}
-        >
-          All invoices
-          <ArrowRight className="size-3" />
-        </Link>
-      </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <StatCard
-          label="Outstanding"
-          value={balanceLabel}
-          suffix={`${overview.outstandingCount} open`}
-          highlight={overview.outstandingCount > 0}
-          icon={<ReceiptText className="size-4" />}
-        />
-        <StatCard
-          label="Overdue"
-          value={overview.counts.overdue}
-          suffix="past due"
-          highlight={overview.counts.overdue > 0}
-          icon={<TriangleAlert className="size-4" />}
-        />
-        <StatCard
-          label="Due soon"
-          value={overview.counts.dueSoon}
-          suffix="next 7 days"
-          icon={<CalendarClock className="size-4" />}
-        />
-      </div>
-      {overview.overdue.length > 0 ? (
-        <div className="flex flex-col gap-1 rounded-xl border border-border/60 bg-card px-2 py-1">
-          {overview.overdue.slice(0, 3).map((invoice) => (
-            <Link
-              key={invoice.id}
-              href={getBusinessInvoicePath(businessSlug, invoice.id)}
-              className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-accent/50"
-              prefetch={true}
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-foreground">
-                  {invoice.invoiceNumber} · {invoice.customerName}
-                </span>
-                <span className="block text-xs text-muted-foreground">
-                  Due {formatQuoteDate(invoice.dueDate)}
-                </span>
-              </span>
-              <span className="text-sm font-semibold text-foreground">
-                {formatQuoteMoney(invoice.balanceInCents, invoice.currency)}
-              </span>
-            </Link>
-          ))}
-        </div>
-      ) : null}
+      <HomeKpiCards stats={stats} />
     </div>
   );
 }
@@ -568,37 +540,6 @@ function formatResponseTime(hours: number | null): {
 // Static UI components (rendered synchronously in the shell)
 // ---------------------------------------------------------------------------
 
-function StatCard({
-  label,
-  value,
-  suffix,
-  highlight,
-  icon,
-}: {
-  label: string;
-  value: number | string;
-  suffix: string;
-  highlight?: boolean;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="group relative rounded-xl border border-border/60 bg-card px-4 py-4 transition-all duration-200 hover:border-border hover:shadow-sm">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        <div className={`rounded-lg p-1.5 ${highlight ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-          {icon}
-        </div>
-      </div>
-      <p
-        className={`mt-2 text-2xl font-semibold tracking-tight ${highlight ? "text-primary" : "text-foreground"}`}
-      >
-        {value}
-      </p>
-      <p className="mt-0.5 text-xs text-muted-foreground">{suffix}</p>
-    </div>
-  );
-}
-
 function EmptyQueueState({ businessSlug }: { businessSlug: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-border/60 py-12">
@@ -642,15 +583,21 @@ function KpiFallback() {
   return (
     <div className="flex flex-col gap-3">
       <Skeleton className="h-3 w-20 rounded-md" />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div className="rounded-xl border border-border/60 bg-card px-4 py-4" key={i}>
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-3 w-16 rounded-md" />
-              <Skeleton className="size-7 rounded-lg" />
+          <div className="flex flex-col rounded-2xl border border-border/60 bg-card p-2" key={i}>
+            <div className="flex items-start justify-between p-2">
+              <Skeleton className="size-9 rounded-xl" />
+              <Skeleton className="size-4 rounded-full" />
             </div>
-            <Skeleton className="mt-2 h-7 w-12 rounded-md" />
-            <Skeleton className="mt-1 h-2.5 w-14 rounded-md" />
+            <div className="flex flex-col gap-1 px-2 pt-2.5 pb-3.5">
+              <Skeleton className="h-3.5 w-20 rounded-md" />
+              <Skeleton className="h-7 w-24 rounded-md" />
+            </div>
+            <div className="mt-auto flex items-center justify-between gap-2 rounded-xl bg-muted px-2.5 py-1.5">
+              <Skeleton className="h-3 w-16 rounded-md" />
+              <Skeleton className="h-5 w-14 rounded-full" />
+            </div>
           </div>
         ))}
       </div>

@@ -16,6 +16,7 @@ import {
   getBusinessMoneySnapshot,
   getBusinessOverviewData,
 } from "@/features/businesses/queries";
+import { getDashboardKpiComparison } from "@/features/analytics/queries";
 import {
   businesses,
   inquiries,
@@ -318,6 +319,34 @@ describe("business overview queries", () => {
     expect(snapshot.inPlayCount).toBe(3);
   });
 
+  it("separates prior-window wins from current-window wins", async () => {
+    const snapshot = await getBusinessMoneySnapshot(businessId);
+
+    // quoteIds[1] was accepted 45 days ago — inside the prior window,
+    // outside the current one.
+    expect(snapshot.wonInCentsPrior).toBe(50000);
+    expect(snapshot.wonCountPrior).toBe(1);
+    // quoteIds[8] (deleted) and the other business's win stay out.
+  });
+
+  it("returns prior-window comparison data scoped to the requested business", async () => {
+    const comparison = await getDashboardKpiComparison(businessId);
+
+    // Won value/count: quoteIds[1], accepted 45 days ago, 50,000 cents —
+    // the only prior-window accept. quoteIds[0] (10 days ago) belongs to the
+    // current window and quoteIds[9] belongs to the other business.
+    expect(comparison.wonInCentsPrior).toBe(50000);
+    expect(comparison.wonCountPrior).toBe(1);
+    // Sent: only quoteIds[1] was sent in the prior window (50 days ago).
+    // quoteIds[6] (15 days ago) is current-window; the deleted quote's old
+    // sentAt never counts.
+    expect(comparison.quotesSentPrior).toBe(1);
+    expect(comparison.quotesAcceptedPrior).toBe(1);
+    // The prior-window inquiry has no quote attached, so the filtered avg
+    // has no rows and reads null — not zero.
+    expect(comparison.avgTimeToQuoteHoursPrior).toBeNull();
+  });
+
   it("excludes deleted quotes, stale wins, responded quotes, and already-expired quotes from the money snapshot", async () => {
     const snapshot = await getBusinessMoneySnapshot(businessId);
 
@@ -347,6 +376,8 @@ describe("business overview queries", () => {
       wonCount: 0,
       inPlayInCents: 0,
       inPlayCount: 0,
+      wonInCentsPrior: 0,
+      wonCountPrior: 0,
     });
   });
 

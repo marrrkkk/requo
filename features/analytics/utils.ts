@@ -1,5 +1,15 @@
 import type { PeriodDelta, PeriodDeltaDirection } from "@/features/analytics/types";
 
+/**
+ * A human-readable delta label plus the direction the metric moved, ready to
+ * drop into a delta pill. Direction is sentiment-free: callers decide the
+ * color ("up" is good for revenue, bad for response times).
+ */
+export type KpiDeltaLabel = {
+  label: string;
+  direction: PeriodDeltaDirection;
+};
+
 export function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
@@ -74,4 +84,80 @@ export function getDeltaSentiment(
   if (direction === "flat") return "neutral";
   if (inverted) return direction === "down" ? "positive" : "negative";
   return direction === "up" ? "positive" : "negative";
+}
+
+// ---------------------------------------------------------------------------
+// KPI delta labels (period-over-period, dashboard stat cards)
+// ---------------------------------------------------------------------------
+
+/**
+ * Relative change between two windowed totals, e.g. "+12%" / "−8%".
+ * A zero prior has no meaningful percentage, so growth reads as an absolute
+ * move through `formatAbsolute` (e.g. "+$6,163"), falling back to "New" when
+ * no formatter is given. Sub-1% changes round to "No change" instead of "±0%".
+ */
+export function formatRelativeDelta(
+  current: number,
+  prior: number,
+  formatAbsolute?: (value: number) => string,
+): KpiDeltaLabel {
+  if (current === prior) return { label: "No change", direction: "flat" };
+
+  if (prior === 0) {
+    if (current > 0) {
+      return formatAbsolute
+        ? { label: `+${formatAbsolute(current)}`, direction: "up" }
+        : { label: "New", direction: "up" };
+    }
+    return { label: "−100%", direction: "down" };
+  }
+
+  const diff = current - prior;
+  const pct = Math.round((Math.abs(diff) / prior) * 100);
+
+  if (pct === 0) return { label: "No change", direction: "flat" };
+
+  return {
+    label: `${diff > 0 ? "+" : "−"}${pct}%`,
+    direction: diff > 0 ? "up" : "down",
+  };
+}
+
+/**
+ * Percentage-point change between two rates (fractions 0–1), e.g. "+12 pts".
+ * Points, not relative percent, so a 50% → 60% acceptance move reads as
+ * "+10 pts" instead of the misleading "+20%".
+ */
+export function formatPointsDelta(current: number, prior: number): KpiDeltaLabel {
+  const pts = Math.round((current - prior) * 100);
+
+  if (pts === 0) return { label: "No change", direction: "flat" };
+
+  return {
+    label: `${pts > 0 ? "+" : "−"}${Math.abs(pts)} pts`,
+    direction: pts > 0 ? "up" : "down",
+  };
+}
+
+/**
+ * Relative change phrased for "lower is better" metrics like time to quote,
+ * e.g. "33% faster" / "25% slower". Null-tolerant: no current data reads as
+ * "No data yet", no prior data reads as "New". The label carries the
+ * sentiment, so callers keep the pill color neutral.
+ */
+export function formatSpeedDelta(
+  current: number | null,
+  prior: number | null,
+): KpiDeltaLabel {
+  if (current === null) return { label: "No data yet", direction: "flat" };
+  if (prior === null) return { label: "No prior data", direction: "flat" };
+  if (current === prior) return { label: "No change", direction: "flat" };
+
+  const pct = Math.round((Math.abs(current - prior) / prior) * 100);
+
+  if (pct === 0) return { label: "No change", direction: "flat" };
+
+  return current < prior
+    ? { label: `${pct}% faster`, direction: "down" }
+    : { label: `${pct}% slower`, direction: "up" };
 }
