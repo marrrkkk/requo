@@ -547,12 +547,12 @@ function FollowUpCard({
           </span>
         ) : null}
         {followUp.quoteContext?.status ? (
-          <Badge variant="outline" className="rounded-full text-[11px]">
+          <Badge variant="outline" className="rounded-full">
             {followUp.quoteContext.status.replace(/_/g, " ")}
             {isQuoteViewed ? " · viewed" : ""}
           </Badge>
         ) : null}
-        <Badge variant="secondary" className="rounded-full text-[11px]">
+        <Badge variant="secondary" className="rounded-full">
           {followUp.nextActionLabel}
         </Badge>
       </div>

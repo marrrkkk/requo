@@ -44,6 +44,7 @@ export function FollowUpSummaryStrip({ counts }: FollowUpSummaryStripProps) {
         <div
           key={item.label}
           className="section-panel flex flex-col gap-1 px-4 py-3"
+          data-padding="none"
         >
           <span className="meta-label">{item.label}</span>
           <span className="text-2xl font-semibold tracking-tight text-foreground tabular-nums">
