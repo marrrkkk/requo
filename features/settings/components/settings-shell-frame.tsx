@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { memo, type ReactNode, useTransition } from "react";
+import { type ReactNode, useTransition } from "react";
 import {
   ArrowLeft,
   Astroid,
@@ -21,7 +21,6 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 
 import { authClient } from "@/lib/auth/client";
@@ -29,7 +28,6 @@ import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-me
 import { clearPersistedThemePreference } from "@/features/theme/persistence";
 import { themeUserStorageKey } from "@/features/theme/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BrandMark } from "@/components/shared/brand-mark";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -41,27 +39,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarHeader,
-  SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarRail,
-  SidebarSeparator,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
+import { cx } from "@/utils/cx";
+import { BoarduiSettingsSidebar } from "@/features/settings/components/boardui-settings-sidebar";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
 import { MobileSettingsBottomNav } from "@/components/shell/mobile-settings-bottom-nav";
 import { MobileTopBar } from "@/components/shell/mobile-top-bar";
 import type { SettingsNavigationGroup } from "@/features/settings/navigation";
-import { cn } from "@/lib/utils";
 
 export const settingsIcons: Record<string, LucideIcon> = {
   user: User,
@@ -100,9 +90,17 @@ export type SettingsShellFrameProps = {
 };
 
 /**
- * Settings shell frame matching the business dashboard sidebar pattern.
- * Uses the same shadcn Sidebar components but shows settings navigation
- * instead of the business navigation, and omits the business switcher.
+ * Settings shell frame using the BoardUI Sidebar.
+ *
+ * `BoarduiSettingsSidebar` maps the grouped settings navigation onto
+ * BoardUI's `DashboardSidebar` (`items` + `selected`) inside a
+ * `flex min-h-screen bg-background-full` layout, following the docs usage
+ * example. The business name streams in as the top slot; Help & Support
+ * plus the user menu stream in as the bottom slot.
+ *
+ * `SidebarProvider` is kept (without shadcn `Sidebar` chrome) because the
+ * user menu consumes its sidebar context (`useSidebar` for mobile-drawer
+ * dismissal).
  */
 export function SettingsShellFrame({
   children,
@@ -118,114 +116,88 @@ export function SettingsShellFrame({
 
   return (
     <SidebarProvider defaultOpen>
-      <Sidebar collapsible="icon">
-        <SidebarHeader className="gap-0 p-0">
-          <div className="flex h-12 items-center justify-between border-b border-sidebar-border px-3.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-            <BrandMark
-              collapseLabel
-              className="min-w-0 px-2 py-1.5 group-data-[collapsible=icon]:p-0"
-              subtitle="Settings"
-              href={businessDashboardPath}
-            />
-            <SidebarTrigger className="size-7 shrink-0 group-data-[collapsible=icon]:hidden" />
-          </div>
-          <div className="flex items-center gap-2.5 px-5 py-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2">
-            {businessNameSlot}
-          </div>
-        </SidebarHeader>
-
-        <SidebarContent className="gap-0 px-1 pb-3 group-data-[collapsible=icon]:px-0">
-          {groups.map((group) => (
-            <SidebarGroup key={group.label} className="px-3 pt-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:pt-2">
-              <span className="meta-label px-3 pb-1.5 group-data-[collapsible=icon]:hidden">
-                {group.label}
-              </span>
-              <SidebarMenu>
-                {group.items.map((item) => (
-                  <SettingsNavigationItem
-                    key={item.href}
-                    href={item.href}
-                    label={item.label}
-                    icon={settingsIcons[item.icon] ?? User}
-                  />
-                ))}
-              </SidebarMenu>
-            </SidebarGroup>
-          ))}
-        </SidebarContent>
-
-        <SidebarSeparator />
-
-        <SidebarFooter className="p-3 pt-2 group-data-[collapsible=icon]:p-2">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                className="rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground group-data-[collapsible=icon]:justify-center"
-                tooltip="Help & Support"
-              >
-                <Link href={`/${businessSlug}/settings/support`} prefetch={true}>
-                  <LifeBuoy className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="group-data-[collapsible=icon]:hidden">Help & Support</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-          <SidebarSeparator className="my-1 group-data-[collapsible=icon]:hidden" />
-          {userMenuSlot ?? (user ? <SettingsUserMenu user={user} businessSlug={businessSlug} /> : null)}
-        </SidebarFooter>
-
-        <SidebarRail />
-      </Sidebar>
-
-      <SidebarInset className="min-h-svh min-w-0">
-        {/* Mobile top app bar (below lg) */}
-        <MobileTopBar
-          businessControl={mobileBusinessSwitcherSlot}
-          pageTitle="Settings"
-          userControl={mobileUserMenuSlot}
-        />
-
-        {/* Desktop topbar (lg and above) */}
-        <div className="sticky top-0 z-30 hidden h-12 items-stretch border-b border-border/70 bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/80 lg:flex">
-          <header className="flex min-w-0 flex-1 items-center">
-            <DesktopSidebarTrigger />
-            <div className="dashboard-topbar-inner min-w-0 flex-1">
-              <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
-                <Button
-                  asChild
-                  variant="ghost"
-                  size="icon-sm"
-                  className="hidden size-8 shrink-0 lg:inline-flex"
+      <div className="flex min-h-svh flex-1 bg-background-full">
+        {/* Desktop sidebar — BoardUI panel flush to the left screen edge (hidden below lg; mobile uses the top/bottom bars). */}
+        <div className="sticky top-0 hidden h-svh shrink-0 lg:block">
+          <BoarduiSettingsSidebar
+            businessSlug={businessSlug}
+            groups={groups}
+            topSlot={businessNameSlot}
+            bottomSlot={
+              <div className="flex w-full flex-col gap-1">
+                <Link
+                  href={`/${businessSlug}/settings/support`}
+                  prefetch={true}
+                  className={cx(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 transition-colors",
+                    "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                  )}
                 >
-                  <Link href={businessDashboardPath} aria-label="Home">
-                    <HomeIcon className="size-4" />
-                  </Link>
-                </Button>
-                <span
-                  aria-hidden="true"
-                  className="hidden h-3.5 w-px shrink-0 self-center bg-border lg:block"
-                />
-                <p className="text-sm font-medium text-foreground">
-                  Settings
-                </p>
+                  <LifeBuoy
+                    className="size-4 shrink-0 text-muted-foreground"
+                    aria-hidden
+                  />
+                  <span className="whitespace-nowrap text-body-2-medium">
+                    Help & Support
+                  </span>
+                </Link>
+                {userMenuSlot ??
+                  (user ? (
+                    <SettingsUserMenu user={user} businessSlug={businessSlug} />
+                  ) : null)}
               </div>
-            </div>
-          </header>
+            }
+          />
         </div>
 
-        <div className="flex flex-1 flex-col pb-20 lg:pb-0">
-          <main className="dashboard-main">
-            <div className="dashboard-content dashboard-page">{children}</div>
-          </main>
-        </div>
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Mobile top app bar (below lg) */}
+          <MobileTopBar
+            businessControl={mobileBusinessSwitcherSlot}
+            pageTitle="Settings"
+            userControl={mobileUserMenuSlot}
+          />
 
-        <MobileSettingsBottomNav
-          businessSlug={businessSlug}
-          groups={groups}
-          userMenuSlot={userMenuSlot ?? (user ? <SettingsUserMenu user={user} businessSlug={businessSlug} /> : null)}
-        />
-      </SidebarInset>
+          {/* Desktop topbar (lg and above) */}
+          <div className="sticky top-0 z-30 hidden h-12 items-stretch bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/80 lg:flex">
+            <header className="flex min-w-0 flex-1 items-center">
+              <div className="dashboard-topbar-inner min-w-0 flex-1">
+                <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="icon-sm"
+                    className="hidden size-8 shrink-0 lg:inline-flex"
+                  >
+                    <Link href={businessDashboardPath} aria-label="Home">
+                      <HomeIcon className="size-4" />
+                    </Link>
+                  </Button>
+                  <span
+                    aria-hidden="true"
+                    className="hidden h-3.5 w-px shrink-0 self-center bg-border lg:block"
+                  />
+                  <p className="text-sm font-medium text-foreground">
+                    Settings
+                  </p>
+                </div>
+              </div>
+            </header>
+          </div>
+
+          <div className="flex flex-1 flex-col pb-20 lg:pb-0">
+            <main className="dashboard-main">
+              <div className="dashboard-content dashboard-page">{children}</div>
+            </main>
+          </div>
+
+          <MobileSettingsBottomNav
+            businessSlug={businessSlug}
+            groups={groups}
+            userMenuSlot={userMenuSlot ?? (user ? <SettingsUserMenu user={user} businessSlug={businessSlug} /> : null)}
+          />
+        </div>
+      </div>
     </SidebarProvider>
   );
 }
@@ -233,63 +205,6 @@ export function SettingsShellFrame({
 /* -------------------------------------------------------------------------- */
 /*  Internal components                                                        */
 /* -------------------------------------------------------------------------- */
-
-function DesktopSidebarTrigger() {
-  const { state } = useSidebar();
-
-  if (state === "expanded") {
-    return null;
-  }
-
-  return (
-    <div className="hidden items-center pl-3 lg:flex">
-      <SidebarTrigger className="size-8 shrink-0" />
-    </div>
-  );
-}
-
-type SettingsNavigationItemProps = {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-};
-
-const SettingsNavigationItem = memo(function SettingsNavigationItem({
-  href,
-  label,
-  icon: Icon,
-}: SettingsNavigationItemProps) {
-  const pathname = usePathname();
-  const isActive = pathname === href || pathname.startsWith(`${href}/`);
-  const { isMobile, setOpenMobile } = useSidebar();
-
-  function handleClick() {
-    if (isMobile) {
-      setOpenMobile(false);
-    }
-  }
-
-  return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        asChild
-        className="rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-black/8 data-[active=true]:font-medium data-[active=true]:text-sidebar-foreground dark:data-[active=true]:bg-white/10"
-        isActive={isActive}
-        tooltip={label}
-      >
-        <Link href={href} prefetch={true} onClick={handleClick}>
-          <Icon
-            className={cn(
-              "size-4 transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
-              isActive ? "text-foreground" : "text-muted-foreground",
-            )}
-          />
-          <span className="group-data-[collapsible=icon]:hidden">{label}</span>
-        </Link>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  );
-});
 
 export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserData; businessSlug: string }) {
   const [isPending, startTransition] = useTransition();

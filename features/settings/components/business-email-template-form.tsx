@@ -28,14 +28,12 @@ import type {
   BusinessSettingsView,
 } from "@/features/settings/types";
 
-import { BlockPalette } from "./email-template-builder/BlockPalette";
-import { BuilderCanvas } from "./email-template-builder/BuilderCanvas";
+import { EmailCanvas } from "./email-template-builder/EmailCanvas";
 import {
   createDividerBlock,
   createSpacerBlock,
   createTextBlock,
 } from "./email-template-builder/default-blocks";
-import { LivePreview } from "./email-template-builder/LivePreview";
 
 type BusinessEmailTemplateFormProps = {
   action: (
@@ -82,6 +80,8 @@ export function BusinessEmailTemplateForm({
   );
   const [draft, setDraft] = useState<DraftValues>(initialDraft);
   const [saved, setSaved] = useState<DraftValues>(initialDraft);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   const hasUnsavedChanges =
@@ -102,6 +102,8 @@ export function BusinessEmailTemplateForm({
   useEffect(() => {
     setDraft(initialDraft);
     setSaved(initialDraft);
+    setSelectedBlockId(null);
+    setEditingBlockId(null);
   }, [initialDraft]);
 
   useEffect(() => {
@@ -114,6 +116,23 @@ export function BusinessEmailTemplateForm({
 
   function handleCancelChanges() {
     setDraft(saved);
+    setSelectedBlockId(null);
+    setEditingBlockId(null);
+  }
+
+  function handleSelectBlock(id: string | null) {
+    setSelectedBlockId(id);
+    if (id === null) return;
+    if (editingBlockId !== null && editingBlockId !== id) {
+      setEditingBlockId(null);
+    }
+  }
+
+  function handleEditBlock(id: string | null) {
+    setEditingBlockId(id);
+    if (id !== null) {
+      setSelectedBlockId(id);
+    }
   }
 
   function updateSubject(value: string) {
@@ -168,9 +187,12 @@ export function BusinessEmailTemplateForm({
       ...current,
       blocks: current.blocks.filter((block) => block.id !== id),
     }));
+    setSelectedBlockId((current) => (current === id ? null : current));
+    setEditingBlockId((current) => (current === id ? null : current));
   }
 
-  function addBlock(type: "text" | "divider" | "spacer") {
+  function addBlock(type: "text" | "divider" | "spacer", index?: number) {
+    let insertedId: string | null = null;
     setDraft((current) => {
       if (current.blocks.length >= MAX_EMAIL_TEMPLATE_BLOCKS) return current;
       const next =
@@ -179,8 +201,21 @@ export function BusinessEmailTemplateForm({
           : type === "divider"
             ? createDividerBlock()
             : createSpacerBlock();
-      return { ...current, blocks: [...current.blocks, next] };
+      insertedId = next.id;
+      if (index === undefined || index < 0 || index > current.blocks.length) {
+        return { ...current, blocks: [...current.blocks, next] };
+      }
+      const blocks = [...current.blocks];
+      blocks.splice(index, 0, next);
+      return { ...current, blocks };
     });
+    if (insertedId) {
+      const id = insertedId;
+      setSelectedBlockId(id);
+      if (type === "text") {
+        setEditingBlockId(id);
+      }
+    }
   }
 
   const blocksError = state.fieldErrors?.blocks?.[0];
@@ -232,43 +267,36 @@ export function BusinessEmailTemplateForm({
           />
         </section>
 
-        <div className="grid items-start gap-6 lg:grid-cols-2">
-          <div className="flex flex-col gap-4">
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                Email content
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Drag blocks to reorder. Hide blocks to skip them without
-                deleting.
-              </p>
-            </div>
-            <BuilderCanvas
-              blocks={draft.blocks}
-              isPending={isPending}
-              prefersReducedMotion={prefersReducedMotion}
-              onReorder={(next) =>
-                setDraft((current) => ({ ...current, blocks: next }))
-              }
-              onUpdate={updateBlock}
-              onUpdateStyle={updateBlockStyle}
-              onToggleVisibility={toggleBlockVisibility}
-              onRemove={removeBlock}
-            />
-            {blocksError ? (
-              <p className="text-sm text-destructive" role="alert">
-                {blocksError}
-              </p>
-            ) : null}
-            <BlockPalette
-              blockCount={draft.blocks.length}
-              disabled={isPending}
-              onAdd={addBlock}
-            />
-          </div>
-
-          <LivePreview subject={draft.subject} blocks={draft.blocks} />
+        <div>
+          <p className="text-sm font-medium text-foreground">Email content</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            This is your actual email. Click a block to edit it, drag blocks
+            to reorder, hide blocks to skip them without deleting.
+          </p>
         </div>
+
+        <EmailCanvas
+          blocks={draft.blocks}
+          selectedBlockId={selectedBlockId}
+          editingBlockId={editingBlockId}
+          isPending={isPending}
+          prefersReducedMotion={prefersReducedMotion}
+          onReorder={(next) =>
+            setDraft((current) => ({ ...current, blocks: next }))
+          }
+          onSelect={handleSelectBlock}
+          onEdit={handleEditBlock}
+          onUpdate={updateBlock}
+          onUpdateStyle={updateBlockStyle}
+          onToggleVisibility={toggleBlockVisibility}
+          onRemove={removeBlock}
+          onInsert={addBlock}
+        />
+        {blocksError ? (
+          <p className="text-sm text-destructive" role="alert">
+            {blocksError}
+          </p>
+        ) : null}
       </div>
 
       <FloatingFormActions

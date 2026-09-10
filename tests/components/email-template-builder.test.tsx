@@ -1,11 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 
 vi.mock("@dnd-kit/core", () => ({
   closestCenter: vi.fn(),
   DndContext: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DragOverlay: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   KeyboardSensor: vi.fn(),
   PointerSensor: vi.fn(),
   useSensor: vi.fn(),
@@ -95,7 +96,29 @@ function makeSettings() {
   } as unknown as Parameters<typeof BusinessEmailTemplateForm>[0]["settings"];
 }
 
-describe("email template builder", () => {
+function readBlocks(container: HTMLElement) {
+  const input = container.querySelector(
+    'input[name="blocks"]',
+  ) as HTMLInputElement | null;
+  if (!input) throw new Error("blocks hidden input not found");
+  return JSON.parse(input.value) as Array<{
+    id: string;
+    type: string;
+    content?: string;
+    visible?: boolean;
+    style?: Record<string, string>;
+  }>;
+}
+
+async function addRepeatableViaEndMenu(
+  user: ReturnType<typeof userEvent.setup>,
+  typeName: "Text" | "Divider" | "Spacer",
+) {
+  await user.click(screen.getByRole("button", { name: "Add block" }));
+  await user.click(screen.getByRole("button", { name: typeName }));
+}
+
+describe("email template builder (direct canvas)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -106,108 +129,192 @@ describe("email template builder", () => {
     );
   }
 
-  it("renders block canvas without the preset row", () => {
-    renderForm();
+  it("renders all blocks directly inside a single email canvas with no separate preview", () => {
+    const { container } = renderForm();
     expect(screen.queryByText("Start from:")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Professional" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Friendly" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Concise" })).toBeNull();
+    // Single editing surface.
+    expect(
+      screen.getByRole("region", { name: "Email canvas" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Email content")).toBeInTheDocument();
-    expect(screen.getByText("Live preview")).toBeInTheDocument();
-    expect(screen.getByText("Greeting")).toBeInTheDocument();
+    // No separate preview pane.
+    expect(screen.queryByText("Live preview")).toBeNull();
+    expect(
+      container.querySelector('[aria-label="Live preview"]'),
+    ).toBeNull();
+    // Canvas shows the actual email with sample data.
+    expect(screen.getByText("Hi Alex Rivera,")).toBeInTheDocument();
     expect(screen.getAllByText("Quote summary").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Review quote online")).toBeInTheDocument();
+    expect(screen.getAllByText("$2,500.00").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("adds a text block from the palette", async () => {
+  it.each([
+    ["Edit Greeting block", "Greeting text", "Hello there,"],
+    ["Edit Intro block", "Intro text", "A fresh intro line."],
+    ["Edit Closing block", "Closing text", "Talk soon!"],
+  ])("edits %s directly in the canvas", async (editName, fieldName, next) => {
     const user = userEvent.setup();
     renderForm();
-    const before = screen.queryAllByText("Text").length;
-    await user.click(screen.getByRole("button", { name: /Add text/ }));
-    expect(screen.queryAllByText("Text").length).toBeGreaterThan(before);
+    // Display mode shows resolved email text, not a form field.
+    expect(screen.queryByLabelText(fieldName)).toBeNull();
+    await user.click(screen.getByRole("button", { name: editName }));
+    const box = screen.getByLabelText(fieldName) as HTMLTextAreaElement;
+    await user.clear(box);
+    await user.type(box, next);
+    expect(box.value).toContain(next);
   });
 
-  it("adds divider and spacer blocks", async () => {
+  it("edits the CTA label directly in the canvas", async () => {
     const user = userEvent.setup();
     renderForm();
-    await user.click(screen.getByRole("button", { name: /Add divider/ }));
-    expect(screen.getByText("Divider")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Add spacer/ }));
-    expect(screen.getByText("Spacer")).toBeInTheDocument();
-  });
-
-  it("deletes a repeatable block but not singletons", async () => {
-    const user = userEvent.setup();
-    renderForm();
-    await user.click(screen.getByRole("button", { name: /Add text/ }));
-    const deleteButtons = screen.getAllByRole("button", { name: /Delete .* block/ });
-    expect(deleteButtons.length).toBeGreaterThan(0);
-    // Singleton cards (greeting, CTA, summary) expose no delete button.
-    expect(screen.queryByRole("button", { name: "Delete Greeting block" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Delete CTA block" })).toBeNull();
-    await user.click(deleteButtons[0]);
-    expect(screen.getByText(/of 20 blocks used/)).toBeInTheDocument();
-  });
-
-  it("toggles visibility and edits text content", async () => {
-    const user = userEvent.setup();
-    renderForm();
-    const greetingBox = screen.getByLabelText("Greeting text") as HTMLTextAreaElement;
-    await user.clear(greetingBox);
-    await user.type(greetingBox, "Hello there,");
-    expect(greetingBox.value).toContain("Hello there,");
-
-    const hideIntro = screen.getByRole("button", { name: "Hide Intro block" });
-    await user.click(hideIntro);
-    expect(screen.getByRole("button", { name: "Show Intro block" })).toBeInTheDocument();
-  });
-
-  it("edits the CTA label", async () => {
-    const user = userEvent.setup();
-    renderForm();
+    expect(screen.queryByLabelText("Button label")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Edit CTA block" }));
     const ctaInput = screen.getByLabelText("Button label") as HTMLInputElement;
     await user.clear(ctaInput);
     await user.type(ctaInput, "Open your quote");
     expect(ctaInput.value).toBe("Open your quote");
   });
 
+  it("adds text, divider, and spacer blocks and never offers singletons", async () => {
+    const user = userEvent.setup();
+    const { container } = renderForm();
+
+    await addRepeatableViaEndMenu(user, "Text");
+    expect(
+      screen.getByRole("button", { name: "Delete Text block" }),
+    ).toBeInTheDocument();
+
+    await addRepeatableViaEndMenu(user, "Divider");
+    expect(
+      container.querySelector('[data-block-type="divider"]'),
+    ).not.toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Add block" }));
+    expect(screen.queryByRole("button", { name: "Greeting" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "CTA" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Spacer" }));
+    expect(
+      container.querySelector('[data-block-type="spacer"]'),
+    ).not.toBeNull();
+  });
+
+  it("inserts a block at the hovered position between blocks", async () => {
+    const user = userEvent.setup();
+    const { container } = renderForm();
+    const gapButtons = screen.getAllByRole("button", {
+      name: /Add block at position/,
+    });
+    expect(gapButtons.length).toBeGreaterThan(0);
+    await user.click(gapButtons[0]);
+    await user.click(screen.getByRole("button", { name: "Text" }));
+    const blocks = readBlocks(container);
+    expect(blocks).toHaveLength(10);
+    expect(blocks[0]?.type).toBe("text");
+  });
+
+  it("deletes a repeatable block but not singletons", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    await addRepeatableViaEndMenu(user, "Text");
+    const deleteButtons = screen.getAllByRole("button", { name: /Delete .* block/ });
+    expect(deleteButtons.length).toBeGreaterThan(0);
+    // Singleton blocks expose no delete button.
+    expect(screen.queryByRole("button", { name: "Delete Greeting block" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Delete CTA block" })).toBeNull();
+    await user.click(deleteButtons[0]);
+    expect(screen.getByText(/of 20 blocks used/)).toBeInTheDocument();
+  });
+
+  it("hides a block but keeps it in the canvas", async () => {
+    const user = userEvent.setup();
+    const { container } = renderForm();
+    await user.click(screen.getByRole("button", { name: "Hide Intro block" }));
+    expect(
+      screen.getByRole("button", { name: "Show Intro block" }),
+    ).toBeInTheDocument();
+    // Hidden block stays in the editor, muted with a badge.
+    expect(container.querySelector('[data-block-id="intro"]')).not.toBeNull();
+    expect(screen.getByText("Hidden from email")).toBeInTheDocument();
+  });
+
+  it("updates alignment, spacing, and CTA colors visually", async () => {
+    const user = userEvent.setup();
+    const { container } = renderForm();
+
+    await user.click(screen.getByRole("button", { name: "Edit Greeting block" }));
+    await user.click(screen.getByRole("button", { name: "Align: Center" }));
+    expect(
+      screen.getByRole("button", { name: "Align: Center" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "Spacing: Compact" }));
+    const greeting = readBlocks(container).find((block) => block.id === "greeting");
+    expect(greeting?.style?.align).toBe("center");
+    expect(greeting?.style?.spacing).toBe("compact");
+
+    await user.click(screen.getByRole("button", { name: "Edit CTA block" }));
+    const hex = screen.getByLabelText("Button color hex") as HTMLInputElement;
+    await user.clear(hex);
+    await user.type(hex, "#ff0000");
+    const cta = readBlocks(container).find((block) => block.type === "cta");
+    expect(cta?.style?.buttonColor).toBe("#ff0000");
+  });
+
   it("inserts a merge tag into a text block", async () => {
     const user = userEvent.setup();
     renderForm();
-    await user.click(screen.getByRole("button", { name: /Add text/ }));
+    await addRepeatableViaEndMenu(user, "Text");
+    // New text blocks open directly in editing mode.
     const textareas = screen.getAllByLabelText("Paragraph text");
     const target = textareas[textareas.length - 1] as HTMLTextAreaElement;
     await user.click(target);
-    const insertButtons = screen.getAllByRole("button", { name: "Customer name" });
-    await user.click(insertButtons[insertButtons.length - 1]);
+    await user.click(screen.getByRole("button", { name: "Customer name" }));
     expect(target.value).toContain("{{customerName}}");
   });
 
-  it("disables the palette at the 20-block limit", async () => {
-    const { BlockPalette } = await import(
-      "@/features/settings/components/email-template-builder/BlockPalette"
+  it("disables adding at the 20-block limit", async () => {
+    const { AddBlock } = await import(
+      "@/features/settings/components/email-template-builder/AddBlock"
     );
     const { unmount } = render(
-      <BlockPalette blockCount={20} onAdd={vi.fn()} />,
+      <AddBlock index={20} blockCount={20} variant="end" onInsert={vi.fn()} />,
     );
     expect(screen.getByText(/Block limit reached/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Add text/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add block" })).toBeDisabled();
     unmount();
 
     // Adding a block updates the usage count.
     const user = userEvent.setup();
     renderForm();
-    await user.click(screen.getByRole("button", { name: /Add text/ }));
+    await addRepeatableViaEndMenu(user, "Text");
     expect(screen.getByText(/10 of 20 blocks used/)).toBeInTheDocument();
   });
 
-  it("exposes drag handles with accessible labels", () => {
-    renderForm();
+  it("exposes drag handles with accessible labels and stable block ids", () => {
+    const { container } = renderForm();
+    const handles = screen.getAllByRole("button", { name: /Reorder .* block/ });
+    expect(handles).toHaveLength(9);
     expect(
       screen.getByRole("button", { name: /Reorder Greeting block/ }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Reorder CTA block/ }),
     ).toBeInTheDocument();
+    const ids = readBlocks(container).map((block) => block.id);
+    expect(ids).toContain("greeting");
+    expect(ids).toContain("cta");
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("keeps CTA visible (no hide control enabled)", () => {
+    renderForm();
+    const canvas = screen.getByRole("region", { name: "Email canvas" });
+    const hideCta = within(canvas).queryByRole("button", {
+      name: "Hide CTA block",
+    });
+    // The CTA hide button exists for discoverability but stays disabled.
+    expect(hideCta).not.toBeNull();
+    expect(hideCta).toBeDisabled();
   });
 
   it("shows validation errors for subject and blocks", () => {

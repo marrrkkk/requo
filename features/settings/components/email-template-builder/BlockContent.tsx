@@ -1,48 +1,58 @@
 "use client";
 
-import { useMemo } from "react";
-
 import {
+  getDefaultContentForBlockType,
   quoteEmailSampleMergeValues,
   replaceMergeTags,
-  getDefaultContentForBlockType,
   type EmailTemplateBlock,
 } from "@/features/settings/email-templates";
 import { cn } from "@/lib/utils";
 
 const SAMPLE_ITEMS = [
-  { description: "Kitchen cabinet refacing", quantity: 1, unit: "$1,800.00", total: "$1,800.00" },
-  { description: "Quartz countertop install", quantity: 1, unit: "$700.00", total: "$700.00" },
+  { description: "Kitchen cabinet refacing", quantity: 1, total: "$1,800.00" },
+  { description: "Quartz countertop install", quantity: 1, total: "$700.00" },
 ];
 
-function previewTextColor(color: unknown): string {
+export function blockTextColor(color: unknown): string {
   if (color === "muted") return "var(--muted-foreground)";
   if (typeof color === "string" && /^#[0-9a-fA-F]{6}$/.test(color)) return color;
   return "var(--foreground)";
 }
 
-function previewFontSize(size: unknown): string {
+export function blockFontSize(size: unknown): string {
   if (size === "sm") return "0.8125rem";
   if (size === "lg") return "1.0625rem";
   return "0.9375rem";
 }
 
-function previewAlign(align: unknown): "left" | "center" | "right" {
+export function blockAlign(align: unknown): "left" | "center" | "right" {
   if (align === "center" || align === "right") return align;
   return "left";
 }
 
-function previewSpacing(spacing: unknown): string {
+export function blockSpacing(spacing: unknown): string {
   if (spacing === "compact") return "0.5rem";
   if (spacing === "spacious") return "1.5rem";
   return "1rem";
 }
 
-function PreviewBlock({ block }: { block: EmailTemplateBlock }) {
-  const align = previewAlign(block.style?.align);
-  const marginTop = previewSpacing(block.style?.spacing);
+/**
+ * Email-faithful visual rendering of a single block with sample quote data.
+ * Shared by the canvas and the drag overlay. Production HTML stays in
+ * `emails/templates/quote-email.ts` — this is the browser approximation that
+ * shares block order, visibility, content, style values, and merge-tag
+ * semantics with the production renderer.
+ */
+export function BlockContent({ block }: { block: EmailTemplateBlock }) {
+  const align = blockAlign(block.style?.align);
+  const marginTop = blockSpacing(block.style?.spacing);
 
-  if (block.type === "greeting" || block.type === "intro" || block.type === "text" || block.type === "closing") {
+  if (
+    block.type === "greeting" ||
+    block.type === "intro" ||
+    block.type === "text" ||
+    block.type === "closing"
+  ) {
     const raw = block.content?.trim()
       ? block.content
       : getDefaultContentForBlockType(block.type);
@@ -52,8 +62,8 @@ function PreviewBlock({ block }: { block: EmailTemplateBlock }) {
         style={{
           marginTop,
           marginBottom: 0,
-          color: previewTextColor(block.style?.textColor),
-          fontSize: previewFontSize(block.style?.fontSize),
+          color: blockTextColor(block.style?.textColor),
+          fontSize: blockFontSize(block.style?.fontSize),
           lineHeight: 1.6,
           textAlign: align,
           whiteSpace: "pre-wrap",
@@ -70,11 +80,13 @@ function PreviewBlock({ block }: { block: EmailTemplateBlock }) {
       : getDefaultContentForBlockType("cta");
     const label = replaceMergeTags(raw, quoteEmailSampleMergeValues);
     const bg =
-      block.style?.buttonColor && /^#[0-9a-fA-F]{6}$/.test(block.style.buttonColor)
+      block.style?.buttonColor &&
+      /^#[0-9a-fA-F]{6}$/.test(block.style.buttonColor)
         ? block.style.buttonColor
         : "#008060";
     const fg =
-      block.style?.buttonTextColor && /^#[0-9a-fA-F]{6}$/.test(block.style.buttonTextColor)
+      block.style?.buttonTextColor &&
+      /^#[0-9a-fA-F]{6}$/.test(block.style.buttonTextColor)
         ? block.style.buttonTextColor
         : "#f4fffb";
     return (
@@ -106,15 +118,21 @@ function PreviewBlock({ block }: { block: EmailTemplateBlock }) {
         <dl className="mt-2 space-y-1 text-xs text-muted-foreground">
           <div className="flex justify-between gap-2">
             <dt>Reference</dt>
-            <dd className="font-medium text-foreground">{quoteEmailSampleMergeValues.quoteNumber}</dd>
+            <dd className="font-medium text-foreground">
+              {quoteEmailSampleMergeValues.quoteNumber}
+            </dd>
           </div>
           <div className="flex justify-between gap-2">
             <dt>Customer</dt>
-            <dd className="font-medium text-foreground">{quoteEmailSampleMergeValues.customerName}</dd>
+            <dd className="font-medium text-foreground">
+              {quoteEmailSampleMergeValues.customerName}
+            </dd>
           </div>
           <div className="flex justify-between gap-2">
             <dt>Title</dt>
-            <dd className="font-medium text-foreground">{quoteEmailSampleMergeValues.quoteTitle}</dd>
+            <dd className="font-medium text-foreground">
+              {quoteEmailSampleMergeValues.quoteTitle}
+            </dd>
           </div>
         </dl>
       </div>
@@ -132,7 +150,9 @@ function PreviewBlock({ block }: { block: EmailTemplateBlock }) {
             key={item.description}
             className="flex items-center justify-between gap-2 border-b border-border/50 px-4 py-2.5 text-xs last:border-0"
           >
-            <span className="font-medium text-foreground">{item.description}</span>
+            <span className="font-medium text-foreground">
+              {item.description}
+            </span>
             <span className="text-muted-foreground">{item.total}</span>
           </div>
         ))}
@@ -196,54 +216,7 @@ function PreviewBlock({ block }: { block: EmailTemplateBlock }) {
         marginTop: 0,
       }}
       aria-hidden="true"
+      className={cn(block.type === "spacer" && "w-full")}
     />
-  );
-}
-
-export function LivePreview({
-  subject,
-  blocks,
-}: {
-  subject: string;
-  blocks: EmailTemplateBlock[];
-}) {
-  const resolvedSubject = useMemo(
-    () => replaceMergeTags(subject || "", quoteEmailSampleMergeValues),
-    [subject],
-  );
-  const visibleBlocks = useMemo(
-    () => blocks.filter((block) => block.visible !== false),
-    [blocks],
-  );
-
-  return (
-    <section
-      aria-label="Live preview"
-      className="section-panel lg:sticky lg:top-24 lg:self-start"
-    >
-      <div className="mb-4">
-        <p className="text-sm font-medium text-foreground">Live preview</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Sample data. Preview is approximate. Email clients may render some
-          styles differently.
-        </p>
-      </div>
-      <div className="rounded-xl border border-border/60 bg-background px-5 py-5">
-        <div className="space-y-1.5 pb-4">
-          <p className="meta-label">Subject</p>
-          <p className="text-sm font-medium text-foreground">{resolvedSubject}</p>
-        </div>
-        <hr className="border-border/50" />
-        <div className={cn("pt-2 text-sm text-foreground")}>
-          {visibleBlocks.length ? (
-            visibleBlocks.map((block) => <PreviewBlock key={block.id} block={block} />)
-          ) : (
-            <p className="pt-2 text-xs text-muted-foreground">
-              All blocks are hidden. Show at least one block to preview the email.
-            </p>
-          )}
-        </div>
-      </div>
-    </section>
   );
 }
