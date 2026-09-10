@@ -14,9 +14,16 @@ export const invoiceStatuses = [
 
 export const paymentMethods = ["cash", "bank_transfer", "gcash", "maya", "check", "other"] as const;
 
+export const invoiceStatusFilterValues = ["all", ...invoiceStatuses] as const;
+
+export type InvoiceStatusFilterValue = (typeof invoiceStatusFilterValues)[number];
+
+export type InvoiceSortValue = "newest" | "oldest";
+
 export type InvoiceListFilters = {
   q?: string;
-  status: "all" | InvoiceStatus;
+  status: InvoiceStatusFilterValue;
+  sort: InvoiceSortValue;
   page: number;
 };
 

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { cache } from "react";
 
@@ -31,6 +31,14 @@ export async function getInvoiceListForBusiness({ businessId, filters, page = 1,
   return getCachedInvoiceList({ businessId, filters, page, pageSize });
 }
 
+export async function getInvoiceListPageForBusiness({ businessId, filters, page = 1, pageSize = 20 }: { businessId: string; filters: Omit<InvoiceListFilters, "page">; page?: number; pageSize?: number }) {
+  return getInvoiceListForBusiness({ businessId, filters: { ...filters, page }, page, pageSize });
+}
+
+export async function getInvoiceListCountForBusiness({ businessId, filters }: { businessId: string; filters: Omit<InvoiceListFilters, "page"> }) {
+  return getInvoiceCountForBusiness({ businessId, filters: { ...filters, page: 1 } });
+}
+
 function buildInvoiceListConditions(businessId: string, filters: InvoiceListFilters) {
   const conditions = [eq(invoices.businessId, businessId), isNull(invoices.deletedAt)];
   if (filters.q) {
@@ -49,6 +57,7 @@ async function getCachedInvoiceList({ businessId, filters, page, pageSize }: { b
   cacheTag(...getBusinessInvoiceListCacheTags(businessId));
   const paid = paidAmountSql();
   const conditions = buildInvoiceListConditions(businessId, filters);
+  const orderBy = filters.sort === "oldest" ? asc(invoices.createdAt) : desc(invoices.createdAt);
   const rows = await db.select({
     id: invoices.id,
     invoiceNumber: invoices.invoiceNumber,
@@ -61,7 +70,7 @@ async function getCachedInvoiceList({ businessId, filters, page, pageSize }: { b
     totalInCents: invoices.totalInCents,
     paidInCents: paid,
     status: invoices.status,
-  }).from(invoices).where(and(...conditions)).orderBy(desc(invoices.createdAt)).limit(pageSize).offset(Math.max(0, (page - 1) * pageSize));
+  }).from(invoices).where(and(...conditions)).orderBy(orderBy).limit(pageSize).offset(Math.max(0, (page - 1) * pageSize));
   return rows.map((row) => mapListRow({ ...row, paidInCents: Number(row.paidInCents ?? 0) }));
 }
 
@@ -325,6 +334,7 @@ export async function getInvoiceExportRowsForBusiness({
 }): Promise<InvoiceExportRow[]> {
   const paid = paidAmountSql();
   const conditions = buildInvoiceListConditions(businessId, filters);
+  const orderBy = filters.sort === "oldest" ? asc(invoices.createdAt) : desc(invoices.createdAt);
   const rows = await db
     .select({
       invoiceNumber: invoices.invoiceNumber,
@@ -343,7 +353,7 @@ export async function getInvoiceExportRowsForBusiness({
     })
     .from(invoices)
     .where(and(...conditions))
-    .orderBy(desc(invoices.createdAt))
+    .orderBy(orderBy)
     .limit(5000);
   return rows.map((row) => ({ ...row, paidInCents: Number(row.paidInCents ?? 0) }));
 }

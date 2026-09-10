@@ -5,58 +5,69 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import { DataListToolbar } from "@/components/shared/data-list-toolbar";
 import { useProgressRouter } from "@/hooks/use-progress-router";
-import { invoiceStatuses, type InvoiceStatus } from "@/features/invoices/types";
+import type {
+  InvoiceListFilters,
+  InvoiceStatusFilterValue,
+} from "@/features/invoices/types";
+import { invoiceStatusFilterValues } from "@/features/invoices/types";
 import { getInvoiceStatusLabel } from "@/features/invoices/utils";
 
-type InvoiceStatusFilterValue = "all" | InvoiceStatus;
-
 type InvoiceListFiltersProps = {
-  filters: { q: string; status: InvoiceStatusFilterValue };
+  filters: InvoiceListFilters;
   resultCount: number;
 };
 
-const statusOptions: InvoiceStatusFilterValue[] = ["all", ...invoiceStatuses];
+const statusOptions: InvoiceStatusFilterValue[] = [...invoiceStatusFilterValues];
 
-export function InvoiceListFilters({ filters, resultCount }: InvoiceListFiltersProps) {
+export function InvoiceListFilters({
+  filters,
+  resultCount,
+}: InvoiceListFiltersProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useProgressRouter();
   const [isPending, startTransition] = useTransition();
   const [query, setQuery] = useState(filters.q ?? "");
   const [status, setStatus] = useState<InvoiceStatusFilterValue>(filters.status);
+  const [sort, setSort] = useState(filters.sort);
 
   const hasMountedRef = useRef(false);
   const lastAppliedHrefRef = useRef<string>("");
 
-  const navigate = useCallback(
-    (nextQuery: string, nextStatus: InvoiceStatusFilterValue) => {
-      const params = new URLSearchParams();
-      const trimmedQuery = nextQuery.trim();
+  const navigate = useCallback((
+    nextQuery: string,
+    nextStatus: InvoiceStatusFilterValue,
+    nextSort: "newest" | "oldest",
+  ) => {
+    const params = new URLSearchParams();
+    const trimmedQuery = nextQuery.trim();
 
-      if (trimmedQuery) {
-        params.set("q", trimmedQuery);
-      }
+    if (trimmedQuery) {
+      params.set("q", trimmedQuery);
+    }
 
-      if (nextStatus !== "all") {
-        params.set("status", nextStatus);
-      }
+    if (nextStatus !== "all") {
+      params.set("status", nextStatus);
+    }
 
-      const href = params.size ? `${pathname}?${params.toString()}` : pathname;
-      const currentHref = searchParams.size
-        ? `${pathname}?${searchParams.toString()}`
-        : pathname;
+    if (nextSort !== "newest") {
+      params.set("sort", nextSort);
+    }
 
-      if (href === currentHref || href === lastAppliedHrefRef.current) {
-        return;
-      }
-      lastAppliedHrefRef.current = href;
+    const href = params.size ? `${pathname}?${params.toString()}` : pathname;
+    const currentHref = searchParams.size
+      ? `${pathname}?${searchParams.toString()}`
+      : pathname;
 
-      startTransition(() => {
-        router.replace(href, { scroll: false });
-      });
-    },
-    [pathname, router, searchParams],
-  );
+    if (href === currentHref || href === lastAppliedHrefRef.current) {
+      return;
+    }
+    lastAppliedHrefRef.current = href;
+
+    startTransition(() => {
+      router.replace(href, { scroll: false });
+    });
+  }, [pathname, router, searchParams]);
 
   useEffect(() => {
     if (!hasMountedRef.current) {
@@ -65,18 +76,18 @@ export function InvoiceListFilters({ filters, resultCount }: InvoiceListFiltersP
     }
 
     const timer = setTimeout(() => {
-      navigate(query, status);
+      navigate(query, status, sort);
     }, 400);
     return () => clearTimeout(timer);
-  }, [navigate, query, status]);
+  }, [navigate, query, sort, status]);
 
   return (
     <DataListToolbar
-      description="Search by invoice number or customer."
+      description="Search by invoice number, title, or customer."
       resultLabel={`${resultCount} ${resultCount === 1 ? "invoice" : "invoices"}`}
       searchId="invoice-search"
       searchLabel="Search invoices"
-      searchPlaceholder="Search invoices or customers"
+      searchPlaceholder="Search invoice number, title, or customer"
       searchValue={query}
       onSearchChange={setQuery}
       filterId="invoice-status-filter"
@@ -85,19 +96,32 @@ export function InvoiceListFilters({ filters, resultCount }: InvoiceListFiltersP
       onFilterChange={(value) => {
         const nextStatus = value as InvoiceStatusFilterValue;
         setStatus(nextStatus);
-        navigate(query, nextStatus);
+        navigate(query, nextStatus, sort);
       }}
       filterOptions={statusOptions.map((option) => ({
         value: option,
         label: option === "all" ? "All statuses" : getInvoiceStatusLabel(option),
       }))}
+      sortId="invoice-sort"
+      sortLabel="Sort by"
+      sortValue={sort}
+      onSortChange={(value) => {
+        const nextSort = value as "newest" | "oldest";
+        setSort(nextSort);
+        navigate(query, status, nextSort);
+      }}
+      sortOptions={[
+        { label: "Newest first", value: "newest" },
+        { label: "Oldest first", value: "oldest" },
+      ]}
       isPending={isPending}
       onClear={() => {
         setQuery("");
         setStatus("all");
-        navigate("", "all");
+        setSort("newest");
+        navigate("", "all", "newest");
       }}
-      canClear={Boolean(query.trim() || status !== "all")}
+      canClear={Boolean(query.trim() || status !== "all" || sort !== "newest")}
     />
   );
 }

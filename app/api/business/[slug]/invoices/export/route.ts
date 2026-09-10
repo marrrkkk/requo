@@ -43,10 +43,12 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
   const q = searchParams.get("q") ?? undefined;
   const rawStatus = searchParams.get("status") ?? "all";
   const status = statuses.includes(rawStatus as never) ? (rawStatus as "all" | InvoiceStatus) : "all";
+  const rawSort = searchParams.get("sort") ?? "newest";
+  const sort = rawSort === "oldest" ? ("oldest" as const) : ("newest" as const);
 
   const rows = await getInvoiceExportRowsForBusiness({
     businessId: requestContext.businessContext.business.id,
-    filters: { q, status, page: 1 },
+    filters: { q, status, sort, page: 1 },
   });
 
   const csv = buildCsv(
