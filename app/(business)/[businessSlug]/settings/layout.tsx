@@ -76,9 +76,12 @@ async function SettingsShell({
         businessNameSlot={
           <Suspense
             fallback={
-              <div className="flex items-center gap-2.5 px-1 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0">
-                <Skeleton className="size-7 shrink-0 rounded-full" />
-                <Skeleton className="h-4 w-24 rounded-md group-data-[collapsible=icon]:hidden" />
+              <div
+                aria-hidden="true"
+                className="flex min-w-0 items-center gap-2.5 px-1 py-1"
+              >
+                <Skeleton className="size-8 shrink-0 rounded-lg" />
+                <Skeleton className="h-4 w-24 rounded-md" />
               </div>
             }
           >
@@ -153,7 +156,7 @@ async function BusinessNameSlot({ businessSlug }: { businessSlug: string }) {
   return (
     <Link
       href={dashboardPath}
-      className="flex min-w-0 items-center gap-2.5 rounded-md px-1 py-1 transition-colors hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
+      className="flex min-w-0 items-center gap-2.5 rounded-md px-1 py-1 transition-colors hover:bg-sidebar-accent"
     >
       <BusinessAvatar
         name={business.name}
@@ -161,7 +164,7 @@ async function BusinessNameSlot({ businessSlug }: { businessSlug: string }) {
         size="sm"
         loading="eager"
       />
-      <span className="truncate text-sm font-medium text-foreground group-data-[collapsible=icon]:hidden">
+      <span className="truncate text-sm font-medium text-foreground">
         {business.name}
       </span>
     </Link>
@@ -193,9 +196,12 @@ async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
 
 function UserMenuSkeleton() {
   return (
-    <div className="flex items-center gap-2.5 px-2 py-1.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0">
+    <div
+      aria-hidden="true"
+      className="flex w-full items-center gap-3 rounded-lg px-2 py-2"
+    >
       <Skeleton className="size-8 shrink-0 rounded-lg" />
-      <div className="flex flex-col gap-1 group-data-[collapsible=icon]:hidden">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
         <Skeleton className="h-3.5 w-20 rounded" />
         <Skeleton className="h-3 w-28 rounded" />
       </div>

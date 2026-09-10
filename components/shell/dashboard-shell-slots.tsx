@@ -62,10 +62,13 @@ export function BusinessSwitcher({
   currentBusiness,
   memberships,
   businessQuota,
+  compact = false,
 }: {
   currentBusiness: BusinessContext;
   memberships: BusinessContext[];
   businessQuota: BusinessQuotaSnapshot;
+  /** Compact single-row trigger (avatar + name + chevron) for the BoardUI sidebar. */
+  compact?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const { isMobile, setOpenMobile } = useSidebar();
@@ -117,6 +120,24 @@ export function BusinessSwitcher({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
+        {compact ? (
+          <button
+            className="group/business-switcher flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent"
+            data-tour="business-switcher"
+            type="button"
+          >
+            <BusinessAvatar
+              name={business.name}
+              logoUrl={business.logoStoragePath ? "/api/business/logo" : null}
+              size="sm"
+              loading="eager"
+            />
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-sidebar-foreground">
+              {business.name}
+            </span>
+            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+          </button>
+        ) : (
         <button
           className="group/business-switcher w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-accent dark:data-[state=open]:bg-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none hover:group-data-[collapsible=icon]:bg-sidebar-accent"
           data-tour="business-switcher"
@@ -151,6 +172,7 @@ export function BusinessSwitcher({
             </Badge>
           </div>
         </button>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
@@ -863,30 +885,29 @@ export {
 
 function BusinessSwitcherSkeleton() {
   return (
-    <div className="w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 dark:border-white/8 dark:bg-card/90 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none">
-      <div className="flex items-start gap-3.5 group-data-[collapsible=icon]:gap-0">
-        <div className="size-14 group-data-[collapsible=icon]:size-8 shrink-0 animate-pulse rounded-[0.9rem] group-data-[collapsible=icon]:rounded-lg bg-muted" />
-        <div className="min-w-0 flex-1 space-y-2 group-data-[collapsible=icon]:hidden">
-          <div className="h-3 w-14 animate-pulse rounded-md bg-muted" />
-          <div className="h-4 w-28 animate-pulse rounded-md bg-muted" />
-          <div className="h-3.5 w-20 animate-pulse rounded-md bg-muted" />
-        </div>
+    <div
+      aria-hidden="true"
+      className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5"
+    >
+      <div className="size-8 shrink-0 animate-pulse rounded-lg bg-muted" />
+      <div className="min-w-0 flex-1">
+        <div className="h-4 w-3/4 animate-pulse rounded-md bg-muted" />
       </div>
-      <div className="mt-3 flex flex-wrap gap-2 group-data-[collapsible=icon]:hidden">
-        <div className="h-5 w-12 animate-pulse rounded-full bg-muted" />
-        <div className="h-5 w-10 animate-pulse rounded-full bg-muted" />
-      </div>
+      <div className="size-4 shrink-0 animate-pulse rounded bg-muted" />
     </div>
   );
 }
 
 function UserMenuSkeleton() {
   return (
-    <div className="flex items-center gap-3 rounded-lg px-2 py-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0">
-      <div className="size-9 group-data-[collapsible=icon]:size-8 animate-pulse rounded-lg bg-muted" />
-      <div className="min-w-0 flex-1 space-y-1.5 group-data-[collapsible=icon]:hidden">
+    <div
+      aria-hidden="true"
+      className="flex w-full items-center gap-3 rounded-lg px-2 py-2"
+    >
+      <div className="size-8 shrink-0 animate-pulse rounded-lg bg-muted" />
+      <div className="min-w-0 flex-1 space-y-1.5">
         <div className="h-3.5 w-24 animate-pulse rounded-md bg-muted" />
-        <div className="h-3 w-36 animate-pulse rounded-md bg-muted" />
+        <div className="h-3 w-32 animate-pulse rounded-md bg-muted" />
       </div>
     </div>
   );

@@ -154,6 +154,7 @@ async function BusinessSwitcherSlot({ businessSlug }: { businessSlug: string }) 
       currentBusiness={businessContext}
       memberships={memberships}
       businessQuota={businessQuota}
+      compact
     />
   );
 }
