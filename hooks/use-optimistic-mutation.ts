@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useTransition } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/base/notification/notify";
 
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 

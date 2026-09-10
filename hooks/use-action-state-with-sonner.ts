@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/base/notification/notify";
 
 type SonnerActionState = {
   error?: string;
@@ -32,6 +32,13 @@ function getFirstFieldError(fieldErrors: Record<string, string[] | undefined> | 
   return undefined;
 }
 
+/**
+ * Runs a server action via `useActionState` and toasts the outcome.
+ *
+ * Toasts render through the BoardUI `Notification` stack (`toast` from
+ * `@/components/base/notification/notify`), not sonner — the hook name is
+ * historical. `id` options de-duplicate repeat submissions in place.
+ */
 export function useActionStateWithSonner<State extends SonnerActionState>(
   action: (
     state: Awaited<State>,

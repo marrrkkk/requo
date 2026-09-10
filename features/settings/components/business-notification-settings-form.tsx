@@ -11,7 +11,7 @@ import {
   Timer,
   UserCheck,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/base/notification/notify";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";

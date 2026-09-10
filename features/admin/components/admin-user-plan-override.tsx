@@ -2,7 +2,7 @@
 
 import { Crown } from "lucide-react";
 import { useCallback, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/base/notification/notify";
 
 import { DashboardSection } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";

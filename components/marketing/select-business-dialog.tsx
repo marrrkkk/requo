@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, Check, Plus } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/base/notification/notify";
 
 import { BusinessAvatar } from "@/components/shared/business-avatar";
 import { PlanBadge } from "@/components/shared/paywall";

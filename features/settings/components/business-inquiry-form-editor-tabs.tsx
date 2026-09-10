@@ -13,7 +13,7 @@ import {
   useSearchParams,
   type ReadonlyURLSearchParams,
 } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/components/base/notification/notify";
 
 import { DashboardSidebarStack } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";

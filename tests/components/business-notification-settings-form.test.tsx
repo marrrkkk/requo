@@ -34,7 +34,7 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-vi.mock("sonner", () => ({
+vi.mock("@/components/base/notification/notify", () => ({
   toast: {
     error: toastErrorMock,
     success: toastSuccessMock,

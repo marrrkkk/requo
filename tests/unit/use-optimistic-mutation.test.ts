@@ -10,14 +10,14 @@ vi.mock("@/hooks/use-deferred-refresh", () => ({
   }),
 }));
 
-vi.mock("sonner", () => ({
+vi.mock("@/components/base/notification/notify", () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
   },
 }));
 
-import { toast } from "sonner";
+import { toast } from "@/components/base/notification/notify";
 import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
 
 describe("useOptimisticMutation", () => {

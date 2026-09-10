@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useCallback, useRef, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/base/notification/notify";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/base/notification/notify";
 
 import { Button } from "@/components/ui/button";
 

@@ -2,7 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { Sparkles } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/base/notification/notify";
 
 import { Button } from "@/components/ui/button";
 import {
