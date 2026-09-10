@@ -52,8 +52,8 @@ State rules:
 
 Fonts:
 
-- `font-sans`: Geist Sans
-- `font-heading`: Geist Sans
+- `font-sans`: Inter (marketing routes keep Geist Sans via `.font-scope-geist`)
+- `font-heading`: Inter (marketing routes keep Geist Sans via `.font-scope-geist`)
 - `font-mono`: Geist Mono
 
 Use role-based typography instead of ad hoc text sizes.
@@ -88,7 +88,8 @@ Implemented density scale (authenticated surfaces):
   (customer name above email address — the email is the only available
   disambiguator, so rows never collapse to one line).
 - Page titles render on the two-step 20-to-24px scale above.
-- The sidebar rail is 240px wide with 32px navigation items; the desktop top
+- The sidebar rail is 240px wide with 32px navigation items (14px `text-sm`
+  labels, 20px icons); the desktop top
   bar is 48px. Page sections are separated by 24px (`gap-6` on
   `DashboardPage`).
 - Marketing, authentication, public inquiry pages, the public Agent chat,
