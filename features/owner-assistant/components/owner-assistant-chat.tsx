@@ -227,10 +227,10 @@ function findActiveTool(messages: UIMessage[]): string | null {
  * conversation, mounted once per visit to the section.
  *
  * With no conversation yet the title and composer sit centred as one block;
- * the first send collapses the trailing grid row so the composer glides to
- * the bottom and the transcript grows above it. The session is minted by
- * that first request (the route returns `X-Session-Id`) and recorded in the
- * URL as `?session=…`, so a reload lands back on it.
+ * the first send pins the composer over the bottom of the transcript so only
+ * the input box covers messages. The session is minted by that first request
+ * (the route returns `X-Session-Id`) and recorded in the URL as `?session=…`,
+ * so a reload lands back on it.
  *
  * The conversation is held in a module-level store rather than in React state,
  * which is what lets it survive route refreshes and navigation away.
@@ -487,8 +487,8 @@ export function OwnerAssistantChat({
         />
       </div>
 
-      {/* Three grid rows: transcript, composer, and a trailing spacer that
-          collapses on the first send so the composer glides to the bottom. */}
+      {/* Transcript fills the pane; the composer overlays the bottom so only
+          the input box covers messages. */}
       <div
         className="chat-stage min-h-0 flex-1"
         data-conversation={isEmpty ? "empty" : "active"}
@@ -571,7 +571,7 @@ export function OwnerAssistantChat({
         </div>
 
         {!isEmpty ? (
-          <div className="sticky bottom-0 z-10 bg-background/95 backdrop-blur-xs px-3 pb-4 pt-2 md:px-6">
+          <div className="chat-composer-footer z-10 px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] md:px-6">
             {detached ? <ChatJumpToLatest onJump={jumpToLatest} /> : null}
             <div className="mx-auto w-full max-w-3xl">
               <ChatComposer
