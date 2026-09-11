@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "../styles/typeset.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -85,16 +86,41 @@
 }
 
 @theme {
-  /* BoardUI Agent Thinking compat: composite type utilities used by the
-     dot-wave indicator (values mirror styles/typography.css). */
+  /* BoardUI composite type utilities (values mirror styles/typography.css,
+     which is not in the render path — only tokens registered here resolve
+     to utilities). Small-end ramp: body-2 = 13px, caption = 11–12px. */
+  --text-body-regular: 0.875rem;
+  --text-body-regular--line-height: 1.25rem;
+  --text-body-regular--letter-spacing: 0;
+  --text-body-regular--font-weight: 400;
   --text-body-medium: 0.875rem;
   --text-body-medium--line-height: 1.25rem;
   --text-body-medium--letter-spacing: 0;
   --text-body-medium--font-weight: 500;
+  --text-body-2-regular: 0.8125rem;
+  --text-body-2-regular--line-height: 1.125rem;
+  --text-body-2-regular--letter-spacing: 0;
+  --text-body-2-regular--font-weight: 400;
+  --text-body-2-medium: 0.8125rem;
+  --text-body-2-medium--line-height: 1.125rem;
+  --text-body-2-medium--letter-spacing: 0;
+  --text-body-2-medium--font-weight: 500;
+  --text-body-2-semibold: 0.8125rem;
+  --text-body-2-semibold--line-height: 1.125rem;
+  --text-body-2-semibold--letter-spacing: 0;
+  --text-body-2-semibold--font-weight: 600;
   --text-caption-1-regular: 0.75rem;
   --text-caption-1-regular--line-height: 1rem;
   --text-caption-1-regular--letter-spacing: 0.15px;
   --text-caption-1-regular--font-weight: 400;
+  --text-caption-1-medium: 0.75rem;
+  --text-caption-1-medium--line-height: 1rem;
+  --text-caption-1-medium--letter-spacing: 0.15px;
+  --text-caption-1-medium--font-weight: 500;
+  --text-caption-1-semibold: 0.75rem;
+  --text-caption-1-semibold--line-height: 1rem;
+  --text-caption-1-semibold--letter-spacing: 0.15px;
+  --text-caption-1-semibold--font-weight: 600;
 }
 
 :root {
@@ -1110,7 +1136,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .dashboard-detail-feed-meta {
-    @apply flex flex-wrap items-center gap-2 text-[0.8rem] leading-5 text-muted-foreground sm:text-xs;
+    @apply flex flex-wrap items-center gap-2 text-xs leading-5 text-muted-foreground;
   }
 
   .dashboard-detail-feed-body {
@@ -1214,7 +1240,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .dashboard-topbar {
-    @apply sticky top-0 z-30 bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/80;
+    @apply sticky top-0 z-30 bg-background;
   }
 
   .dashboard-topbar-inner {
@@ -1223,6 +1249,15 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   .dashboard-main {
     @apply flex flex-1 flex-col px-3 py-4 sm:px-5 sm:py-5 xl:px-6 xl:py-6;
+  }
+
+  /* Quote settings tabs sit flush under the topbar at full column width. */
+  .dashboard-main:has([data-settings-subnav]) {
+    @apply px-0 pt-0;
+  }
+
+  .dashboard-main:has([data-settings-subnav]) > .dashboard-content {
+    @apply max-w-none;
   }
 
   /* When AI panel is open, reduce max-width and padding so content adapts */
@@ -1631,7 +1666,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .form-section-title {
-    @apply text-[0.95rem] font-semibold tracking-tight text-foreground;
+    @apply text-[0.9375rem] font-semibold tracking-tight text-foreground;
   }
 
   .form-section-description {
@@ -1714,7 +1749,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .eyebrow {
-    @apply inline-flex w-fit max-w-max self-start items-center rounded-full border border-border/80 bg-secondary px-2.5 py-1 text-[0.68rem] font-medium uppercase tracking-[0.16em] text-muted-foreground whitespace-nowrap;
+    @apply inline-flex w-fit max-w-max self-start items-center rounded-full border border-border/80 bg-secondary px-2.5 py-1 text-[0.6875rem] font-medium uppercase tracking-[0.16em] text-muted-foreground whitespace-nowrap;
   }
 
   .section-panel:not([data-padding="none"]) {
@@ -2027,7 +2062,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .meta-label {
-    @apply text-[0.68rem] font-medium uppercase tracking-[0.14em] text-muted-foreground;
+    @apply text-[0.6875rem] font-medium uppercase tracking-[0.14em] text-muted-foreground;
   }
 
   /* ── AI chat markdown prose ── */
@@ -2053,7 +2088,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   .ai-prose h1 { font-size: 1.1em; }
   .ai-prose h2 { font-size: 1.05em; }
   .ai-prose h3 { font-size: 1em; }
-  .ai-prose h4 { font-size: 0.95em; }
+  .ai-prose h4 { font-size: 1em; }
 
   .ai-prose p {
     margin-top: 0.6em;
@@ -2820,15 +2855,46 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 }
 
-/* Solid composer fill, unlayered so it beats InputGroup `dark:bg-input/30`
-   and `.control-surface` (`--control-bg` is 92% opaque). The field stays
-   transparent; only this box occludes the transcript. */
-[data-slot="input-group"].chat-composer-surface {
-  background-color: var(--card);
+/* Solid composer fill. InputGroup ships `dark:bg-input/30` (a wash), and
+   `.control-surface` is ~96% opaque — both let the transcript show through.
+   Unlayered + !important so this wins regardless of utility order. */
+/* Composer chrome. The inner textarea uses `.control-surface`, whose
+   inset bottom shadow painted a hairline between the field and the send
+   row — strip that, and put border + depth on the outer box only. */
+.chat-composer-surface {
+  position: relative;
+  isolation: isolate;
+  opacity: 1 !important;
+  background-color: var(--background) !important;
+  border-color: var(--control-border) !important;
+  box-shadow: var(--surface-shadow-sm);
 }
 
-[data-slot="input-group"].chat-composer-surface [data-slot="input-group-control"] {
-  background: transparent;
+.dark .chat-composer-surface {
+  background-color: var(--card) !important;
+  border-color: color-mix(in srgb, var(--border) 60%, transparent) !important;
+  box-shadow: none;
+}
+
+.chat-composer-surface:focus-within {
+  border-color: var(--ring) !important;
+  box-shadow:
+    var(--surface-shadow-sm),
+    0 0 0 3px color-mix(in srgb, var(--ring) 18%, transparent);
+}
+
+.dark .chat-composer-surface:focus-within {
+  border-color: color-mix(in srgb, var(--border) 60%, transparent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 28%, transparent);
+}
+
+.chat-composer-surface [data-slot="input-group-control"],
+.chat-composer-surface textarea {
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
 
 /* BoardUI chart cards compat (components/application/dashboard/*): soft fade

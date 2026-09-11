@@ -39,7 +39,7 @@ export function BusinessAvatar({
           decoding="async"
         />
       ) : null}
-      <AvatarFallback className="rounded-lg text-xs uppercase tracking-wider">
+      <AvatarFallback className="rounded-lg text-center text-xs font-semibold uppercase leading-none">
         {getBusinessInitials(name)}
       </AvatarFallback>
     </Avatar>

@@ -245,7 +245,7 @@ export function KnowledgeManager({
     useAnimatedList(filtered);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-xl min-w-0 flex-col gap-10">
       {/* Stats summary matching products page */}
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard

@@ -1,4 +1,4 @@
-import { Briefcase, Copy, PenLine } from "lucide-react";
+import { Copy, PenLine, PencilRuler } from "lucide-react";
 import { RequoIcon } from "@/components/shared/requo-icon";
 import type { MotionState } from "@/hooks/use-animated-list";
 import { MobileRecordRow } from "@/components/shared/mobile-record-row";
@@ -14,7 +14,7 @@ import { getBusinessInquiryPath } from "@/features/businesses/routes";
 
 function getInquiryChannelDisplay(inquiry: DashboardInquiryListItem) {
   if (inquiry.inquiryFormName) {
-    return { label: inquiry.inquiryFormName, icon: Briefcase };
+    return { label: inquiry.inquiryFormName, icon: PencilRuler };
   }
   if (inquiry.source && AI_AGENT_SOURCES.has(inquiry.source)) {
     return { label: getInquirySourceLabel(inquiry.source), icon: RequoIcon };

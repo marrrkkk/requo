@@ -1,0 +1,61 @@
+/* ---------------------------------------------------------------------------
+ * Requo global typeset
+ *
+ * Canonical type + scale system. Loaded via `app/globals.css` (the only
+ * global stylesheet in the render path).
+ *
+ * INTERFACE SCALE (whole-app, user preference in Appearance settings)
+ * ---------------------------------------------------------------------------
+ * The scale rides the root `font-size`, so every rem-based Tailwind utility
+ * — text sizes, spacing, sizing, radius — scales proportionally. This is
+ * whole-app scaling, not font-only. Pixel hairlines (1px borders, rings,
+ * shadows) and media-query breakpoints intentionally stay fixed.
+ *
+ *   small    Small         13px body    root  92.8571%  (13/14)
+ *   default  Default • 100% 14px body   root 100%
+ *   large    Large         15px body    root 107.1429%  (15/14)
+ *
+ * `document.documentElement.dataset.uiScale` is set pre-paint by the theme
+ * init script and kept in sync by `ThemeProvider` — no flash, no hydration
+ * mismatch. Print/PDF output always renders at 100%.
+ *
+ * TYPE ROLES (14px default body)
+ * ---------------------------------------------------------------------------
+ *   Role                  Treatment                              px (default)
+ *   Page title            font-heading text-xl sm:text-2xl       20 → 24
+ *   Section title         font-heading text-base                 16
+ *   Form section title    .form-section-title                    15
+ *   Body (default copy)   text-sm leading-6                      14
+ *   Supporting body       text-sm leading-6 text-muted-foreground 14
+ *   Small supporting      text-xs (or text-body-2-*)             12–13
+ *   Field label           text-sm leading-[1.35] font-medium     14
+ *   Meta label            .meta-label                            11
+ *   Caption/code          font-mono text-[0.72rem]               11.5
+ *
+ * Rules:
+ * - `text-sm` is the default body size. Never use `text-base` (16px) for
+ *   dashboard body copy; it is reserved for marketing/public surfaces.
+ * - `text-xs` is meta/label-only (timestamps, badges, menus, counts).
+ * - Arbitrary `text-[Npx]` does NOT scale with the interface scale — use
+ *   rem values from the ramp above so user scale keeps working.
+ * - Forward path: BoardUI composite utilities (`text-body-regular` = 14,
+ *   `text-body-2-*` = 13, `text-caption-1-*` = 12, `text-caption-2-*` = 11).
+ * ------------------------------------------------------------------------- */
+
+html[data-ui-scale="small"] {
+  font-size: 92.8571%;
+}
+
+html[data-ui-scale="default"] {
+  font-size: 100%;
+}
+
+html[data-ui-scale="large"] {
+  font-size: 107.1429%;
+}
+
+@media print {
+  html[data-ui-scale] {
+    font-size: 100% !important;
+  }
+}

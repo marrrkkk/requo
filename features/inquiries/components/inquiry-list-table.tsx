@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Briefcase, PenLine } from "lucide-react";
+import { PenLine, PencilRuler } from "lucide-react";
 import { RequoIcon } from "@/components/shared/requo-icon";
 import type { MotionState } from "@/hooks/use-animated-list";
 
@@ -27,7 +27,7 @@ import { Copy } from "lucide-react";
 
 function getInquiryChannelDisplay(inquiry: DashboardInquiryListItem) {
   if (inquiry.inquiryFormName) {
-    return { label: inquiry.inquiryFormName, icon: Briefcase };
+    return { label: inquiry.inquiryFormName, icon: PencilRuler };
   }
   if (inquiry.source && AI_AGENT_SOURCES.has(inquiry.source)) {
     return { label: getInquirySourceLabel(inquiry.source), icon: RequoIcon };
