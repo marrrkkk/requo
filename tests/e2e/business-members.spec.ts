@@ -40,9 +40,16 @@ test("owner can invite a new member from business settings", async ({ page }) =>
   await page.goto(`/${demoBusinessSlug}/settings/members`);
   await page.waitForLoadState("networkidle");
 
-  await page.getByRole("button", { name: "Invite member" }).click();
+  await page.getByRole("button", { name: "Invite", exact: true }).first().click();
   await page.getByLabel("Email address").fill(inviteEmail);
-  await page.getByRole("button", { name: "Send invite" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Invite", exact: true })
+    .click();
+
+  const pendingButton = page.getByRole("button", { name: /pending/ });
+  await expect(pendingButton).toBeVisible({ timeout: 20_000 });
+  await pendingButton.click();
 
   await expect(page.getByText(inviteEmail, { exact: true })).toBeVisible({
     timeout: 20_000,
@@ -82,7 +89,7 @@ test("invited user can sign in from the invite and accept access", async ({
   ).toBeVisible();
 });
 
-test("manager can access operational settings but not members", async ({
+test("manager can view members read-only in settings", async ({
   page,
 }) => {
   await signIn(page, demoManagerEmail, demoManagerPassword);
@@ -99,11 +106,17 @@ test("manager can access operational settings but not members", async ({
     }),
   ).toBeVisible();
 
-  await page.goto(`/${demoBusinessSlug}/members`);
+  await page.goto(`/${demoBusinessSlug}/settings/members`);
   await expect(page).toHaveURL(
-    new RegExp(`/${demoBusinessSlug}/home$`),
+    new RegExp(`/${demoBusinessSlug}/settings/members$`),
     { timeout: 20_000 },
   );
+  await expect(
+    page.getByRole("heading", { name: "Manage Members" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Invite", exact: true }),
+  ).toBeDisabled();
 });
 
 test("staff can access inquiry work but not forms or operational settings", async ({
@@ -154,16 +167,19 @@ test("non-members cannot open another business dashboard @smoke", async ({ page 
 
 test("owner can change a member role and remove them safely", async ({ page }) => {
   await signIn(page, demoOwnerEmail, demoOwnerPassword);
-  await page.goto(`/${demoBusinessSlug}/members`);
+  await page.goto(`/${demoBusinessSlug}/settings/members`);
   await page.waitForLoadState("networkidle");
+
+  await expect(
+    page.getByRole("heading", { name: "Manage Members" }),
+  ).toBeVisible();
 
   const ownerRow = page
     .locator("div")
     .filter({ has: page.getByText(demoOwnerEmail, { exact: true }) })
-    .filter({ has: page.getByText("Protected owner", { exact: true }) })
     .first();
   await expect(
-    ownerRow.getByText("Protected owner", { exact: true }),
+    ownerRow.getByText("Owner", { exact: true }),
   ).toBeVisible();
 
   const staffRow = page

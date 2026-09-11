@@ -119,13 +119,11 @@ test.describe("Paywall & Free Plan Gating", () => {
 
   test("owner sees paywall on members page", async ({ page }) => {
     await openDemoBusiness(page);
-    await page.goto(`/${demoBusinessSlug}/members`);
+    await page.goto(`/${demoBusinessSlug}/settings/members`);
 
-    // Page header
+    // Static section header renders even in the locked state.
     await expect(
-      page.getByRole("heading", { name: "Members", level: 1 }).or(
-        page.getByText("Members", { exact: true }).first(),
-      ),
+      page.getByRole("heading", { name: "Manage Members" }),
     ).toBeVisible();
 
     // Locked-state title comes from planFeatureLabels.members.

@@ -1,16 +1,25 @@
 import "server-only";
 
-import { and, asc, eq, gt, sql } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
-import type { BusinessMembersSettingsView } from "@/features/business-members/types";
+import type {
+  BusinessInviteLinkView,
+  BusinessMembersSettingsView,
+} from "@/features/business-members/types";
 import {
   getBusinessMembersCacheTags,
   settingsBusinessCacheLife,
 } from "@/lib/cache/business-tags";
 import { getUserPendingInvitesCacheTags } from "@/lib/cache/shell-tags";
 import { db } from "@/lib/db/client";
-import { businessMemberInvites, businessMembers, businesses, user } from "@/lib/db/schema";
+import {
+  businessInviteLinks,
+  businessMemberInvites,
+  businessMembers,
+  businesses,
+  user,
+} from "@/lib/db/schema";
 import { hashOpaqueToken } from "@/lib/security/tokens";
 
 function getMemberRoleSortExpression() {
@@ -111,6 +120,80 @@ export async function getBusinessMembersSettingsForBusiness(
         createdAt: invite.createdAt,
       })),
   };
+}
+
+export async function getBusinessInviteLinkForBusiness(
+  businessId: string,
+): Promise<BusinessInviteLinkView | null> {
+  "use cache";
+
+  cacheLife(settingsBusinessCacheLife);
+  cacheTag(...getBusinessMembersCacheTags(businessId));
+
+  const rows = await db
+    .select({
+      token: businessInviteLinks.token,
+      role: businessInviteLinks.role,
+      createdAt: businessInviteLinks.createdAt,
+      updatedAt: businessInviteLinks.updatedAt,
+    })
+    .from(businessInviteLinks)
+    .where(
+      and(
+        eq(businessInviteLinks.businessId, businessId),
+        isNull(businessInviteLinks.disabledAt),
+      ),
+    )
+    .limit(1);
+
+  const row = rows[0];
+
+  if (!row?.token) {
+    return null;
+  }
+
+  return {
+    token: row.token,
+    role: row.role,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+export type BusinessInviteLinkForToken = {
+  businessId: string;
+  businessName: string;
+  businessSlug: string;
+  role: string;
+};
+
+export async function getBusinessInviteLinkForToken(
+  token: string,
+): Promise<BusinessInviteLinkForToken | null> {
+  "use cache";
+
+  cacheLife(settingsBusinessCacheLife);
+
+  const tokenHash = hashOpaqueToken(token);
+
+  const rows = await db
+    .select({
+      businessId: businessInviteLinks.businessId,
+      businessName: businesses.name,
+      businessSlug: businesses.slug,
+      role: businessInviteLinks.role,
+    })
+    .from(businessInviteLinks)
+    .innerJoin(businesses, eq(businessInviteLinks.businessId, businesses.id))
+    .where(
+      and(
+        eq(businessInviteLinks.tokenHash, tokenHash),
+        isNull(businessInviteLinks.disabledAt),
+      ),
+    )
+    .limit(1);
+
+  return rows[0] ?? null;
 }
 
 export async function getBusinessMemberInviteForToken(token: string) {

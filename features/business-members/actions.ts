@@ -21,9 +21,12 @@ import {
   businessMembershipIdSchema,
 } from "@/features/business-members/schemas";
 import {
+  acceptBusinessInviteLink,
   acceptBusinessMemberInvite,
   cancelBusinessMemberInvite,
   createBusinessMemberInvite,
+  getOrCreateBusinessInviteLink,
+  regenerateBusinessInviteLink,
   removeBusinessMember,
   updateBusinessMemberRole,
 } from "@/features/business-members/mutations";
@@ -131,6 +134,68 @@ export async function createBusinessMemberInviteAction(
   } catch (error) {
     console.error("Failed to create business member invite.", error);
     return { error: "We couldn't create that invite right now." };
+  }
+}
+
+export async function getOrCreateBusinessInviteLinkAction(
+  prevState: BusinessMemberInviteActionState = initialInviteState,
+): Promise<BusinessMemberInviteActionState> {
+  void prevState;
+  const ownerAccess = await getOwnerBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return { error: ownerAccess.error };
+  }
+
+  const { user, businessContext } = ownerAccess;
+
+  try {
+    const { token } = await getOrCreateBusinessInviteLink({
+      businessId: businessContext.business.id,
+      userId: user.id,
+    });
+
+    updateCacheTags(getBusinessMembersCacheTags(businessContext.business.id));
+    revalidatePath(getBusinessMembersPath(businessContext.business.slug));
+
+    return {
+      success: "Invite link ready.",
+      inviteLink: getBusinessMemberInvitePath(token),
+    };
+  } catch (error) {
+    console.error("Failed to load business invite link.", error);
+    return { error: "We couldn't load that invite link right now." };
+  }
+}
+
+export async function regenerateBusinessInviteLinkAction(
+  prevState: BusinessMemberInviteActionState = initialInviteState,
+): Promise<BusinessMemberInviteActionState> {
+  void prevState;
+  const ownerAccess = await getOwnerBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return { error: ownerAccess.error };
+  }
+
+  const { user, businessContext } = ownerAccess;
+
+  try {
+    const { token } = await regenerateBusinessInviteLink({
+      businessId: businessContext.business.id,
+      userId: user.id,
+    });
+
+    updateCacheTags(getBusinessMembersCacheTags(businessContext.business.id));
+    revalidatePath(getBusinessMembersPath(businessContext.business.slug));
+
+    return {
+      success: "Invite link regenerated. The previous link no longer works.",
+      inviteLink: getBusinessMemberInvitePath(token),
+    };
+  } catch (error) {
+    console.error("Failed to regenerate business invite link.", error);
+    return { error: "We couldn't regenerate that invite link right now." };
   }
 }
 
@@ -286,6 +351,28 @@ export async function acceptBusinessMemberInviteAction(inviteToken: string) {
   }
 
   // Persist active business in the shell cookie.
+  const cookieStore = await cookies();
+  cookieStore.set(activeBusinessSlugCookieName, result.businessSlug, {
+    path: "/",
+    sameSite: "lax",
+  });
+
+  redirect(getBusinessDashboardPath(result.businessSlug));
+}
+
+export async function acceptBusinessInviteLinkAction(inviteToken: string) {
+  const session = await requireSession();
+  const result = await acceptBusinessInviteLink({
+    inviteToken,
+    userId: session.user.id,
+  });
+
+  if (!result.ok) {
+    redirect(`/invite/${inviteToken}?error=1`);
+  }
+
+  updateCacheTags(getBusinessMembersCacheTags(result.businessId));
+
   const cookieStore = await cookies();
   cookieStore.set(activeBusinessSlugCookieName, result.businessSlug, {
     path: "/",

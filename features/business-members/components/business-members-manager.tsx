@@ -1,10 +1,12 @@
 "use client";
 
-import { useOptimistic, useState } from "react";
+import { useMemo, useOptimistic, useState } from "react";
 import {
   Copy,
-  MailPlus,
   MoreHorizontal,
+  RotateCw,
+  Search,
+  Send,
   Trash2,
   UserCog,
   UserMinus,
@@ -47,7 +49,6 @@ import {
   Field,
   FieldContent,
   FieldDescription,
-  FieldGroup,
   FieldLabel,
   FieldLegend,
   FieldSet,
@@ -64,9 +65,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import {
-  DashboardSection,
-} from "@/components/shared/dashboard-layout";
 import type {
   BusinessMemberInviteActionState,
   BusinessMemberAction,
@@ -89,10 +87,14 @@ import type { BusinessPlan } from "@/lib/plans/plans";
 type MembersManagerProps = {
   view: BusinessMembersSettingsView;
   plan: BusinessPlan;
+  /** Reusable shareable invite-link token, or null when none exists yet. */
+  inviteLinkToken: string | null;
   createInviteAction: BusinessMemberAction;
   cancelInviteAction: BusinessMemberAction;
   updateRoleAction: BusinessMemberAction;
   removeMemberAction: BusinessMemberAction;
+  getOrCreateInviteLinkAction: BusinessMemberAction;
+  regenerateInviteLinkAction: BusinessMemberAction;
   readOnly?: boolean;
 };
 
@@ -110,15 +112,19 @@ const roleOptions: ComboboxOption[] = assignableRoles.map((value) => ({
 export function BusinessMembersManager({
   view,
   plan,
+  inviteLinkToken,
   createInviteAction,
   cancelInviteAction,
   updateRoleAction,
   removeMemberAction,
+  getOrCreateInviteLinkAction,
+  regenerateInviteLinkAction,
   readOnly = false,
 }: MembersManagerProps) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<AssignableRole>("staff");
+  const [search, setSearch] = useState("");
   const [accessMember, setAccessMember] = useState<BusinessMemberView | null>(
     null,
   );
@@ -199,6 +205,34 @@ export function BusinessMembersManager({
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   const [pendingInvitesOpen, setPendingInvitesOpen] = useState(false);
 
+  const [linkState, linkFormAction, isLinkPending] =
+    useActionStateWithSonner(getOrCreateInviteLinkAction, initialState);
+  const [regenState, regenFormAction, isRegenPending] =
+    useActionStateWithSonner(regenerateInviteLinkAction, initialState);
+
+  const inviteLinkPath =
+    regenState.inviteLink ??
+    linkState.inviteLink ??
+    (inviteLinkToken ? getBusinessMemberInvitePath(inviteLinkToken) : null);
+  const inviteLinkUrl = inviteLinkPath ? `${origin}${inviteLinkPath}` : null;
+  const isInviteLinkPending = isLinkPending || isRegenPending;
+
+  const filteredMembers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) {
+      return optimisticMembers;
+    }
+
+    return optimisticMembers.filter(
+      (member) =>
+        member.name.toLowerCase().includes(query) ||
+        member.email.toLowerCase().includes(query),
+    );
+  }, [optimisticMembers, search]);
+
+  const isFiltering = search.trim().length > 0;
+
   async function copyText(value: string) {
     await navigator.clipboard.writeText(value);
   }
@@ -209,36 +243,64 @@ export function BusinessMembersManager({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <DashboardSection
-        title="Members"
-        description="Review business access, invite teammates, and keep admin permissions limited to the right people."
-        action={
+    <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2">
+            <div className="relative min-w-0 flex-1">
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                aria-label="Search team members"
+                className="pl-9"
+                onChange={(event) => setSearch(event.currentTarget.value)}
+                placeholder="Search a team member..."
+                type="search"
+                value={search}
+              />
+            </div>
             {!readOnly && view.invites.length ? (
-              <Button type="button" variant="outline" onClick={() => setPendingInvitesOpen(true)}>
+              <Button
+                className="shrink-0"
+                type="button"
+                variant="outline"
+                onClick={() => setPendingInvitesOpen(true)}
+              >
                 {view.invites.length} pending
               </Button>
             ) : null}
             <LockedAction feature="members" plan={plan}>
-              <Button type="button" onClick={() => setInviteOpen(true)} disabled={readOnly}>
+              <Button
+                className="shrink-0"
+                type="button"
+                onClick={() => setInviteOpen(true)}
+                disabled={readOnly}
+              >
                 <UserPlus data-icon="inline-start" />
-                Invite member
+                Invite
               </Button>
             </LockedAction>
           </div>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">
-              {optimisticMembers.length} member{optimisticMembers.length === 1 ? "" : "s"}
-            </Badge>
-          </div>
 
-          <div className="overflow-hidden rounded-xl border border-border bg-background/60">
+          {isFiltering ? (
+            <p className="text-sm text-muted-foreground" role="status">
+              {filteredMembers.length} of {optimisticMembers.length} member
+              {optimisticMembers.length === 1 ? "" : "s"}
+            </p>
+          ) : null}
+
+          <div className="flex flex-col">
+            <div
+              aria-hidden="true"
+              className="hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,0.8fr)_auto] items-center gap-4 border-b border-border py-2 md:grid"
+            >
+              <span className="meta-label">Name</span>
+              <span className="meta-label">Email</span>
+              <span className="meta-label">Role</span>
+              <span className="meta-label sr-only">Actions</span>
+            </div>
             <div className="flex flex-col">
-              {optimisticMembers.map((member, index) => (
+              {filteredMembers.map((member) => (
                 <MemberRow
                   key={member.membershipId}
                   member={member}
@@ -246,13 +308,28 @@ export function BusinessMembersManager({
                   onRemove={setRemoveMember}
                   ownerCount={optimisticMembers.filter((m) => m.role === "owner").length}
                   readOnly={readOnly}
-                  rowIndex={index}
                 />
               ))}
+              {filteredMembers.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-10 text-center">
+                  <p className="text-sm font-medium text-foreground">
+                    No team members match “{search.trim()}”.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Try a different name or email address.
+                  </p>
+                  <Button
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                    onClick={() => setSearch("")}
+                  >
+                    Clear search
+                  </Button>
+                </div>
+              ) : null}
             </div>
           </div>
-        </div>
-      </DashboardSection>
 
       {view.invites.length ? (
         <PendingInvitesDialog
@@ -275,6 +352,11 @@ export function BusinessMembersManager({
         onSubmit={inviteFormAction}
         open={inviteOpen}
         role={role}
+        inviteLinkUrl={inviteLinkUrl}
+        isInviteLinkPending={isInviteLinkPending}
+        onCreateInviteLink={linkFormAction}
+        onRegenerateInviteLink={regenFormAction}
+        readOnly={readOnly}
       />
 
       <ManageAccessDialog
@@ -305,6 +387,12 @@ export function InviteMemberDialog({
   onSubmit,
   open,
   role,
+  inviteLinkUrl,
+  isInviteLinkPending = false,
+  onCreateInviteLink,
+  onRegenerateInviteLink,
+  onCopyInviteLink,
+  readOnly = false,
 }: {
   email: string;
   isPending: boolean;
@@ -314,92 +402,187 @@ export function InviteMemberDialog({
   onSubmit: ReturnType<typeof useActionStateWithSonner<BusinessMemberInviteActionState>>[1];
   open: boolean;
   role: AssignableRole;
+  inviteLinkUrl?: string | null;
+  isInviteLinkPending?: boolean;
+  onCreateInviteLink?: ReturnType<typeof useActionStateWithSonner<BusinessMemberInviteActionState>>[1];
+  onRegenerateInviteLink?: ReturnType<typeof useActionStateWithSonner<BusinessMemberInviteActionState>>[1];
+  onCopyInviteLink?: (value: string) => Promise<void>;
+  readOnly?: boolean;
 }) {
+  const [copied, setCopied] = useState(false);
+  const showLinkSection =
+    inviteLinkUrl !== undefined ||
+    onCreateInviteLink !== undefined ||
+    onRegenerateInviteLink !== undefined;
+
+  async function handleCopyLink() {
+    if (!inviteLinkUrl) {
+      return;
+    }
+
+    if (onCopyInviteLink) {
+      await onCopyInviteLink(inviteLinkUrl);
+    } else {
+      await navigator.clipboard.writeText(inviteLinkUrl);
+    }
+
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2000);
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
-        <form
-          action={async (formData) => {
-            formData.set("email", email);
-            formData.set("role", role);
-            await onSubmit(formData);
-            onOpenChange(false);
-            onEmailChange("");
-            onRoleChange("staff");
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>Invite a member</DialogTitle>
-            <DialogDescription>
-              Create a secure invite link for someone who helps manage inquiries,
-              quotes, and follow-ups for this business.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Invite members</DialogTitle>
+          <DialogDescription>
+            Share an invite link or send an invite email to teammates who help
+            manage inquiries, quotes, and follow-ups for this business.
+          </DialogDescription>
+        </DialogHeader>
 
-          <DialogBody>
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="member-invite-email">
-                  Email address
-                </FieldLabel>
-                <Input
-                  autoComplete="email"
-                  disabled={isPending}
-                  id="member-invite-email"
-                  name="email"
-                  onChange={(event) => onEmailChange(event.target.value)}
-                  placeholder="teammate@company.com"
-                  type="email"
-                  value={email}
-                />
-              </Field>
+        <DialogBody>
+          <div className="flex flex-col gap-6">
+            {showLinkSection ? (
+              <section aria-labelledby="member-invite-link-heading" className="flex flex-col gap-2">
+                <h3
+                  id="member-invite-link-heading"
+                  className="text-sm font-semibold text-foreground"
+                >
+                  Invite by link
+                </h3>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Share this link to invite users to join this business.
+                </p>
+                {inviteLinkUrl ? (
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      aria-label="Business invite link"
+                      className="min-w-0 flex-1 font-mono text-xs"
+                      readOnly
+                      value={inviteLinkUrl}
+                      onFocus={(event) => event.currentTarget.select()}
+                    />
+                    <Button
+                      className="shrink-0"
+                      disabled={isInviteLinkPending}
+                      onClick={handleCopyLink}
+                      type="button"
+                    >
+                      <Copy data-icon="inline-start" />
+                      {copied ? "Copied" : "Copy link"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div>
+                    <Button
+                      disabled={readOnly || isInviteLinkPending || !onCreateInviteLink}
+                      onClick={async () => onCreateInviteLink?.(new FormData())}
+                      type="button"
+                      variant="outline"
+                    >
+                      {isInviteLinkPending ? "Creating link..." : "Create invite link"}
+                    </Button>
+                  </div>
+                )}
+                {inviteLinkUrl && !readOnly && onRegenerateInviteLink ? (
+                  <div>
+                    <Button
+                      className="px-0"
+                      disabled={isInviteLinkPending}
+                      onClick={async () => onRegenerateInviteLink(new FormData())}
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <RotateCw data-icon="inline-start" />
+                      Regenerate link
+                    </Button>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
 
-              <Field>
-                <FieldLabel htmlFor="member-invite-role">Role</FieldLabel>
-                <Combobox
-                  disabled={isPending}
-                  id="member-invite-role"
-                  onValueChange={(value) => {
-                    onRoleChange(value as AssignableRole);
-                  }}
-                  options={roleOptions}
-                  placeholder="Choose a role"
-                  renderOption={(option) => {
-                    const optionRole = option.value as AssignableRole;
+            {showLinkSection ? <div aria-hidden="true" className="border-t border-border" /> : null}
 
-                    return (
-                      <div className="flex flex-col gap-1">
-                        <span className="truncate">
-                          {businessMemberRoleMeta[optionRole].label}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {businessMemberRoleMeta[optionRole].description}
-                        </span>
-                      </div>
-                    );
-                  }}
-                  searchable={false}
-                  value={role}
-                />
-                <FieldDescription>
-                  Owners can change this later from the member list.
-                </FieldDescription>
-              </Field>
-            </FieldGroup>
-          </DialogBody>
+            <section aria-labelledby="member-invite-email-heading" className="flex flex-col gap-2">
+              <h3
+                id="member-invite-email-heading"
+                className="text-sm font-semibold text-foreground"
+              >
+                Invite by email
+              </h3>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Send an invite email to your team.
+              </p>
+              <form
+                action={async (formData) => {
+                  formData.set("email", email);
+                  formData.set("role", role);
+                  await onSubmit(formData);
+                  onEmailChange("");
+                }}
+              >
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    autoComplete="email"
+                    aria-label="Email address"
+                    className="min-w-0 flex-1"
+                    disabled={isPending || readOnly}
+                    id="member-invite-email"
+                    name="email"
+                    onChange={(event) => onEmailChange(event.target.value)}
+                    placeholder="tim@apple.com"
+                    type="email"
+                    value={email}
+                  />
+                  <Combobox
+                    buttonClassName="sm:w-40"
+                    disabled={isPending || readOnly}
+                    id="member-invite-role"
+                    onValueChange={(value) => {
+                      onRoleChange(value as AssignableRole);
+                    }}
+                    options={roleOptions}
+                    placeholder="Default role"
+                    renderOption={(option) => {
+                      const optionRole = option.value as AssignableRole;
 
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button disabled={isPending} type="button" variant="outline">
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button disabled={isPending} type="submit">
-              <UserPlus data-icon="inline-start" />
-              Send invite
+                      return (
+                        <div className="flex flex-col gap-1">
+                          <span className="truncate">
+                            {businessMemberRoleMeta[optionRole].label}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {businessMemberRoleMeta[optionRole].description}
+                          </span>
+                        </div>
+                      );
+                    }}
+                    searchable={false}
+                    value={role}
+                  />
+                  <Button
+                    className="shrink-0"
+                    disabled={isPending || readOnly || email.trim().length === 0}
+                    type="submit"
+                  >
+                    <Send data-icon="inline-start" />
+                    Invite
+                  </Button>
+                </div>
+              </form>
+            </section>
+          </div>
+        </DialogBody>
+
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              Done
             </Button>
-          </DialogFooter>
-        </form>
+          </DialogClose>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -507,14 +690,12 @@ function MemberRow({
   onRemove,
   ownerCount,
   readOnly,
-  rowIndex,
 }: {
   member: BusinessMemberView;
   onManageAccess: (member: BusinessMemberView) => void;
   onRemove: (member: BusinessMemberView) => void;
   ownerCount: number;
   readOnly: boolean;
-  rowIndex: number;
 }) {
   const roleMeta = businessMemberRoleMeta[member.role];
   const isOwner = member.role === "owner";
@@ -522,69 +703,71 @@ function MemberRow({
   const canLeave = member.isCurrentUser && !isLastOwner;
   const canRemove = !member.isCurrentUser;
 
+  const showActions = !readOnly || (member.isCurrentUser && canLeave);
+
   return (
-    <div className={rowIndex > 0 ? "border-t border-border" : undefined}>
-      <div className="flex flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex min-w-0 items-center gap-4">
-          <Avatar className="size-8">
+    <div className="border-b border-border">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 py-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,0.8fr)_auto] md:py-2.5">
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar className="size-8 shrink-0">
             {member.image ? (
               <AvatarImage alt={member.name} src={member.image} />
             ) : null}
             <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
           </Avatar>
 
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="truncate text-sm font-semibold tracking-tight text-foreground">
-                {member.name}
-              </p>
-              <Badge variant={isOwner ? "secondary" : "outline"}>
-                {roleMeta.label}
-              </Badge>
-              {member.isCurrentUser ? <Badge variant="outline">You</Badge> : null}
-            </div>
-            <p className="mt-1 truncate text-sm text-muted-foreground">
-              {member.email}
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <p className="truncate text-sm font-semibold tracking-tight text-foreground">
+              {member.name}
             </p>
+            {member.isCurrentUser ? <Badge variant="outline">You</Badge> : null}
           </div>
         </div>
 
-        {!readOnly ? (
-          <div className="flex items-center gap-2 md:justify-end">
-            {!member.isCurrentUser ? (
-              <Button
-                className="hidden md:inline-flex"
-                size="sm"
-                type="button"
-                variant="outline"
-                onClick={() => onManageAccess(member)}
-              >
-                <UserCog data-icon="inline-start" />
-                Manage access
-              </Button>
-            ) : null}
+        <div className="row-start-2 min-w-0 pl-11 md:col-start-2 md:row-start-auto md:pl-0">
+          <p className="truncate text-sm text-muted-foreground">
+            {member.email}
+          </p>
+        </div>
 
-            <MemberActionsMenu
-              canLeave={canLeave}
-              canRemove={canRemove}
-              isCurrentUser={member.isCurrentUser}
-              member={member}
-              onManageAccess={onManageAccess}
-              onRemove={onRemove}
-            />
-          </div>
-        ) : member.isCurrentUser && canLeave ? (
-          <div className="flex items-center gap-2 md:justify-end">
-            <MemberActionsMenu
-              canLeave={canLeave}
-              canRemove={false}
-              isCurrentUser={member.isCurrentUser}
-              member={member}
-              onManageAccess={onManageAccess}
-              onRemove={onRemove}
-            />
-          </div>
-        ) : null}
+        <div className="hidden md:block">
+          <Badge variant={isOwner ? "secondary" : "outline"}>
+            {roleMeta.label}
+          </Badge>
+        </div>
+
+        <div className="row-start-1 flex items-center gap-2 justify-self-end md:col-start-4 md:row-start-auto">
+          <span className="md:hidden">
+            <Badge variant={isOwner ? "secondary" : "outline"}>
+              {roleMeta.label}
+            </Badge>
+          </span>
+          {showActions ? (
+            <>
+              {!readOnly && !member.isCurrentUser ? (
+                <Button
+                  className="hidden md:inline-flex"
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                  onClick={() => onManageAccess(member)}
+                >
+                  <UserCog data-icon="inline-start" />
+                  Manage access
+                </Button>
+              ) : null}
+
+              <MemberActionsMenu
+                canLeave={canLeave}
+                canRemove={!readOnly && canRemove}
+                isCurrentUser={member.isCurrentUser}
+                member={member}
+                onManageAccess={onManageAccess}
+                onRemove={onRemove}
+              />
+            </>
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -878,19 +1061,33 @@ function getInitials(name: string) {
     .join("");
 }
 
-export function BusinessMembersManagerFallback() {
+export function MembersStaticFallback() {
   return (
-    <div className="grid min-h-[200px] gap-4">
-      {Array.from({ length: 2 }).map((_, index) => (
-        <div
-          className="rounded-xl border border-border bg-background/50 p-6"
-          key={index}
-        >
-          <Skeleton className="h-5 w-48 rounded-md" />
-          <Skeleton className="mt-2 h-4 w-64 rounded-md" />
-          <Skeleton className="mt-5 h-9 w-full rounded-md sm:h-8 sm:w-48" />
+    <div className="flex flex-col gap-4" aria-hidden="true">
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-8 flex-1 rounded-md sm:h-8" />
+        <Skeleton className="h-8 w-20 shrink-0 rounded-md sm:h-8" />
+      </div>
+      <div className="flex flex-col">
+        <div className="hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,0.8fr)_auto] items-center gap-4 border-b border-border py-2 md:grid">
+          <span className="meta-label">Name</span>
+          <span className="meta-label">Email</span>
+          <span className="meta-label">Role</span>
         </div>
-      ))}
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            className="flex items-center gap-3 border-b border-border py-3"
+            key={index}
+          >
+            <Skeleton className="size-8 shrink-0 rounded-full" />
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <Skeleton className="h-4 w-32 max-w-full rounded-md" />
+              <Skeleton className="h-3.5 w-48 max-w-full rounded-md" />
+            </div>
+            <Skeleton className="hidden h-5 w-16 shrink-0 rounded-full md:block" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

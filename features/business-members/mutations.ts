@@ -1,14 +1,17 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import {
+  businessInviteLinks,
   businessMemberInvites,
   businessMembers,
   businesses,
 } from "@/lib/db/schema";
+import { getBusinessMemberCount } from "@/lib/plans/usage";
+import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { hashOpaqueToken } from "@/lib/security/tokens";
 
 export async function createBusinessMemberInvite({
@@ -135,6 +138,194 @@ export async function acceptBusinessMemberInvite({
   await db.delete(businessMemberInvites).where(eq(businessMemberInvites.id, invite.inviteId));
 
   return { ok: true, businessId: invite.businessId, businessSlug: invite.businessSlug };
+}
+
+export async function getOrCreateBusinessInviteLink({
+  businessId,
+  userId,
+}: {
+  businessId: string;
+  userId: string;
+}): Promise<{ token: string }> {
+  const existing = await db
+    .select({
+      token: businessInviteLinks.token,
+    })
+    .from(businessInviteLinks)
+    .where(
+      and(
+        eq(businessInviteLinks.businessId, businessId),
+        isNull(businessInviteLinks.disabledAt),
+      ),
+    )
+    .limit(1);
+
+  const active = existing[0];
+
+  if (active?.token) {
+    return { token: active.token };
+  }
+
+  const token = randomUUID();
+  const tokenHash = hashOpaqueToken(token);
+
+  const inserted = await db
+    .insert(businessInviteLinks)
+    .values({
+      id: randomUUID(),
+      businessId,
+      createdByUserId: userId,
+      role: "staff",
+      token,
+      tokenHash,
+    })
+    .onConflictDoNothing({ target: businessInviteLinks.businessId })
+    .returning({ token: businessInviteLinks.token });
+
+  if (inserted[0]?.token) {
+    return { token: inserted[0].token };
+  }
+
+  // Lost a race with another creator — read the winner.
+  const raced = await db
+    .select({ token: businessInviteLinks.token })
+    .from(businessInviteLinks)
+    .where(eq(businessInviteLinks.businessId, businessId))
+    .limit(1);
+
+  const winner = raced[0];
+
+  if (!winner?.token) {
+    throw new Error("Could not create a business invite link.");
+  }
+
+  return { token: winner.token };
+}
+
+export async function regenerateBusinessInviteLink({
+  businessId,
+  userId,
+}: {
+  businessId: string;
+  userId: string;
+}): Promise<{ token: string }> {
+  const token = randomUUID();
+  const tokenHash = hashOpaqueToken(token);
+
+  const updated = await db
+    .update(businessInviteLinks)
+    .set({
+      createdByUserId: userId,
+      role: "staff",
+      token,
+      tokenHash,
+      disabledAt: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(businessInviteLinks.businessId, businessId))
+    .returning({ token: businessInviteLinks.token });
+
+  if (updated[0]?.token) {
+    return { token: updated[0].token };
+  }
+
+  await db.insert(businessInviteLinks).values({
+    id: randomUUID(),
+    businessId,
+    createdByUserId: userId,
+    role: "staff",
+    token,
+    tokenHash,
+  });
+
+  return { token };
+}
+
+export async function acceptBusinessInviteLink({
+  inviteToken,
+  userId,
+}: {
+  inviteToken: string;
+  userId: string;
+}): Promise<
+  | { ok: true; businessId: string; businessSlug: string }
+  | { ok: false; error: string }
+> {
+  const tokenHash = hashOpaqueToken(inviteToken);
+
+  const rows = await db
+    .select({
+      businessId: businessInviteLinks.businessId,
+      role: businessInviteLinks.role,
+      businessSlug: businesses.slug,
+      businessPlan: businesses.plan,
+    })
+    .from(businessInviteLinks)
+    .innerJoin(businesses, eq(businessInviteLinks.businessId, businesses.id))
+    .where(
+      and(
+        eq(businessInviteLinks.tokenHash, tokenHash),
+        isNull(businessInviteLinks.disabledAt),
+      ),
+    )
+    .limit(1);
+
+  const link = rows[0];
+
+  if (!link) {
+    return { ok: false, error: "That invite is invalid or expired." };
+  }
+
+  // Re-joining with an existing membership is always allowed.
+  const existingMembership = await db
+    .select({ id: businessMembers.id })
+    .from(businessMembers)
+    .where(
+      and(
+        eq(businessMembers.businessId, link.businessId),
+        eq(businessMembers.userId, userId),
+      ),
+    )
+    .limit(1);
+
+  if (existingMembership.length > 0) {
+    return {
+      ok: true,
+      businessId: link.businessId,
+      businessSlug: link.businessSlug,
+    };
+  }
+
+  const memberLimit = getUsageLimit(link.businessPlan, "membersPerBusiness");
+
+  if (memberLimit !== null) {
+    const currentMemberCount = await getBusinessMemberCount(link.businessId);
+
+    if (currentMemberCount >= memberLimit) {
+      return {
+        ok: false,
+        error: `This business supports up to ${memberLimit} member${
+          memberLimit === 1 ? "" : "s"
+        }, including the owner.`,
+      };
+    }
+  }
+
+  await db
+    .insert(businessMembers)
+    .values({
+      id: randomUUID(),
+      businessId: link.businessId,
+      userId,
+      role: link.role,
+    })
+    .onConflictDoNothing();
+
+  return {
+    ok: true,
+    businessId: link.businessId,
+    businessSlug: link.businessSlug,
+  };
 }
 
 export async function updateBusinessMemberRole({
