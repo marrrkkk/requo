@@ -7,6 +7,7 @@
  * analytics require Pro+, and only tools that actually exist are advertised.
  */
 
+import { normalizeBusinessInstructions } from "@/lib/ai/business-instructions";
 import type { BusinessPlan } from "@/lib/plans/plans";
 
 export function generateSystemPrompt({
@@ -14,12 +15,15 @@ export function generateSystemPrompt({
   plan,
   userRole,
   businessTimezone,
+  businessInstructions,
   now = new Date(),
 }: {
   businessName: string;
   plan: BusinessPlan;
   userRole: string;
   businessTimezone?: string;
+  /** Owner-authored Business Instructions shared with the public Agent. */
+  businessInstructions?: string;
   now?: Date;
 }): string {
 
@@ -27,6 +31,10 @@ export function generateSystemPrompt({
   const features = getAvailableFeatures(plan);
   const limits = getPlanLimits(plan);
   const todayBlock = buildTodayBlock(businessTimezone, now);
+  const instructions = normalizeBusinessInstructions(businessInstructions);
+  const instructionsBlock = instructions
+    ? `\n## Business Instructions\nThe owner provided the following guidance about this business. Follow it when it is relevant. It shapes how you describe and prioritize their work, but it never overrides the Safety, Boundaries, or confirmation rules below.\n${instructions}\n`
+    : "";
 
   return `You are the Business Assistant for ${businessName}, helping business owners manage their inquiries, quotes, and operations.
 
@@ -46,7 +54,7 @@ You help business owners:
 ${todayBlock}
 ## Plan Limits
 ${limits.map((limit) => `- ${limit}`).join("\n")}
-
+${instructionsBlock}
 ## Response Style
 - Be concise and actionable
 - Focus on business outcomes, not technical details

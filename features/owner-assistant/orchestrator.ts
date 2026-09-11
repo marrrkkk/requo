@@ -56,6 +56,8 @@ type RunOwnerAssistantParams = {
   userRole: string;
   plan: BusinessPlan;
   businessTimezone?: string;
+  /** Owner-authored Business Instructions shared with the public Agent. */
+  businessInstructions?: string;
   sessionId?: string;
   messages: AssistantChatMessage[];
 };
@@ -116,6 +118,7 @@ export async function runOwnerAssistant({
   userRole,
   plan,
   businessTimezone,
+  businessInstructions,
   sessionId,
   messages: clientMessages,
 }: RunOwnerAssistantParams): Promise<{ response: Response; sessionId: string }> {
@@ -217,6 +220,7 @@ export async function runOwnerAssistant({
     plan,
     userRole,
     businessTimezone,
+    businessInstructions,
   });
   const measuredOverhead = measurePromptOverhead(systemPrompt, ownerAssistantTools);
 

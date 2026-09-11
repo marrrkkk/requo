@@ -38,6 +38,10 @@ const assistantEnv = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/env", () => ({
+  // The route graph reaches the email senders through the assistant's quote
+  // tools, and `lib/email/providers/resend.ts` reads `env` at module scope.
+  env: {},
+  isResendConfigured: false,
   isGroqConfigured: assistantEnv.groq,
   isCerebrasConfigured: assistantEnv.cerebras,
   isGeminiConfigured: assistantEnv.gemini,
@@ -97,6 +101,7 @@ import { POST } from "@/app/api/ai/owner-assistant/chat/route";
 import { registry } from "@/lib/ai/registry";
 import {
   auditLogs,
+  businesses,
   inquiries,
   ownerAssistantMessages,
   ownerAssistantSessions,
@@ -213,6 +218,40 @@ describe("owner-assistant chat API route (provider seam)", () => {
       provider: "google",
       model: "gemini-2.5-flash-lite",
     });
+  });
+
+  it("injects Business Instructions into the assistant system prompt", async () => {
+    await testDb
+      .update(businesses)
+      .set({
+        aiAgentConfig: { instructions: "We only take projects over $5,000." },
+      })
+      .where(eq(businesses.id, ids.businessId));
+
+    try {
+      const model = mockModelForTurns([textTurn("Understood.")]);
+      vi.mocked(registry.languageModel).mockReturnValue(model as never);
+
+      const response = await POST(
+        chatRequest({
+          businessSlug: ids.businessSlug,
+          messages: uiMessages("What size projects do we take on?"),
+        }),
+      );
+      await response.text();
+
+      // AI SDK v6 delivers the system prompt as prompt entries (not a top-level
+      // `system` field), so assert on the serialized prompt the model received.
+      const recorded = firstModelCall(model) as unknown as { prompt?: unknown };
+      const promptText = JSON.stringify(recorded?.prompt ?? null);
+      expect(promptText).toContain("## Business Instructions");
+      expect(promptText).toContain("We only take projects over $5,000.");
+    } finally {
+      await testDb
+        .update(businesses)
+        .set({ aiAgentConfig: {} })
+        .where(eq(businesses.id, ids.businessId));
+    }
   });
 
   it("continues the server-created session instead of starting a new one", async () => {

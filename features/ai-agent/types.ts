@@ -26,6 +26,8 @@ export type AgentTone = "friendly" | "professional" | "casual";
 // Agent configuration (stored in businesses.ai_agent_config)
 export type AgentConfig = {
   tone?: AgentTone;
+  /** Owner-authored guidance shared with the public Agent and owner Assistant. */
+  instructions?: string;
   handoffTriggers?: {
     maxSearchAttempts?: number;
     keywords?: string[];
