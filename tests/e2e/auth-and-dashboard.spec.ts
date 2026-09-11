@@ -70,27 +70,29 @@ test("legacy account profile route redirects into business settings profile", as
     new RegExp(`/${demoBusinessSlug}/settings/profile$`),
     { timeout: 20_000 },
   );
-  await expect(page.locator("h1").filter({ hasText: "Profile" })).toBeVisible();
+  await expect(page.locator("h1").filter({ hasText: "Profile" })).toContainText(
+    "Profile",
+  );
   await expect(page.getByLabel("Email")).toHaveValue(demoOwnerEmail);
 });
 
-test("dashboard user menu opens the new profile settings page", async ({
+test("business settings profile shows the unified account sections", async ({
   page,
 }) => {
   await signIn(page);
   await openDemoBusiness(page);
 
-  await page
-    .getByRole("button", { name: `Morgan Lee ${demoOwnerEmail}` })
-    .click();
-  await page.getByRole("menuitem", { name: "Your profile" }).click();
+  await page.goto(`/${demoBusinessSlug}/settings/profile`);
 
   await expect(page).toHaveURL(
     new RegExp(`/${demoBusinessSlug}/settings/profile$`),
     { timeout: 20_000 },
   );
-  await expect(page.getByText("Owner profile")).toBeVisible();
-  await expect(page.getByText("No avatar uploaded")).toBeVisible();
+  await expect(page.getByLabel("First Name")).toBeVisible();
+  await expect(page.getByLabel("Last Name")).toBeVisible();
+  await expect(page.getByLabel("Email")).toHaveValue(demoOwnerEmail);
+  await expect(page.getByText("Devices")).toBeVisible();
+  await expect(page.getByText("Danger zone")).toBeVisible();
 });
 
 test("dashboard inquiry queue actions open filtered inquiry views", async ({

@@ -1,5 +1,6 @@
-import { DashboardSettingsSecuritySkeleton } from "@/components/shell/dashboard-settings-skeleton";
-
+/**
+ * Redirect only (see page.tsx) — no skeleton.
+ */
 export default function BusinessSecuritySettingsLoading() {
-  return <DashboardSettingsSecuritySkeleton />;
+  return null;
 }
