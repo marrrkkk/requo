@@ -72,94 +72,95 @@ export function BusinessDeleteZone({
 
   return (
     <>
-      <section className="rounded-xl border border-destructive/30 bg-card/97">
-        <div className="border-b border-destructive/20 px-6 py-4">
-          <h3 className="text-base font-semibold tracking-tight text-foreground">
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-sm font-semibold tracking-tight text-foreground">
             Danger zone
-          </h3>
+          </h2>
+          <p className="text-sm leading-6 text-muted-foreground">
+            Archive this business or delete your whole workspace.
+          </p>
         </div>
 
-        <div className="divide-y divide-border">
-          {/* Archive / Restore row */}
+        <div className="flex flex-col gap-6">
           {recordState === "archived" ? (
-            <div className="flex flex-col gap-3 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">
-                  Restore this business
-                </p>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  Make this business active and editable again.
-                </p>
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-medium text-foreground">
+                Restore this business
+              </p>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Make this business active and editable again.
+              </p>
+              <div className="mt-2">
+                <ServerActionButton
+                  action={unarchiveAction}
+                  icon={RotateCcw}
+                  label="Restore business"
+                  pendingLabel="Restoring..."
+                />
               </div>
-              <ServerActionButton
-                action={unarchiveAction}
-                icon={RotateCcw}
-                label="Restore"
-                pendingLabel="Restoring..."
-              />
             </div>
           ) : recordState === "trash" ? (
-            <div className="flex flex-col gap-3 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">
-                  Restore this business
-                </p>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  Bring this business back from trash.
-                </p>
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-medium text-foreground">
+                Restore this business
+              </p>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Bring this business back from trash.
+              </p>
+              <div className="mt-2">
+                <ServerActionButton
+                  action={restoreAction}
+                  icon={RotateCcw}
+                  label="Restore business"
+                  pendingLabel="Restoring..."
+                />
               </div>
-              <ServerActionButton
-                action={restoreAction}
-                icon={RotateCcw}
-                label="Restore"
-                pendingLabel="Restoring..."
-              />
             </div>
           ) : (
-            <div className="flex flex-col gap-3 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">
-                  Archive this business
-                </p>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  Make it read-only and hide from active views. You can restore
-                  it later.
-                </p>
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-medium text-foreground">
+                Archive this business
+              </p>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Make it read-only and hide it from active views. You can
+                restore it later.
+              </p>
+              <div className="mt-2">
+                <ServerActionConfirmDialog
+                  action={archiveAction}
+                  confirmLabel="Archive business"
+                  confirmPendingLabel="Archiving..."
+                  confirmVariant="default"
+                  description="Archived businesses are read-only and hidden from active views. You can restore it later."
+                  icon={Archive}
+                  title="Archive this business?"
+                  triggerLabel="Archive business"
+                  triggerVariant="outline"
+                />
               </div>
-              <ServerActionConfirmDialog
-                action={archiveAction}
-                confirmLabel="Archive business"
-                confirmPendingLabel="Archiving..."
-                confirmVariant="default"
-                description="Archived businesses are read-only and hidden from active views. You can restore it later."
-                icon={Archive}
-                title="Archive this business?"
-                triggerLabel="Archive"
-                triggerVariant="outline"
-              />
             </div>
           )}
 
-          {/* Delete row */}
-          <div className="flex flex-col gap-3 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">
-                Delete this business
-              </p>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                Permanently remove all data including inquiries, quotes, and
-                forms. This cannot be undone.
-              </p>
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium text-foreground">
+              Delete this business
+            </p>
+            <p className="text-sm leading-6 text-muted-foreground">
+              Permanently remove all data including inquiries, quotes, and
+              forms. This cannot be undone.
+            </p>
+            <div className="mt-2">
+              <Button
+                className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                type="button"
+                variant="outline"
+                onClick={() => setOpen(true)}
+              >
+                <Trash2 data-icon="inline-start" aria-hidden="true" />
+                Delete workspace
+              </Button>
             </div>
-            <Button
-              className="shrink-0"
-              type="button"
-              variant="destructive"
-              onClick={() => setOpen(true)}
-            >
-              <Trash2 data-icon="inline-start" />
-              Delete
-            </Button>
           </div>
         </div>
       </section>

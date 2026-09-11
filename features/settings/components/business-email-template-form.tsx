@@ -1,40 +1,45 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Info } from "lucide-react";
+import { RiFileTextLine, RiReceiptLine, RiSendPlaneLine } from "@remixicon/react";
 
 import {
   FloatingFormActions,
   useFloatingUnsavedChanges,
 } from "@/components/shared/floating-form-actions";
+import { Tab, TabList, Tabs } from "@/components/base/tabs/tabs";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { Button } from "@/components/ui/button";
+import { useHashTab } from "@/hooks/use-hash-tab";
 import {
   Field,
   FieldContent,
-  FieldDescription,
   FieldError,
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
-import type {
-  QuoteEmailTemplateConfig,
-} from "@/features/settings/email-templates";
 import {
-  quoteEmailMergeTags,
-  quoteEmailPresetKeys,
-  quoteEmailPresets,
-  quoteEmailSampleMergeValues,
-  quoteEmailTemplateDefaults,
-  resolveQuoteEmailTemplate,
-  type QuoteEmailPresetKey,
+  EMAIL_TEMPLATE_KIND_DESCRIPTIONS,
+  EMAIL_TEMPLATE_KIND_LABELS,
+  EMAIL_TEMPLATE_KINDS,
+  MAX_EMAIL_TEMPLATE_BLOCKS,
+  getMergeTagsForKind,
+  normalizeEmailTemplateForKind,
+  type EmailTemplateBlock,
+  type EmailTemplateKind,
 } from "@/features/settings/email-templates";
 import type {
   BusinessEmailTemplateActionState,
   BusinessSettingsView,
 } from "@/features/settings/types";
+
+import { EmailCanvas } from "./email-template-builder/EmailCanvas";
+import { EmailTemplateInspector } from "./email-template-builder/EmailTemplateInspector";
+import {
+  createDividerBlock,
+  createSpacerBlock,
+  createTextBlock,
+} from "./email-template-builder/default-blocks";
 
 type BusinessEmailTemplateFormProps = {
   action: (
@@ -46,34 +51,47 @@ type BusinessEmailTemplateFormProps = {
 
 const initialState: BusinessEmailTemplateActionState = {};
 
+const EMAIL_TEMPLATE_KIND_ICONS = {
+  quote: RiFileTextLine,
+  invoice: RiReceiptLine,
+  "follow-up": RiSendPlaneLine,
+} as const;
+
 type DraftValues = {
   subject: string;
-  greeting: string;
-  introText: string;
-  ctaLabel: string;
-  closingText: string;
+  blocks: EmailTemplateBlock[];
 };
 
-function configToDraft(
-  config: QuoteEmailTemplateConfig | null | undefined,
-): DraftValues {
+function toDraft(kind: EmailTemplateKind, template: unknown): DraftValues {
+  const normalized = normalizeEmailTemplateForKind(kind, template);
   return {
-    subject: config?.subject ?? "",
-    greeting: config?.greeting ?? "",
-    introText: config?.introText ?? "",
-    ctaLabel: config?.ctaLabel ?? "",
-    closingText: config?.closingText ?? "",
+    subject: normalized.subject,
+    blocks: normalized.blocks.map((block) => ({
+      ...block,
+      style: block.style ? { ...block.style } : undefined,
+    })),
   };
 }
 
-function draftHasChanges(draft: DraftValues, saved: DraftValues) {
-  return (
-    draft.subject !== saved.subject ||
-    draft.greeting !== saved.greeting ||
-    draft.introText !== saved.introText ||
-    draft.ctaLabel !== saved.ctaLabel ||
-    draft.closingText !== saved.closingText
-  );
+function draftSerialized(draft: DraftValues) {
+  return JSON.stringify(draft);
+}
+
+function getTemplateForKind(
+  settings: BusinessSettingsView,
+  kind: EmailTemplateKind,
+): unknown {
+  if (kind === "invoice") {
+    return (
+      (settings as Partial<BusinessSettingsView>).invoiceEmailTemplate ?? null
+    );
+  }
+  if (kind === "follow-up") {
+    return (
+      (settings as Partial<BusinessSettingsView>).quoteFollowUpTemplate ?? null
+    );
+  }
+  return settings.quoteEmailTemplate;
 }
 
 export function BusinessEmailTemplateForm({
@@ -85,141 +103,245 @@ export function BusinessEmailTemplateForm({
     action,
     initialState,
   );
-  const initialDraft = useMemo(
-    () => configToDraft(settings.quoteEmailTemplate),
-    [settings.quoteEmailTemplate],
+  const { selected: activeKind, handleSelectionChange: syncTemplateHash } =
+    useHashTab(EMAIL_TEMPLATE_KINDS, "quote");
+  const initialDrafts = useMemo(
+    () =>
+      ({
+        quote: toDraft("quote", getTemplateForKind(settings, "quote")),
+        invoice: toDraft("invoice", getTemplateForKind(settings, "invoice")),
+        "follow-up": toDraft(
+          "follow-up",
+          getTemplateForKind(settings, "follow-up"),
+        ),
+      }) as Record<EmailTemplateKind, DraftValues>,
+    [settings],
   );
-  const [draft, setDraft] = useState(initialDraft);
-  const [saved, setSaved] = useState(initialDraft);
-  const hasUnsavedChanges = draftHasChanges(draft, saved);
+  const [drafts, setDrafts] =
+    useState<Record<EmailTemplateKind, DraftValues>>(initialDrafts);
+  const [saved, setSaved] =
+    useState<Record<EmailTemplateKind, DraftValues>>(initialDrafts);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  const draft = drafts[activeKind];
+  const hasUnsavedChanges = EMAIL_TEMPLATE_KINDS.some(
+    (kind) => draftSerialized(drafts[kind]) !== draftSerialized(saved[kind]),
+  );
   const { shouldRenderFloatingActions, floatingActionsState } =
     useFloatingUnsavedChanges(hasUnsavedChanges);
-
-  const preview = useMemo(
-    () =>
-      resolveQuoteEmailTemplate(
-        {
-          subject: draft.subject || undefined,
-          greeting: draft.greeting || undefined,
-          introText: draft.introText || undefined,
-          ctaLabel: draft.ctaLabel || undefined,
-          closingText: draft.closingText || undefined,
-        },
-        quoteEmailSampleMergeValues,
-      ),
-    [draft],
-  );
 
   useEffect(() => {
     if (!state.success) {
       return;
     }
 
-    setSaved(draft);
+    setSaved(drafts);
     scheduleRefresh();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleRefresh, state.success]);
 
   useEffect(() => {
-    setDraft(initialDraft);
-    setSaved(initialDraft);
-  }, [initialDraft]);
+    setDrafts(initialDrafts);
+    setSaved(initialDrafts);
+    setSelectedBlockId(null);
+    setEditingBlockId(null);
+  }, [initialDrafts]);
 
-  function updateDraft<Key extends keyof DraftValues>(
-    key: Key,
-    value: DraftValues[Key],
-  ) {
-    setDraft((current) => ({
-      ...current,
-      [key]: value,
-    }));
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setPrefersReducedMotion(mediaQuery.matches);
+    update();
+    mediaQuery.addEventListener("change", update);
+    return () => mediaQuery.removeEventListener("change", update);
+  }, []);
+
+  function handleKindChange(kind: EmailTemplateKind) {
+    syncTemplateHash(kind);
+    setSelectedBlockId(null);
+    setEditingBlockId(null);
   }
 
   function handleCancelChanges() {
-    setDraft(saved);
+    setDrafts(saved);
+    setSelectedBlockId(null);
+    setEditingBlockId(null);
   }
 
-  function applyPreset(key: QuoteEmailPresetKey) {
-    const preset = quoteEmailPresets[key];
+  function handleSelectBlock(id: string | null) {
+    setSelectedBlockId(id);
+    if (id === null) return;
+    if (editingBlockId !== null && editingBlockId !== id) {
+      setEditingBlockId(null);
+    }
+  }
 
-    setDraft({
-      subject: preset.config.subject ?? "",
-      greeting: preset.config.greeting ?? "",
-      introText: preset.config.introText ?? "",
-      ctaLabel: preset.config.ctaLabel ?? "",
-      closingText: preset.config.closingText ?? "",
+  function handleEditBlock(id: string | null) {
+    setEditingBlockId(id);
+    if (id !== null) {
+      setSelectedBlockId(id);
+    }
+  }
+
+  function updateSubject(value: string) {
+    setDrafts((current) => ({
+      ...current,
+      [activeKind]: { ...current[activeKind], subject: value },
+    }));
+  }
+
+  function updateBlock(id: string, patch: Partial<EmailTemplateBlock>) {
+    setDrafts((current) => ({
+      ...current,
+      [activeKind]: {
+        ...current[activeKind],
+        blocks: current[activeKind].blocks.map((block) =>
+          block.id === id ? { ...block, ...patch } : block,
+        ),
+      },
+    }));
+  }
+
+  function updateBlockStyle(
+    id: string,
+    key: keyof NonNullable<EmailTemplateBlock["style"]>,
+    value: string | undefined,
+  ) {
+    setDrafts((current) => ({
+      ...current,
+      [activeKind]: {
+        ...current[activeKind],
+        blocks: current[activeKind].blocks.map((block) => {
+          if (block.id !== id) return block;
+          const nextStyle = { ...(block.style ?? {}) };
+          if (value === undefined || value === "") {
+            delete nextStyle[key];
+          } else {
+            (nextStyle as Record<string, string>)[key] = value;
+          }
+          return {
+            ...block,
+            style: Object.keys(nextStyle).length ? nextStyle : undefined,
+          };
+        }),
+      },
+    }));
+  }
+
+  function toggleBlockVisibility(id: string) {
+    setDrafts((current) => ({
+      ...current,
+      [activeKind]: {
+        ...current[activeKind],
+        blocks: current[activeKind].blocks.map((block) =>
+          block.id === id
+            ? { ...block, visible: block.visible === false ? true : false }
+            : block,
+        ),
+      },
+    }));
+  }
+
+  function removeBlock(id: string) {
+    setDrafts((current) => ({
+      ...current,
+      [activeKind]: {
+        ...current[activeKind],
+        blocks: current[activeKind].blocks.filter(
+          (block) => block.id !== id,
+        ),
+      },
+    }));
+    setSelectedBlockId((current) => (current === id ? null : current));
+    setEditingBlockId((current) => (current === id ? null : current));
+  }
+
+  function addBlock(type: "text" | "divider" | "spacer", index?: number) {
+    let insertedId: string | null = null;
+    setDrafts((current) => {
+      const active = current[activeKind];
+      if (active.blocks.length >= MAX_EMAIL_TEMPLATE_BLOCKS) return current;
+      const next =
+        type === "text"
+          ? createTextBlock()
+          : type === "divider"
+            ? createDividerBlock()
+            : createSpacerBlock();
+      insertedId = next.id;
+      if (index === undefined || index < 0 || index > active.blocks.length) {
+        return {
+          ...current,
+          [activeKind]: { ...active, blocks: [...active.blocks, next] },
+        };
+      }
+      const blocks = [...active.blocks];
+      blocks.splice(index, 0, next);
+      return { ...current, [activeKind]: { ...active, blocks } };
     });
+    if (insertedId) {
+      const id = insertedId;
+      setSelectedBlockId(id);
+      if (type === "text") {
+        setEditingBlockId(id);
+      }
+    }
   }
 
-  function resetToDefaults() {
-    setDraft({
-      subject: "",
-      greeting: "",
-      introText: "",
-      ctaLabel: "",
-      closingText: "",
-    });
-  }
+  const blocksError = state.fieldErrors?.blocks?.[0];
+  const subjectError = state.fieldErrors?.subject?.[0];
+  const mergeTags = getMergeTagsForKind(activeKind);
+  const selectedBlock =
+    draft.blocks.find((block) => block.id === selectedBlockId) ?? null;
 
   return (
-    <form action={formAction} className="form-stack pb-28">
-      <div className="flex flex-col gap-6">
-        {/* Presets */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-muted-foreground">
-            Start from:
-          </span>
-          {quoteEmailPresetKeys.map((key) => {
-            const preset = quoteEmailPresets[key];
-            return (
-              <Button
-                disabled={isPending}
-                key={key}
-                onClick={() => applyPreset(key)}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                {preset.label}
-              </Button>
-            );
-          })}
-          <Button
-            disabled={isPending}
-            onClick={resetToDefaults}
-            size="sm"
-            type="button"
-            variant="ghost"
-          >
-            Reset
-          </Button>
+    <form action={formAction} className="pb-28">
+      <Tabs
+        className="gap-0"
+        data-settings-subnav=""
+        selectedKey={activeKind}
+        onSelectionChange={(key) =>
+          handleKindChange(key as EmailTemplateKind)
+        }
+      >
+        <div className="sticky top-13 z-20 bg-muted lg:top-12">
+          <TabList aria-label="Email templates" className="justify-center">
+            {EMAIL_TEMPLATE_KINDS.map((kind) => {
+              const Icon = EMAIL_TEMPLATE_KIND_ICONS[kind];
+              const dirty =
+                draftSerialized(drafts[kind]) !==
+                draftSerialized(saved[kind]);
+              return (
+                <Tab key={kind} id={kind} icon={Icon}>
+                  {EMAIL_TEMPLATE_KIND_LABELS[kind]}
+                  {dirty ? (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        className="size-1.5 rounded-full bg-current opacity-70"
+                      />
+                      <span className="sr-only">(unsaved changes)</span>
+                    </>
+                  ) : null}
+                </Tab>
+              );
+            })}
+          </TabList>
         </div>
 
-        {/* Merge tags info */}
-        <div className="flex items-start gap-3 rounded-xl border border-border/75 bg-muted/30 px-5 py-4">
-          <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-          <div className="text-sm text-muted-foreground">
-            <span>Available merge tags: </span>
-            {quoteEmailMergeTags.map((tag, index) => (
-              <span key={tag.tag}>
-                <code className="rounded bg-background px-1.5 py-0.5 text-xs font-medium text-foreground">
-                  {tag.tag}
-                </code>
-                <span className="text-xs"> ({tag.label})</span>
-                {index < quoteEmailMergeTags.length - 1 ? ", " : ""}
-              </span>
-            ))}
-          </div>
-        </div>
+        <div className="px-3 pt-4 sm:px-5 sm:pt-5 xl:px-6 xl:pt-6">
+          <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-6">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                {EMAIL_TEMPLATE_KIND_LABELS[activeKind]}
+              </h2>
+              <p className="text-sm font-semibold tracking-tight text-foreground">
+                {EMAIL_TEMPLATE_KIND_DESCRIPTIONS[activeKind]}
+              </p>
+            </div>
 
-        {/* Two-column layout: fields + preview */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Fields */}
- <section className="section-panel">
-            <div className="flex flex-col gap-5">
-              <Field
-                data-invalid={Boolean(state.fieldErrors?.subject) || undefined}
-              >
+            <div className="flex w-full max-w-xl flex-col gap-5">
+              <Field data-invalid={Boolean(subjectError) || undefined}>
                 <FieldLabel htmlFor="email-template-subject">
                   Subject line
                 </FieldLabel>
@@ -229,178 +351,97 @@ export function BusinessEmailTemplateForm({
                     id="email-template-subject"
                     maxLength={200}
                     name="subject"
-                    onChange={(event) =>
-                      updateDraft("subject", event.currentTarget.value)
+                    onChange={(event) => updateSubject(event.currentTarget.value)}
+                    placeholder={
+                      activeKind === "invoice"
+                        ? "Invoice {{invoiceNumber}} from {{businessName}} — due {{dueDate}}"
+                        : activeKind === "follow-up"
+                          ? "Following up: {{quoteNumber}} from {{businessName}}"
+                          : "{{quoteNumber}} from {{businessName}}"
                     }
-                    placeholder={quoteEmailTemplateDefaults.subject}
                     value={draft.subject}
                   />
                   <FieldError
-                    errors={
-                      state.fieldErrors?.subject?.[0]
-                        ? [{ message: state.fieldErrors.subject[0] }]
-                        : undefined
-                    }
+                    errors={subjectError ? [{ message: subjectError }] : undefined}
                   />
                 </FieldContent>
               </Field>
-
-              <Field
-                data-invalid={Boolean(state.fieldErrors?.greeting) || undefined}
-              >
-                <FieldLabel htmlFor="email-template-greeting">
-                  Greeting
-                </FieldLabel>
+              <input type="hidden" name="templateKind" value={activeKind} />
+              <input
+                type="hidden"
+                name="blocks"
+                value={JSON.stringify(draft.blocks)}
+              />
+              <Field>
+                <FieldLabel>Available merge tags</FieldLabel>
                 <FieldContent>
-                  <Input
-                    disabled={isPending}
-                    id="email-template-greeting"
-                    maxLength={200}
-                    name="greeting"
-                    onChange={(event) =>
-                      updateDraft("greeting", event.currentTarget.value)
-                    }
-                    placeholder={quoteEmailTemplateDefaults.greeting}
-                    value={draft.greeting}
-                  />
-                  <FieldError
-                    errors={
-                      state.fieldErrors?.greeting?.[0]
-                        ? [{ message: state.fieldErrors.greeting[0] }]
-                        : undefined
-                    }
-                  />
-                </FieldContent>
-              </Field>
-
-              <Field
-                data-invalid={Boolean(state.fieldErrors?.introText) || undefined}
-              >
-                <FieldLabel htmlFor="email-template-intro">
-                  Intro text
-                </FieldLabel>
-                <FieldContent>
-                  <Textarea
-                    disabled={isPending}
-                    id="email-template-intro"
-                    maxLength={400}
-                    name="introText"
-                    onChange={(event) =>
-                      updateDraft("introText", event.currentTarget.value)
-                    }
-                    placeholder={quoteEmailTemplateDefaults.introText}
-                    rows={3}
-                    value={draft.introText}
-                  />
-                  <FieldError
-                    errors={
-                      state.fieldErrors?.introText?.[0]
-                        ? [{ message: state.fieldErrors.introText[0] }]
-                        : undefined
-                    }
-                  />
-                </FieldContent>
-              </Field>
-
-              <Field
-                data-invalid={Boolean(state.fieldErrors?.ctaLabel) || undefined}
-              >
-                <FieldLabel htmlFor="email-template-cta">
-                  Button label
-                </FieldLabel>
-                <FieldContent>
-                  <Input
-                    disabled={isPending}
-                    id="email-template-cta"
-                    maxLength={60}
-                    name="ctaLabel"
-                    onChange={(event) =>
-                      updateDraft("ctaLabel", event.currentTarget.value)
-                    }
-                    placeholder={quoteEmailTemplateDefaults.ctaLabel}
-                    value={draft.ctaLabel}
-                  />
-                  <FieldDescription>
-                    The call-to-action button in the email.
-                  </FieldDescription>
-                  <FieldError
-                    errors={
-                      state.fieldErrors?.ctaLabel?.[0]
-                        ? [{ message: state.fieldErrors.ctaLabel[0] }]
-                        : undefined
-                    }
-                  />
-                </FieldContent>
-              </Field>
-
-              <Field
-                data-invalid={
-                  Boolean(state.fieldErrors?.closingText) || undefined
-                }
-              >
-                <FieldLabel htmlFor="email-template-closing">
-                  Closing text
-                </FieldLabel>
-                <FieldContent>
-                  <Textarea
-                    disabled={isPending}
-                    id="email-template-closing"
-                    maxLength={400}
-                    name="closingText"
-                    onChange={(event) =>
-                      updateDraft("closingText", event.currentTarget.value)
-                    }
-                    placeholder={quoteEmailTemplateDefaults.closingText}
-                    rows={3}
-                    value={draft.closingText}
-                  />
-                  <FieldError
-                    errors={
-                      state.fieldErrors?.closingText?.[0]
-                        ? [{ message: state.fieldErrors.closingText[0] }]
-                        : undefined
-                    }
-                  />
+                  <p className="text-sm leading-7 text-muted-foreground">
+                    {mergeTags.map((tag, index) => (
+                      <span key={tag.tag}>
+                        <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-foreground">
+                          {tag.tag}
+                        </code>
+                        <span className="text-xs"> ({tag.label})</span>
+                        {index < mergeTags.length - 1 ? ", " : ""}
+                      </span>
+                    ))}
+                  </p>
                 </FieldContent>
               </Field>
             </div>
-          </section>
 
-          {/* Live preview */}
-          <section className="section-panel lg:sticky lg:top-24 lg:self-start">
-            <div className="mb-4">
-              <p className="text-sm font-medium text-foreground">Live preview</p>
+            <div>
+              <p className="text-sm font-medium text-foreground">Email content</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                How the email looks with sample data.
+                This is your actual email. Click a block to edit it in the
+                inspector, drag blocks to reorder, hide blocks to skip them
+                without deleting.
               </p>
             </div>
-            <div className="rounded-xl border border-border/60 bg-background px-5 py-5">
-              <div className="space-y-1.5 pb-4">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Subject
-                </p>
-                <p className="text-sm font-medium text-foreground">
-                  {preview.subject}
-                </p>
+
+            <div className="grid w-full items-start gap-6 lg:grid-cols-[minmax(0,640px)_320px] lg:justify-center">
+              <div className="mx-auto w-full max-w-[640px] min-w-0 lg:mx-0">
+                <EmailCanvas
+                  blocks={draft.blocks}
+                  selectedBlockId={selectedBlockId}
+                  editingBlockId={editingBlockId}
+                  isPending={isPending}
+                  prefersReducedMotion={prefersReducedMotion}
+                  templateKind={activeKind}
+                  onReorder={(next) =>
+                    setDrafts((current) => ({
+                      ...current,
+                      [activeKind]: { ...current[activeKind], blocks: next },
+                    }))
+                  }
+                  onSelect={handleSelectBlock}
+                  onEdit={handleEditBlock}
+                  onUpdate={updateBlock}
+                  onUpdateStyle={updateBlockStyle}
+                  onToggleVisibility={toggleBlockVisibility}
+                  onRemove={removeBlock}
+                  onInsert={addBlock}
+                />
               </div>
-              <hr className="border-border/50" />
-              <div className="space-y-4 pt-4 text-sm text-foreground">
-                <p>{preview.greeting}</p>
-                <p className="text-muted-foreground">{preview.introText}</p>
-                <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 px-4 py-3 text-center text-xs text-muted-foreground">
-                  Quote details, line items &amp; totals
-                </div>
-                <div>
-                  <span className="inline-block rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground">
-                    {preview.ctaLabel}
-                  </span>
-                </div>
-                <p className="text-muted-foreground">{preview.closingText}</p>
+              <div className="mx-auto w-full max-w-[640px] min-w-0 lg:mx-0 lg:w-[320px] lg:max-w-none lg:sticky lg:top-24">
+                <EmailTemplateInspector
+                  block={selectedBlock}
+                  templateKind={activeKind}
+                  disabled={isPending}
+                  onUpdate={updateBlock}
+                  onUpdateStyle={updateBlockStyle}
+                  onDone={() => handleEditBlock(null)}
+                />
               </div>
             </div>
-          </section>
+            {blocksError ? (
+              <p className="text-sm text-destructive" role="alert">
+                {blocksError}
+              </p>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </Tabs>
 
       <FloatingFormActions
         disableSubmit={!hasUnsavedChanges}

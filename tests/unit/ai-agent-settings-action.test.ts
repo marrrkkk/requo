@@ -32,6 +32,14 @@ const ownerContext = {
   businessContext: { business: { id: "biz_1", slug: "acme", plan: "free" as const } },
 };
 
+const proOwnerContext = {
+  ok: true,
+  user: { id: "user_1" },
+  businessContext: {
+    business: { id: "biz_1", slug: "acme", plan: "pro" as const },
+  },
+};
+
 describe("updateBusinessAiAgentSettingsAction — plan enforcement", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -67,6 +75,49 @@ describe("updateBusinessAiAgentSettingsAction — plan enforcement", () => {
       actorUserId: "user_1",
       values: { aiAgentEnabled: true, tone: "casual" },
     });
+  });
+
+  it("persists trimmed Business Instructions for a pro plan", async () => {
+    getOperationalBusinessActionContextMock.mockResolvedValue(proOwnerContext);
+    updateBusinessAiAgentSettingsMock.mockResolvedValue({ ok: true });
+
+    const result = await updateBusinessAiAgentSettingsAction(
+      {},
+      objectToFormData({
+        aiAgentEnabled: "on",
+        tone: "friendly",
+        aiAgentInstructions: "  We quote by square footage.  ",
+      }),
+    );
+
+    expect(result.success).toBe("AI agent settings saved.");
+    expect(updateBusinessAiAgentSettingsMock).toHaveBeenCalledWith({
+      businessId: "biz_1",
+      actorUserId: "user_1",
+      values: {
+        aiAgentEnabled: true,
+        tone: "friendly",
+        aiAgentInstructions: "We quote by square footage.",
+      },
+    });
+  });
+
+  it("rejects Business Instructions over the 1,000 character limit", async () => {
+    getOperationalBusinessActionContextMock.mockResolvedValue(proOwnerContext);
+
+    const result = await updateBusinessAiAgentSettingsAction(
+      {},
+      objectToFormData({
+        aiAgentEnabled: "on",
+        tone: "friendly",
+        aiAgentInstructions: "a".repeat(1001),
+      }),
+    );
+
+    expect(result.fieldErrors?.aiAgentInstructions?.[0]).toContain(
+      "1000 characters or fewer",
+    );
+    expect(updateBusinessAiAgentSettingsMock).not.toHaveBeenCalled();
   });
 
   it("returns the unauthorized message for non-operational roles", async () => {

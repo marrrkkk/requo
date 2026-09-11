@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Check,
-  Copy,
-  ExternalLink,
-  Info,
-  Sparkles,
-} from "lucide-react";
-import { toast } from "sonner";
+import { Check, Copy, ExternalLink } from "lucide-react";
+import { toast } from "@/components/base/notification/notify";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Textarea } from "@/components/ui/textarea";
 import {
   FloatingFormActions,
   useFloatingUnsavedChanges,
@@ -19,7 +20,9 @@ import {
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { Switch } from "@/components/ui/switch";
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
+import { GeneralSettingsSection } from "@/features/settings/components/business-settings-form/section";
 import type { AgentTone } from "@/features/ai-agent/types";
+import { businessInstructionsMaxLength } from "@/lib/ai/business-instructions";
 import type {
   BusinessAiAgentSettingsActionState,
   BusinessSettingsView,
@@ -34,7 +37,7 @@ type BusinessAiAgentSettingsFormProps = {
   chatPath: string;
   settings: Pick<
     BusinessSettingsView,
-    "aiAgentEnabled" | "aiAgentTone" | "updatedAt"
+    "aiAgentEnabled" | "aiAgentTone" | "aiAgentInstructions" | "updatedAt"
   >;
 };
 
@@ -70,10 +73,13 @@ export function BusinessAiAgentSettingsForm({
   );
   const [aiAgentEnabled, setAiAgentEnabled] = useState(settings.aiAgentEnabled);
   const [tone, setTone] = useState<AgentTone>(settings.aiAgentTone);
+  const [instructions, setInstructions] = useState(settings.aiAgentInstructions);
   const [copied, setCopied] = useState(false);
 
   const hasUnsavedChanges =
-    aiAgentEnabled !== settings.aiAgentEnabled || tone !== settings.aiAgentTone;
+    aiAgentEnabled !== settings.aiAgentEnabled ||
+    tone !== settings.aiAgentTone ||
+    instructions !== settings.aiAgentInstructions;
   const { shouldRenderFloatingActions, floatingActionsState } =
     useFloatingUnsavedChanges(hasUnsavedChanges);
 
@@ -88,6 +94,7 @@ export function BusinessAiAgentSettingsForm({
   function handleCancelChanges() {
     setAiAgentEnabled(settings.aiAgentEnabled);
     setTone(settings.aiAgentTone);
+    setInstructions(settings.aiAgentInstructions);
   }
 
   async function handleCopyChatLink() {
@@ -104,153 +111,182 @@ export function BusinessAiAgentSettingsForm({
   }
 
   return (
-    <form action={formAction}>
-      <input
-        name="aiAgentEnabled"
-        type="hidden"
-        value={aiAgentEnabled ? "on" : "off"}
-      />
-      <input name="tone" type="hidden" value={tone} />
+    <div className="mx-auto flex w-full max-w-xl min-w-0 flex-col gap-10">
+      <form action={formAction}>
+        <input
+          name="aiAgentEnabled"
+          type="hidden"
+          value={aiAgentEnabled ? "on" : "off"}
+        />
+        <input name="tone" type="hidden" value={tone} />
 
-      <div className="rounded-xl border border-border/75 bg-card/97 p-5 sm:p-6 shadow-xs">
-        {/* Top Header Row */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3.5 min-w-0">
-            {/* Sparkles Icon Box with teal/emerald glow */}
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary shadow-[0_0_12px_rgba(0,128,96,0.18)]">
-              <Sparkles className="size-5" />
-            </div>
-
-            <div className="flex flex-col gap-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-base font-semibold tracking-tight text-foreground">
-                  Public chat
+        <div className="flex flex-col gap-10">
+          <GeneralSettingsSection
+            title="Public chat"
+            description="A public link where customers can ask questions and share what they need. New inquiries land in your inbox."
+          >
+            <label className="flex items-center justify-between gap-4 rounded-xl border border-border/70 px-4 py-3">
+              <span className="min-w-0 text-sm text-foreground">
+                Enable public chat
+                <span className="block text-xs text-muted-foreground">
+                  {aiAgentEnabled
+                    ? "Your chat link is live for customers."
+                    : "Your chat link is turned off."}
                 </span>
-                {aiAgentEnabled ? (
-                  <Badge
-                    variant="ghost"
-                    className="bg-primary/10 text-primary text-xs px-2 py-0 h-4.5 font-medium rounded-md border-none"
-                  >
-                    Active
-                  </Badge>
-                ) : null}
-              </div>
-              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                Public conversational chat to answer customer questions and qualify inquiries 24/7.
-              </p>
-            </div>
-          </div>
-
-          {/* Toggle with Enabled/Disabled Label */}
-          <div className="flex items-center gap-2.5 shrink-0 pt-0.5">
-            <span className="text-xs font-medium text-muted-foreground hidden sm:inline">
-              {aiAgentEnabled ? "Enabled" : "Disabled"}
-            </span>
+              </span>
               <Switch
                 aria-label="Enable public chat"
-              checked={aiAgentEnabled}
-              disabled={isPending}
-              id="ai-agent-settings-enabled"
-              onCheckedChange={setAiAgentEnabled}
-            />
-          </div>
+                checked={aiAgentEnabled}
+                disabled={isPending}
+                id="ai-agent-settings-enabled"
+                onCheckedChange={setAiAgentEnabled}
+              />
+            </label>
+
+            {aiAgentEnabled ? (
+              <>
+                <div className="flex flex-col gap-2.5">
+                  <span
+                    className="text-sm font-medium text-foreground"
+                    id="ai-agent-tone-label"
+                  >
+                    Tone of voice
+                  </span>
+                  <div className="flex flex-col gap-1.5">
+                    <div
+                      aria-labelledby="ai-agent-tone-label"
+                      className="inline-flex h-9 w-full max-w-xs rounded-md border border-border/60 bg-muted/30 p-1 sm:h-8"
+                      role="radiogroup"
+                    >
+                      {toneOptions.map((opt) => {
+                        const isSelected = tone === opt.value;
+
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            aria-checked={isSelected}
+                            disabled={isPending}
+                            onClick={() => setTone(opt.value)}
+                            role="radio"
+                            className={cn(
+                              "flex flex-1 items-center justify-center rounded-md px-2.5 text-xs font-medium transition-all",
+                              isSelected
+                                ? "bg-card text-foreground shadow-xs border border-border/50"
+                                : "text-muted-foreground hover:text-foreground",
+                            )}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      How your public chat sounds to customers.
+                    </p>
+                  </div>
+                </div>
+
+                <Field>
+                  <FieldContent>
+                    <div className="control-surface flex h-9 items-center justify-between gap-2 rounded-md border border-input/95 px-3 sm:h-8">
+                      <span className="min-w-0 truncate font-mono text-xs text-muted-foreground select-all">
+                        {chatPath}
+                      </span>
+
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          className="size-7 text-muted-foreground hover:text-foreground"
+                          onClick={handleCopyChatLink}
+                          title="Copy chat link"
+                        >
+                          {copied ? (
+                            <Check className="size-3.5 text-primary" />
+                          ) : (
+                            <Copy className="size-3.5" />
+                          )}
+                          <span className="sr-only">Copy link</span>
+                        </Button>
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="icon-xs"
+                          className="size-7 text-muted-foreground hover:text-foreground"
+                          title="Open chat link in new tab"
+                        >
+                          <a
+                            href={chatPath}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                          >
+                            <ExternalLink className="size-3.5" />
+                            <span className="sr-only">Open chat link</span>
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                    <FieldDescription>
+                      Share this link anywhere customers reach you.
+                    </FieldDescription>
+                  </FieldContent>
+                </Field>
+              </>
+            ) : null}
+          </GeneralSettingsSection>
+
+          <GeneralSettingsSection
+            title="Business instructions"
+            description="Appended to every AI reply, for both your public chat and your assistant. Describe the work you take on, how you price it, and what to avoid promising."
+          >
+            <Field
+              data-invalid={
+                Boolean(state.fieldErrors?.aiAgentInstructions) || undefined
+              }
+            >
+              <FieldLabel className="sr-only" htmlFor="ai-agent-instructions">
+                Business instructions
+              </FieldLabel>
+              <FieldContent>
+                <Textarea
+                  value={instructions}
+                  disabled={isPending}
+                  id="ai-agent-instructions"
+                  maxLength={businessInstructionsMaxLength}
+                  name="aiAgentInstructions"
+                  onChange={(event) => setInstructions(event.currentTarget.value)}
+                  placeholder="e.g. We're a residential and light-commercial cleaning service. We quote by square footage, our minimum visit is $120, and we don't offer same-day bookings. Always ask about property size and the schedule they want before quoting."
+                  rows={5}
+                />
+                <FieldDescription>
+                  {instructions.length}/{businessInstructionsMaxLength}{" "}
+                  characters.
+                </FieldDescription>
+                <FieldError
+                  errors={
+                    state.fieldErrors?.aiAgentInstructions?.[0]
+                      ? [{ message: state.fieldErrors.aiAgentInstructions[0] }]
+                      : undefined
+                  }
+                />
+              </FieldContent>
+            </Field>
+          </GeneralSettingsSection>
         </div>
 
-        {/* Bottom Controls Row: Tone & Chat Link */}
-        {aiAgentEnabled ? (
-          <div className="mt-6 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-            {/* Left: Tone of voice */}
-            <div className="flex flex-col gap-1.5 w-full max-w-xs sm:max-w-sm">
-              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <span>Tone of voice</span>
-                <span title="Choose how your assistant speaks with customers.">
-                  <Info className="size-3.5 opacity-60 hover:opacity-100 transition-opacity" />
-                </span>
-              </div>
-
-              <div className="inline-flex h-9 w-full rounded-md border border-border/60 bg-muted/30 p-1 sm:h-8">
-                {toneOptions.map((opt) => {
-                  const isSelected = tone === opt.value;
-
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setTone(opt.value)}
-                      disabled={isPending}
-                      className={cn(
-                        "flex flex-1 items-center justify-center rounded-md px-2.5 text-xs font-medium transition-all",
-                        isSelected
-                          ? "bg-card text-foreground shadow-xs border border-border/50"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Right: Chat link */}
-            <div className="flex flex-col gap-1.5 w-full max-w-xs">
-              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <span>Chat link</span>
-                <span title="Public URL for visitors to chat with your business.">
-                  <Info className="size-3.5 opacity-60 hover:opacity-100 transition-opacity" />
-                </span>
-              </div>
-
-              <div className="flex h-9 items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/30 px-3 sm:h-8">
-                <span className="min-w-0 truncate font-mono text-xs text-muted-foreground select-all">
-                  {chatPath}
-                </span>
-
-                <div className="flex items-center gap-0.5 shrink-0">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-xs"
-                    className="size-7 text-muted-foreground hover:text-foreground"
-                    onClick={handleCopyChatLink}
-                    title="Copy chat link"
-                  >
-                    {copied ? (
-                      <Check className="size-3.5 text-primary" />
-                    ) : (
-                      <Copy className="size-3.5" />
-                    )}
-                    <span className="sr-only">Copy link</span>
-                  </Button>
-                  <Button
-                    asChild
-                    variant="ghost"
-                    size="icon-xs"
-                    className="size-7 text-muted-foreground hover:text-foreground"
-                    title="Open chat link in new tab"
-                  >
-                    <a href={chatPath} rel="noopener noreferrer" target="_blank">
-                      <ExternalLink className="size-3.5" />
-                      <span className="sr-only">Open chat link</span>
-                    </a>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </div>
-
-      <FloatingFormActions
-        disableSubmit={!hasUnsavedChanges}
-        isPending={isPending}
-        message="You have unsaved public chat settings."
-        onCancel={handleCancelChanges}
-        state={floatingActionsState}
-        submitLabel="Save settings"
-        submitPendingLabel="Saving..."
-        visible={shouldRenderFloatingActions}
-      />
-    </form>
+        <FloatingFormActions
+          disableSubmit={!hasUnsavedChanges}
+          isPending={isPending}
+          message="You have unsaved AI settings."
+          onCancel={handleCancelChanges}
+          state={floatingActionsState}
+          submitLabel="Save settings"
+          submitPendingLabel="Saving..."
+          visible={shouldRenderFloatingActions}
+        />
+      </form>
+    </div>
   );
 }

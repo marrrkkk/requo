@@ -16,6 +16,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Empty,
   EmptyDescription,
@@ -314,7 +315,14 @@ export function NotificationsList({
                   size="sm"
                   variant="outline"
                 >
-                  {isLoadingMore ? "Loading…" : "Load more"}
+                  {isLoadingMore ? (
+                    <>
+                      <Spinner data-icon="inline-start" aria-hidden="true" />
+                      Loading…
+                    </>
+                  ) : (
+                    "Load more"
+                  )}
                 </Button>
               </div>
             ) : (

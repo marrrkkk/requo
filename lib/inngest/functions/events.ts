@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { generateQuoteDraftForBusiness } from "@/features/ai/quote-generator";
 import { enableAutoFollowUpForQuote } from "@/features/quotes/mutations";
-import { getBusinessInquiryPath, getBusinessQuotePath } from "@/features/businesses/routes";
+import { getBusinessInquiryPath, getBusinessInvoicePath, getBusinessQuotePath } from "@/features/businesses/routes";
 import { getBusinessMessagingSettings } from "@/lib/db/business-access";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema";
@@ -13,6 +13,9 @@ import {
   type EnableQuoteAutoFollowUpEventData,
   type InquiryQualifiedEventData,
   type PushInquiryReceivedEventData,
+  type PushInvoiceOverdueEventData,
+  type PushInvoicePaidEventData,
+  type PushInvoiceSentEventData,
   type PushQuoteResponseEventData,
   type PushQuoteSentEventData,
 } from "@/lib/inngest/events";
@@ -170,6 +173,135 @@ export const pushQuoteResponse = inngest.createFunction(
   },
 );
 
+export const pushInvoiceSent = inngest.createFunction(
+  {
+    id: "push-invoice-sent",
+    name: "Push notification for invoice sent",
+    triggers: [{ event: inngestEvents.pushInvoiceSent }],
+    retries: 2,
+  },
+  async ({ event, step }) => {
+    const eventData = event.data as
+      | PushInvoiceSentEventData
+      | { recipients: BatchedRecipient<PushInvoiceSentEventData>[] };
+
+    await step.run("send-push-notification", async () => {
+      if ("recipients" in eventData && Array.isArray(eventData.recipients)) {
+        for (const recipient of eventData.recipients) {
+          const data = recipient.payload;
+          await sendPushToUserSubscriptionsForBusiness(
+            data.businessId,
+            recipient.userId,
+            {
+              title: "Invoice sent",
+              body: `Invoice ${data.invoiceNumber} sent to ${data.customerName}.`,
+              url: getBusinessInvoicePath(data.businessSlug, data.invoiceId),
+            },
+          );
+        }
+        return { sent: true };
+      }
+
+      const data = eventData as PushInvoiceSentEventData;
+      await sendPushToBusinessSubscribers(data.businessId, {
+        title: "Invoice sent",
+        body: `Invoice ${data.invoiceNumber} sent to ${data.customerName}.`,
+        url: getBusinessInvoicePath(data.businessSlug, data.invoiceId),
+      });
+
+      return { sent: true };
+    });
+
+    return { ok: true };
+  },
+);
+
+export const pushInvoicePaid = inngest.createFunction(
+  {
+    id: "push-invoice-paid",
+    name: "Push notification for invoice paid",
+    triggers: [{ event: inngestEvents.pushInvoicePaid }],
+    retries: 2,
+  },
+  async ({ event, step }) => {
+    const eventData = event.data as
+      | PushInvoicePaidEventData
+      | { recipients: BatchedRecipient<PushInvoicePaidEventData>[] };
+
+    await step.run("send-push-notification", async () => {
+      if ("recipients" in eventData && Array.isArray(eventData.recipients)) {
+        for (const recipient of eventData.recipients) {
+          const data = recipient.payload;
+          await sendPushToUserSubscriptionsForBusiness(
+            data.businessId,
+            recipient.userId,
+            {
+              title: "Invoice paid",
+              body: `Invoice ${data.invoiceNumber} from ${data.customerName} is paid in full.`,
+              url: getBusinessInvoicePath(data.businessSlug, data.invoiceId),
+            },
+          );
+        }
+        return { sent: true };
+      }
+
+      const data = eventData as PushInvoicePaidEventData;
+      await sendPushToBusinessSubscribers(data.businessId, {
+        title: "Invoice paid",
+        body: `Invoice ${data.invoiceNumber} from ${data.customerName} is paid in full.`,
+        url: getBusinessInvoicePath(data.businessSlug, data.invoiceId),
+      });
+
+      return { sent: true };
+    });
+
+    return { ok: true };
+  },
+);
+
+export const pushInvoiceOverdue = inngest.createFunction(
+  {
+    id: "push-invoice-overdue",
+    name: "Push notification for overdue invoice",
+    triggers: [{ event: inngestEvents.pushInvoiceOverdue }],
+    retries: 2,
+  },
+  async ({ event, step }) => {
+    const eventData = event.data as
+      | PushInvoiceOverdueEventData
+      | { recipients: BatchedRecipient<PushInvoiceOverdueEventData>[] };
+
+    await step.run("send-push-notification", async () => {
+      if ("recipients" in eventData && Array.isArray(eventData.recipients)) {
+        for (const recipient of eventData.recipients) {
+          const data = recipient.payload;
+          await sendPushToUserSubscriptionsForBusiness(
+            data.businessId,
+            recipient.userId,
+            {
+              title: "Invoice overdue",
+              body: `Invoice ${data.invoiceNumber} from ${data.customerName} was due ${data.dueDate}.`,
+              url: getBusinessInvoicePath(data.businessSlug, data.invoiceId),
+            },
+          );
+        }
+        return { sent: true };
+      }
+
+      const data = eventData as PushInvoiceOverdueEventData;
+      await sendPushToBusinessSubscribers(data.businessId, {
+        title: "Invoice overdue",
+        body: `Invoice ${data.invoiceNumber} from ${data.customerName} was due ${data.dueDate}.`,
+        url: getBusinessInvoicePath(data.businessSlug, data.invoiceId),
+      });
+
+      return { sent: true };
+    });
+
+    return { ok: true };
+  },
+);
+
 export const enableQuoteAutoFollowUp = inngest.createFunction(
   {
     id: "enable-quote-auto-follow-up",
@@ -253,5 +385,8 @@ export const eventFunctions = [
   pushInquiryReceived,
   pushQuoteSent,
   pushQuoteResponse,
+  pushInvoiceSent,
+  pushInvoicePaid,
+  pushInvoiceOverdue,
   enableQuoteAutoFollowUp,
 ];

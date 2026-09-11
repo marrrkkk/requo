@@ -23,7 +23,7 @@ export function getUnifiedSettingsNavigation(
 ): SettingsNavigationGroup[] {
   return [
     {
-      label: "Personal",
+      label: "User",
       items: [
         { href: `/${slug}/settings/profile`, label: "Profile", icon: "user" },
         {
@@ -39,22 +39,17 @@ export function getUnifiedSettingsNavigation(
       ],
     },
     {
-      label: "Business",
+      label: "Workspace",
       items: [
         {
           href: `/${slug}/settings/general`,
-          label: "Profile",
+          label: "General",
           icon: "building",
         },
         {
           href: `/${slug}/settings/quote`,
           label: "Quotes",
           icon: "file-text",
-        },
-        {
-          href: `/${slug}/settings/quote-templates`,
-          label: "Templates",
-          icon: "tag",
         },
         {
           href: `/${slug}/settings/email`,
@@ -67,24 +62,29 @@ export function getUnifiedSettingsNavigation(
           icon: "astroid",
         },
         {
-          href: `/${slug}/settings/knowledge-base`,
-          label: "Knowledge base",
-          icon: "book",
-        },
-      ],
-    },
-    {
-      label: "Account",
-      items: [
-        {
           href: `/${slug}/settings/billing`,
           label: "Billing",
           icon: "receipt",
         },
         {
+          href: `/${slug}/settings/members`,
+          label: "Members",
+          icon: "users",
+        },
+        {
           href: `/${slug}/settings/audit-log`,
           label: "Audit log",
           icon: "scroll",
+        },
+      ],
+    },
+    {
+      label: "Other",
+      items: [
+        {
+          href: `/${slug}/settings/support`,
+          label: "Help & Support",
+          icon: "life-buoy",
         },
       ],
     },

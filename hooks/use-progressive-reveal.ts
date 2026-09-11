@@ -20,6 +20,8 @@ type UseProgressiveRevealResult = {
   sentinelRef: React.RefObject<HTMLDivElement | null>;
   /** Manually trigger reveal (e.g. for a fallback button) */
   revealMore: () => void;
+  /** Collapse back to the initial batch (explicit Show fewer control) */
+  showFewer: () => void;
 };
 
 /**
@@ -62,6 +64,9 @@ export function useProgressiveReveal({
     });
   }, [batchSize, total, visibleCount]);
 
+  const showFewer = useCallback(() => {
+    setVisibleCount(Math.min(initialBatch, total));
+  }, [initialBatch, total]);
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel || !hasMore) {
@@ -90,5 +95,6 @@ export function useProgressiveReveal({
     hasMore,
     sentinelRef,
     revealMore,
+    showFewer,
   };
 }

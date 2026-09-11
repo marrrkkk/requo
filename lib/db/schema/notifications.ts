@@ -12,6 +12,7 @@ import {
 import { user } from "@/lib/db/schema/auth";
 import { businesses } from "@/lib/db/schema/businesses";
 import { inquiries } from "@/lib/db/schema/inquiries";
+import { invoices } from "@/lib/db/schema/invoices";
 import { quotes } from "@/lib/db/schema/quotes";
 
 export const businessNotificationTypeEnum = pgEnum("business_notification_type", [
@@ -25,6 +26,8 @@ export const businessNotificationTypeEnum = pgEnum("business_notification_type",
   "business_member_invite_accepted",
   "business_member_invite_declined",
   "automation",
+  "invoice_paid",
+  "invoice_overdue",
 ]);
 
 export const businessNotifications = pgTable(
@@ -38,6 +41,9 @@ export const businessNotifications = pgTable(
       onDelete: "set null",
     }),
     quoteId: text("quote_id").references(() => quotes.id, {
+      onDelete: "set null",
+    }),
+    invoiceId: text("invoice_id").references(() => invoices.id, {
       onDelete: "set null",
     }),
     type: businessNotificationTypeEnum("type").notNull(),
@@ -65,6 +71,7 @@ export const businessNotifications = pgTable(
     ),
     index("business_notifications_inquiry_id_idx").on(table.inquiryId),
     index("business_notifications_quote_id_idx").on(table.quoteId),
+    index("business_notifications_invoice_id_idx").on(table.invoiceId),
   ],
 );
 

@@ -4,11 +4,11 @@ import {
   BarChart3,
   BellRing,
   FileText,
+  Receipt,
   Home,
   Inbox,
   Package,
   PencilRuler,
-  Users,
 } from "lucide-react";
 
 
@@ -30,6 +30,7 @@ import {
   getBusinessNewInquiryPath,
   getBusinessProductsPath,
   getBusinessQuotesPath,
+  getBusinessInvoicesPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 
@@ -69,6 +70,12 @@ export function getDashboardNavigation(
       icon: FileText,
     },
     {
+      href: getBusinessInvoicesPath(slug),
+      label: "Invoices",
+      description: "Track invoices, payments, and balances.",
+      icon: Receipt,
+    },
+    {
       href: getBusinessFollowUpsPath(slug),
       label: "Follow-ups",
       description: "See who needs contact next and when.",
@@ -92,12 +99,6 @@ export function getDashboardNavigation(
       description: "Reusable blocks and packages for faster quotes.",
       icon: Package,
     },
-    {
-      href: getBusinessMembersPath(slug),
-      label: "Members",
-      description: "Manage team access and roles.",
-      icon: Users,
-    },
     ...(canViewBusinessAnalytics(role)
       ? [
           {
@@ -120,7 +121,7 @@ function resolveDashboardActivePathname(pathname: string) {
 
   const membersPath = getBusinessMembersPath(slug);
 
-  // Top-level members is available in main nav, not in settings.
+  // Members lives in settings now; keep it out of the main-nav active set.
   if (
     pathname === membersPath ||
     pathname.startsWith(`${membersPath}/`)
@@ -230,6 +231,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   const followUpsPath = getBusinessFollowUpsPath(slug);
   const inquiriesPath = getBusinessInquiriesPath(slug);
   const quotesPath = getBusinessQuotesPath(slug);
+  const invoicesPath = getBusinessInvoicesPath(slug);
   const servicesPath = getBusinessServicesPath(slug);
   const membersPath = getBusinessMembersPath(slug);
   const notificationsPath = getBusinessNotificationsPath(slug);
@@ -309,6 +311,10 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
     return withDashboardHome(slug, [{ label: "Quotes" }]);
   }
 
+  if (pathname === invoicesPath || pathname.startsWith(`${invoicesPath}/`)) {
+    return withDashboardHome(slug, [{ label: "Invoices" }]);
+  }
+
   if (pathname === followUpsPath || pathname.startsWith(`${followUpsPath}/`)) {
     return withDashboardHome(slug, [{ label: "Follow-ups" }]);
   }
@@ -382,7 +388,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
     const sectionLabels: Record<string, string> = {
       general: "Business profile",
       notifications: "Notifications",
-      profile: "Your profile",
+      profile: "Profile",
       inquiry: "Services",
       quote: "Quote defaults",
       knowledge: "Knowledge",

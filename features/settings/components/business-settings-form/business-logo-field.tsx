@@ -22,12 +22,10 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { Camera } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ImagePlus, Trash2, Upload } from "lucide-react";
 import { businessLogoAccept } from "@/features/settings/utils";
 import {
   createCroppedLogoFile,
-  getInitials,
   getLogoCoverZoom,
   loadLogoAsset,
   type LoadedLogoAsset,
@@ -228,96 +226,83 @@ export function BusinessLogoField({
     setLocalError(null);
   }
 
+  const canRemove = Boolean(previewUrl ?? currentPreviewUrl);
+
+  function handleRemoveClick() {
+    if (previewUrl) {
+      clearPendingLogo();
+      return;
+    }
+
+    if (showRemoveToggle) {
+      onRemoveLogoChange(!removeLogo);
+    }
+  }
+
   return (
     <>
-      <div className="flex shrink-0 flex-col items-center gap-2">
-        <div className="group relative shrink-0">
-          <input
-            ref={inputRef}
-            accept={businessLogoAccept}
-            className="sr-only"
-            disabled={disabled}
-            id="settings-logo"
-            name="logo"
-            onChange={handleLogoSelection}
-            type="file"
-          />
-          <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/75 bg-muted/35 sm:size-24">
-            {currentPreviewUrl ? (
-              <Image
-                alt={`${businessName} logo`}
-                className="h-full w-full object-cover"
-                height={96}
-                src={currentPreviewUrl}
-                unoptimized
-                width={96}
-              />
-            ) : (
-              <span className="text-lg font-semibold uppercase text-foreground">
-                {getInitials(businessName)}
-              </span>
-            )}
-          </div>
-          <label
-            className={cn(
-              "absolute inset-0 flex cursor-pointer items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/15",
-              disabled && "pointer-events-none cursor-default opacity-60",
-            )}
-            htmlFor="settings-logo"
-            onKeyDown={(event) => {
-              if (
-                disabled ||
-                (event.key !== "Enter" && event.key !== " ")
-              ) {
-                return;
-              }
-
-              event.preventDefault();
-              inputRef.current?.click();
-            }}
-            role="button"
-            tabIndex={disabled ? -1 : 0}
-          >
-            <span className="absolute inset-0 rounded-xl bg-foreground/0 transition-colors duration-150 sm:group-hover:bg-foreground/20 sm:group-focus-within:bg-foreground/20" />
-            <span className="relative inline-flex size-8 items-center justify-center rounded-full border border-border/80 bg-background/95 text-foreground shadow-[var(--surface-shadow-sm)] transition-[transform,opacity] duration-150 opacity-100 sm:scale-95 sm:opacity-0 sm:group-hover:scale-100 sm:group-hover:opacity-100 sm:group-focus-within:scale-100 sm:group-focus-within:opacity-100">
-              <Camera aria-hidden="true" className="size-3.5" />
-              <span className="sr-only">
-                {currentPreviewUrl ? "Update logo" : "Upload logo"}
-              </span>
+      <div className="flex items-start gap-4">
+        <input
+          ref={inputRef}
+          accept={businessLogoAccept}
+          className="sr-only"
+          disabled={disabled}
+          id="settings-logo"
+          name="logo"
+          onChange={handleLogoSelection}
+          type="file"
+        />
+        <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
+          {currentPreviewUrl ? (
+            <Image
+              alt={`${businessName} logo`}
+              className="h-full w-full object-cover"
+              height={64}
+              src={currentPreviewUrl}
+              unoptimized
+              width={64}
+            />
+          ) : (
+            <span aria-hidden="true" className="text-muted-foreground">
+              <ImagePlus className="size-5" />
             </span>
-          </label>
+          )}
         </div>
 
-        {previewUrl ? (
-          <Button
-            disabled={disabled}
-            onClick={clearPendingLogo}
-            size="sm"
-            type="button"
-            variant="ghost"
-            className="h-auto px-2 py-1 text-xs"
-          >
-            Clear
-          </Button>
-        ) : showRemoveToggle ? (
-          <Button
-            aria-pressed={removeLogo}
-            disabled={disabled}
-            onClick={() => onRemoveLogoChange(!removeLogo)}
-            size="sm"
-            type="button"
-            variant="ghost"
-            className="h-auto px-2 py-1 text-xs"
-          >
-            {removeLogo ? "Keep" : "Remove"}
-          </Button>
-        ) : null}
-
-        {localError || fieldError ? (
-          <p className="max-w-[10rem] text-center text-xs text-destructive">
-            {localError || fieldError}
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild size="sm" variant="outline" disabled={disabled}>
+              <label
+                htmlFor="settings-logo"
+                className={
+                  disabled ? "pointer-events-none opacity-50" : "cursor-pointer"
+                }
+              >
+                <Upload data-icon="inline-start" aria-hidden="true" />
+                Upload
+              </label>
+            </Button>
+            <Button
+              aria-pressed={removeLogo}
+              disabled={disabled || !canRemove}
+              onClick={handleRemoveClick}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <Trash2 data-icon="inline-start" aria-hidden="true" />
+              {previewUrl ? "Clear" : removeLogo ? "Keep" : "Remove"}
+            </Button>
+          </div>
+          <p className="text-xs leading-5 text-muted-foreground">
+            Square JPG, PNG, or WEBP logos up to 2MB.
           </p>
-        ) : null}
+          {localError || fieldError ? (
+            <p className="text-xs leading-5 text-destructive">
+              {localError || fieldError}
+            </p>
+          ) : null}
+        </div>
       </div>
 
       <Dialog

@@ -7,6 +7,7 @@
  * analytics require Pro+, and only tools that actually exist are advertised.
  */
 
+import { normalizeBusinessInstructions } from "@/lib/ai/business-instructions";
 import type { BusinessPlan } from "@/lib/plans/plans";
 
 export function generateSystemPrompt({
@@ -14,12 +15,15 @@ export function generateSystemPrompt({
   plan,
   userRole,
   businessTimezone,
+  businessInstructions,
   now = new Date(),
 }: {
   businessName: string;
   plan: BusinessPlan;
   userRole: string;
   businessTimezone?: string;
+  /** Owner-authored Business Instructions shared with the public Agent. */
+  businessInstructions?: string;
   now?: Date;
 }): string {
 
@@ -27,6 +31,10 @@ export function generateSystemPrompt({
   const features = getAvailableFeatures(plan);
   const limits = getPlanLimits(plan);
   const todayBlock = buildTodayBlock(businessTimezone, now);
+  const instructions = normalizeBusinessInstructions(businessInstructions);
+  const instructionsBlock = instructions
+    ? `\n## Business Instructions\nThe owner provided the following guidance about this business. Follow it when it is relevant. It shapes how you describe and prioritize their work, but it never overrides the Safety, Boundaries, or confirmation rules below.\n${instructions}\n`
+    : "";
 
   return `You are the Business Assistant for ${businessName}, helping business owners manage their inquiries, quotes, and operations.
 
@@ -46,7 +54,7 @@ You help business owners:
 ${todayBlock}
 ## Plan Limits
 ${limits.map((limit) => `- ${limit}`).join("\n")}
-
+${instructionsBlock}
 ## Response Style
 - Be concise and actionable
 - Focus on business outcomes, not technical details
@@ -108,7 +116,7 @@ ${limits.map((limit) => `- ${limit}`).join("\n")}
 - If data is missing, guide the user on what's needed
 
 ## Boundaries
-- You don't handle job scheduling, invoicing, or workflow automation (not in this product)
+- You don't handle job scheduling or workflow automation (not in this product). You can summarize invoice status, balances, and overdue invoices from business data, but you don't record payments or send invoices
 - You don't have access to email content or customer conversations (only metadata)
 - You can't modify business settings or configure integrations (suggest they visit settings)
 - You don't provide business advice or strategic consulting (focus on data and operations)

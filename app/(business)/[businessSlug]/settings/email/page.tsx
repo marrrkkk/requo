@@ -2,13 +2,17 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { PageHeader } from "@/components/shared/page-header";
 import { FeatureGate } from "@/features/paywall";
-import { SettingsFormBodySkeleton } from "@/components/shell/settings-body-skeletons";
+import { BusinessEmailTemplateStaticFallback } from "@/components/shell/settings-body-skeletons";
 import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { updateBusinessEmailTemplateSettingsAction } from "@/features/settings/actions";
 import { BusinessEmailTemplateForm } from "@/features/settings/components/business-email-template-form";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
+import {
+  EMAIL_TEMPLATE_KIND_DESCRIPTIONS,
+  EMAIL_TEMPLATE_KIND_LABELS,
+  quoteEmailMergeTags,
+} from "@/features/settings/email-templates";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
 
@@ -22,23 +26,26 @@ export const instant = true;
 /**
  * Email template settings page — non-blocking structural shell.
  *
- * Returns the page header synchronously. All dynamic reads
- * (getBusinessOperationalPageContext, billing, settings queries)
- * are resolved inside a Suspense-wrapped child server component.
+ * Static template copy (kind title/description, subject label, merge-tag
+ * labels, canvas headings) paints instantly like (main) PageHeader titles;
+ * only the DB-backed subject input, canvas blocks, and inspector stream
+ * behind skeletons. Assumes the default Quote tab until the client form
+ * hydrates and syncs the hash. All dynamic reads are resolved inside a
+ * Suspense-wrapped child server component.
  */
 export default function BusinessEmailTemplateSettingsPage() {
   return (
-    <>
-      <PageHeader
-        eyebrow="Settings"
-        title="Email templates"
-        description="Customize the automated email sent with your quotes."
-      />
-
-      <Suspense fallback={<SettingsFormBodySkeleton />}>
-        <BusinessEmailTemplateSettingsContent />
-      </Suspense>
-    </>
+    <Suspense
+      fallback={
+        <BusinessEmailTemplateStaticFallback
+          kindDescription={EMAIL_TEMPLATE_KIND_DESCRIPTIONS.quote}
+          kindLabel={EMAIL_TEMPLATE_KIND_LABELS.quote}
+          mergeTags={quoteEmailMergeTags}
+        />
+      }
+    >
+      <BusinessEmailTemplateSettingsContent />
+    </Suspense>
   );
 }
 

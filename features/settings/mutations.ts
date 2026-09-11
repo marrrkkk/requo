@@ -74,6 +74,7 @@ type UpdateBusinessEmailTemplateSettingsInput = {
   businessId: string;
   actorUserId: string;
   values: BusinessEmailTemplateSettingsInput;
+  templateKind?: "quote" | "invoice" | "follow-up";
 };
 
 type DeleteBusinessInput = {
@@ -293,6 +294,7 @@ export async function updateBusinessSettings({
       id: businesses.id,
       slug: businesses.slug,
       shortDescription: businesses.shortDescription,
+      website: businesses.website,
       logoStoragePath: businesses.logoStoragePath,
       logoContentType: businesses.logoContentType,
     })
@@ -363,6 +365,7 @@ export async function updateBusinessSettings({
           countryCode: values.countryCode ?? null,
           shortDescription: values.shortDescription ?? null,
           contactEmail: values.contactEmail ?? null,
+          website: values.website ?? null,
           logoStoragePath: values.removeLogo
             ? nextLogoStoragePath
             : nextLogoStoragePath ?? previousLogoStoragePath ?? null,
@@ -540,6 +543,7 @@ export async function updateBusinessEmailTemplateSettings({
   businessId,
   actorUserId,
   values,
+  templateKind = "quote",
 }: UpdateBusinessEmailTemplateSettingsInput): Promise<UpdateBusinessSettingsResult> {
   const [business] = await db
     .select({
@@ -557,9 +561,34 @@ export async function updateBusinessEmailTemplateSettings({
     };
   }
 
+  const emailTemplates = await import("@/features/settings/email-templates");
+
+  const normalized =
+    templateKind === "invoice"
+      ? emailTemplates.normalizeInvoiceEmailTemplate({
+          version: 2,
+          subject: values.subject,
+          blocks: values.blocks,
+        })
+      : templateKind === "follow-up"
+        ? emailTemplates.normalizeQuoteFollowUpTemplate({
+            version: 2,
+            subject: values.subject,
+            blocks: values.blocks,
+          })
+        : emailTemplates.normalizeQuoteEmailTemplate({
+            version: 2,
+            subject: values.subject,
+            blocks: values.blocks,
+          });
+  const defaults =
+    templateKind === "invoice"
+      ? emailTemplates.defaultInvoiceEmailTemplate()
+      : templateKind === "follow-up"
+        ? emailTemplates.defaultQuoteFollowUpTemplate()
+        : emailTemplates.defaultQuoteEmailTemplate();
   const hasAnyOverride =
-    values.subject || values.greeting || values.introText ||
-    values.ctaLabel || values.closingText;
+    JSON.stringify(normalized) !== JSON.stringify(defaults);
 
   const now = new Date();
 
@@ -567,15 +596,11 @@ export async function updateBusinessEmailTemplateSettings({
     await tx
       .update(businesses)
       .set({
-        quoteEmailTemplate: hasAnyOverride
-          ? {
-              subject: values.subject ?? undefined,
-              greeting: values.greeting ?? undefined,
-              introText: values.introText ?? undefined,
-              ctaLabel: values.ctaLabel ?? undefined,
-              closingText: values.closingText ?? undefined,
-            }
-          : null,
+        ...(templateKind === "invoice"
+          ? { invoiceEmailTemplate: hasAnyOverride ? normalized : null }
+          : templateKind === "follow-up"
+            ? { quoteFollowUpTemplate: hasAnyOverride ? normalized : null }
+            : { quoteEmailTemplate: hasAnyOverride ? normalized : null }),
         updatedAt: now,
       })
       .where(eq(businesses.id, businessId));
@@ -587,7 +612,12 @@ export async function updateBusinessEmailTemplateSettings({
       type: "business.email_template_updated",
       summary: "Email template settings updated.",
       metadata: {
+        templateKind,
         hasCustomTemplate: Boolean(hasAnyOverride),
+        blockCount: normalized.blocks.length,
+        hiddenBlockCount: normalized.blocks.filter(
+          (block) => block.visible === false,
+        ).length,
       },
       createdAt: now,
       updatedAt: now,
@@ -702,6 +732,11 @@ export async function updateBusinessAiAgentSettings({
         aiAgentEnabled: values.aiAgentEnabled,
         aiAgentConfig: {
           tone: values.tone,
+          // Omit rather than store an empty string: the prompt builders treat
+          // an absent value as "no instructions" and skip the block entirely.
+          ...(values.aiAgentInstructions
+            ? { instructions: values.aiAgentInstructions }
+            : {}),
         },
         updatedAt: now,
       })
@@ -716,6 +751,7 @@ export async function updateBusinessAiAgentSettings({
       metadata: {
         aiAgentEnabled: values.aiAgentEnabled,
         tone: values.tone,
+        hasInstructions: Boolean(values.aiAgentInstructions),
       },
       createdAt: now,
       updatedAt: now,

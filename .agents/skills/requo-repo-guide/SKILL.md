@@ -20,7 +20,7 @@ Read these sources first when relevant:
 - Keep `app/` focused on routes, layouts, loading states, and route handlers.
 - Keep business logic, validation, queries, actions, and mutations in `features/`.
 - Keep provider integrations and shared utilities in `lib/`.
-- Stay within current product scope: owner-first service-business workflows with workspace billing and light role-based membership. Do not add marketplace, live chat, mobile app, dispatch, payroll, invoicing, or advanced team collaboration unless explicitly requested.
+- Stay within current product scope: owner-first service-business workflows (inquiry → quote → invoice → payment) with workspace billing and light role-based membership. Do not add marketplace, live chat, mobile app, dispatch, payroll, payment gateways, or advanced team collaboration unless explicitly requested.
 
 ## UI System
 

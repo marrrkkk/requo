@@ -56,6 +56,7 @@ type BusinessSettingsDraftValues = {
   name: string;
   slug: string;
   contactEmail: string;
+  website: string;
   shortDescription: string;
   countryCode: string;
   defaultCurrency: string;
@@ -69,6 +70,7 @@ function getBusinessSettingsDraftValues(
     name: settings.name,
     slug: settings.slug,
     contactEmail: settings.contactEmail ?? fallbackContactEmail,
+    website: settings.website ?? "",
     shortDescription: settings.shortDescription ?? "",
     countryCode: settings.countryCode ?? "",
     defaultCurrency: settings.defaultCurrency,
@@ -106,6 +108,7 @@ export function BusinessSettingsForm({
     draftValues.name !== savedValues.name ||
     draftValues.slug !== savedValues.slug ||
     draftValues.contactEmail !== savedValues.contactEmail ||
+    draftValues.website !== savedValues.website ||
     draftValues.shortDescription !== savedValues.shortDescription;
   const hasControlledChanges =
     removeLogo ||
@@ -164,11 +167,8 @@ export function BusinessSettingsForm({
   }
 
   return (
-    <>
-      <form
-        action={formAction}
-        className="form-stack"
-      >
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-10">
+      <form action={formAction} className="flex flex-col gap-10">
         <input name="removeLogo" type="hidden" value={String(removeLogo)} />
         <input name="countryCode" type="hidden" value={draftValues.countryCode} />
         <input
@@ -177,55 +177,46 @@ export function BusinessSettingsForm({
           value={draftValues.defaultCurrency}
         />
 
- <section className="section-panel">
-          <div className="flex flex-col gap-7">
-            {/* Logo + identity row */}
-            <IdentitySection
-              businessNamePreview={businessNamePreview}
-              draftValues={draftValues}
-              fieldErrors={state.fieldErrors}
-              isPending={isPending}
-              logoPreviewUrl={logoPreviewUrl}
-              logoResetSignal={logoResetSignal}
-              onPendingLogoChange={setHasPendingLogo}
-              onRemoveLogoChange={setRemoveLogo}
-              removeLogo={removeLogo}
-              showRemoveToggle={Boolean(settings.logoStoragePath)}
-              updateDraftValue={updateDraftValue}
-            />
+        <IdentitySection
+          businessNamePreview={businessNamePreview}
+          draftValues={draftValues}
+          fieldErrors={state.fieldErrors}
+          isPending={isPending}
+          logoPreviewUrl={logoPreviewUrl}
+          logoResetSignal={logoResetSignal}
+          onPendingLogoChange={setHasPendingLogo}
+          onRemoveLogoChange={setRemoveLogo}
+          removeLogo={removeLogo}
+          showRemoveToggle={Boolean(settings.logoStoragePath)}
+          updateDraftValue={updateDraftValue}
+        />
 
-            <div className="border-t border-border/70" />
+        <SummarySection
+          draftValue={draftValues.shortDescription}
+          fieldErrors={state.fieldErrors}
+          isPending={isPending}
+          updateDraftValue={(value) =>
+            updateDraftValue("shortDescription", value)
+          }
+        />
 
-            <SummarySection
-              draftValue={draftValues.shortDescription}
-              fieldErrors={state.fieldErrors}
-              isPending={isPending}
-              updateDraftValue={(value) =>
-                updateDraftValue("shortDescription", value)
-              }
-            />
-
-            <div className="border-t border-border/70" />
-
-            <RegionalDefaultsSection
-              countryCode={draftValues.countryCode}
-              countryCodeError={countryCodeError}
-              defaultCurrency={draftValues.defaultCurrency}
-              defaultCurrencyError={defaultCurrencyError}
-              isPending={isPending}
-              onCountryChange={(value, resolvedCurrency) => {
-                setDraftValues((current) => ({
-                  ...current,
-                  countryCode: value,
-                  defaultCurrency: resolvedCurrency ?? current.defaultCurrency,
-                }));
-              }}
-              onCurrencyChange={(value) =>
-                updateDraftValue("defaultCurrency", value)
-              }
-            />
-          </div>
-        </section>
+        <RegionalDefaultsSection
+          countryCode={draftValues.countryCode}
+          countryCodeError={countryCodeError}
+          defaultCurrency={draftValues.defaultCurrency}
+          defaultCurrencyError={defaultCurrencyError}
+          isPending={isPending}
+          onCountryChange={(value, resolvedCurrency) => {
+            setDraftValues((current) => ({
+              ...current,
+              countryCode: value,
+              defaultCurrency: resolvedCurrency ?? current.defaultCurrency,
+            }));
+          }}
+          onCurrencyChange={(value) =>
+            updateDraftValue("defaultCurrency", value)
+          }
+        />
 
         <FloatingFormActions
           disableSubmit={!hasUnsavedChanges}
@@ -247,6 +238,6 @@ export function BusinessSettingsForm({
         restoreAction={restoreAction}
         unarchiveAction={unarchiveAction}
       />
-    </>
+    </div>
   );
 }

@@ -15,6 +15,8 @@ import {
 import {
   businessAiAgentSettingsSchema,
   businessEmailTemplateSettingsSchema,
+  emailTemplateKindSchema,
+  getEmailTemplateSettingsSchemaForKind,
   businessGeneralSettingsSchema,
   businessInquiryFormCreateSchema,
   businessInquiryFormPresetSchema,
@@ -122,6 +124,7 @@ export async function updateBusinessSettingsAction(
     countryCode: formData.get("countryCode"),
     shortDescription: formData.get("shortDescription"),
     contactEmail: formData.get("contactEmail"),
+    website: formData.get("website"),
     defaultCurrency: formData.get("defaultCurrency"),
     defaultEmailSignature: formData.get("defaultEmailSignature"),
     logo: formData.get("logo"),
@@ -296,6 +299,7 @@ export async function updateBusinessAiAgentSettingsAction(
   const validationResult = businessAiAgentSettingsSchema.safeParse({
     aiAgentEnabled: formData.get("aiAgentEnabled") === "on",
     tone: formData.get("tone"),
+    aiAgentInstructions: formData.get("aiAgentInstructions"),
   });
 
   if (!validationResult.success) {
@@ -450,12 +454,26 @@ export async function updateBusinessEmailTemplateSettingsAction(
   }
 
   const { user, businessContext } = ownerAccess;
-  const validationResult = businessEmailTemplateSettingsSchema.safeParse({
+  const kindParsed = emailTemplateKindSchema.safeParse(
+    formData.get("templateKind") ?? "quote",
+  );
+  const templateKind = kindParsed.success ? kindParsed.data : "quote";
+  const rawBlocks = formData.get("blocks");
+  let parsedBlocks: unknown = [];
+  if (typeof rawBlocks === "string" && rawBlocks.trim()) {
+    try {
+      parsedBlocks = JSON.parse(rawBlocks);
+    } catch {
+      return {
+        error: "Check the email template settings and try again.",
+        fieldErrors: { blocks: ["Email blocks are invalid."] },
+      };
+    }
+  }
+  const schema = getEmailTemplateSettingsSchemaForKind(templateKind);
+  const validationResult = schema.safeParse({
     subject: formData.get("subject"),
-    greeting: formData.get("greeting"),
-    introText: formData.get("introText"),
-    ctaLabel: formData.get("ctaLabel"),
-    closingText: formData.get("closingText"),
+    blocks: parsedBlocks,
   });
 
   if (!validationResult.success) {
@@ -470,6 +488,7 @@ export async function updateBusinessEmailTemplateSettingsAction(
       businessId: businessContext.business.id,
       actorUserId: user.id,
       values: validationResult.data,
+      templateKind,
     });
 
     if (!result.ok) {

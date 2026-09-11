@@ -23,7 +23,21 @@ const SKIP_FILE_PATTERNS = [
   /[/\\]templates[/\\]emails[/\\]/,
   /[/\\]opengraph-image\.tsx$/,
   /[/\\]twitter-image\.tsx$/,
+  // Shared ImageResponse content used only by opengraph/twitter modules,
+  // where plain <img> is required (next/image does not render in
+  // ImageResponse).
+  /[/\\]seo[/\\]social-preview-image\.tsx$/,
 ];
+
+/** BoardUI-installed component trees are source-owned design-system code; their
+ *  internal markup (registry-packaged SVG icons, WebGL fallbacks) follows the
+ *  BoardUI Figma source and is exempt like the email/og-image modules above. */
+function isBoardUiTree(file: string): boolean {
+  return (
+    file.includes("components" + path.sep + "base" + path.sep) ||
+    file.includes("components" + path.sep + "application" + path.sep)
+  );
+}
 
 type Offender = {
   file: string;
@@ -71,6 +85,7 @@ function main(): number {
   const offenders: Offender[] = [];
   for (const file of files) {
     if (shouldSkip(file)) continue;
+    if (isBoardUiTree(file)) continue;
     offenders.push(...findRawImgTags(file));
   }
 

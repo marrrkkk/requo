@@ -157,7 +157,7 @@ describe("quote actions", () => {
       quoteEmailTemplate: null,
       contactEmail: "hello@brightside.test",
       notifyOnQuoteSent: true,
-    } as Awaited<ReturnType<typeof getBusinessMessagingSettings>>);
+    } as unknown as Awaited<ReturnType<typeof getBusinessMessagingSettings>>);
     vi.mocked(getQuoteSendPayloadForBusiness).mockResolvedValue(
       makeSendPayload(),
     );
@@ -222,7 +222,7 @@ describe("quote actions", () => {
     });
   });
 
-  it("returns a clear limit error when the free-plan daily Requo send cap is reached", async () => {
+  it("returns a clear limit error when the free-plan Requo send cap is reached", async () => {
     vi.mocked(checkUsageAllowance)
       .mockResolvedValueOnce({
         allowed: false,
@@ -244,7 +244,7 @@ describe("quote actions", () => {
     expect(markQuoteSentForBusiness).not.toHaveBeenCalled();
     expect(result).toEqual({
       error:
-        "Free plan includes 3 Requo sends per day and 15 per month. You've hit today's send limit. Send this quote manually or upgrade to keep using Requo delivery.",
+        "You've reached this month's Requo email limit. You can still copy and share the public quote link.",
     });
   });
 

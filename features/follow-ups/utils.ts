@@ -7,6 +7,13 @@ import type {
 } from "@/features/follow-ups/types";
 
 export const followUpStatusLabels: Record<FollowUpStatus, string> = {
+  pending: "To do",
+  completed: "Contacted",
+  skipped: "Dismissed",
+};
+
+/** Legacy task-only labels, kept for admin/audit surfaces that need them. */
+export const followUpLifecycleLabels: Record<FollowUpStatus, string> = {
   pending: "Pending",
   completed: "Completed",
   skipped: "Skipped",
@@ -50,6 +57,41 @@ export const followUpTerminationConditionLabels: Record<FollowUpTerminationCondi
   count: "Maximum occurrences",
   terminal_status: "Until linked item reaches terminal status",
 };
+
+export const followUpDismissalReasonLabels: Record<
+  import("@/features/follow-ups/types").FollowUpDismissalReason,
+  string
+> = {
+  not_relevant: "Not relevant anymore",
+  already_responded: "Customer already responded",
+  duplicate: "Duplicate",
+  lost_opportunity: "Lost opportunity",
+  revisit_later: "Will revisit later",
+  other: "Other",
+};
+
+export const followUpOutcomeLabels: Record<
+  import("@/features/follow-ups/types").FollowUpOutcomeType,
+  string
+> = {
+  contacted: "Sent message",
+  replied: "Customer replied",
+  accepted: "Quote accepted",
+  rejected: "Quote declined",
+  dismissed: "Dismissed",
+  no_answer: "No answer",
+  other: "Other outcome",
+};
+
+/** Quick outcome choices offered after a customer-touch action. */
+export const followUpOutcomeChoices = [
+  "contacted",
+  "replied",
+  "accepted",
+  "no_answer",
+  "dismissed",
+  "other",
+] as const satisfies readonly import("@/features/follow-ups/types").FollowUpOutcomeType[];
 
 export function createFollowUpId() {
   return `fup_${crypto.randomUUID().replace(/-/g, "")}`;
@@ -348,4 +390,98 @@ export function getLocalDateString(now: Date, timezone: string): string {
     // Fallback to UTC if timezone is invalid
     return getTodayUtcDateString(now);
   }
+}
+
+function daysBetween(from: Date, to: Date) {
+  const ms = to.getTime() - from.getTime();
+
+  return Math.max(0, Math.floor(ms / (24 * 60 * 60 * 1000)));
+}
+
+/**
+ * Short system reason explaining why a quote follow-up matters now.
+ * Custom manual reasons are shown above this context in the UI; this line
+ * answers "what happened last / why contact them now" at a glance.
+ */
+export function buildQuoteFollowUpWhyNow(input: {
+  dueAt: Date;
+  dueBucket: FollowUpDueBucket;
+  quoteStatus?: string | null;
+  sentAt?: Date | null;
+  viewedAt?: Date | null;
+  respondedAt?: Date | null;
+  now?: Date;
+}): string | null {
+  const now = input.now ?? new Date();
+
+  if (input.respondedAt) {
+    return "Customer responded — review and close the loop.";
+  }
+
+  if (input.quoteStatus === "revision_requested") {
+    return "Customer requested a revision.";
+  }
+
+  if (input.viewedAt) {
+    const days = daysBetween(input.viewedAt, now);
+
+    return days <= 0
+      ? "Viewed today, no response yet."
+      : `Viewed ${days} day${days === 1 ? "" : "s"} ago, no response.`;
+  }
+
+  if (input.sentAt) {
+    const days = daysBetween(input.sentAt, now);
+
+    if (days <= 0) {
+      return "Quote sent today, awaiting a first view.";
+    }
+
+    return `Quote sent ${days} day${days === 1 ? "" : "s"} ago, not viewed.`;
+  }
+
+  if (input.dueBucket === "overdue") {
+    const days = daysBetween(input.dueAt, now);
+
+    return days <= 0
+      ? "Follow-up is overdue."
+      : `Follow-up overdue by ${days} day${days === 1 ? "" : "s"}.`;
+  }
+
+  return null;
+}
+
+/**
+ * Primary next-step label for a follow-up row. Email-capable rows lead with
+ * "Review and send"; phone rows lead with "Call"; everything else opens the
+ * linked record.
+ */
+export function getFollowUpNextActionLabel(input: {
+  channel: FollowUpChannel;
+  relatedKind: "inquiry" | "quote";
+}): string {
+  if (input.channel === "email") {
+    return "Review and send";
+  }
+
+  if (input.channel === "phone") {
+    return "Call";
+  }
+
+  return input.relatedKind === "quote" ? "Open quote" : "Open inquiry";
+}
+
+/** Quote-linked items sort before inquiry/post-win work (quote-first queue). */
+export function compareQuoteFirst(
+  left: { quoteId: string | null; dueAt: Date },
+  right: { quoteId: string | null; dueAt: Date },
+): number {
+  const leftIsQuote = left.quoteId ? 0 : 1;
+  const rightIsQuote = right.quoteId ? 0 : 1;
+
+  if (leftIsQuote !== rightIsQuote) {
+    return leftIsQuote - rightIsQuote;
+  }
+
+  return left.dueAt.getTime() - right.dueAt.getTime();
 }

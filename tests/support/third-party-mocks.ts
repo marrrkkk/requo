@@ -28,9 +28,7 @@ import { vi } from "vitest";
  * error-inspection helpers.
  *
  * Owner-notification email helpers (new-inquiry, quote-sent, quote-response)
- * were removed: those events use in-app + push notifications only. The
- * obsolete invoice email template was also removed (invoicing is out of
- * scope).
+ * were removed: those events use in-app + push notifications only.
  *
  * Call at the top of the test file, outside any `beforeEach`.
  */
@@ -41,6 +39,7 @@ export function mockResend(): void {
     sendVerificationEmail: vi.fn(async () => undefined),
     sendBusinessMemberInviteEmail: vi.fn(async () => true),
     sendInquiryAcknowledgmentEmail: vi.fn(async () => undefined),
+    sendInvoiceEmail: vi.fn(async () => undefined),
     sendQuoteEmail: vi.fn(async () => undefined),
     sendQuoteAutoFollowUpEmail: vi.fn(async () => undefined),
     getResendFromEmailConfigurationError: vi.fn(() => null),

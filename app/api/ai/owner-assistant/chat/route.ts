@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth/session";
 import { getBusinessActionContext } from "@/lib/db/business-access";
 import { runOwnerAssistant } from "@/features/owner-assistant/orchestrator";
+import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 
 const uiTextPartSchema = z.object({
   type: z.string(),
@@ -81,6 +82,11 @@ export async function POST(request: Request) {
 
     const { business, role } = result.businessContext;
 
+    // Business Instructions are owner-authored context shared with both AI
+    // surfaces; they live on the business settings cache, not the membership
+    // context, so read them here (already normalized and capped at 1k chars).
+    const settings = await getBusinessSettingsForBusiness(business.id);
+
     // Run the owner assistant (handles all business logic, tool execution, streaming)
     const { response, sessionId: canonicalSessionId } = await runOwnerAssistant({
       businessId: business.id,
@@ -90,6 +96,7 @@ export async function POST(request: Request) {
       userRole: role,
       plan: business.plan,
       businessTimezone: business.timezone,
+      businessInstructions: settings?.aiAgentInstructions,
       sessionId,
       messages: messages.map((message) => ({
         role: message.role as "user" | "assistant",

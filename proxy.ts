@@ -54,6 +54,20 @@ export async function proxy(request: NextRequest) {
     return NextResponse.rewrite(new URL("/api/public/markdown", request.url));
   }
 
+  // Legacy account URLs redirect into the unified business settings
+  // profile page (profile, password, devices, and deletion live there).
+  if (
+    request.nextUrl.pathname === "/account/profile" ||
+    request.nextUrl.pathname === "/account/security"
+  ) {
+    const activeSlug = request.cookies.get(
+      activeBusinessSlugCookieName,
+    )?.value;
+    const url = request.nextUrl.clone();
+    url.pathname = activeSlug ? `/${activeSlug}/settings/profile` : "/home";
+    return finalizeProxyResponse(request, NextResponse.redirect(url));
+  }
+
   // Business slug cookie for dashboard routing
   const businessSlug = getBusinessDashboardSlugFromPathname(
     request.nextUrl.pathname,

@@ -9,6 +9,7 @@ import {
   gt,
   isNotNull,
   isNull,
+  lt,
   lte,
   sql,
 } from "drizzle-orm";
@@ -484,6 +485,8 @@ function createEmptyBusinessMoneySnapshot(): BusinessMoneySnapshot {
     wonCount: 0,
     inPlayInCents: 0,
     inPlayCount: 0,
+    wonInCentsPrior: 0,
+    wonCountPrior: 0,
   };
 }
 
@@ -528,9 +531,10 @@ async function getCachedBusinessMoneySnapshot(
   cacheTag(...getBusinessOverviewCacheTags(businessId));
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
   const today = new Date().toISOString().slice(0, 10);
 
-  const [currencyRow, wonRows, inPlayRows] = await Promise.all([
+  const [currencyRow, wonRows, priorRows, inPlayRows] = await Promise.all([
     db
       .select({ defaultCurrency: businesses.defaultCurrency })
       .from(businesses)
@@ -548,6 +552,23 @@ async function getCachedBusinessMoneySnapshot(
           getOperationalQuoteCondition(),
           eq(quotes.status, "accepted"),
           gte(quotes.acceptedAt, thirtyDaysAgo),
+        ),
+      ),
+    // Prior-window wins: the same accepted predicate, windowed 30–60 days
+    // ago, so the home stat card can show a real period-over-period delta.
+    db
+      .select({
+        totalInCents: sql<number>`coalesce(sum(${quotes.totalInCents}), 0)`,
+        count: sql<number>`count(*)`,
+      })
+      .from(quotes)
+      .where(
+        and(
+          eq(quotes.businessId, businessId),
+          getOperationalQuoteCondition(),
+          eq(quotes.status, "accepted"),
+          gte(quotes.acceptedAt, sixtyDaysAgo),
+          lt(quotes.acceptedAt, thirtyDaysAgo),
         ),
       ),
     db
@@ -573,6 +594,8 @@ async function getCachedBusinessMoneySnapshot(
     wonCount: Number(wonRows[0]?.count ?? 0),
     inPlayInCents: Number(inPlayRows[0]?.totalInCents ?? 0),
     inPlayCount: Number(inPlayRows[0]?.count ?? 0),
+    wonInCentsPrior: Number(priorRows[0]?.totalInCents ?? 0),
+    wonCountPrior: Number(priorRows[0]?.count ?? 0),
   };
 }
 

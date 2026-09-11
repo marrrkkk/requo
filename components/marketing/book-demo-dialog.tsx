@@ -10,7 +10,7 @@ import React, {
 } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { toast } from "sonner";
+import { toast } from "@/components/base/notification/notify";
 
 import {
   requestDemo,

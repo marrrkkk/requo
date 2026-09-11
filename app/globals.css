@@ -1,15 +1,16 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "../styles/typeset.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-geist-sans);
+  --font-heading: var(--font-inter);
   --font-inter: var(--font-inter);
   --font-brand: var(--font-brand);
   --font-mittel: var(--font-mittel);
@@ -46,6 +47,11 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  /* BoardUI Agent Thinking compat: tone tokens mapped onto Requo tokens so
+     the dot-wave indicator and timer follow the app theme (incl. dark mode). */
+  --color-text-primary: var(--foreground);
+  --color-text-secondary: var(--muted-foreground);
+  --color-text-tertiary: color-mix(in srgb, var(--muted-foreground) 72%, transparent);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -79,6 +85,44 @@
   }
 }
 
+@theme {
+  /* BoardUI composite type utilities (values mirror styles/typography.css,
+     which is not in the render path — only tokens registered here resolve
+     to utilities). Small-end ramp: body-2 = 13px, caption = 11–12px. */
+  --text-body-regular: 0.875rem;
+  --text-body-regular--line-height: 1.25rem;
+  --text-body-regular--letter-spacing: 0;
+  --text-body-regular--font-weight: 400;
+  --text-body-medium: 0.875rem;
+  --text-body-medium--line-height: 1.25rem;
+  --text-body-medium--letter-spacing: 0;
+  --text-body-medium--font-weight: 500;
+  --text-body-2-regular: 0.8125rem;
+  --text-body-2-regular--line-height: 1.125rem;
+  --text-body-2-regular--letter-spacing: 0;
+  --text-body-2-regular--font-weight: 400;
+  --text-body-2-medium: 0.8125rem;
+  --text-body-2-medium--line-height: 1.125rem;
+  --text-body-2-medium--letter-spacing: 0;
+  --text-body-2-medium--font-weight: 500;
+  --text-body-2-semibold: 0.8125rem;
+  --text-body-2-semibold--line-height: 1.125rem;
+  --text-body-2-semibold--letter-spacing: 0;
+  --text-body-2-semibold--font-weight: 600;
+  --text-caption-1-regular: 0.75rem;
+  --text-caption-1-regular--line-height: 1rem;
+  --text-caption-1-regular--letter-spacing: 0.15px;
+  --text-caption-1-regular--font-weight: 400;
+  --text-caption-1-medium: 0.75rem;
+  --text-caption-1-medium--line-height: 1rem;
+  --text-caption-1-medium--letter-spacing: 0.15px;
+  --text-caption-1-medium--font-weight: 500;
+  --text-caption-1-semibold: 0.75rem;
+  --text-caption-1-semibold--line-height: 1rem;
+  --text-caption-1-semibold--letter-spacing: 0.15px;
+  --text-caption-1-semibold--font-weight: 600;
+}
+
 :root {
   --background: #f7f9f7;
   --foreground: #172b24;
@@ -99,6 +143,12 @@
   --border: #d6ddd8;
   --input: #d6ddd8;
   --ring: #1b9b79;
+  /* BoardUI Agent Thinking compat: resolves the var() tone references the
+     dot-wave indicator sets inline (follows .dark overrides below via the
+     referenced tokens). */
+  --color-text-primary: var(--foreground);
+  --color-text-secondary: var(--muted-foreground);
+  --color-text-tertiary: color-mix(in srgb, var(--muted-foreground) 72%, transparent);
   --chart-1: #008060;
   --chart-2: #53a36f;
   --chart-3: #2f6f65;
@@ -764,6 +814,19 @@ html[data-reload-loading="fade-out"] #app-root-content {
     visibility: hidden;
     pointer-events: none;
   }
+
+  /*
+   * Marketing scope keeps Geist while the rest of the app uses Inter.
+   * Applied by `app/(marketing)/layout.tsx`. Direct font-family rules are
+   * used (instead of only overriding --font-sans/--font-heading) because
+   * the `font-sans`/`font-heading` utilities resolve to the global token
+   * value and would otherwise ignore a scoped variable override.
+   */
+  .font-scope-geist,
+  .font-scope-geist .font-sans,
+  .font-scope-geist .font-heading {
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1073,7 +1136,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .dashboard-detail-feed-meta {
-    @apply flex flex-wrap items-center gap-2 text-[0.8rem] leading-5 text-muted-foreground sm:text-xs;
+    @apply flex flex-wrap items-center gap-2 text-xs leading-5 text-muted-foreground;
   }
 
   .dashboard-detail-feed-body {
@@ -1177,7 +1240,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .dashboard-topbar {
-    @apply sticky top-0 z-30 border-b border-border/70 bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/80;
+    @apply sticky top-0 z-30 bg-background;
   }
 
   .dashboard-topbar-inner {
@@ -1186,6 +1249,15 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   .dashboard-main {
     @apply flex flex-1 flex-col px-3 py-4 sm:px-5 sm:py-5 xl:px-6 xl:py-6;
+  }
+
+  /* Quote settings tabs sit flush under the topbar at full column width. */
+  .dashboard-main:has([data-settings-subnav]) {
+    @apply px-0 pt-0;
+  }
+
+  .dashboard-main:has([data-settings-subnav]) > .dashboard-content {
+    @apply max-w-none;
   }
 
   /* When AI panel is open, reduce max-width and padding so content adapts */
@@ -1507,26 +1579,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
     @apply grid gap-3 sm:grid-cols-2 xl:grid-cols-4;
   }
 
-  .marketing-proof-card {
-    @apply flex h-full flex-col gap-3 rounded-lg border border-border/80 px-4 py-4 sm:px-5 sm:py-5;
-    background: var(--surface-muted-bg);
-    border-color: color-mix(in srgb, var(--surface-stroke) 88%, transparent);
-    box-shadow: var(--surface-shadow-sm);
-  }
-
   .marketing-section-grid {
     @apply grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)] xl:items-start;
-  }
-
-  .marketing-showcase-grid {
-    @apply grid lg:grid-cols-[20rem_minmax(0,1fr)];
-  }
-
-  .marketing-step {
-    @apply flex items-start gap-4 rounded-lg border border-border/80 px-4 py-4;
-    background: var(--surface-muted-bg);
-    border-color: color-mix(in srgb, var(--surface-stroke) 90%, transparent);
-    box-shadow: var(--surface-shadow-sm);
   }
 
   .marketing-faq-item {
@@ -1612,7 +1666,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .form-section-title {
-    @apply text-[0.95rem] font-semibold tracking-tight text-foreground;
+    @apply text-[0.9375rem] font-semibold tracking-tight text-foreground;
   }
 
   .form-section-description {
@@ -1695,7 +1749,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .eyebrow {
-    @apply inline-flex w-fit max-w-max self-start items-center rounded-full border border-border/80 bg-secondary px-2.5 py-1 text-[0.68rem] font-medium uppercase tracking-[0.16em] text-muted-foreground whitespace-nowrap;
+    @apply inline-flex w-fit max-w-max self-start items-center rounded-full border border-border/80 bg-secondary px-2.5 py-1 text-[0.6875rem] font-medium uppercase tracking-[0.16em] text-muted-foreground whitespace-nowrap;
   }
 
   .section-panel:not([data-padding="none"]) {
@@ -1750,6 +1804,17 @@ html[data-reload-loading="fade-out"] #app-root-content {
   .surface-card-footer {
     background: var(--surface-footer-bg);
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.2);
+  }
+
+  /* ── Flat assistant transcript cards ──
+     Tool-result cards render chromeless: no elevated surface, border, or
+     shadow. Only the chat input carries a surface, so the transcript reads
+     as plain conversation. State-tinted cards (success / error /
+     confirmation) keep their soft tints — the tint is feedback, not chrome. */
+  .tool-result-card:not(.bg-green-50\/40):not(.bg-destructive\/5):not(.bg-amber-50\/40) {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
   }
 
   .control-surface {
@@ -1997,7 +2062,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .meta-label {
-    @apply text-[0.68rem] font-medium uppercase tracking-[0.14em] text-muted-foreground;
+    @apply text-[0.6875rem] font-medium uppercase tracking-[0.14em] text-muted-foreground;
   }
 
   /* ── AI chat markdown prose ── */
@@ -2023,7 +2088,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   .ai-prose h1 { font-size: 1.1em; }
   .ai-prose h2 { font-size: 1.05em; }
   .ai-prose h3 { font-size: 1em; }
-  .ai-prose h4 { font-size: 0.95em; }
+  .ai-prose h4 { font-size: 1em; }
 
   .ai-prose p {
     margin-top: 0.6em;
@@ -2501,12 +2566,25 @@ html[data-reload-loading="fade-out"] #app-root-content {
 /* ─────────────────────────────────────────────────────────────────────────────
  * Chat surface — shared by the owner assistant and the customer chat.
  *
- * Sticky bottom composer: the transcript scrolls internally while the composer
- * stays pinned at the bottom in both empty and active conversation states.
+ * The transcript is the only scroller. In an active conversation the composer
+ * overlays the bottom of that scroller: the footer itself is transparent so
+ * messages stay visible in the padding around the input, and only the input
+ * box occludes them.
  * ───────────────────────────────────────────────────────────────────────────── */
+
+@keyframes ai-chat-text-shimmer {
+  from {
+    background-position: 200% center;
+  }
+
+  to {
+    background-position: -100% center;
+  }
+}
 
 @layer utilities {
   .chat-stage {
+    position: relative;
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto minmax(0, 0fr);
     min-height: 0;
@@ -2514,6 +2592,12 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   .chat-stage[data-conversation="empty"] {
     grid-template-rows: minmax(0, 1fr) auto minmax(0, 0fr);
+  }
+
+  /* Active: collapse the composer grid row so the transcript can fill the
+     pane. The footer is positioned over the bottom instead of occupying it. */
+  .chat-stage[data-conversation="active"] {
+    grid-template-rows: minmax(0, 1fr) 0fr 0fr;
   }
 
   /* Row 1 holds the transcript. It is the only thing that scrolls. Content
@@ -2534,14 +2618,25 @@ html[data-reload-loading="fade-out"] #app-root-content {
     margin-top: auto;
   }
 
+  /* Clearance so the last turn can scroll fully above the overlaid input. */
+  .chat-stage[data-conversation="active"] .chat-stage-transcript-inner {
+    padding-bottom: 8rem;
+  }
+
   /* ── Assistant pane height opt-in (scoped, no arithmetic) ──
      Nothing in the dashboard shell chain establishes a resolvable height
      (minimum-height all the way down), so the pane's full-height request
      resolves to auto and the transcript never scrolls. The persistent shell
      derives [data-assistant-route] from the current pathname; this avoids
      leaking these styles to the next page while React retains the previous
-     Assistant subtree during a client navigation. */
-  [data-slot="sidebar-inset"][data-assistant-route] {
+     Assistant subtree during a client navigation.
+     The BoardUI shell renders the assistant column as
+     `div[data-assistant-route][data-slot="sidebar-inset"]` (see
+     `dashboard-shell-frame.tsx`); the `[data-assistant-route]`-only
+     selectors below keep the pane bounded even if the slot attribute is
+     ever dropped again. */
+  [data-slot="sidebar-inset"][data-assistant-route],
+  [data-assistant-route] {
     height: 100svh;
     min-height: 0;
     overflow: hidden;
@@ -2552,7 +2647,12 @@ html[data-reload-loading="fade-out"] #app-root-content {
   [data-slot="sidebar-inset"][data-assistant-route] .dashboard-main,
   [data-slot="sidebar-inset"][data-assistant-route] .dashboard-content,
   [data-slot="sidebar-inset"][data-assistant-route] [data-slot="archived-scope"],
-  [data-slot="sidebar-inset"][data-assistant-route] .dashboard-page {
+  [data-slot="sidebar-inset"][data-assistant-route] .dashboard-page,
+  [data-assistant-route] [data-slot="dashboard-scroll-area"],
+  [data-assistant-route] .dashboard-main,
+  [data-assistant-route] .dashboard-content,
+  [data-assistant-route] [data-slot="archived-scope"],
+  [data-assistant-route] .dashboard-page {
     min-height: 0;
     min-width: 0;
     flex: 1 1 0%;
@@ -2561,12 +2661,30 @@ html[data-reload-loading="fade-out"] #app-root-content {
     overflow: hidden;
   }
 
-  [data-slot="sidebar-inset"][data-assistant-route] .dashboard-page {
+  [data-slot="sidebar-inset"][data-assistant-route] .dashboard-page,
+  [data-assistant-route] .dashboard-page {
     gap: 0;
   }
 
-  [data-slot="sidebar-inset"][data-assistant-route] .dashboard-main {
+  [data-slot="sidebar-inset"][data-assistant-route] .dashboard-main,
+  [data-assistant-route] .dashboard-main {
     padding-bottom: 0;
+  }
+
+  /* Overlaid composer: no surface of its own. Clicks fall through the
+     padding onto the transcript; the input (and Jump to latest) opt back
+     in with pointer-events: auto. */
+  .chat-composer-footer {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    pointer-events: none;
+    background: transparent;
+  }
+
+  .chat-composer-footer form,
+  .chat-composer-footer button {
+    pointer-events: auto;
   }
 
   /* Text shimmer for streaming status lines ("Thinking…", tool progress). */
@@ -2596,6 +2714,96 @@ html[data-reload-loading="fade-out"] #app-root-content {
       -webkit-text-fill-color: currentColor;
       animation: none !important;
     }
+  }
+
+  /* BoardUI Agent Thinking (components/application/agent-thinking): the agent
+     thinking state in both chat surfaces. The label reuses the
+     ai-chat-text-shimmer travel above; its base/highlight both derive from
+     the tone the component sets via --bui-agent-thinking-tone, so every tone
+     shimmers consistently. Verbatim from styles/globals.css (the BoardUI
+     entry is not imported; only this section is wired). */
+  .bui-agent-thinking-label {
+    color: transparent;
+    background-image: linear-gradient(
+      100deg,
+      color-mix(in oklab, var(--bui-agent-thinking-tone) 55%, transparent) 30%,
+      var(--bui-agent-thinking-tone) 50%,
+      color-mix(in oklab, var(--bui-agent-thinking-tone) 55%, transparent) 70%
+    );
+    background-position: 200% center;
+    background-size: 300% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    animation: ai-chat-text-shimmer 2.6s linear infinite;
+    will-change: background-position;
+  }
+
+  /* Star sparkle: scale + fade in, settle, and vanish; per-star duration and
+     stagger come in via inline animation-duration/-delay. */
+  @keyframes bui-agent-thinking-star {
+    0%,
+    100% {
+      transform: scale(0);
+      opacity: 0;
+    }
+    40% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    60% {
+      transform: scale(0.8);
+      opacity: 0.9;
+    }
+  }
+
+  .bui-agent-thinking-star {
+    transform: scale(0);
+    animation-name: bui-agent-thinking-star;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+  }
+
+  /* Infinity comet: the dash segment laps the normalized (pathLength=100)
+     figure-eight once per animation-duration. */
+  @keyframes bui-agent-thinking-dash {
+    to {
+      stroke-dashoffset: -100;
+    }
+  }
+
+  .bui-agent-thinking-comet {
+    animation-name: bui-agent-thinking-dash;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bui-agent-thinking-label {
+      color: var(--bui-agent-thinking-tone);
+      background-image: none;
+      animation: none;
+    }
+
+    /* Stars rest visible instead of frozen at scale(0). */
+    .bui-agent-thinking-star {
+      animation: none;
+      transform: none;
+      opacity: 0.7;
+    }
+
+    .bui-agent-thinking-comet {
+      animation: none;
+    }
+  }
+
+  /* Star glyphs read a touch heavier than the dot grids on light backgrounds;
+     soften only them (not the label) there. Dark mode keeps the full tone. */
+  .bui-agent-thinking-stars {
+    color: color-mix(in oklab, currentColor 75%, transparent);
+  }
+
+  .dark .bui-agent-thinking-stars {
+    color: inherit;
   }
 
   /*
@@ -2645,5 +2853,64 @@ html[data-reload-loading="fade-out"] #app-root-content {
       animation-iteration-count: 1;
     }
   }
+}
+
+/* Solid composer fill. InputGroup ships `dark:bg-input/30` (a wash), and
+   `.control-surface` is ~96% opaque — both let the transcript show through.
+   Unlayered + !important so this wins regardless of utility order. */
+/* Composer chrome. The inner textarea uses `.control-surface`, whose
+   inset bottom shadow painted a hairline between the field and the send
+   row — strip that, and put border + depth on the outer box only. */
+.chat-composer-surface {
+  position: relative;
+  isolation: isolate;
+  opacity: 1 !important;
+  background-color: var(--background) !important;
+  border-color: var(--control-border) !important;
+  box-shadow: var(--surface-shadow-sm);
+}
+
+.dark .chat-composer-surface {
+  background-color: var(--card) !important;
+  border-color: color-mix(in srgb, var(--border) 60%, transparent) !important;
+  box-shadow: none;
+}
+
+.chat-composer-surface:focus-within {
+  border-color: var(--ring) !important;
+  box-shadow:
+    var(--surface-shadow-sm),
+    0 0 0 3px color-mix(in srgb, var(--ring) 18%, transparent);
+}
+
+.dark .chat-composer-surface:focus-within {
+  border-color: color-mix(in srgb, var(--border) 60%, transparent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 28%, transparent);
+}
+
+.chat-composer-surface [data-slot="input-group-control"],
+.chat-composer-surface textarea {
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* BoardUI chart cards compat (components/application/dashboard/*): soft fade
+   applied to an animated number each time its target changes. Verbatim from
+   styles/globals.css (the BoardUI entry is not imported; only this section
+   is wired). */
+@keyframes number-fade {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-number-fade {
+  animation: number-fade 220ms ease-out;
 }
 

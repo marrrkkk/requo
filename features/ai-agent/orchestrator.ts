@@ -25,6 +25,7 @@ import { filterAiOutput } from "@/lib/ai/output-filter";
 import { logAiInvocation } from "@/lib/ai/token-logger";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
+import { normalizeBusinessInstructions } from "@/lib/ai/business-instructions";
 import { agentTools } from "@/features/ai-agent/tools";
 import { agentConfigSchema } from "@/features/ai-agent/schemas";
 import {
@@ -89,6 +90,11 @@ function buildSystemPrompt({
     casual: "Be relaxed and informal. Keep things conversational and easy-going.",
   }[tone];
 
+  const instructions = normalizeBusinessInstructions(config?.instructions);
+  const instructionsBlock = instructions
+    ? `\nBUSINESS GUIDANCE (provided by the business owner — follow it when it does not conflict with the RULES below):\n${instructions}\n`
+    : "";
+
   const collectedList = Object.keys(state.collected).filter(
     (key) => state.collected[key],
   );
@@ -117,7 +123,7 @@ REQUIRED INFORMATION TO COLLECT:
 CURRENT QUALIFICATION STATUS:
 - Collected: ${collectedList.length > 0 ? collectedList.join(", ") : "none yet"}
 - Still needed: ${missingList.length > 0 ? missingList.join(", ") : "none - ready to propose"}
-${stagedBlock}
+${stagedBlock}${instructionsBlock}
 RULES:
 1. Use get_services for the list of services the business offers, get_business_info for its description and contact details, and search_knowledge for pricing, capabilities, policies, and other details.
 2. Never invent pricing, timelines, or capabilities. Only share information you find through your tools.

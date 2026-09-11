@@ -27,6 +27,11 @@ import { getBusinessAssistantPath } from "@/features/businesses/routes";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
 import { AssistantHistoryPanel } from "@/features/owner-assistant/components/assistant-history-panel";
+import {
+  ASSISTANT_HISTORY_CHANGED_EVENT,
+  getCachedAssistantHistory,
+  notifyAssistantHistoryChanged,
+} from "@/features/owner-assistant/components/assistant-history-cache";
 import { ToolResultRenderer } from "@/features/owner-assistant/components/tool-result-cards";
 import {
   confirmAssistantToolAction,
@@ -222,10 +227,10 @@ function findActiveTool(messages: UIMessage[]): string | null {
  * conversation, mounted once per visit to the section.
  *
  * With no conversation yet the title and composer sit centred as one block;
- * the first send collapses the trailing grid row so the composer glides to
- * the bottom and the transcript grows above it. The session is minted by
- * that first request (the route returns `X-Session-Id`) and recorded in the
- * URL as `?session=…`, so a reload lands back on it.
+ * the first send pins the composer over the bottom of the transcript so only
+ * the input box covers messages. The session is minted by that first request
+ * (the route returns `X-Session-Id`) and recorded in the URL as `?session=…`,
+ * so a reload lands back on it.
  *
  * The conversation is held in a module-level store rather than in React state,
  * which is what lets it survive route refreshes and navigation away.
@@ -432,7 +437,7 @@ export function OwnerAssistantChat({
   useEffect(() => {
     if (status !== "ready" || messages.length <= conversation.announced) return;
     markConversationAnnounced(conversationKey, messages.length);
-    window.dispatchEvent(new CustomEvent("assistant:history-changed"));
+    notifyAssistantHistoryChanged();
   }, [conversation, conversationKey, messages.length, status]);
 
   const handleDecision = useCallback(
@@ -482,8 +487,8 @@ export function OwnerAssistantChat({
         />
       </div>
 
-      {/* Three grid rows: transcript, composer, and a trailing spacer that
-          collapses on the first send so the composer glides to the bottom. */}
+      {/* Transcript fills the pane; the composer overlays the bottom so only
+          the input box covers messages. */}
       <div
         className="chat-stage min-h-0 flex-1"
         data-conversation={isEmpty ? "empty" : "active"}
@@ -566,7 +571,7 @@ export function OwnerAssistantChat({
         </div>
 
         {!isEmpty ? (
-          <div className="sticky bottom-0 z-10 bg-background/95 backdrop-blur-xs px-3 pb-4 pt-2 md:px-6">
+          <div className="chat-composer-footer z-10 px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] md:px-6">
             {detached ? <ChatJumpToLatest onJump={jumpToLatest} /> : null}
             <div className="mx-auto w-full max-w-3xl">
               <ChatComposer
@@ -600,12 +605,23 @@ type RecentHistoryItem = {
 };
 
 /**
- * The newest saved conversations under the empty-state composer. Renders
- * nothing until the first page loads — and nothing at all for a brand-new
- * account — so the empty state keeps fitting the viewport.
+ * The newest saved conversations under the empty-state composer. Seeds from
+ * the shared history cache when the panel has already warmed it, so returning
+ * to a new chat paints instantly; otherwise renders nothing until the first
+ * page loads — and nothing at all for a brand-new account — so the empty
+ * state keeps fitting the viewport.
  */
 function RecentConversations({ businessSlug }: { businessSlug: string }) {
-  const [items, setItems] = useState<RecentHistoryItem[] | null>(null);
+  const [items, setItems] = useState<RecentHistoryItem[] | null>(
+    () =>
+      getCachedAssistantHistory(businessSlug)?.items.slice(0, 5).map(
+        (session) => ({
+          id: session.id,
+          title: session.title,
+          lastMessageAt: session.lastMessageAt,
+        }),
+      ) ?? null,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -625,10 +641,10 @@ function RecentConversations({ businessSlug }: { businessSlug: string }) {
       );
     };
     void refresh();
-    window.addEventListener("assistant:history-changed", refresh);
+    window.addEventListener(ASSISTANT_HISTORY_CHANGED_EVENT, refresh);
     return () => {
       cancelled = true;
-      window.removeEventListener("assistant:history-changed", refresh);
+      window.removeEventListener(ASSISTANT_HISTORY_CHANGED_EVENT, refresh);
     };
   }, [businessSlug]);
 

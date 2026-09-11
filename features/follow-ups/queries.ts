@@ -17,14 +17,19 @@ import { cacheLife, cacheTag } from "next/cache";
 import { cache } from "react";
 
 import type {
+  FollowUpActivityItem,
   FollowUpListQueryFilters,
   FollowUpOverviewData,
+  FollowUpSummaryCounts,
   FollowUpView,
 } from "@/features/follow-ups/types";
 import {
   buildFollowUpSuggestedMessage,
+  buildQuoteFollowUpWhyNow,
+  compareQuoteFirst,
   getDateInputValue,
   getFollowUpDueBucket,
+  getFollowUpNextActionLabel,
   getTodayUtcDateString,
 } from "@/features/follow-ups/utils";
 import { getPublicQuoteUrl } from "@/features/quotes/utils";
@@ -84,6 +89,17 @@ type FollowUpRow = {
   quoteTitle: string | null;
   quotePublicToken: string | null;
   quoteViewedAt: Date | null;
+  quoteStatus: string | null;
+  quoteTotalInCents: number | null;
+  quoteCurrency: string | null;
+  quoteSentAt: Date | null;
+  quoteRespondedAt: Date | null;
+  autoFollowUpEnabled: boolean | null;
+  autoFollowUpDelayDays: number | null;
+  autoFollowUpMaxAttempts: number | null;
+  autoFollowUpAttempts: number | null;
+  autoFollowUpLastSentAt: Date | null;
+  autoFollowUpStoppedAt: Date | null;
 };
 
 function getUtcDayStart(value: string) {
@@ -114,6 +130,20 @@ function mapFollowUpRow(row: FollowUpRow): FollowUpView {
     row.quoteCustomerContactMethod ?? row.inquiryCustomerContactMethod;
   const customerContactHandle =
     row.quoteCustomerContactHandle ?? row.inquiryCustomerContactHandle;
+  const dueBucket = getFollowUpDueBucket({
+    status: row.status,
+    dueAt: row.dueAt,
+  }, undefined, row.businessTimezone);
+  const quoteContext = isQuoteFollowUp
+    ? {
+        status: row.quoteStatus,
+        totalInCents: row.quoteTotalInCents,
+        currency: row.quoteCurrency,
+        sentAt: row.quoteSentAt,
+        viewedAt: row.quoteViewedAt,
+        respondedAt: row.quoteRespondedAt,
+      }
+    : null;
 
   return {
     id: row.id,
@@ -138,10 +168,7 @@ function mapFollowUpRow(row: FollowUpRow): FollowUpView {
     status: row.status,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    dueBucket: getFollowUpDueBucket({
-      status: row.status,
-      dueAt: row.dueAt,
-    }, undefined, row.businessTimezone),
+    dueBucket,
     customerName,
     customerEmail,
     customerContactMethod,
@@ -167,6 +194,22 @@ function mapFollowUpRow(row: FollowUpRow): FollowUpView {
     quoteTitle: row.quoteTitle,
     quotePublicUrl,
     quoteViewedAt: row.quoteViewedAt,
+    source: isQuoteFollowUp ? "manual" : "manual",
+    whyNow: isQuoteFollowUp
+      ? buildQuoteFollowUpWhyNow({
+          dueAt: row.dueAt,
+          dueBucket,
+          quoteStatus: row.quoteStatus,
+          sentAt: row.quoteSentAt,
+          viewedAt: row.quoteViewedAt,
+          respondedAt: row.quoteRespondedAt,
+        })
+      : null,
+    nextActionLabel: getFollowUpNextActionLabel({
+      channel: row.channel,
+      relatedKind: isQuoteFollowUp ? "quote" : "inquiry",
+    }),
+    quoteContext,
     suggestedMessage: buildFollowUpSuggestedMessage({
       kind: isQuoteFollowUp ? "quote" : "inquiry",
       businessName: row.businessName,
@@ -216,6 +259,17 @@ function getFollowUpSelection() {
     quoteTitle: quotes.title,
     quotePublicToken: quotes.publicToken,
     quoteViewedAt: quotes.publicViewedAt,
+    quoteStatus: quotes.status,
+    quoteTotalInCents: quotes.totalInCents,
+    quoteCurrency: quotes.currency,
+    quoteSentAt: quotes.sentAt,
+    quoteRespondedAt: quotes.customerRespondedAt,
+    autoFollowUpEnabled: quotes.autoFollowUpEnabled,
+    autoFollowUpDelayDays: quotes.autoFollowUpDelayDays,
+    autoFollowUpMaxAttempts: quotes.autoFollowUpMaxAttempts,
+    autoFollowUpAttempts: quotes.autoFollowUpAttempts,
+    autoFollowUpLastSentAt: quotes.autoFollowUpLastSentAt,
+    autoFollowUpStoppedAt: quotes.autoFollowUpStoppedAt,
   };
 }
 
@@ -555,6 +609,147 @@ export function getNextPendingFollowUp(items: FollowUpView[]) {
     .sort((left, right) =>
       getDateInputValue(left.dueAt).localeCompare(getDateInputValue(right.dueAt)),
     )[0] ?? null;
+}
+
+/**
+ * Active automatic email sequences for a business, composed from
+ * quotes.autoFollowUp* columns (no follow_ups row). Phase one of the unified
+ * read model: callers combine this with manual follow_ups rows instead of a
+ * risky immediate migration.
+ */
+export async function getActiveAutoFollowUpSequencesForBusiness(
+  businessId: string,
+): Promise<Extract<FollowUpActivityItem, { kind: "auto_sequence" }>[]> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessFollowUpListCacheTags(businessId));
+
+  const rows = await db
+    .select({
+      quoteId: quotes.id,
+      quoteNumber: quotes.quoteNumber,
+      quoteTitle: quotes.title,
+      customerName: quotes.customerName,
+      customerEmail: quotes.customerEmail,
+      status: quotes.status,
+      totalInCents: quotes.totalInCents,
+      currency: quotes.currency,
+      sentAt: quotes.sentAt,
+      viewedAt: quotes.publicViewedAt,
+      respondedAt: quotes.customerRespondedAt,
+      enabled: quotes.autoFollowUpEnabled,
+      delayDays: quotes.autoFollowUpDelayDays,
+      maxAttempts: quotes.autoFollowUpMaxAttempts,
+      attempts: quotes.autoFollowUpAttempts,
+      lastSentAt: quotes.autoFollowUpLastSentAt,
+      stoppedAt: quotes.autoFollowUpStoppedAt,
+    })
+    .from(quotes)
+    .where(
+      and(
+        eq(quotes.businessId, businessId),
+        eq(quotes.autoFollowUpEnabled, true),
+        isNull(quotes.deletedAt),
+        isNull(quotes.autoFollowUpStoppedAt),
+        eq(quotes.status, "sent"),
+      ),
+    )
+    .orderBy(asc(quotes.sentAt))
+    .limit(50);
+
+  return rows.map((row) => {
+    const attempts = row.attempts ?? 0;
+    const maxAttempts = row.maxAttempts ?? 0;
+    const isComplete = attempts >= maxAttempts;
+    const base = row.lastSentAt ?? row.sentAt;
+    const nextSendAt =
+      !isComplete && base && row.delayDays
+        ? new Date(base.getTime() + row.delayDays * 24 * 60 * 60 * 1000)
+        : null;
+
+    return {
+      kind: "auto_sequence" as const,
+      quoteId: row.quoteId,
+      quoteNumber: row.quoteNumber,
+      quoteTitle: row.quoteTitle,
+      customerName: row.customerName,
+      customerEmail: row.customerEmail,
+      sequence: {
+        enabled: true,
+        isActive: !isComplete,
+        isPaused: false,
+        isComplete,
+        attempts,
+        maxAttempts,
+        delayDays: row.delayDays ?? 0,
+        lastSentAt: row.lastSentAt,
+        nextSendAt,
+        stoppedAt: row.stoppedAt,
+      },
+      quoteContext: {
+        status: row.status,
+        totalInCents: row.totalInCents,
+        currency: row.currency,
+        sentAt: row.sentAt,
+        viewedAt: row.viewedAt,
+        respondedAt: row.respondedAt,
+      },
+    };
+  });
+}
+
+/**
+ * Unified workspace read: manual follow-ups (quote-first) plus active
+ * automatic sequences. Storage stays split; this adapter is the single place
+ * the UI reads the combined model from.
+ */
+export async function getUnifiedFollowUpActivityForBusiness(
+  businessId: string,
+  overview: FollowUpOverviewData,
+): Promise<{
+  priorityQueue: FollowUpView[];
+  autoSequences: Extract<FollowUpActivityItem, { kind: "auto_sequence" }>[];
+}> {
+  const [sequences] = await Promise.all([
+    getActiveAutoFollowUpSequencesForBusiness(businessId),
+  ]);
+  const priorityQueue = [...overview.overdue, ...overview.dueToday]
+    .slice()
+    .sort(compareQuoteFirst);
+
+  return { priorityQueue, autoSequences: sequences };
+}
+
+/**
+ * Compact outcome-oriented counts for the summary strip: attention now,
+ * due today, waiting (upcoming + active sequences), and history depth.
+ */
+export async function getFollowUpSummaryCountsForBusiness(
+  businessId: string,
+  overview: FollowUpOverviewData,
+): Promise<FollowUpSummaryCounts> {
+  const [historyRows, sequences] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(followUps)
+      .where(
+        and(
+          eq(followUps.businessId, businessId),
+          isNull(followUps.deletedAt),
+          or(eq(followUps.status, "completed"), eq(followUps.status, "skipped"))!,
+        ),
+      ),
+    getActiveAutoFollowUpSequencesForBusiness(businessId),
+  ]);
+
+  return {
+    needsAttention: overview.counts.overdue,
+    dueToday: overview.counts.dueToday,
+    waiting: overview.counts.upcoming + sequences.filter((s) => s.sequence.isActive).length,
+    activeSequences: sequences.filter((s) => s.sequence.isActive).length,
+    history: Number(historyRows[0]?.count ?? 0),
+  };
 }
 
 

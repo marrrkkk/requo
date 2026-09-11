@@ -35,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DashboardEmptyState } from "@/components/shared/dashboard-layout";
+import { GeneralSettingsSection } from "@/features/settings/components/business-settings-form/section";
 import {
   QuoteLibraryEntryForm,
 } from "@/features/quotes/components/quote-library-entry-form";
@@ -112,52 +113,59 @@ export function QuoteTemplatesManager({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          {templates.length}{" "}
-          {templates.length === 1 ? "template" : "templates"}
-          {pricingLimit !== null ? (
-            <span className="ml-1">
-              · {totalLibraryCount}/{pricingLimit} library entries used
-            </span>
-          ) : null}
-        </p>
-        <Button
-          disabled={isAtLimit}
-          onClick={openCreate}
-          size="sm"
-          type="button"
-        >
-          <Plus data-icon="inline-start" />
-          New template
-        </Button>
-      </div>
-
-      {/* Templates list */}
-      {templates.length > 0 ? (
-        <div className="overflow-hidden rounded-xl border border-border/75">
-          <div className="divide-y divide-border/60">
-            {animatedTemplates.map((entry) => (
-              <TemplateRow
-                entry={entry}
-                key={entry.id}
-                motionState={getMotionState(entry.id)}
-                onDelete={() => setDeleteTarget(entry)}
-                onEdit={() => openEdit(entry)}
-              />
-            ))}
-          </div>
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-10">
+      <GeneralSettingsSection
+        title="Templates"
+        description="Reusable quote blueprints that pre-fill the title, notes, terms, validity, and line items."
+      >
+      <div className="flex flex-col gap-4">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            {templates.length}{" "}
+            {templates.length === 1 ? "template" : "templates"}
+            {pricingLimit !== null ? (
+              <span className="ml-1">
+                · {totalLibraryCount}/{pricingLimit} library entries used
+              </span>
+            ) : null}
+          </p>
+          <Button
+            disabled={isAtLimit}
+            onClick={openCreate}
+            size="sm"
+            type="button"
+          >
+            <Plus data-icon="inline-start" />
+            New template
+          </Button>
         </div>
-      ) : (
-        <DashboardEmptyState
-          description="Create your first template to pre-fill entire quotes with one click."
-          icon={FileText}
-          title="No templates yet"
-          variant="section"
-        />
-      )}
+
+        {/* Templates list */}
+        {templates.length > 0 ? (
+          <div className="overflow-hidden rounded-xl border border-border/75">
+            <div className="divide-y divide-border/60">
+              {animatedTemplates.map((entry) => (
+                <TemplateRow
+                  entry={entry}
+                  key={entry.id}
+                  motionState={getMotionState(entry.id)}
+                  onDelete={() => setDeleteTarget(entry)}
+                  onEdit={() => openEdit(entry)}
+                />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <DashboardEmptyState
+            description="Create your first template to pre-fill entire quotes with one click."
+            icon={FileText}
+            title="No templates yet"
+            variant="section"
+          />
+        )}
+      </div>
+      </GeneralSettingsSection>
 
       {/* Editor dialog */}
       <ResponsiveOverlay

@@ -55,6 +55,7 @@ import {
   analyticsDailyRollups,
   analyticsEvents,
   businessInquiryForms,
+  businesses,
   followUps,
   inquiries,
   quotes,
@@ -385,6 +386,261 @@ async function getDashboardResponseTimeCached(
   return {
     avgResponseHours: roundHours(rows[0]?.avgFirstResponse),
     avgTimeToQuoteHours: roundHours(rows[0]?.avgToQuote),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard KPI comparison (previous 30-day window, for stat-card deltas)
+// ---------------------------------------------------------------------------
+
+export type DashboardKpiComparison = {
+  /** Value of quotes accepted in the previous 30-day window. */
+  wonInCentsPrior: number;
+  /** Count of quotes accepted in the previous 30-day window. */
+  wonCountPrior: number;
+  /** Quotes sent in the previous 30-day window. */
+  quotesSentPrior: number;
+  /** Quotes accepted in the previous 30-day window. */
+  quotesAcceptedPrior: number;
+  /** Avg hours from inquiry to first quote, previous window, or null when no data. */
+  avgTimeToQuoteHoursPrior: number | null;
+};
+
+/**
+ * Period-over-period comparison for the home KPI row: the same four metrics,
+ * measured over the 30-day window immediately before the current one
+ * (30–60 days ago). Each predicate mirrors its current-window counterpart in
+ * `getCachedBusinessMoneySnapshot` / `getFreeAnalytics` /
+ * `getDashboardResponseTimeCached` so the delta is apples-to-apples.
+ */
+async function _getDashboardKpiComparison(
+  businessId: string,
+): Promise<DashboardKpiComparison> {
+  return withCircuitBreaker(
+    `dashboard:kpi-comparison:${businessId}`,
+    () => getDashboardKpiComparisonCached(businessId),
+  );
+}
+
+/**
+ * Two-layer read (AGENTS.md "Performance & Caching"): the inner `"use cache"`
+ * function handles cross-request reuse and tag invalidation, while this outer
+ * `React.cache()` dedupes within a single request.
+ */
+export const getDashboardKpiComparison = cache(_getDashboardKpiComparison);
+
+async function getDashboardKpiComparisonCached(
+  businessId: string,
+): Promise<DashboardKpiComparison> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessAnalyticsCacheTags(businessId));
+
+  const now = new Date();
+  const currentSince = subtractDays(now, DEFAULT_SUMMARY_DAYS);
+  const priorSince = subtractDays(now, DEFAULT_SUMMARY_DAYS * 2);
+
+  const firstQuote = buildFirstQuoteSq(businessId);
+
+  const [wonRows, sentRows, acceptedRows, timingRows] = await Promise.all([
+    // Won value + count — mirrors the current-window accepted-quotes predicate
+    // in the money snapshot (operational, accepted, acceptedAt in window).
+    db
+      .select({
+        totalInCents: sql<number>`coalesce(sum(${quotes.totalInCents}), 0)`,
+        count: sql<number>`count(*)`,
+      })
+      .from(quotes)
+      .where(
+        and(
+          eq(quotes.businessId, businessId),
+          getOperationalQuoteCondition(),
+          eq(quotes.status, "accepted"),
+          gte(quotes.acceptedAt, priorSince),
+          lt(quotes.acceptedAt, currentSince),
+        ),
+      ),
+    // Sent count — mirrors the current-window sent predicate in free analytics.
+    db
+      .select({ sent: sql<number>`count(*)` })
+      .from(quotes)
+      .where(
+        and(
+          eq(quotes.businessId, businessId),
+          getNonDeletedQuoteCondition(),
+          isNotNull(quotes.sentAt),
+          gte(quotes.sentAt, priorSince),
+          lt(quotes.sentAt, currentSince),
+        ),
+      ),
+    // Accepted count — mirrors the current-window accepted predicate in free analytics.
+    db
+      .select({ accepted: sql<number>`count(*)` })
+      .from(quotes)
+      .where(
+        and(
+          eq(quotes.businessId, businessId),
+          getNonDeletedQuoteCondition(),
+          eq(quotes.status, "accepted"),
+          gte(quotes.acceptedAt, priorSince),
+          lt(quotes.acceptedAt, currentSince),
+        ),
+      ),
+    // Avg time to quote — same shape as getDashboardResponseTimeCached,
+    // windowed on the previous 30 days of inquiry submissions.
+    db
+      .select({
+        avgToQuote: sql<number | null>`avg(extract(epoch from (${firstQuote.firstQuoteAt} - ${inquiries.submittedAt})) / 3600) filter (where ${firstQuote.firstQuoteAt} is not null)`,
+      })
+      .from(inquiries)
+      .leftJoin(firstQuote, eq(firstQuote.inquiryId, inquiries.id))
+      .where(
+        and(
+          eq(inquiries.businessId, businessId),
+          gte(inquiries.submittedAt, priorSince),
+          lt(inquiries.submittedAt, currentSince),
+        ),
+      ),
+  ]);
+
+  return {
+    wonInCentsPrior: Number(wonRows[0]?.totalInCents ?? 0),
+    wonCountPrior: Number(wonRows[0]?.count ?? 0),
+    quotesSentPrior: Number(sentRows[0]?.sent ?? 0),
+    quotesAcceptedPrior: Number(acceptedRows[0]?.accepted ?? 0),
+    avgTimeToQuoteHoursPrior: roundHours(timingRows[0]?.avgToQuote),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard monthly revenue (revenue chart card, current vs. previous year)
+// ---------------------------------------------------------------------------
+
+export type MonthlyRevenuePoint = {
+  /** Short month label on the chart axis ("Jan"). */
+  label: string;
+  /** Accepted-quote revenue this year for the month, in cents. */
+  current: number;
+  /** Accepted-quote revenue for the same month a year earlier, in cents. */
+  previous: number;
+};
+
+export type DashboardMonthlyRevenue = {
+  /** Business default currency code the sums are denominated in. */
+  currency: string;
+  /** Twelve points, one per calendar month, oldest first. */
+  points: MonthlyRevenuePoint[];
+};
+
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/**
+ * Monthly accepted-quote revenue for the revenue chart card: each point is
+ * one calendar month of this year against the same month a year earlier.
+ * Mirrors the accepted-quotes predicate in the money snapshot (operational,
+ * status accepted, windowed on acceptedAt) so the chart agrees with the
+ * "Revenue won" KPI card above it.
+ */
+async function _getDashboardMonthlyRevenue(
+  businessId: string,
+): Promise<DashboardMonthlyRevenue> {
+  return withCircuitBreaker(
+    `dashboard:monthly-revenue:${businessId}`,
+    () => getDashboardMonthlyRevenueCached(businessId),
+  );
+}
+
+/**
+ * Two-layer read (AGENTS.md "Performance & Caching"): the inner `"use cache"`
+ * function handles cross-request reuse and tag invalidation, while this outer
+ * `React.cache()` dedupes within a single request.
+ */
+export const getDashboardMonthlyRevenue = cache(_getDashboardMonthlyRevenue);
+
+async function getDashboardMonthlyRevenueCached(
+  businessId: string,
+): Promise<DashboardMonthlyRevenue> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessAnalyticsCacheTags(businessId));
+
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  // Calendar-year windows: this year's months against the same months of
+  // last year, so the headline reads "revenue this year vs. last year" and
+  // the chart line ends at the current month.
+  const yearStart = new Date(Date.UTC(year, 0, 1));
+  const yearEnd = new Date(Date.UTC(year + 1, 0, 1));
+  const lastYearStart = new Date(Date.UTC(year - 1, 0, 1));
+  const lastYearEnd = yearStart;
+
+  const [currencyRow, revenueRows] = await Promise.all([
+    db
+      .select({ defaultCurrency: businesses.defaultCurrency })
+      .from(businesses)
+      .where(eq(businesses.id, businessId))
+      .limit(1),
+    // One scan over both years: each accepted quote lands in the calendar
+    // month of its acceptedAt, and the filter clause routes the sum to this
+    // year's or last year's series. Rows come back as one per month bucket.
+    db
+      .select({
+        monthIndex: sql<number>`extract(month from ${quotes.acceptedAt})::int - 1`,
+        currentTotal: sql<number>`coalesce(sum(${quotes.totalInCents}) filter (
+          where ${quotes.acceptedAt} >= ${yearStart.toISOString()}
+        ), 0)`,
+        previousTotal: sql<number>`coalesce(sum(${quotes.totalInCents}) filter (
+          where ${quotes.acceptedAt} < ${yearStart.toISOString()}
+        ), 0)`,
+      })
+      .from(quotes)
+      .where(
+        and(
+          eq(quotes.businessId, businessId),
+          getOperationalQuoteCondition(),
+          eq(quotes.status, "accepted"),
+          isNotNull(quotes.acceptedAt),
+          gte(quotes.acceptedAt, lastYearStart),
+          lt(quotes.acceptedAt, yearEnd),
+        ),
+      )
+      .groupBy(
+        sql`extract(month from ${quotes.acceptedAt})::int - 1`,
+      ),
+  ]);
+
+  const sumsByMonth = new Map<number, { current: number; previous: number }>();
+  for (const row of revenueRows) {
+    sumsByMonth.set(Number(row.monthIndex), {
+      current: Number(row.currentTotal),
+      previous: Number(row.previousTotal),
+    });
+  }
+
+  const points: MonthlyRevenuePoint[] = MONTH_LABELS.map((label, month) => ({
+    label,
+    current: sumsByMonth.get(month)?.current ?? 0,
+    previous: sumsByMonth.get(month)?.previous ?? 0,
+  }));
+
+  return {
+    currency: currencyRow[0]?.defaultCurrency ?? "USD",
+    points,
   };
 }
 

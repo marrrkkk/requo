@@ -162,7 +162,7 @@ export const faqItems = [
   {
     question: "What happens after a customer accepts?",
     answer:
-      "The quote is marked accepted and stays connected to the inquiry and customer details. Requo helps you track the outcome and keep the record organized; it does not include job scheduling, dispatch, or invoicing.",
+      "The quote is marked accepted and stays connected to the inquiry and customer details. From there you can convert it into an invoice, send it by email, and track manual payments to paid. Requo does not include job scheduling or dispatch.",
   },
   {
     question: "Can my team work inside the same business?",

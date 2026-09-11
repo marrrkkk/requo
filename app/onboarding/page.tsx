@@ -11,6 +11,8 @@ import { completeOnboardingAction } from "@/features/onboarding/actions";
 import { OnboardingForm } from "@/features/onboarding/components/onboarding-form";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
+import { UiScaleSync } from "@/features/theme/components/ui-scale-sync";
+import { getUiScalePreferenceForUser } from "@/features/theme/ui-scale-queries";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
@@ -50,10 +52,11 @@ async function OnboardingPageContent() {
     email: session.user.email,
   });
 
-  const [themePreference, memberships, profile] = await timed(
+  const [themePreference, uiScale, memberships, profile] = await timed(
     "onboarding.parallelShellFetches",
     Promise.all([
       getThemePreferenceForUser(session.user.id),
+      getUiScalePreferenceForUser(session.user.id),
       getBusinessMembershipsForUser(session.user.id),
       getAccountProfileForUser(session.user.id),
     ]),
@@ -76,6 +79,7 @@ async function OnboardingPageContent() {
         themePreference={themePreference}
         userId={session.user.id}
       />
+      <UiScaleSync uiScale={uiScale} userId={session.user.id} />
       <div className="min-h-svh">
         <div className="mx-auto flex min-h-svh w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8">
           <div className="fixed top-4 left-4 z-10 sm:left-6 lg:left-8">

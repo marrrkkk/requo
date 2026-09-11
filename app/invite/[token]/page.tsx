@@ -8,8 +8,14 @@ import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getOptionalSession } from "@/lib/auth/session";
 import { timed } from "@/lib/dev/server-timing";
 import { getBusinessMemberInvitePath } from "@/features/businesses/routes";
-import { getBusinessMemberInviteForToken } from "@/features/business-members/queries";
-import { acceptBusinessMemberInviteAction } from "@/features/business-members/actions";
+import {
+  getBusinessInviteLinkForToken,
+  getBusinessMemberInviteForToken,
+} from "@/features/business-members/queries";
+import {
+  acceptBusinessInviteLinkAction,
+  acceptBusinessMemberInviteAction,
+} from "@/features/business-members/actions";
 
 const inviteFallbackMetadata = createNoIndexMetadata({
   absoluteTitle: "Business invite",
@@ -22,15 +28,20 @@ export async function generateMetadata({
   params: Promise<{ token: string }>;
 }): Promise<Metadata> {
   const { token } = await params;
-  const invite = await getBusinessMemberInviteForToken(token);
+  const [invite, inviteLink] = await Promise.all([
+    getBusinessMemberInviteForToken(token),
+    getBusinessInviteLinkForToken(token),
+  ]);
 
-  if (!invite) {
+  const businessName = invite?.businessName ?? inviteLink?.businessName;
+
+  if (!businessName) {
     return inviteFallbackMetadata;
   }
 
   return createNoIndexMetadata({
-    absoluteTitle: `Join ${invite.businessName}`,
-    description: `Accept your invite to access ${invite.businessName} on Requo.`,
+    absoluteTitle: `Join ${businessName}`,
+    description: `Accept your invite to access ${businessName} on Requo.`,
   });
 }
 
@@ -63,13 +74,25 @@ async function BusinessMemberInviteContent({
   // Await both up front so a missing invite early-return doesn't leave the
   // session promise dangling (which would surface as an unhandled rejection
   // if it rejected).
-  const [invite, session] = await timed(
+  const [invite, inviteLink, session] = await timed(
     "invite.parallelInviteAndSession",
     Promise.all([
       getBusinessMemberInviteForToken(token),
+      getBusinessInviteLinkForToken(token),
       getOptionalSession(),
     ]),
   );
+
+  if (inviteLink && !invite) {
+    return (
+      <BusinessInviteLinkContent
+        businessName={inviteLink.businessName}
+        inviteError={typeof error === "string" ? error : error?.[0]}
+        isSignedIn={Boolean(session)}
+        token={token}
+      />
+    );
+  }
 
   if (!invite) {
     return (
@@ -159,6 +182,71 @@ async function BusinessMemberInviteContent({
         </div>
 
         <form action={acceptBusinessMemberInviteAction.bind(null, token)}>
+          <Button className="w-full" size="lg" type="submit">
+            Accept invite
+          </Button>
+        </form>
+      </div>
+    </AuthShell>
+  );
+}
+
+function BusinessInviteLinkContent({
+  businessName,
+  inviteError,
+  isSignedIn,
+  token,
+}: {
+  businessName: string;
+  inviteError: string | undefined;
+  isSignedIn: boolean;
+  token: string;
+}) {
+  if (!isSignedIn) {
+    return (
+      <AuthShell
+        badge="Invite"
+        description="Sign in to accept this business access invite."
+        layout="centered"
+        title={`Join ${businessName}`}
+      >
+        <div className="flex flex-col gap-4 text-sm leading-normal sm:leading-7 text-muted-foreground">
+          <p>
+            You&apos;ve been invited to join{" "}
+            <span className="font-medium text-foreground">{businessName}</span>.
+          </p>
+          <Button asChild>
+            <Link href={`/login?next=${encodeURIComponent(getBusinessMemberInvitePath(token))}`}>
+              Sign in
+            </Link>
+          </Button>
+        </div>
+      </AuthShell>
+    );
+  }
+
+  return (
+    <AuthShell
+      badge="Invite"
+      description="Accept this invite to get access to the business dashboard."
+      layout="centered"
+      title={`Join ${businessName}`}
+    >
+      <div className="flex flex-col gap-4">
+        {inviteError ? (
+          <div className="rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            That invite could not be accepted. Please ask for a new link.
+          </div>
+        ) : null}
+
+        <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+          <p>
+            You&apos;re accepting access to{" "}
+            <span className="font-medium text-foreground">{businessName}</span>.
+          </p>
+        </div>
+
+        <form action={acceptBusinessInviteLinkAction.bind(null, token)}>
           <Button className="w-full" size="lg" type="submit">
             Accept invite
           </Button>

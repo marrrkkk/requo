@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/base/notification/notify";
 
 /**
  * Reads the `upgrade=success` query flag (set by the post-checkout

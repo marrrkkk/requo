@@ -6,6 +6,8 @@ import { getPublicQuoteUrl } from "@/features/quotes/utils";
 import { db } from "@/lib/db/client";
 import { activityLogs, businesses, quotes } from "@/lib/db/schema";
 import { env, isQuoteAutoFollowUpEmailEnabled } from "@/lib/env";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
+import type { BusinessPlan } from "@/lib/plans/plans";
 import { sendQuoteAutoFollowUpEmail } from "@/lib/resend/client";
 
 export type AutoFollowUpsSummary = {
@@ -32,8 +34,10 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
       quoteId: quotes.id,
       businessId: quotes.businessId,
       businessName: businesses.name,
+      businessPlan: businesses.plan,
       businessContactEmail: businesses.contactEmail,
       defaultEmailSignature: businesses.defaultEmailSignature,
+      quoteFollowUpTemplate: businesses.quoteFollowUpTemplate,
       quoteNumber: quotes.quoteNumber,
       title: quotes.title,
       customerName: quotes.customerName,
@@ -97,6 +101,14 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
         publicQuoteUrl,
         attemptNumber,
         emailSignature: row.defaultEmailSignature,
+        templateOverrides: hasFeatureAccess(
+          row.businessPlan as BusinessPlan,
+          "emailTemplates",
+        )
+          ? (row.quoteFollowUpTemplate as Parameters<
+              typeof sendQuoteAutoFollowUpEmail
+            >[0]["templateOverrides"])
+          : null,
         replyToEmail: row.businessContactEmail ?? undefined,
         businessId: row.businessId,
       });

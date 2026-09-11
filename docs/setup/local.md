@@ -287,7 +287,7 @@ Use one canonical route set in docs and tests:
 - Inquiries: `/<slug>/inquiries`
 - Quotes: `/<slug>/quotes`
 - Forms: `/<slug>/forms`
-- Members: `/<slug>/members`
+- Members: `/<slug>/settings/members`
 - Settings hub: `/<slug>/settings`
 - Settings sections:
   - General: `/<slug>/settings/general`

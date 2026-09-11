@@ -16,7 +16,7 @@ export default function AssistantChatLoading() {
               <Skeleton className="h-24 w-full rounded-2xl" />
             </div>
           </div>
-          <div className="sticky bottom-0 z-10 bg-background/95 backdrop-blur-xs px-3 pb-4 pt-2 md:px-6">
+          <div className="chat-composer-footer z-10 px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] md:px-6">
             <div className="mx-auto w-full max-w-3xl">
               <Skeleton className="h-24 w-full rounded-2xl" />
             </div>

@@ -20,6 +20,7 @@ import {
   getBusinessSettingsCacheTags,
   settingsBusinessCacheLife,
 } from "@/lib/cache/business-tags";
+import { normalizeBusinessInstructions } from "@/lib/ai/business-instructions";
 import { db } from "@/lib/db/client";
 import { inquiries, businessInquiryForms, businesses } from "@/lib/db/schema";
 
@@ -46,12 +47,15 @@ export async function getBusinessSettingsForBusiness(
       businessType: businesses.businessType,
       shortDescription: businesses.shortDescription,
       contactEmail: businesses.contactEmail,
+      website: businesses.website,
       logoStoragePath: businesses.logoStoragePath,
       logoContentType: businesses.logoContentType,
       defaultEmailSignature: businesses.defaultEmailSignature,
       defaultQuoteNotes: businesses.defaultQuoteNotes,
       defaultQuoteTerms: businesses.defaultQuoteTerms,
       quoteEmailTemplate: businesses.quoteEmailTemplate,
+      invoiceEmailTemplate: businesses.invoiceEmailTemplate,
+      quoteFollowUpTemplate: businesses.quoteFollowUpTemplate,
       defaultQuoteValidityDays: businesses.defaultQuoteValidityDays,
       sendInquiryAckEmail: businesses.sendInquiryAckEmail,
       autoDraftQuoteOnQualify: businesses.autoDraftQuoteOnQualify,
@@ -88,17 +92,40 @@ export async function getBusinessSettingsForBusiness(
   if (!business) return null;
 
   const agentConfig = business.aiAgentConfig as
-    | { tone?: string }
+    | { tone?: string; instructions?: string }
     | null
     | undefined;
 
+  const {
+    normalizeInvoiceEmailTemplate,
+    normalizeQuoteEmailTemplate,
+    normalizeQuoteFollowUpTemplate,
+  } = await import("@/features/settings/email-templates");
+
   return {
     ...business,
+    quoteEmailTemplate: normalizeQuoteEmailTemplate(
+      business.quoteEmailTemplate as Parameters<
+        typeof normalizeQuoteEmailTemplate
+      >[0],
+    ),
+    invoiceEmailTemplate: normalizeInvoiceEmailTemplate(
+      business.invoiceEmailTemplate as Parameters<
+        typeof normalizeInvoiceEmailTemplate
+      >[0],
+    ),
+    quoteFollowUpTemplate: normalizeQuoteFollowUpTemplate(
+      business.quoteFollowUpTemplate as Parameters<
+        typeof normalizeQuoteFollowUpTemplate
+      >[0],
+    ),
     aiAgentTone:
       typeof agentConfig?.tone === "string" &&
       ["friendly", "professional", "casual"].includes(agentConfig.tone)
         ? (agentConfig.tone as "friendly" | "professional" | "casual")
         : "friendly",
+    aiAgentInstructions:
+      normalizeBusinessInstructions(agentConfig?.instructions) ?? "",
   };
 }
 

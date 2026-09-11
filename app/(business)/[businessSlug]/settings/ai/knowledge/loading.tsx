@@ -1,5 +1,6 @@
-import { SettingsCollectionBodySkeleton } from "@/components/shell/settings-body-skeletons";
-
+/**
+ * Legacy redirect only (see page.tsx) — no skeleton.
+ */
 export default function AiKnowledgeLoadingPage() {
-  return <SettingsCollectionBodySkeleton />;
+  return null;
 }

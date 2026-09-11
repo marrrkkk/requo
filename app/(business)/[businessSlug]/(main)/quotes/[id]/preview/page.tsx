@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
+import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
 import { BusinessQuotePreviewShell } from "@/features/quotes/components/business-quote-preview-shell";
 import {
   getBusinessContactEmailForPreview,
@@ -20,9 +22,24 @@ type QuotePreviewPageProps = {
   params: Promise<{ businessSlug: string; id: string }>;
 };
 
-export default async function QuotePreviewPage({
-  params,
-}: QuotePreviewPageProps) {
+export const instant = true;
+
+/**
+ * Quote preview page — returns a route-specific skeleton synchronously.
+ *
+ * All dynamic reads (params, getAppShellContext, quote queries) resolve
+ * inside a Suspense-wrapped child server component so navigation paints the
+ * quote-shaped loading UI instantly instead of blocking on data.
+ */
+export default function QuotePreviewPage({ params }: QuotePreviewPageProps) {
+  return (
+    <Suspense fallback={<DashboardDetailPageSkeleton variant="quote" />}>
+      <QuotePreviewRegion params={params} />
+    </Suspense>
+  );
+}
+
+async function QuotePreviewRegion({ params }: QuotePreviewPageProps) {
   const resolvedParams = await params;
   const { businessContext } = await getAppShellContext(
     resolvedParams.businessSlug,

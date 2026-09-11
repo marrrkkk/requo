@@ -12,9 +12,10 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useCallback, useRef, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/base/notification/notify";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
   TooltipContent,
@@ -228,6 +229,7 @@ export function AdminUserActions({
             targetEmailVerified ? "Email is already verified." : undefined
           }
           icon={CheckCircle2}
+          isPending={isPending}
           label="Verify email"
           onClick={() =>
             openConfirm({
@@ -244,6 +246,7 @@ export function AdminUserActions({
         <ActionButton
           disabled={isPending}
           icon={LogOut}
+          isPending={isPending}
           label="Revoke sessions"
           onClick={() =>
             openConfirm({
@@ -261,6 +264,7 @@ export function AdminUserActions({
           <ActionButton
             disabled={isPending}
             icon={UserRoundCheck}
+            isPending={isPending}
             label="Reinstate"
             onClick={() =>
               openConfirm({
@@ -277,6 +281,7 @@ export function AdminUserActions({
           <ActionButton
             disabled={isPending}
             icon={OctagonMinus}
+            isPending={isPending}
             label="Suspend"
             onClick={() =>
               openConfirm({
@@ -298,6 +303,7 @@ export function AdminUserActions({
               canDemoteTarget ? undefined : "This is the last remaining admin."
             }
             icon={ShieldX}
+            isPending={isPending}
             label="Remove admin"
             onClick={() =>
               openConfirm({
@@ -314,6 +320,7 @@ export function AdminUserActions({
           <ActionButton
             disabled={isPending}
             icon={ShieldCheck}
+            isPending={isPending}
             label="Promote to admin"
             onClick={() =>
               openConfirm({
@@ -331,6 +338,7 @@ export function AdminUserActions({
         <ActionButton
           disabled={isPending}
           icon={UserCog}
+          isPending={isPending}
           label="Impersonate"
           onClick={() =>
             openConfirm({
@@ -347,6 +355,7 @@ export function AdminUserActions({
         <ActionButton
           disabled={isPending}
           icon={Trash2}
+          isPending={isPending}
           label="Delete"
           onClick={() =>
             openConfirm({
@@ -397,6 +406,7 @@ type ActionButtonProps = {
   disabled: boolean;
   disabledReason?: string;
   icon: LucideIcon;
+  isPending?: boolean;
   label: string;
   onClick: () => void;
   selfBlocked: boolean;
@@ -413,6 +423,7 @@ function ActionButton({
   disabled,
   disabledReason,
   icon: Icon,
+  isPending = false,
   label,
   onClick,
   selfBlocked,
@@ -421,6 +432,7 @@ function ActionButton({
   const selfReason = "You can't run this action on your own account.";
   const reason = selfBlocked ? selfReason : disabledReason;
   const isDisabled = disabled || selfBlocked;
+  const showSpinner = isPending && !selfBlocked && !disabledReason;
 
   const button = (
     <Button
@@ -429,7 +441,11 @@ function ActionButton({
       type="button"
       variant={variant}
     >
-      <Icon data-icon="inline-start" />
+      {showSpinner ? (
+        <Spinner data-icon="inline-start" aria-hidden="true" />
+      ) : (
+        <Icon data-icon="inline-start" />
+      )}
       {label}
     </Button>
   );

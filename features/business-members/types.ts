@@ -30,3 +30,10 @@ export type BusinessMembersSettingsView = {
   members: BusinessMemberView[];
   invites: BusinessMemberInviteView[];
 };
+
+export type BusinessInviteLinkView = {
+  token: string;
+  role: BusinessMemberRole;
+  createdAt: Date;
+  updatedAt: Date;
+};

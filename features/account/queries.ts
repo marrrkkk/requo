@@ -2,12 +2,14 @@ import "server-only";
 
 import { and, count, eq, isNull } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
+import { headers } from "next/headers";
 import { cache } from "react";
 
 import type {
   AccountDeletionPreflight,
   AccountProfileRecord,
   AccountSecurityView,
+  AccountSessionView,
 } from "@/features/account/types";
 import {
   getUserProfileCacheTags,
@@ -153,4 +155,70 @@ export async function getAccountDeletionPreflight(
     })),
     soleOwnedBusinesses: [],
   };
+}
+
+function toSessionISOString(value: Date | string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toISOString();
+}
+
+/**
+ * Lists the user's active Better Auth sessions for the Devices section.
+ * Request-bound (reads request headers), so intentionally not cached —
+ * the current session is identified by matching the session id.
+ */
+export async function getAccountSessionsForUser(): Promise<AccountSessionView[]> {
+  const { auth } = await import("@/lib/auth/server");
+  const requestHeaders = await headers();
+
+  const [current, listed] = await Promise.all([
+    auth.api.getSession({ headers: requestHeaders }).catch(() => null),
+    auth.api.listSessions({ headers: requestHeaders }).catch(() => []),
+  ]);
+
+  const currentSessionId = current?.session?.id ?? null;
+  const sessions = Array.isArray(listed) ? listed : [];
+
+  return sessions.map((item) => {
+    const row: {
+      id?: unknown;
+      token?: unknown;
+      userAgent?: unknown;
+      ipAddress?: unknown;
+      createdAt?: unknown;
+      updatedAt?: unknown;
+      expiresAt?: unknown;
+    } =
+      typeof item === "object" && item !== null && "session" in item
+        ? ((item as { session: unknown }).session as Record<string, unknown>)
+        : (item as Record<string, unknown>);
+
+    const id = typeof row.id === "string" ? row.id : "";
+
+    return {
+      id,
+      token: typeof row.token === "string" ? row.token : null,
+      userAgent: typeof row.userAgent === "string" ? row.userAgent : null,
+      ipAddress: typeof row.ipAddress === "string" ? row.ipAddress : null,
+      createdAt: toSessionISOString(
+        row.createdAt as Date | string | null | undefined,
+      ),
+      updatedAt: toSessionISOString(
+        row.updatedAt as Date | string | null | undefined,
+      ),
+      expiresAt: toSessionISOString(
+        row.expiresAt as Date | string | null | undefined,
+      ),
+      isCurrent: currentSessionId ? id === currentSessionId : false,
+    } satisfies AccountSessionView;
+  });
 }

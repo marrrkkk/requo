@@ -1,13 +1,12 @@
 import "server-only";
 
-import { desc, eq, and, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { cache } from "react";
 
 import { db } from "@/lib/db/client";
 import { listLockCandidatesForDowngrade } from "@/features/businesses/plan-enforcement";
 import { businesses } from "@/lib/db/schema/businesses";
-import { paymentAttempts } from "@/lib/db/schema/subscriptions";
 import {
   getCachedBusinessSubscription,
   getBusinessSubscription,
@@ -170,31 +169,3 @@ export async function getAccountBillingOverview(
 
 /** @deprecated Use `getAccountBillingOverview` instead. */
 export const getBusinessBillingOverview = getAccountBillingOverview;
-
-/**
- * Returns payment history for a user account.
- */
-export async function getAccountPaymentHistory(
-  businessId: string,
-  limit = 10,
-) {
-  return db
-    .select()
-    .from(paymentAttempts)
-    .where(
-      and(
-        eq(paymentAttempts.businessId, businessId),
-        inArray(paymentAttempts.status, ["succeeded", "failed"]),
-      ),
-    )
-    .orderBy(desc(paymentAttempts.createdAt))
-    .limit(limit);
-}
-
-/** @deprecated Use `getAccountPaymentHistory` instead. */
-export async function getBusinessPaymentHistory(
-  businessId: string,
-  limit = 10,
-) {
-  return getAccountPaymentHistory(businessId, limit);
-}

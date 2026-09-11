@@ -29,7 +29,7 @@ export function MobileTopBar({
   return (
     <div
       className={cn(
-        "sticky top-0 z-30 flex h-13 items-center justify-between border-b border-border/70 bg-background/90 px-3 backdrop-blur supports-backdrop-filter:bg-background/80 lg:hidden",
+        "sticky top-0 z-30 flex h-13 items-center justify-between border-b border-border/70 bg-background px-3 lg:hidden",
         className,
       )}
     >

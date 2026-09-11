@@ -7,10 +7,12 @@ export default function MarketingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <BookDemoProvider>
-      {children}
-      <CrispChatWidgetServer />
-    </BookDemoProvider>
+    <div className="font-scope-geist">
+      <BookDemoProvider>
+        {children}
+        <CrispChatWidgetServer />
+      </BookDemoProvider>
+    </div>
   );
 }
 

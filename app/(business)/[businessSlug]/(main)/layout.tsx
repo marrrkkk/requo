@@ -23,6 +23,8 @@ import { getAccountProfileForUser } from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
+import { getUiScalePreferenceForUser } from "@/features/theme/ui-scale-queries";
+import { UiScaleSync } from "@/features/theme/components/ui-scale-sync";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
 import { getBusinessNotificationBellView } from "@/features/notifications/queries";
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
@@ -42,8 +44,29 @@ import { requireSession } from "@/lib/auth/session";
  *
  * This eliminates the full-page skeleton flash on cold loads — only the
  * data-dependent slots show loading indicators.
+ *
+ * The outer component is synchronous; the `params` await and all data reads
+ * live inside a Suspense-wrapped child shell so sibling navigations paint the
+ * destination route instantly instead of blocking on this layout.
  */
-export default async function BusinessMainLayout({
+export default function BusinessMainLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ businessSlug: string }>;
+}) {
+  return (
+    <>
+      <UpgradeSuccessModal />
+      <Suspense fallback={null}>
+        <BusinessMainShell params={params}>{children}</BusinessMainShell>
+      </Suspense>
+    </>
+  );
+}
+
+async function BusinessMainShell({
   children,
   params,
 }: {
@@ -54,7 +77,6 @@ export default async function BusinessMainLayout({
 
   return (
     <>
-      <UpgradeSuccessModal />
       <DashboardShellFrame
         businessSlug={businessSlug}
         businessSwitcherSlot={
@@ -134,6 +156,7 @@ async function BusinessSwitcherSlot({ businessSlug }: { businessSlug: string }) 
       currentBusiness={businessContext}
       memberships={memberships}
       businessQuota={businessQuota}
+      compact
     />
   );
 }
@@ -276,9 +299,17 @@ async function ChecklistSlot({ businessSlug }: { businessSlug: string }) {
 
 async function ThemeSyncSlot({ businessSlug }: { businessSlug: string }) {
   const { user } = await getAppShellContext(businessSlug);
-  const themePreference = await getThemePreferenceForUser(user.id);
+  const [themePreference, uiScale] = await Promise.all([
+    getThemePreferenceForUser(user.id),
+    getUiScalePreferenceForUser(user.id),
+  ]);
 
-  return <ThemePreferenceSync themePreference={themePreference} userId={user.id} />;
+  return (
+    <>
+      <ThemePreferenceSync themePreference={themePreference} userId={user.id} />
+      <UiScaleSync uiScale={uiScale} userId={user.id} />
+    </>
+  );
 }
 
 async function BannerSlot({ businessSlug }: { businessSlug: string }) {

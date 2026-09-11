@@ -1,9 +1,6 @@
 "use client";
 
 import {
-  FormSection,
-} from "@/components/shared/form-layout";
-import {
   Field,
   FieldContent,
   FieldError,
@@ -11,6 +8,7 @@ import {
 } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import type { BusinessSettingsActionState } from "@/features/settings/types";
+import { GeneralSettingsSection } from "./section";
 
 type SummarySectionProps = {
   draftValue: string;
@@ -26,9 +24,9 @@ export function SummarySection({
   updateDraftValue,
 }: SummarySectionProps) {
   return (
-    <FormSection
-      description="Keep this short so public inquiry pages stay easy to scan."
+    <GeneralSettingsSection
       title="Business summary"
+      description="Keep this short so public inquiry pages stay easy to scan."
     >
       <Field
         data-invalid={Boolean(fieldErrors?.shortDescription) || undefined}
@@ -58,6 +56,6 @@ export function SummarySection({
           />
         </FieldContent>
       </Field>
-    </FormSection>
+    </GeneralSettingsSection>
   );
 }

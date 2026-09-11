@@ -51,6 +51,12 @@ export function getUserThemeCacheTags(userId: string) {
   return uniqueCacheTags([scopeTag, `${scopeTag}:theme`]);
 }
 
+export function getUserUiScaleCacheTags(userId: string) {
+  const scopeTag = getUserScopeTag(userId);
+
+  return uniqueCacheTags([scopeTag, `${scopeTag}:ui-scale`]);
+}
+
 export function getUserProfileCacheTags(userId: string) {
   const scopeTag = getUserScopeTag(userId);
 

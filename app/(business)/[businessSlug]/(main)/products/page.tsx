@@ -44,10 +44,7 @@ export default function BusinessProductsPage({
 }) {
   return (
     <>
-      <PageHeader
-        title="Products"
-        description="Reusable blocks and packages for faster quotes."
-      />
+      <PageHeader title="Products" />
       <Suspense fallback={<ProductsPageSkeleton />}>
         <ProductsRegion params={params} />
       </Suspense>

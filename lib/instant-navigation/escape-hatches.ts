@@ -38,8 +38,8 @@ export type EscapeHatchValidationResult =
  *
  * Includes all authenticated dashboard pages under:
  * - app/(business)/[businessSlug]/(main)/ (home, inquiries, quotes, follow-ups,
- *   members, forms, products, notifications, analytics, assistant)
- * - app/(business)/[businessSlug]/settings/
+ *   services, invoices, products, notifications, analytics, assistant)
+ * - app/(business)/[businessSlug]/settings/ (including members)
  * - app/admin/(console)/
  * - app/onboarding/
  * - app/(business)/new/
@@ -61,16 +61,18 @@ export const IN_SCOPE_ROUTES: ReadonlySet<string> = new Set([
   "app/(business)/[businessSlug]/(main)/quotes/[id]/page.tsx",
   "app/(business)/[businessSlug]/(main)/quotes/new/page.tsx",
   "app/(business)/[businessSlug]/(main)/follow-ups/page.tsx",
-  "app/(business)/[businessSlug]/(main)/members/page.tsx",
-  "app/(business)/[businessSlug]/(main)/forms/page.tsx",
-  "app/(business)/[businessSlug]/(main)/forms/[formSlug]/page.tsx",
+  "app/(business)/[businessSlug]/(main)/services/page.tsx",
+  "app/(business)/[businessSlug]/(main)/services/[serviceSlug]/page.tsx",
+  "app/(business)/[businessSlug]/(main)/invoices/page.tsx",
+  "app/(business)/[businessSlug]/(main)/invoices/new/page.tsx",
+  "app/(business)/[businessSlug]/(main)/invoices/[invoiceId]/page.tsx",
+  "app/(business)/[businessSlug]/(main)/invoices/[invoiceId]/edit/page.tsx",
   "app/(business)/[businessSlug]/(main)/notifications/page.tsx",
   "app/(business)/[businessSlug]/(main)/products/page.tsx",
   "app/(business)/[businessSlug]/(main)/analytics/page.tsx",
   "app/(business)/[businessSlug]/(main)/assistant/page.tsx",
   // assistant/chat/[sessionId] is a redirect to `assistant?session=…`, so it is
   // out of scope like the other legacy redirect routes.
-  "app/(business)/[businessSlug]/(main)/assistant/settings/page.tsx",
 
   // Settings routes
   "app/(business)/[businessSlug]/settings/page.tsx",
@@ -79,15 +81,14 @@ export const IN_SCOPE_ROUTES: ReadonlySet<string> = new Set([
   "app/(business)/[businessSlug]/settings/appearance/page.tsx",
   "app/(business)/[businessSlug]/settings/notifications/page.tsx",
   "app/(business)/[businessSlug]/settings/quote/page.tsx",
-  "app/(business)/[businessSlug]/settings/quote-templates/page.tsx",
   "app/(business)/[businessSlug]/settings/email/page.tsx",
   "app/(business)/[businessSlug]/settings/support/page.tsx",
   "app/(business)/[businessSlug]/settings/billing/page.tsx",
   "app/(business)/[businessSlug]/settings/audit-log/page.tsx",
   "app/(business)/[businessSlug]/settings/ai/page.tsx",
-  "app/(business)/[businessSlug]/settings/knowledge-base/page.tsx",
-  "app/(business)/[businessSlug]/settings/forms/page.tsx",
-  "app/(business)/[businessSlug]/settings/forms/[formSlug]/page.tsx",
+  "app/(business)/[businessSlug]/settings/members/page.tsx",
+  // settings/forms was folded into the (main)/services surface — no
+  // settings-level forms pages remain.
 
   // Admin console routes
   "app/admin/(console)/page.tsx",

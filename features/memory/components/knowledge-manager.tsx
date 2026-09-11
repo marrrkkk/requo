@@ -9,7 +9,6 @@ import {
   FileText,
   FileUp,
   Layers,
-  Loader2,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -50,6 +49,7 @@ import {
   FieldError,
   FieldLabel,
 } from "@/components/ui/field";
+import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -162,8 +162,8 @@ const fileStatusConfig = {
   },
   processing: {
     label: "Processing",
-    icon: Loader2,
-    className: "text-blue-500 animate-spin",
+    icon: Spinner,
+    className: "text-blue-500",
     badgeVariant: "secondary" as const,
   },
   ready: {
@@ -245,7 +245,7 @@ export function KnowledgeManager({
     useAnimatedList(filtered);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-xl min-w-0 flex-col gap-10">
       {/* Stats summary matching products page */}
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard
@@ -624,6 +624,8 @@ function AddMemoryEntryDialog({
   createAction: MemoryEntryFormAction;
 }) {
   const { scheduleRefresh } = useDeferredRefresh();
+  const [category, setCategory] =
+    useState<BusinessMemoryCategory>("business_rules");
   const [state, formAction, isPending] = useActionStateWithSonner(
     async (prevState: MemoryEntryActionState, formData: FormData) => {
       const result = await createAction(prevState, formData);
@@ -676,18 +678,19 @@ function AddMemoryEntryDialog({
                 Helps AI understand how to apply this information.
               </FieldDescription>
               <FieldContent>
-                <select
-                  className="flex h-9 w-full rounded-md border border-input sm:h-8 bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  defaultValue="business_rules"
+                <input name="category" type="hidden" value={category} />
+                <Combobox
+                  aria-invalid={Boolean(state.fieldErrors?.category?.[0])}
                   id="add-category"
-                  name="category"
-                >
-                  {Object.entries(memoryCategoryLabels).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(value) =>
+                    setCategory(value as BusinessMemoryCategory)
+                  }
+                  options={Object.entries(memoryCategoryLabels).map(
+                    ([value, label]) => ({ value, label }),
+                  )}
+                  placeholder="Choose category"
+                  value={category}
+                />
               </FieldContent>
               {state.fieldErrors?.category ? (
                 <FieldError>{state.fieldErrors.category[0]}</FieldError>
@@ -724,7 +727,14 @@ function AddMemoryEntryDialog({
               Cancel
             </Button>
             <Button disabled={isPending} type="submit">
-              {isPending ? "Saving…" : "Save entry"}
+              {isPending ? (
+                <>
+                  <Spinner data-icon="inline-start" aria-hidden="true" />
+                  Saving…
+                </>
+              ) : (
+                "Save entry"
+              )}
             </Button>
           </DialogFooter>
         </form>
@@ -749,6 +759,9 @@ function EditMemoryEntryDialog({
   updateAction: MemoryEntryUpdateFormAction;
 }) {
   const { scheduleRefresh } = useDeferredRefresh();
+  const [category, setCategory] = useState<BusinessMemoryCategory>(
+    memory.category,
+  );
   const [state, formAction, isPending] = useActionStateWithSonner(
     async (prevState: MemoryEntryActionState, formData: FormData) => {
       const result = await updateAction(memory.id, prevState, formData);
@@ -800,18 +813,19 @@ function EditMemoryEntryDialog({
                 Helps AI understand how to apply this information.
               </FieldDescription>
               <FieldContent>
-                <select
-                  className="flex h-9 w-full rounded-md border border-input sm:h-8 bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  defaultValue={memory.category}
+                <input name="category" type="hidden" value={category} />
+                <Combobox
+                  aria-invalid={Boolean(state.fieldErrors?.category?.[0])}
                   id="edit-category"
-                  name="category"
-                >
-                  {Object.entries(memoryCategoryLabels).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(value) =>
+                    setCategory(value as BusinessMemoryCategory)
+                  }
+                  options={Object.entries(memoryCategoryLabels).map(
+                    ([value, label]) => ({ value, label }),
+                  )}
+                  placeholder="Choose category"
+                  value={category}
+                />
               </FieldContent>
               {state.fieldErrors?.category ? (
                 <FieldError>{state.fieldErrors.category[0]}</FieldError>
@@ -848,7 +862,14 @@ function EditMemoryEntryDialog({
               Cancel
             </Button>
             <Button disabled={isPending} type="submit">
-              {isPending ? "Saving…" : "Save changes"}
+              {isPending ? (
+                <>
+                  <Spinner data-icon="inline-start" aria-hidden="true" />
+                  Saving…
+                </>
+              ) : (
+                "Save changes"
+              )}
             </Button>
           </DialogFooter>
         </form>

@@ -13,10 +13,7 @@ import {
 export default function BusinessServicesLoading() {
   return (
     <>
-      <PageHeader
-        title="Services"
-        description="Manage service offerings, intake capture, public URLs, and starting defaults."
-      />
+      <PageHeader title="Services" />
 
       {/* Mobile skeleton */}
       <div className="flex flex-col gap-2 sm:hidden" style={{ minHeight: 240 }}>

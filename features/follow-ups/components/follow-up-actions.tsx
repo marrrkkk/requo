@@ -130,14 +130,14 @@ function FollowUpCompleteDialog({
       <ResponsiveOverlayTrigger asChild>
         <Button disabled={disabled} type="button" variant="default">
           <CheckCircle2 data-icon="inline-start" />
-          Mark done
+          Mark contacted
         </Button>
       </ResponsiveOverlayTrigger>
       <ResponsiveOverlayContent className="sm:max-w-md">
         <ResponsiveOverlayHeader>
-          <ResponsiveOverlayTitle>Complete follow-up</ResponsiveOverlayTitle>
+          <ResponsiveOverlayTitle>Record action</ResponsiveOverlayTitle>
           <ResponsiveOverlayDescription>
-            Optionally note what happened (e.g. &ldquo;left voicemail&rdquo;, &ldquo;customer said they&apos;ll decide next week&rdquo;).
+            Note what happened with the customer (e.g. &ldquo;sent message&rdquo;, &ldquo;left voicemail&rdquo;, &ldquo;customer replied&rdquo;).
           </ResponsiveOverlayDescription>
         </ResponsiveOverlayHeader>
         <form action={formAction}>
@@ -146,7 +146,7 @@ function FollowUpCompleteDialog({
               <FieldLabel htmlFor="follow-up-completion-note">
                 What happened?
               </FieldLabel>
-              <FieldDescription>Optional — leave blank to just mark done.</FieldDescription>
+              <FieldDescription>Optional — leave blank to just record the contact.</FieldDescription>
               <FieldContent>
                 <Textarea
                   id="follow-up-completion-note"
@@ -169,7 +169,7 @@ function FollowUpCompleteDialog({
             <Button disabled={isPending} type="submit">
               <OptimisticPendingIndicator pending={isPending} />
               <CheckCircle2 data-icon="inline-start" />
-              Mark done
+              Mark contacted
             </Button>
           </ResponsiveOverlayFooter>
         </form>
@@ -206,7 +206,7 @@ function FollowUpSkipButton({
       <Button disabled={disabled || isPending} type="submit" variant="ghost">
         <OptimisticPendingIndicator pending={isPending} />
         <SkipForward data-icon="inline-start" />
-        Skip
+        Dismiss
       </Button>
     </form>
   );

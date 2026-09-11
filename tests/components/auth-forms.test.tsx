@@ -48,7 +48,7 @@ vi.mock("@/lib/auth/client", () => ({
   },
 }));
 
-vi.mock("sonner", () => ({
+vi.mock("@/components/base/notification/notify", () => ({
   toast: {
     error: toastErrorMock,
     success: toastSuccessMock,

@@ -6,6 +6,7 @@ import type {
 import {
   getBusinessDashboardPath,
   getBusinessInquiryPath,
+  getBusinessInvoicePath,
   getBusinessQuotePath,
 } from "@/features/businesses/routes";
 
@@ -18,8 +19,12 @@ const notificationDateTimeFormatter = new Intl.DateTimeFormat("en-US", {
 
 export function buildBusinessNotificationHref(
   businessSlug: string,
-  notification: Pick<BusinessNotificationRecord, "inquiryId" | "quoteId">,
+  notification: Pick<BusinessNotificationRecord, "inquiryId" | "quoteId" | "invoiceId">,
 ) {
+  if (notification.invoiceId) {
+    return getBusinessInvoicePath(businessSlug, notification.invoiceId);
+  }
+
   if (notification.quoteId) {
     return getBusinessQuotePath(businessSlug, notification.quoteId);
   }
@@ -81,6 +86,10 @@ export function getBusinessNotificationTypeLabel(type: BusinessNotificationType)
       return "Invite declined";
     case "automation":
       return "Automation";
+    case "invoice_paid":
+      return "Invoice paid";
+    case "invoice_overdue":
+      return "Invoice overdue";
   }
 }
 

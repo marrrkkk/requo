@@ -108,6 +108,16 @@ import {
 const prefix = "test_ai_agent_orchestrator";
 let ids: WorkflowFixtureIds;
 
+/**
+ * Serialized first model call. AI SDK v6 delivers the system prompt as prompt
+ * entries rather than a top-level `system` field, so the rendered prompt is
+ * read off the recorded call.
+ */
+function modelPromptText(model: ReturnType<typeof mockModelForTurns>): string {
+  const recorded = firstModelCall(model) as unknown as { prompt?: unknown };
+  return JSON.stringify(recorded?.prompt ?? null);
+}
+
 async function enableAgent() {
   await testDb
     .update(businesses)
@@ -337,9 +347,54 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
       }),
     );
 
-    const call = firstModelCall(model);
-    expect(String(call.system)).toContain("business-like");
-    expect(String(call.system)).not.toContain("warm, approachable");
+    // AI SDK v6 delivers the system prompt as prompt entries (not a top-level
+    // `system` field), so assert on the serialized prompt the model received.
+    const promptText = modelPromptText(model);
+    expect(promptText).toContain("business-like");
+    expect(promptText).not.toContain("warm, approachable");
+  });
+
+  it("reaches Business Instructions in the system prompt", async () => {
+    await testDb
+      .update(businesses)
+      .set({
+        aiAgentConfig: {
+          tone: "friendly",
+          instructions:
+            "We quote by square footage and never promise same-day service.",
+        },
+      })
+      .where(eq(businesses.id, ids.businessId));
+
+    const session = await createActiveAgentSession(ids.businessId);
+    const model = mockModelForTurns([textTurn("Hello.")]);
+    vi.mocked(registry.languageModel).mockReturnValue(model as never);
+
+    await readStreamText(
+      await runAgent({
+        sessionToken: session.publicToken,
+        userMessage: "Hi",
+      }),
+    );
+
+    const promptText = modelPromptText(model);
+    expect(promptText).toContain("BUSINESS GUIDANCE");
+    expect(promptText).toContain("We quote by square footage");
+  });
+
+  it("omits the Business Instructions block when none are configured", async () => {
+    const session = await createActiveAgentSession(ids.businessId);
+    const model = mockModelForTurns([textTurn("Hello.")]);
+    vi.mocked(registry.languageModel).mockReturnValue(model as never);
+
+    await readStreamText(
+      await runAgent({
+        sessionToken: session.publicToken,
+        userMessage: "Hi",
+      }),
+    );
+
+    expect(modelPromptText(model)).not.toContain("BUSINESS GUIDANCE");
   });
 
   it("a scripted propose_inquiry call stages a proposal and creates no inquiry", async () => {

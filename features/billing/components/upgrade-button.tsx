@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { ArrowUpRight } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/base/notification/notify";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
 import { startPolarCheckout } from "@/features/billing/start-checkout";
@@ -130,11 +131,18 @@ export function UpgradeButton({
         size={size}
         variant={variant}
       >
-        {children ?? (
+        {isPending ? (
           <>
-            <ArrowUpRight data-icon="inline-start" />
-            Upgrade Plan
+            <Spinner data-icon="inline-start" aria-hidden="true" />
+            {children ?? "Upgrading..."}
           </>
+        ) : (
+          children ?? (
+            <>
+              <ArrowUpRight data-icon="inline-start" />
+              Upgrade Plan
+            </>
+          )
         )}
       </Button>
 

@@ -34,7 +34,7 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-vi.mock("sonner", () => ({
+vi.mock("@/components/base/notification/notify", () => ({
   toast: {
     error: toastErrorMock,
     success: toastSuccessMock,
@@ -122,11 +122,8 @@ describe("BusinessNotificationSettingsForm", () => {
     const user = userEvent.setup();
     const { action, submitted } = renderForm();
 
-    // Open the popover for the first event "New inquiry received"
-    await user.click(screen.getAllByRole("button", { name: /Off/i })[0]);
-
-    // Toggle the push switch inside the popover
-    const pushSwitch = await screen.findByRole("switch", {
+    // Push toggles render directly (same Field-row pattern as quote settings)
+    const pushSwitch = screen.getByRole("switch", {
       name: "New inquiry received push",
     });
     await user.click(pushSwitch);
@@ -150,9 +147,7 @@ describe("BusinessNotificationSettingsForm", () => {
 
     subscribeToPushMock.mockResolvedValue(null);
 
-    await user.click(screen.getAllByRole("button", { name: /Off/i })[0]);
-
-    const pushSwitch = await screen.findByRole("switch", {
+    const pushSwitch = screen.getByRole("switch", {
       name: "New inquiry received push",
     });
     await user.click(pushSwitch);
@@ -178,12 +173,11 @@ describe("BusinessNotificationSettingsForm", () => {
       },
     });
 
-    // The trigger should say "Push" since push is enabled
-    await user.click(screen.getAllByRole("button", { name: /Push/i })[0]);
-
-    const pushSwitch = await screen.findByRole("switch", {
+    // The push switch renders checked since push is enabled
+    const pushSwitch = screen.getByRole("switch", {
       name: "New inquiry received push",
     });
+    expect(pushSwitch).toBeChecked();
     await user.click(pushSwitch);
 
     // Auto-save fires

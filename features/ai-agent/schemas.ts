@@ -12,6 +12,13 @@ export const agentToneSchema = z.enum(["friendly", "professional", "casual"]);
 // Agent configuration schema
 export const agentConfigSchema = z.object({
   tone: agentToneSchema.optional(),
+  /**
+   * Owner-authored guidance injected into the system prompt. Deliberately
+   * uncapped here: a stored value that predates the 1k write cap must not fail
+   * the whole parse (which would also drop the tone). The prompt builders run
+   * it through `normalizeBusinessInstructions`, which truncates.
+   */
+  instructions: z.string().optional(),
   handoffTriggers: z
     .object({
       maxSearchAttempts: z.number().int().min(1).max(10).optional(),

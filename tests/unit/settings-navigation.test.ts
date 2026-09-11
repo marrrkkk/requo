@@ -5,37 +5,44 @@ import {
 } from "@/features/settings/navigation";
 
 describe("getUnifiedSettingsNavigation", () => {
-  it("returns three groups: Personal, Business, and Account", () => {
+  it("returns three groups: User, Workspace, and Other", () => {
     const groups = getUnifiedSettingsNavigation("acme");
 
     expect(groups).toHaveLength(3);
-    expect(groups[0].label).toBe("Personal");
-    expect(groups[1].label).toBe("Business");
-    expect(groups[2].label).toBe("Account");
+    expect(groups[0].label).toBe("User");
+    expect(groups[1].label).toBe("Workspace");
+    expect(groups[2].label).toBe("Other");
   });
 
-  it("Personal group contains Profile, Appearance, Notifications", () => {
-    const [personal] = getUnifiedSettingsNavigation("acme");
+  it("User group contains Profile, Appearance, Notifications", () => {
+    const [user] = getUnifiedSettingsNavigation("acme");
 
-    expect(personal.items).toHaveLength(3);
-    expect(personal.items.map((i) => i.label)).toEqual([
+    expect(user.items).toHaveLength(3);
+    expect(user.items.map((i) => i.label)).toEqual([
       "Profile",
       "Appearance",
       "Notifications",
     ]);
   });
 
-  it("Business group contains all current business settings items", () => {
-    const [, business] = getUnifiedSettingsNavigation("acme");
+  it("Workspace group contains all current business settings items", () => {
+    const [, workspace] = getUnifiedSettingsNavigation("acme");
 
-    expect(business.items.map((i) => i.label)).toEqual([
-      "Profile",
+    expect(workspace.items.map((i) => i.label)).toEqual([
+      "General",
       "Quotes",
-      "Templates",
       "Email templates",
       "Assistant",
-      "Knowledge base",
+      "Billing",
+      "Members",
+      "Audit log",
     ]);
+  });
+
+  it("Other group contains Help & Support", () => {
+    const [, , other] = getUnifiedSettingsNavigation("acme");
+
+    expect(other.items.map((i) => i.label)).toEqual(["Help & Support"]);
   });
 
   it("generates correct href paths scoped to slug", () => {

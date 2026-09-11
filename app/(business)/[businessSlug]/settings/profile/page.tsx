@@ -2,11 +2,21 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { connection } from "next/server";
 
-import { PageHeader } from "@/components/shared/page-header";
 import { DashboardSettingsProfileSkeleton } from "@/components/shell/dashboard-settings-skeleton";
-import { updateAccountProfileAction } from "@/features/account/actions";
+import {
+  changeAccountPasswordAction,
+  deleteAccountAction,
+  revokeAccountSessionAction,
+  revokeOtherSessionsAction,
+  setAccountPasswordAction,
+  updateAccountProfileAction,
+} from "@/features/account/actions";
 import { ProfileSettingsForm } from "@/features/account/components/profile-settings-form";
-import { getAccountProfileForUser } from "@/features/account/queries";
+import {
+  getAccountProfileForUser,
+  getAccountSecurityForUser,
+  getAccountSessionsForUser,
+} from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { requireSession } from "@/lib/auth/session";
@@ -14,7 +24,8 @@ import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Profile",
-  description: "Update the profile details shown across your Requo account.",
+  description:
+    "Manage your Requo profile, password, devices, and account deletion.",
 });
 
 export const instant = true;
@@ -22,11 +33,7 @@ export const instant = true;
 export default function SettingsProfilePage() {
   return (
     <>
-      <PageHeader
-        eyebrow="Settings"
-        title="Profile"
-        description="Update your personal details shown across your account."
-      />
+      <h1 className="sr-only">Profile</h1>
       <Suspense fallback={<DashboardSettingsProfileSkeleton />}>
         <SettingsProfileContent />
       </Suspense>
@@ -45,7 +52,11 @@ async function SettingsProfileContent() {
     email: user.user.email,
   });
 
-  const profile = await getAccountProfileForUser(user.user.id);
+  const [profile, securityBase, sessions] = await Promise.all([
+    getAccountProfileForUser(user.user.id),
+    getAccountSecurityForUser(user.user.id, user.user.email),
+    getAccountSessionsForUser().catch(() => []),
+  ]);
   const avatarSrc = resolveUserAvatarSrc({
     avatarStoragePath: profile?.avatarStoragePath,
     profileUpdatedAt: profile?.updatedAt,
@@ -55,6 +66,8 @@ async function SettingsProfileContent() {
   return (
     <ProfileSettingsForm
       action={updateAccountProfileAction}
+      changePasswordAction={changeAccountPasswordAction}
+      deleteAccountAction={deleteAccountAction}
       key={`account-profile-${profile?.updatedAt?.getTime() ?? 0}`}
       profile={{
         fullName: profile?.fullName ?? user.user.name,
@@ -70,6 +83,14 @@ async function SettingsProfileContent() {
         avatarSrc,
         oauthAvatarSrc: user.user.image ?? null,
       }}
+      revokeOtherSessionsAction={revokeOtherSessionsAction}
+      revokeSessionAction={revokeAccountSessionAction}
+      security={{
+        ...securityBase,
+        activeSessionCount: sessions.length,
+        activeSessions: sessions,
+      }}
+      setPasswordAction={setAccountPasswordAction}
     />
   );
 }

@@ -1,21 +1,20 @@
-import { DashboardSettingsSkeleton } from "@/components/shell/dashboard-settings-skeleton";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AuditLogFiltersFallback,
+  AuditLogTableFallback,
+} from "@/features/audit/components/workspace-audit-log-fallbacks";
 
 /**
  * Loading skeleton for the business audit log settings page.
  *
- * Mirrors the page composition: a `PageHeader`-shaped block followed
- * by the shared dashboard settings skeleton used in the page's
- * Suspense fallback.
+ * Same shared fallbacks as the page's inner Suspense boundaries (see
+ * page.tsx): static filter labels and table headers paint instantly, only
+ * DB-backed controls and rows show skeletons — no full-page gray flash.
  */
 export default function BusinessAuditLogSettingsLoading() {
   return (
-    <div className="flex flex-col gap-6 lg:gap-8">
-      <div className="flex flex-col gap-3">
-        <Skeleton className="h-8 w-48 rounded-lg" />
-        <Skeleton className="h-4 w-full max-w-xl rounded-md" />
-      </div>
-      <DashboardSettingsSkeleton />
+    <div className="flex flex-col gap-6">
+      <AuditLogFiltersFallback />
+      <AuditLogTableFallback />
     </div>
   );
 }

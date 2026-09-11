@@ -148,14 +148,12 @@ async function AnalyticsHeaderRegion({
   searchParams,
 }: Pick<AnalyticsPageProps, "searchParams">) {
   const resolvedSearchParams = await searchParams;
-  const { preset, customSince, customUntil, periodDescription } =
+  const { preset, customSince, customUntil } =
     resolveDateRangeFromParams(resolvedSearchParams);
 
   return (
     <PageHeader
-      eyebrow="Analytics"
-      title="Performance"
-      description={periodDescription}
+      title="Analytics"
       actions={
         <DateRangeSelector
           currentPreset={preset}
@@ -354,9 +352,7 @@ function AnalyticsHeaderSkeleton() {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="flex flex-col gap-2">
-        <Skeleton className="h-4 w-20 rounded-md" />
         <Skeleton className="h-8 w-44 rounded-lg" />
-        <Skeleton className="h-4 w-72 max-w-full rounded-md" />
       </div>
       <div className="flex items-center gap-1">
         {Array.from({ length: 4 }).map((_, i) => (

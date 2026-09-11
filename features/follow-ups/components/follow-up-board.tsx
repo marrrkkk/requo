@@ -12,8 +12,11 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ArrowRight,
+  BellRing,
   Calendar,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Clock,
   Mail,
   MessageSquare,
@@ -56,13 +59,18 @@ import {
   getFollowUpChannelLabel,
   followUpRecurrenceLabels,
 } from "@/features/follow-ups/utils";
-import { getBusinessFollowUpsPath } from "@/features/businesses/routes";
 import type { FollowUpChannel, FollowUpView } from "@/features/follow-ups/types";
+import type { FollowUpActivityItem } from "@/features/follow-ups/types";
 import {
   type OptimisticActionResult,
   useOptimisticMutation,
 } from "@/hooks/use-optimistic-mutation";
 import { cn } from "@/lib/utils";
+
+type AutoSequenceItem = Extract<
+  FollowUpActivityItem,
+  { kind: "auto_sequence" }
+>;
 
 type FollowUpBoardProps = {
   overdue: FollowUpView[];
@@ -70,6 +78,7 @@ type FollowUpBoardProps = {
   upcoming: FollowUpView[];
   businessSlug: string;
   createButton?: React.ReactNode;
+  autoSequences?: AutoSequenceItem[];
 };
 
 type BoardColumns = {
@@ -87,23 +96,43 @@ type BoardAction =
 const columns = [
   {
     key: "overdue" as const,
-    label: "Overdue",
+    label: "Needs attention now",
+    description: "Follow up before these quotes go cold.",
     icon: <AlertTriangle className="size-4 text-destructive" />,
     collapsedLimit: 8,
   },
   {
     key: "dueToday" as const,
-    label: "Today",
+    label: "Due today",
+    description: "Your next customer conversations.",
     icon: <Sunrise className="size-4 text-primary" />,
     collapsedLimit: 8,
   },
   {
     key: "upcoming" as const,
     label: "Upcoming",
+    description: "Scheduled and waiting.",
     icon: <Clock className="size-4 text-muted-foreground" />,
     collapsedLimit: 8,
   },
 ];
+
+function formatQuoteAmount(totalInCents: number | null, currency: string | null) {
+  if (totalInCents === null || totalInCents === undefined) {
+    return null;
+  }
+
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency || "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(totalInCents / 100);
+  } catch {
+    return `${(totalInCents / 100).toFixed(0)}`;
+  }
+}
 
 const EXIT_DURATION_MS = 280;
 
@@ -158,6 +187,7 @@ export function FollowUpBoard({
   upcoming,
   businessSlug,
   createButton,
+  autoSequences = [],
 }: FollowUpBoardProps) {
   const serverBoard = useMemo(
     () => ({ overdue, dueToday, upcoming }),
@@ -250,18 +280,26 @@ export function FollowUpBoard({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
+              aria-label="Search follow-ups"
             />
           </div>
         ) : (
           <div />
         )}
-        {createButton}
+        <div className="flex items-center gap-2">
+          {optimisticBoard.overdue.length > 0 ? (
+            <Button asChild variant="outline" size="sm">
+              <a href="#follow-ups-needs-attention">Jump to overdue</a>
+            </Button>
+          ) : null}
+          {createButton}
+        </div>
       </div>
 
       {totalFollowUps === 0 ? (
         <DashboardEmptyState
-          title="You're all caught up"
-          description="Follow-ups appear here when inquiries or quotes need attention. They're created automatically or manually."
+          title="No action needed today"
+          description="When quotes go quiet or inquiries need a reply, your next customer conversations will appear here."
         />
       ) : (
         <>
@@ -280,13 +318,12 @@ export function FollowUpBoard({
             ))}
           </div>
 
-          <div className="pt-2">
-            <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
-              <Link href={`${getBusinessFollowUpsPath(businessSlug)}?status=all`} prefetch={true}>
-                View completed &amp; skipped
-              </Link>
-            </Button>
-          </div>
+          {autoSequences.length > 0 ? (
+            <ActiveAutoSequencesSection
+              sequences={autoSequences}
+              businessSlug={businessSlug}
+            />
+          ) : null}
         </>
       )}
 
@@ -321,22 +358,33 @@ function FollowUpColumn({
   ) => void;
   isPendingKey: (key: string) => boolean;
 }) {
-  const { visibleCount, hasMore, sentinelRef } = useProgressiveReveal({
-    total: items.length,
-    initialBatch: column.collapsedLimit,
-    batchSize: 5,
-  });
+  const { visibleCount, hasMore, sentinelRef, revealMore, showFewer } =
+    useProgressiveReveal({
+      total: items.length,
+      initialBatch: column.collapsedLimit,
+      batchSize: 5,
+    });
   const visibleItems = items.slice(0, visibleCount);
+  const isExpanded = visibleCount > column.collapsedLimit;
+  const remaining = items.length - visibleCount;
+  const sectionId =
+    column.key === "overdue" ? "follow-ups-needs-attention" : undefined;
 
   return (
-    <div className="flex min-h-48 flex-col gap-3 rounded-xl p-4 bg-muted/50">
-      <div className="flex items-center gap-2">
+    <section
+      aria-label={column.label}
+      className="flex min-h-48 flex-col gap-3 rounded-xl p-4 bg-muted/50"
+    >
+      <div className="flex items-center gap-2" id={sectionId}>
         {column.icon}
-        <span className="text-sm font-medium">{column.label}</span>
+        <span className="text-sm font-medium">
+          {column.label} ({items.length})
+        </span>
         <Badge variant="secondary" className="ml-auto">
           {items.length}
         </Badge>
       </div>
+      <p className="text-xs text-muted-foreground">{column.description}</p>
 
       <div className="flex flex-col gap-2">
         {visibleItems.map((followUp) => (
@@ -352,7 +400,38 @@ function FollowUpColumn({
         ))}
         {hasMore ? <div ref={sentinelRef} className="h-1" /> : null}
       </div>
-    </div>
+
+      {items.length > column.collapsedLimit ? (
+        <div className="flex items-center gap-2 pt-1">
+          {hasMore ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={revealMore}
+              className="text-muted-foreground"
+              aria-label={`Show more ${column.label} follow-ups, ${remaining} remaining`}
+            >
+              <ChevronDown data-icon="inline-start" />
+              Show more ({remaining} more)
+            </Button>
+          ) : null}
+          {isExpanded ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={showFewer}
+              className="text-muted-foreground"
+              aria-label={`Show fewer ${column.label} follow-ups`}
+            >
+              <ChevronUp data-icon="inline-start" />
+              Show fewer
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -377,6 +456,13 @@ function FollowUpCard({
   const channelLabel = getFollowUpChannelLabel(followUp.channel);
   const dueLabel = formatFollowUpDate(followUp.dueAt);
   const isPending = isPendingKey(followUp.id);
+  const quoteAmount = followUp.quoteContext
+    ? formatQuoteAmount(
+        followUp.quoteContext.totalInCents,
+        followUp.quoteContext.currency,
+      )
+    : null;
+  const isQuoteViewed = Boolean(followUp.quoteContext?.viewedAt);
 
   function handleComplete(e: React.MouseEvent) {
     e.stopPropagation();
@@ -422,15 +508,20 @@ function FollowUpCard({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={handleComplete}>
-              Mark complete
+              Mark contacted
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleSkip}>
-              Skip
+              Dismiss
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
       <p className="line-clamp-2 text-xs text-muted-foreground">{followUp.title}</p>
+      {followUp.whyNow ? (
+        <p className="line-clamp-2 text-xs font-medium text-foreground/80">
+          {followUp.whyNow}
+        </p>
+      ) : null}
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1">
           <Calendar className="size-3" aria-hidden="true" />
@@ -440,12 +531,31 @@ function FollowUpCard({
         <span className="inline-flex items-center gap-1" aria-label={channelLabel}>
           <ChannelIcon channel={followUp.channel} />
         </span>
+        {quoteAmount ? (
+          <>
+            <span className="text-border">·</span>
+            <span className="font-medium text-foreground/80 tabular-nums">
+              {quoteAmount}
+            </span>
+          </>
+        ) : null}
       </div>
-      {followUp.related.label ? (
-        <span className="truncate text-xs text-muted-foreground/80">
-          {followUp.related.label}
-        </span>
-      ) : null}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {followUp.related.label ? (
+          <span className="truncate text-xs text-muted-foreground/80">
+            {followUp.related.label}
+          </span>
+        ) : null}
+        {followUp.quoteContext?.status ? (
+          <Badge variant="outline" className="rounded-full">
+            {followUp.quoteContext.status.replace(/_/g, " ")}
+            {isQuoteViewed ? " · viewed" : ""}
+          </Badge>
+        ) : null}
+        <Badge variant="secondary" className="rounded-full">
+          {followUp.nextActionLabel}
+        </Badge>
+      </div>
     </div>
   );
 }
@@ -480,6 +590,12 @@ function FollowUpDetailDialog({
   const dueLabel = formatFollowUpDate(followUp.dueAt);
   const hasRecurrence = followUp.recurrence !== "none";
   const isActioning = isPendingKey(followUp.id);
+  const quoteAmount = followUp.quoteContext
+    ? formatQuoteAmount(
+        followUp.quoteContext.totalInCents,
+        followUp.quoteContext.currency,
+      )
+    : null;
 
   function handleComplete() {
     onOptimisticRemove(followUp!.id, async () => {
@@ -552,6 +668,40 @@ function FollowUpDetailDialog({
               </div>
             )}
 
+            {/* Why now + quote context */}
+            {followUp.whyNow ? (
+              <div className="flex flex-col gap-1.5">
+                <span className="meta-label">Why now</span>
+                <p className="text-sm leading-relaxed text-foreground">
+                  {followUp.whyNow}
+                </p>
+              </div>
+            ) : null}
+
+            {followUp.quoteContext ? (
+              <div className="flex flex-col gap-1.5">
+                <span className="meta-label">Quote context</span>
+                <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                  {quoteAmount ? (
+                    <span className="font-medium text-foreground tabular-nums">
+                      {quoteAmount}
+                    </span>
+                  ) : null}
+                  {followUp.quoteContext.status ? (
+                    <Badge variant="outline" className="rounded-full">
+                      {followUp.quoteContext.status.replace(/_/g, " ")}
+                    </Badge>
+                  ) : null}
+                  <Badge variant="outline" className="rounded-full">
+                    {followUp.quoteContext.viewedAt ? "Viewed" : "Not viewed"}
+                  </Badge>
+                  {followUp.quoteContext.sentAt ? (
+                    <span>Sent {formatFollowUpDate(followUp.quoteContext.sentAt)}</span>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
             {/* Suggested message */}
             {followUp.suggestedMessage && (
               <div data-padding="none" className="soft-panel flex flex-col gap-1.5 px-4 py-3 shadow-none">
@@ -582,7 +732,7 @@ function FollowUpDetailDialog({
               >
                 <OptimisticPendingIndicator pending={isActioning} />
                 <CheckCircle2 data-icon="inline-start" />
-                Mark complete
+                Mark contacted
               </Button>
               <Button
                 onClick={handleSkip}
@@ -592,12 +742,74 @@ function FollowUpDetailDialog({
               >
                 <OptimisticPendingIndicator pending={isActioning} />
                 <SkipForward data-icon="inline-start" />
-                Skip
+                Dismiss
               </Button>
             </div>
           </div>
         </DialogBody>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ActiveAutoSequencesSection({
+  sequences,
+  businessSlug,
+}: {
+  sequences: AutoSequenceItem[];
+  businessSlug: string;
+}) {
+  if (sequences.length === 0) {
+    return null;
+  }
+
+  return (
+    <section
+      aria-label="Active automatic sequences"
+      className="flex flex-col gap-3 rounded-xl p-4 bg-muted/50"
+    >
+      <div className="flex items-center gap-2">
+        <BellRing className="size-4 text-muted-foreground" />
+        <span className="text-sm font-medium">
+          Active automatic sequences ({sequences.length})
+        </span>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Automatic emails send until the customer views or responds. Pause or
+        stop them from the quote page.
+      </p>
+      <ul className="flex flex-col gap-2">
+        {sequences.map((item) => (
+          <li
+            key={item.quoteId}
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border bg-background px-3 py-2.5 text-xs"
+          >
+            <span className="font-medium text-foreground">
+              {item.customerName}
+            </span>
+            <span className="text-muted-foreground">
+              {item.quoteNumber ? `Quote ${item.quoteNumber}` : item.quoteTitle}
+            </span>
+            <Badge variant="secondary" className="rounded-full">
+              Automatic · {item.sequence.attempts} of {item.sequence.maxAttempts} sent
+            </Badge>
+            {item.sequence.nextSendAt ? (
+              <span className="text-muted-foreground">
+                Next send {formatFollowUpDate(item.sequence.nextSendAt)}
+              </span>
+            ) : null}
+            <Button asChild variant="outline" size="xs" className="ml-auto">
+              <Link
+                href={`/${businessSlug}/quotes/${item.quoteId}`}
+                prefetch={true}
+              >
+                Open quote
+                <ArrowRight data-icon="inline-end" className="size-3" />
+              </Link>
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

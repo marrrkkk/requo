@@ -76,11 +76,13 @@ export function ChatComposer({
         submit();
       }}
     >
-      <InputGroup className="rounded-lg border border-border bg-secondary/60 shadow-sm transition-[border-color,background-color,box-shadow] focus-within:border-border focus-within:bg-card has-[[data-slot=input-group-control]:focus-visible]:ring-4 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/15">
+      <InputGroup
+        className="chat-composer-surface overflow-hidden rounded-xl border border-border/60 shadow-none transition-[border-color,box-shadow] has-disabled:opacity-100 has-[[data-slot=input-group-control]:focus-visible]:ring-0"
+      >
         <InputGroupTextarea
           aria-label={ariaLabel}
           autoFocus={autoFocus}
-          className="control-ghost-surface ai-chat-scrollbar max-h-[12.5rem] min-h-11 px-4 pt-3.5 focus-visible:bg-transparent"
+          className="ai-chat-scrollbar max-h-[12.5rem] min-h-11 border-0 px-4 pt-3.5 shadow-none ring-0 focus-visible:border-0 focus-visible:bg-transparent focus-visible:ring-0"
           disabled={disabled}
           maxLength={maxLength}
           onChange={(event) => onValueChange(event.target.value)}

@@ -9,7 +9,6 @@ export type BusinessSettingsSection =
   | "profile"
   | "security"
   | "quote"
-  | "quote-templates"
   | "email"
   | "support"
   | "integrations"
@@ -17,7 +16,7 @@ export type BusinessSettingsSection =
   | "audit-log"
   | "agent"
   | "ai"
-  | "knowledge-base";
+  | "members";
 
 export function getBusinessPath(slug: string) {
   return `/${slug}`;
@@ -88,6 +87,38 @@ export function getBusinessNewQuotePath(
 
 export function getBusinessQuotePath(slug: string, quoteId: string) {
   return `${getBusinessQuotesPath(slug)}/${quoteId}`;
+}
+
+export function getBusinessInvoicesPath(slug: string) {
+  return `${getBusinessPath(slug)}/invoices`;
+}
+
+export function getBusinessInvoicePath(slug: string, invoiceId: string) {
+  return `${getBusinessInvoicesPath(slug)}/${invoiceId}`;
+}
+
+export function getBusinessNewInvoicePath(slug: string, quoteId?: string | null) {
+  const basePath = `${getBusinessInvoicesPath(slug)}/new`;
+  if (!quoteId) return basePath;
+  return `${basePath}?${new URLSearchParams({ quoteId }).toString()}`;
+}
+
+export function getBusinessInvoiceEditPath(slug: string, invoiceId: string) {
+  return `${getBusinessInvoicesPath(slug)}/${invoiceId}/edit`;
+}
+
+export function getBusinessInvoicePrintPath(slug: string, invoiceId: string) {
+  return `${getBusinessPath(slug)}/print/invoices/${invoiceId}`;
+}
+
+export function getBusinessInvoiceExportPath(slug: string, invoiceId: string, format?: "pdf" | "png") {
+  const basePath = `/api/business/${slug}/invoices/${invoiceId}/export`;
+  if (!format || format === "pdf") return basePath;
+  return `${basePath}?${new URLSearchParams({ format }).toString()}`;
+}
+
+export function getBusinessInvoicesExportPath(slug: string) {
+  return `/api/business/${slug}/invoices/export`;
 }
 
 export function getBusinessQuotePreviewPath(slug: string, quoteId: string) {
@@ -167,22 +198,6 @@ export function getBusinessAiSettingsPath(slug: string) {
   return `${getBusinessPath(slug)}/settings/ai`;
 }
 
-export function getBusinessAiAssistantSettingsPath(slug: string) {
-  return `${getBusinessAiSettingsPath(slug)}/assistant`;
-}
-
-export function getBusinessAiKnowledgeSettingsPath(slug: string) {
-  return `${getBusinessAiSettingsPath(slug)}/knowledge`;
-}
-
-export function getBusinessKnowledgeBaseSettingsPath(slug: string) {
-  return `${getBusinessPath(slug)}/settings/knowledge-base`;
-}
-
-export function getBusinessQuoteTemplatesSettingsPath(slug: string) {
-  return `${getBusinessPath(slug)}/settings/quote-templates`;
-}
-
 export function getBusinessMemberInvitePath(token: string) {
   return `/invite/${token}`;
 }
@@ -196,7 +211,7 @@ export function getBusinessServicePath(slug: string, serviceSlug: string) {
 }
 
 export function getBusinessMembersPath(slug: string) {
-  return `${getBusinessPath(slug)}/members`;
+  return getBusinessSettingsPath(slug, "members");
 }
 
 export function getBusinessNotificationsPath(slug: string) {
@@ -209,10 +224,6 @@ export function getBusinessProductsPath(slug: string) {
 
 export function getBusinessAssistantPath(slug: string) {
   return `${getBusinessPath(slug)}/assistant`;
-}
-
-export function getBusinessAssistantSettingsPath(slug: string) {
-  return `${getBusinessAssistantPath(slug)}/settings`;
 }
 
 export function getBusinessPublicChatPath(slug: string) {

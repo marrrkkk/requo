@@ -13,9 +13,7 @@ export default function AnalyticsLoading() {
             ))}
           </div>
         }
-        description="How your inquiry-to-quote pipeline is performing over the last 30 days."
-        eyebrow="Analytics"
-        title="Performance"
+        title="Analytics"
       />
 
       <div className="flex flex-col gap-6">

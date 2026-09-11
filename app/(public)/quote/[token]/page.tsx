@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 
-import { getCurrentUser } from "@/lib/auth/session";
 import { PublicQuotePageRenderer } from "@/features/quotes/components/public-quote-page-renderer";
 import { PublicQuoteViewTracker } from "@/features/analytics/components/public-page-analytics-tracker";
-import { Button } from "@/components/ui/button";
 import { PublicQuoteInteractiveColumn } from "@/features/quotes/components/public-quote-interactive-column";
 import { respondToPublicQuoteAction, requestQuoteRevisionAction } from "@/features/quotes/actions";
 import {
@@ -78,8 +74,6 @@ export default async function PublicQuotePage({
     notFound();
   }
 
-  const user = await getCurrentUser();
-  const isCreator = !!user;
   const respondAction = respondToPublicQuoteAction.bind(null, quote.token);
   const revisionAction = requestQuoteRevisionAction.bind(null, quote.token);
 
@@ -87,16 +81,7 @@ export default async function PublicQuotePage({
     <PublicQuotePageRenderer
       quote={quote}
       businessPlan={quote.businessPlan}
-      headerAction={
-        isCreator ? (
-          <Button asChild variant="ghost">
-            <Link href="/">
-              <ArrowLeft data-icon="inline-start" />
-              Back to Requo
-            </Link>
-          </Button>
-        ) : undefined
-      }
+      hideHeader
       interactiveColumn={
         <PublicQuoteInteractiveColumn
           quote={quote}

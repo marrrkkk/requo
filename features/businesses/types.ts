@@ -72,6 +72,10 @@ export type BusinessMoneySnapshot = {
   wonCount: number;
   inPlayInCents: number;
   inPlayCount: number;
+  /** Value of quotes accepted in the 30-day window before the current one. */
+  wonInCentsPrior: number;
+  /** Count of quotes accepted in the 30-day window before the current one. */
+  wonCountPrior: number;
 };
 
 export type BusinessDashboardSummaryData = {

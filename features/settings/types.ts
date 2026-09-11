@@ -6,7 +6,11 @@ import type {
 } from "@/features/inquiries/form-config";
 import type { InquiryPageConfig } from "@/features/inquiries/page-config";
 import type { BusinessInquiryFormSummary } from "@/features/inquiries/types";
-import type { QuoteEmailTemplateConfig } from "@/features/settings/email-templates";
+import type {
+  InvoiceEmailTemplateConfigV2,
+  QuoteEmailTemplateConfigV2,
+  QuoteFollowUpTemplateConfigV2,
+} from "@/features/settings/email-templates";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 export type BusinessSettingsView = {
@@ -23,12 +27,15 @@ export type BusinessSettingsView = {
   countryCode: string | null;
   shortDescription: string | null;
   contactEmail: string | null;
+  website: string | null;
   logoStoragePath: string | null;
   logoContentType: string | null;
   defaultEmailSignature: string | null;
   defaultQuoteNotes: string | null;
   defaultQuoteTerms: string | null;
-  quoteEmailTemplate: QuoteEmailTemplateConfig | null;
+  quoteEmailTemplate: QuoteEmailTemplateConfigV2;
+  invoiceEmailTemplate: InvoiceEmailTemplateConfigV2;
+  quoteFollowUpTemplate: QuoteFollowUpTemplateConfigV2;
   defaultQuoteValidityDays: number;
   sendInquiryAckEmail: boolean;
   autoDraftQuoteOnQualify: boolean;
@@ -49,6 +56,8 @@ export type BusinessSettingsView = {
   defaultCurrency: string;
   aiAgentEnabled: boolean;
   aiAgentTone: "friendly" | "professional" | "casual";
+  /** Owner-authored guidance injected into both AI surfaces. Empty when unset. */
+  aiAgentInstructions: string;
   updatedAt: Date;
 };
 
@@ -58,6 +67,7 @@ export type BusinessGeneralSettingsFieldName =
   | "countryCode"
   | "shortDescription"
   | "contactEmail"
+  | "website"
   | "defaultCurrency"
   | "defaultEmailSignature"
   | "logo";
@@ -96,7 +106,8 @@ export type BusinessNotificationSettingsActionState = {
 
 export type BusinessAiAgentSettingsFieldName =
   | "aiAgentEnabled"
-  | "tone";
+  | "tone"
+  | "aiAgentInstructions";
 
 export type BusinessAiAgentSettingsFieldErrors = Partial<
   Record<BusinessAiAgentSettingsFieldName, string[] | undefined>
@@ -129,12 +140,7 @@ export type BusinessQuoteSettingsActionState = {
   fieldErrors?: BusinessQuoteSettingsFieldErrors;
 };
 
-export type BusinessEmailTemplateFieldName =
-  | "subject"
-  | "greeting"
-  | "introText"
-  | "ctaLabel"
-  | "closingText";
+export type BusinessEmailTemplateFieldName = "subject" | "blocks";
 
 export type BusinessEmailTemplateFieldErrors = Partial<
   Record<BusinessEmailTemplateFieldName, string[] | undefined>

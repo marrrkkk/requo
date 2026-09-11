@@ -22,7 +22,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/components/base/notification/notify";
 
 import {
   Command,
@@ -42,7 +42,7 @@ import {
 import {
   getBusinessFollowUpsPath,
   getBusinessServicesPath,
-  getBusinessKnowledgeBaseSettingsPath,
+  getBusinessAiSettingsPath,
   getBusinessMembersPath,
   getBusinessNewInquiryPath,
   getBusinessNewQuotePath,
@@ -70,12 +70,23 @@ import {
 } from "@/features/onboarding/tour-keys";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
 
+export const OPEN_COMMAND_MENU_EVENT = "requo:open-command-menu";
+
+export function openGlobalCommandMenu() {
+  window.dispatchEvent(new CustomEvent(OPEN_COMMAND_MENU_EVENT));
+}
+
 type CommandMenuProps = {
   businessSlug: string;
   businessId: string;
   userId: string;
   role: BusinessMemberRole;
   plan: plan;
+  /** Controlled open state (for triggering from the sidebar Quick Search). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Hides the inline trigger button; only the dialog renders. */
+  hideTrigger?: boolean;
 };
 
 type CreateAction = {
@@ -94,13 +105,28 @@ export function CommandMenu({
   userId,
   role,
   plan,
+  open: controlledOpen,
+  onOpenChange,
+  hideTrigger = false,
 }: CommandMenuProps) {
-  const [open, setOpen] = React.useState(false);
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
   const [lockedAction, setLockedAction] = React.useState<CreateAction | null>(
     null,
   );
   const router = useRouter();
   const { setTheme } = useTheme();
+
+  const handleOpenChange = React.useCallback(
+    (next: boolean) => {
+      if (!isControlled) {
+        setInternalOpen(next);
+      }
+      onOpenChange?.(next);
+    },
+    [isControlled, onOpenChange],
+  );
 
   const canOperate = canManageOperationalBusinessSettings(role);
   const canManageMembers = canManageBusinessMembers(role);
@@ -109,18 +135,27 @@ export function CommandMenu({
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setOpen((value) => !value);
+        handleOpenChange(!open);
       }
     };
 
     document.addEventListener("keydown", down);
     return () => document.removeEventListener("keydown", down);
-  }, []);
+  }, [handleOpenChange, open]);
 
-  const runCommand = React.useCallback((command: () => void) => {
-    setOpen(false);
-    command();
-  }, []);
+  React.useEffect(() => {
+    const handler = () => handleOpenChange(true);
+    window.addEventListener(OPEN_COMMAND_MENU_EVENT, handler);
+    return () => window.removeEventListener(OPEN_COMMAND_MENU_EVENT, handler);
+  }, [handleOpenChange]);
+
+  const runCommand = React.useCallback(
+    (command: () => void) => {
+      handleOpenChange(false);
+      command();
+    },
+    [handleOpenChange],
+  );
 
   function publicChatUrl() {
     return `${window.location.origin}${getBusinessPublicChatPath(businessSlug)}`;
@@ -148,7 +183,7 @@ export function CommandMenu({
       runCommand(action.navigate);
       return;
     }
-    setOpen(false);
+    handleOpenChange(false);
     setLockedAction(action);
   }
 
@@ -209,7 +244,7 @@ export function CommandMenu({
       label: "Add knowledge base entry",
       icon: BookOpen,
       navigate: () =>
-        router.push(getBusinessKnowledgeBaseSettingsPath(businessSlug)),
+        router.push(`${getBusinessAiSettingsPath(businessSlug)}#knowledge`),
       feature: "knowledgeBase",
       visible: canOperate,
     },
@@ -225,21 +260,23 @@ export function CommandMenu({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/25 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted/40 md:w-64 lg:w-80"
-      >
-        <div className="flex items-center gap-2">
-          <Search className="size-4 shrink-0" />
-          <span className="truncate">Quick actions…</span>
-        </div>
-        <kbd className="pointer-events-none hidden select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100 sm:flex">
-          <span className="text-xs">⌘</span>K
-        </kbd>
-      </button>
+      {hideTrigger ? null : (
+        <button
+          type="button"
+          onClick={() => handleOpenChange(true)}
+          className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/25 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted/40 md:w-64 lg:w-80"
+        >
+          <div className="flex items-center gap-2">
+            <Search className="size-4 shrink-0" />
+            <span className="truncate">Quick actions…</span>
+          </div>
+          <kbd className="pointer-events-none hidden select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100 sm:flex">
+            <span className="text-xs">⌘</span>K
+          </kbd>
+        </button>
+      )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
           className="p-0 sm:max-w-[560px]"
           showCloseButton={false}

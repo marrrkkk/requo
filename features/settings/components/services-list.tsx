@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { toast } from "sonner";
+import { toast } from "@/components/base/notification/notify";
 import {
   ArchiveRestore,
   ArrowUpRight,
@@ -298,7 +298,7 @@ export function ServicesList({
                     {form.isDefault ? (
                       <Badge
                         variant="secondary"
-                        className="px-1.5 py-0 text-[10px] font-normal text-muted-foreground"
+                        className="px-1.5 py-0 font-normal text-muted-foreground"
                       >
                         Default
                       </Badge>
@@ -368,7 +368,7 @@ export function ServicesList({
                             {form.isDefault ? (
                               <Badge
                                 variant="secondary"
-                                className="px-1.5 py-0 text-[10px] font-normal text-muted-foreground"
+                                className="px-1.5 py-0 font-normal text-muted-foreground"
                               >
                                 Default
                               </Badge>

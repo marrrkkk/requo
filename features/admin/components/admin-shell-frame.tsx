@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { Fragment, type ReactNode, useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 import { LayoutDashboard as LayoutDashboardIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 
@@ -9,12 +8,7 @@ import { BrandMark } from "@/components/shared/brand-mark";
 import {
   Breadcrumb,
   BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
+} from "@/components/base/breadcrumb/breadcrumb";
 import { MobileAdminBottomNav } from "@/features/admin/components/mobile-admin-bottom-nav";
 import {
   Sidebar,
@@ -96,48 +90,34 @@ export function AdminShellFrame({
           <DesktopSidebarTrigger />
           <div className="dashboard-topbar-inner min-w-0 flex-1">
             <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
-              <Button
-                asChild
-                className="hidden size-8 shrink-0 lg:inline-flex"
-                size="icon-sm"
-                variant="ghost"
-              >
-                <Link
-                  aria-label={activeNavItem?.label ?? "Dashboard"}
-                  href={activeNavItem?.href ?? ADMIN_ROOT_PATH}
-                  prefetch={true}
-                >
-                  <ActiveIcon className="size-4" />
-                </Link>
-              </Button>
-              <span
-                aria-hidden="true"
-                className="hidden h-3.5 w-px shrink-0 self-center bg-border md:block"
-              />
               <div className="hidden min-w-0 flex-1 md:block">
-                <Breadcrumb>
-                  <BreadcrumbList>
-                    {breadcrumbs.map((item, index) => {
-                      const isLast = index === breadcrumbs.length - 1;
+                <Breadcrumb aria-label="Pages">
+                  {breadcrumbs.map((item, index) => {
+                    const isLast = index === breadcrumbs.length - 1;
 
+                    if (isLast || !item.href) {
                       return (
-                        <Fragment key={`${item.label}-${item.href ?? index}`}>
-                          {index > 0 ? <BreadcrumbSeparator /> : null}
-                          <BreadcrumbItem>
-                            {isLast || !item.href ? (
-                              <BreadcrumbPage>{item.label}</BreadcrumbPage>
-                            ) : (
-                              <BreadcrumbLink asChild>
-                                <Link href={item.href} prefetch={true}>
-                                  {item.label}
-                                </Link>
-                              </BreadcrumbLink>
-                            )}
-                          </BreadcrumbItem>
-                        </Fragment>
+                        <BreadcrumbItem
+                          key={`${item.label}-${item.href ?? index}`}
+                          current
+                          icon={ActiveIcon}
+                          className="text-sm font-normal text-foreground"
+                        >
+                          {item.label}
+                        </BreadcrumbItem>
                       );
-                    })}
-                  </BreadcrumbList>
+                    }
+
+                    return (
+                      <BreadcrumbItem
+                        key={`${item.label}-${item.href ?? index}`}
+                        href={item.href}
+                        className="text-sm text-muted-foreground hover:bg-transparent hover:text-foreground"
+                      >
+                        {item.label}
+                      </BreadcrumbItem>
+                    );
+                  })}
                 </Breadcrumb>
               </div>
               {headerActions ? (

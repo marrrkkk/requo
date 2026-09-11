@@ -52,27 +52,36 @@ State rules:
 
 Fonts:
 
-- `font-sans`: Geist Sans
-- `font-heading`: Geist Sans
+- `font-sans`: Inter (marketing routes keep Geist Sans via `.font-scope-geist`)
+- `font-heading`: Inter (marketing routes keep Geist Sans via `.font-scope-geist`)
 - `font-mono`: Geist Mono
 
-Use role-based typography instead of ad hoc text sizes.
+Use role-based typography instead of ad hoc text sizes. Full spec lives in
+`styles/typeset.css` (loaded via `app/globals.css`).
 
 | Role | Standard treatment | Use |
 | --- | --- | --- |
 | Display hero | `font-heading text-5xl leading-[0.96] font-semibold tracking-tight` | Marketing and auth hero only |
 | Page title | `font-heading text-xl sm:text-2xl leading-tight font-semibold tracking-tight` | `PageHeader`, detail headers (two steps: 20px, 24px) |
 | Section title | `font-heading text-base leading-tight font-semibold tracking-tight` | `CardTitle`, `DashboardSection` |
-| Form section title | `text-[0.95rem] font-semibold tracking-tight` | `FormSection` titles |
-| Body | `text-sm leading-6` | Default UI copy |
+| Form section title | `.form-section-title` (`text-[0.9375rem] font-semibold tracking-tight`, 15px) | `FormSection` titles |
+| Body | `text-sm leading-6` | Default UI copy (14px at Default scale) |
 | Supporting body | `text-sm leading-6 text-muted-foreground` | Descriptions and help text |
 | Long-form supporting | `text-sm leading-6 text-muted-foreground` | Page descriptions and detail copy |
+| Small supporting | `text-xs` (12px) | Timestamps, counts, badges, menus — meta only |
 | Field label | `text-sm leading-[1.35] font-medium` | `FieldLabel` |
-| Meta label | `meta-label` (`text-[0.68rem] font-medium uppercase tracking-[0.14em] text-muted-foreground`) | Filters, eyebrow labels, meta chips |
+| Meta label | `meta-label` (`text-[0.6875rem] font-medium uppercase tracking-[0.14em] text-muted-foreground`, 11px) | Filters, eyebrow labels, meta chips |
 | Caption/code | `font-mono text-[0.72rem]` | IDs, tokens, technical metadata |
 
 Control text is a single size: `text-sm` on every control primitive at every
 size. Do not add per-size font-size overrides to primitive variants.
+
+Interface scale (Appearance settings → Scale) rides the root `font-size`:
+Small = 13px body (root 92.8571%), Default = 14px body (100%),
+Large = 15px body (107.1429%). Because Tailwind spacing/sizing is rem-based,
+scale adjusts the whole app, not just fonts; 1px hairlines stay fixed.
+Arbitrary `text-[Npx]` values do not scale — use rem values from the ramp
+above. Print/PDF output always renders at 100%.
 
 ### Spacing and Radius
 
@@ -88,7 +97,8 @@ Implemented density scale (authenticated surfaces):
   (customer name above email address — the email is the only available
   disambiguator, so rows never collapse to one line).
 - Page titles render on the two-step 20-to-24px scale above.
-- The sidebar rail is 240px wide with 32px navigation items; the desktop top
+- The sidebar rail is 240px wide with 32px navigation items (14px `text-sm`
+  labels, 20px icons); the desktop top
   bar is 48px. Page sections are separated by 24px (`gap-6` on
   `DashboardPage`).
 - Marketing, authentication, public inquiry pages, the public Agent chat,

@@ -22,3 +22,4 @@ export * from "./email";
 export * from "./subscriptions";
 export * from "./push-subscriptions";
 export * from "./compliance";
+export * from "./invoices";

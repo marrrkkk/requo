@@ -1,25 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import {
-  Bell,
-  ChevronDown,
-  Inbox,
-  MessageSquare,
-  Send,
-  Smartphone,
-  Timer,
-  UserCheck,
-} from "lucide-react";
-import { toast } from "sonner";
+import { Smartphone } from "lucide-react";
+import { toast } from "@/components/base/notification/notify";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Field,
+  FieldDescription,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -31,102 +22,97 @@ import {
   savePushSubscription,
   subscribeToPush,
 } from "@/features/notifications/push-client";
+import { GeneralSettingsSection } from "@/features/settings/components/business-settings-form/section";
 import type {
   BusinessNotificationSettingsActionState,
   BusinessSettingsView,
 } from "@/features/settings/types";
 
-/* ── Notification event config ──────────────────────────────────────────── */
+/* ── Notification toggle config ─────────────────────────────────────────── */
 
-type NotificationEventConfig = {
+type NotificationChannel = "inApp" | "push";
+
+type NotificationToggleConfig = {
   id: string;
   label: string;
   description: string;
-  icon: React.ElementType;
-  channels: {
-    inApp?: string;
-    push?: string;
-  };
+  channel: NotificationChannel;
+  fieldKey: NotificationFieldKey;
 };
 
-type NotificationGroup = {
-  label: string;
-  events: NotificationEventConfig[];
-};
+const inAppToggles: NotificationToggleConfig[] = [
+  {
+    id: "newInquiry",
+    label: "New inquiry received",
+    description: "A customer submits an inquiry form.",
+    channel: "inApp",
+    fieldKey: "notifyInAppOnNewInquiry",
+  },
+  {
+    id: "followUpReminder",
+    label: "Follow-up reminder",
+    description: "An inquiry hasn't had a response in a while.",
+    channel: "inApp",
+    fieldKey: "notifyInAppOnFollowUpReminder",
+  },
+  {
+    id: "quoteSent",
+    label: "Quote sent",
+    description: "A quote is sent to a customer.",
+    channel: "inApp",
+    fieldKey: "notifyInAppOnQuoteSent",
+  },
+  {
+    id: "quoteResponse",
+    label: "Quote response",
+    description: "A customer accepts or declines a quote.",
+    channel: "inApp",
+    fieldKey: "notifyInAppOnQuoteResponse",
+  },
+  {
+    id: "quoteExpiring",
+    label: "Quote expiring",
+    description: "A sent quote is about to expire.",
+    channel: "inApp",
+    fieldKey: "notifyInAppOnQuoteExpiring",
+  },
+  {
+    id: "memberInviteResponse",
+    label: "Member invite response",
+    description: "A team member accepts or declines an invite.",
+    channel: "inApp",
+    fieldKey: "notifyInAppOnMemberInviteResponse",
+  },
+];
 
-const notificationGroups: NotificationGroup[] = [
+const pushToggles: NotificationToggleConfig[] = [
   {
-    label: "Inquiries",
-    events: [
-      {
-        id: "newInquiry",
-        label: "New inquiry received",
-        description: "A customer submits an inquiry form.",
-        icon: Inbox,
-        channels: {
-          inApp: "notifyInAppOnNewInquiry",
-          push: "notifyPushOnNewInquiry",
-        },
-      },
-      {
-        id: "followUpReminder",
-        label: "Follow-up reminder",
-        description: "An inquiry hasn't had a response in a while.",
-        icon: Timer,
-        channels: {
-          inApp: "notifyInAppOnFollowUpReminder",
-        },
-      },
-    ],
+    id: "newInquiry",
+    label: "New inquiry received",
+    description: "A customer submits an inquiry form.",
+    channel: "push",
+    fieldKey: "notifyPushOnNewInquiry",
   },
   {
-    label: "Quotes",
-    events: [
-      {
-        id: "quoteSent",
-        label: "Quote sent",
-        description: "A quote is sent to a customer.",
-        icon: Send,
-        channels: {
-          inApp: "notifyInAppOnQuoteSent",
-          push: "notifyPushOnQuoteSent",
-        },
-      },
-      {
-        id: "quoteResponse",
-        label: "Quote response",
-        description: "A customer accepts or declines a quote.",
-        icon: MessageSquare,
-        channels: {
-          inApp: "notifyInAppOnQuoteResponse",
-          push: "notifyPushOnQuoteResponse",
-        },
-      },
-      {
-        id: "quoteExpiring",
-        label: "Quote expiring",
-        description: "A sent quote is about to expire.",
-        icon: Timer,
-        channels: {
-          inApp: "notifyInAppOnQuoteExpiring",
-        },
-      },
-    ],
+    id: "quoteSent",
+    label: "Quote sent",
+    description: "A quote is sent to a customer.",
+    channel: "push",
+    fieldKey: "notifyPushOnQuoteSent",
   },
   {
-    label: "Team",
-    events: [
-      {
-        id: "memberInviteResponse",
-        label: "Member invite response",
-        description: "A team member accepts or declines an invite.",
-        icon: UserCheck,
-        channels: {
-          inApp: "notifyInAppOnMemberInviteResponse",
-          push: "notifyPushOnMemberInviteResponse",
-        },
-      },
-    ],
+    id: "quoteResponse",
+    label: "Quote response",
+    description: "A customer accepts or declines a quote.",
+    channel: "push",
+    fieldKey: "notifyPushOnQuoteResponse",
+  },
+  {
+    id: "memberInviteResponse",
+    label: "Member invite response",
+    description: "A team member accepts or declines an invite.",
+    channel: "push",
+    fieldKey: "notifyPushOnMemberInviteResponse",
   },
 ];
 
@@ -411,134 +397,78 @@ export function BusinessNotificationSettingsForm({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <PushBrowserStatus
-        busy={isEnablingBrowserPush}
-        isSendingTest={isSendingTestPush}
-        selectedPushCount={selectedPushCount}
-        setupState={pushSetupState}
-        onEnable={() => { void enablePushForBrowser(); }}
-        onSendTest={() => { void handleSendTestPush(); }}
-      />
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-10">
+      <GeneralSettingsSection
+        title="In-app notifications"
+        description="Shown in the notification bell on your dashboard."
+      >
+        <div className="flex flex-col gap-5">
+          {inAppToggles.map((toggle) => (
+            <NotificationToggleRow
+              key={toggle.fieldKey}
+              toggle={toggle}
+              checked={values[toggle.fieldKey]}
+              onToggle={handleToggle}
+            />
+          ))}
+        </div>
+      </GeneralSettingsSection>
 
-      <section data-padding="none" className="section-panel">
-        {notificationGroups.map((group, groupIndex) => (
-          <div key={group.label}>
-            {groupIndex > 0 ? (
-              <div className="border-t border-border/60" />
-            ) : null}
-            <div className="px-5 pb-1 pt-5 sm:px-6">
-              <h3 className="meta-label">{group.label}</h3>
-            </div>
-            <div className="flex flex-col">
-              {group.events.map((event) => (
-                <NotificationEventRow
-                  key={event.id}
-                  event={event}
-                  values={values}
-                  onToggle={handleToggle}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
-      </section>
+      <GeneralSettingsSection
+        title="Push notifications"
+        description="Sent to browsers where you've enabled push notifications."
+      >
+        <div className="flex flex-col gap-5">
+          <PushBrowserStatus
+            busy={isEnablingBrowserPush}
+            isSendingTest={isSendingTestPush}
+            selectedPushCount={selectedPushCount}
+            setupState={pushSetupState}
+            onEnable={() => { void enablePushForBrowser(); }}
+            onSendTest={() => { void handleSendTestPush(); }}
+          />
+          {pushToggles.map((toggle) => (
+            <NotificationToggleRow
+              key={toggle.fieldKey}
+              toggle={toggle}
+              checked={values[toggle.fieldKey]}
+              onToggle={handleToggle}
+            />
+          ))}
+        </div>
+      </GeneralSettingsSection>
     </div>
   );
 }
 
-/* ── Event Row ───────────────────────────────────────────────────────────── */
+/* ── Toggle Row ───────────────────────────────────────────────────────────── */
 
-type Channel = "inApp" | "push";
-
-const channelMeta: Record<Channel, { label: string; icon: React.ElementType }> = {
-  inApp: { label: "In-app", icon: Bell },
-  push: { label: "Push", icon: Smartphone },
-};
-
-const channelOrder: Channel[] = ["push", "inApp"];
-
-function NotificationEventRow({
-  event,
-  values,
+function NotificationToggleRow({
+  toggle,
+  checked,
   onToggle,
 }: {
-  event: NotificationEventConfig;
-  values: Record<NotificationFieldKey, boolean>;
+  toggle: NotificationToggleConfig;
+  checked: boolean;
   onToggle: (key: NotificationFieldKey, value: boolean) => void | Promise<void>;
 }) {
-  const Icon = event.icon;
-
-  const availableChannels = channelOrder.filter(
-    (ch) => event.channels[ch] !== undefined,
-  );
-  const enabledChannels = availableChannels.filter((ch) => {
-    const key = event.channels[ch];
-    return key ? values[key as NotificationFieldKey] : false;
-  });
-
-  const summaryLabel =
-    enabledChannels.length === 0
-      ? "Off"
-      : enabledChannels.map((ch) => channelMeta[ch].label).join(", ");
+  const switchId = `notification-${toggle.fieldKey}`;
 
   return (
-    <div className="flex items-center justify-between gap-4 px-5 py-3.5 sm:px-6">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-muted/30 text-muted-foreground">
-          <Icon className="size-4" />
+    <Field>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <FieldLabel htmlFor={switchId}>{toggle.label}</FieldLabel>
+          <FieldDescription>{toggle.description}</FieldDescription>
         </div>
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground">{event.label}</p>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {event.description}
-          </p>
-        </div>
+        <Switch
+          id={switchId}
+          checked={checked}
+          onCheckedChange={(next) => onToggle(toggle.fieldKey, next)}
+          aria-label={`${toggle.label} ${toggle.channel === "push" ? "push" : "in-app"}`}
+        />
       </div>
-
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            className="shrink-0 gap-1.5 text-muted-foreground"
-            size="sm"
-            type="button"
-            variant="ghost"
-          >
-            <span className="text-sm">{summaryLabel}</span>
-            <ChevronDown className="size-3.5 opacity-60" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-48 rounded-xl p-2">
-          <div className="flex flex-col gap-1">
-            {availableChannels.map((ch) => {
-              const fieldKey = event.channels[ch] as NotificationFieldKey;
-              const meta = channelMeta[ch];
-              const ChannelIcon = meta.icon;
-              const isChecked = values[fieldKey];
-
-              return (
-                <label
-                  className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2.5 py-2 transition-colors hover:bg-muted/50"
-                  key={ch}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <ChannelIcon className="size-4 text-muted-foreground" />
-                    <span className="text-sm font-medium text-foreground">
-                      {meta.label}
-                    </span>
-                  </div>
-                  <Switch
-                    checked={isChecked}
-                    onCheckedChange={(next) => onToggle(fieldKey, next)}
-                    aria-label={`${event.label} ${meta.label.toLowerCase()}`}
-                  />
-                </label>
-              );
-            })}
-          </div>
-        </PopoverContent>
-      </Popover>
-    </div>
+    </Field>
   );
 }
 

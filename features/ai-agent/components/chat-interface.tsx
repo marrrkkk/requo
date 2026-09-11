@@ -243,11 +243,10 @@ function cleanProposalForApproval(values: ProposalValues): Record<string, unknow
  * The public chat surface at `/b/[slug]/chat`.
  *
  * The visitor lands on a centred greeting and composer; the first send mints
- * the session (so a visitor who never types leaves nothing behind) and
- * collapses the trailing grid row, gliding the composer to the bottom while
- * the transcript grows above it. The conversation token lives in
- * `sessionStorage`, so a reload restores the visitor's own transcript — and
- * only theirs (see ADR 004).
+ * the session (so a visitor who never types leaves nothing behind) and pins
+ * the composer over the bottom of the transcript so only the input box covers
+ * messages. The conversation token lives in `sessionStorage`, so a reload
+ * restores the visitor's own transcript — and only theirs (see ADR 004).
  */
 export function ChatInterface({
   businessSlug,
@@ -608,8 +607,8 @@ export function ChatInterface({
         ) : null}
       </header>
 
-      {/* Three grid rows: transcript, composer, and a trailing spacer that
-          collapses on the first send so the composer glides to the bottom. */}
+      {/* Transcript fills the pane; the composer overlays the bottom so only
+          the input box covers messages. */}
       <div
         className="chat-stage min-h-0 flex-1"
         data-conversation={isEmpty ? "empty" : "active"}
@@ -747,7 +746,7 @@ export function ChatInterface({
         </div>
 
         {!isEmpty ? (
-          <div className="sticky bottom-0 z-10 bg-background/95 backdrop-blur-xs px-4 pb-4 pt-2 sm:px-6">
+          <div className="chat-composer-footer z-10 px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
             {detached ? <ChatJumpToLatest onJump={jumpToLatest} /> : null}
             <div className="mx-auto w-full max-w-3xl">
               <ChatComposer

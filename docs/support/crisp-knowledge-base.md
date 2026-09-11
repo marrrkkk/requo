@@ -8,7 +8,8 @@ Requo helps service businesses manage the inquiry-to-quote workflow:
 2. Qualify and organize requests in a business-scoped inbox.
 3. Build, share, or email professional quotes.
 4. Track views and customer responses.
-5. Schedule and send follow-ups so open opportunities do not go quiet.
+5. Convert accepted quotes into invoices, send them by email, and track payments.
+6. Schedule and send follow-ups so open opportunities do not go quiet.
 
 ## Current Features
 
@@ -17,11 +18,12 @@ Requo helps service businesses manage the inquiry-to-quote workflow:
 - Quote editor, Products library, revisions, expiry, public quote pages, and accept/reject responses
 - Requo email delivery, custom quote email templates, and public-link sharing
 - Manual follow-ups, automatic follow-ups on eligible plans, reminders, and AI-assisted follow-up drafting
+- Invoices converted from accepted quotes (or created manually), Requo email delivery, PDF/print export, manual payment recording, overdue reminders, and payment notifications
 - Conversion and workflow analytics, scheduled reports, notifications, audit logs, and business members
 - AI quote drafting grounded in inquiry details, Products, and uploaded knowledge files
 - Multiple businesses per account with business-scoped billing and role-based access
 
-The current product does not include jobs, invoices, calendar scheduling, dispatch, a mobile app, marketplace features, or a general-purpose AI chat assistant.
+The current product does not include jobs, calendar scheduling, dispatch, a mobile app, marketplace features, or a general-purpose AI chat assistant. Invoices cover manual payment tracking only; there is no payment gateway or online customer payment page.
 
 ## Plans
 
@@ -68,10 +70,27 @@ Yes. Public quote pages record views and allow customers to accept or reject a q
 **How do I follow up?**
 Create a follow-up from an inquiry or quote, choose a due time, and write or generate a draft message. Automatic follow-ups are available on eligible plans.
 
+### Invoices and payments
+
+**How do I create an invoice?**
+Open an accepted quote and choose Create invoice, or use New invoice in the Invoices area for a manual invoice. Each accepted quote converts into at most one active invoice.
+
+**Can I edit an invoice?**
+Draft invoices can be edited. Once sent, an invoice keeps its snapshot; void it and recreate if the charged items must change.
+
+**How do customers receive invoices?**
+Send with Requo email from the invoice page, or mark it sent after delivering it yourself. PDF and print exports require the exports entitlement.
+
+**How do I record a payment?**
+Open the invoice and choose Record payment with the amount, date, and method. Payments are manual records only; Requo does not process card or online payments. Void a payment to correct it.
+
+**What happens when an invoice is overdue?**
+Overdue invoices appear in the Invoices list, the home Invoices snapshot, and a daily reminder notification until paid.
+
 ### Team and billing
 
 **How do I invite a teammate?**
-Open `/<business-slug>/members`. Team invitations and role management require the Business plan.
+Open `/<business-slug>/settings/members`. Team invitations and role management require the Business plan.
 
 **Where are products managed?**
 Products are a main dashboard destination at `/<business-slug>/products`; the old settings pricing routes are removed.

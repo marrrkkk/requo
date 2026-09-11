@@ -93,14 +93,16 @@ function AssistantSkeleton() {
       </div>
       <div className="chat-stage min-h-0 flex-1" data-conversation="empty">
         <div className="chat-stage-transcript px-3 md:px-6">
-          <div className="chat-stage-transcript-inner mx-auto flex w-full max-w-3xl flex-col gap-7 pt-6 pb-2">
-            <Skeleton className="h-16 w-3/4 rounded-2xl" />
-            <Skeleton className="h-24 w-full rounded-2xl" />
-          </div>
-        </div>
-        <div className="sticky bottom-0 z-10 bg-background/95 backdrop-blur-xs px-3 pb-4 pt-2 md:px-6">
-          <div className="mx-auto w-full max-w-3xl">
-            <Skeleton className="h-24 w-full rounded-2xl" />
+          <div className="chat-stage-transcript-inner mx-auto flex w-full max-w-3xl flex-1 flex-col gap-7 pt-6 pb-2">
+            <div className="my-auto flex w-full flex-col items-center gap-5 py-6 text-center">
+              <Skeleton className="h-7 w-64 rounded-lg sm:w-80" />
+              <Skeleton className="h-24 w-full rounded-2xl" />
+              <div className="flex w-full flex-col divide-y divide-border/60">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <Skeleton className="my-2 h-5 w-2/3 rounded-md" key={index} />
+                ))}
+              </div>
+            </div>
           </div>
         </div>
         <div aria-hidden="true" />

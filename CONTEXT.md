@@ -68,6 +68,18 @@ Example: Customer chats with AI, then completes a Service submission → `source
 
 No cross-inquiry identity or deduplication in MVP. Tools like "create_customer" are misnomers; they should be understood as "set inquiry customer fields."
 
+### Invoice
+An Invoice is a business-issued request for payment that can originate from an accepted Quote or be created independently. An Invoice owns an immutable snapshot of its customer details and line items once it is sent; its payment state is determined from recorded payments and the due date.
+_Avoid_: Bill, subscription, payment gateway
+
+### Payment
+A Payment is a manually recorded amount received against one Invoice. Payments are tenant-scoped, auditable, and excluded from balance calculations when voided; Requo records payments but does not process them.
+_Avoid_: Payment attempt (that term is reserved for Polar subscription billing), transaction
+
+### Invoice payment state
+The effective state derived from an Invoice total, its non-void Payments, due date, and lifecycle: unpaid, partially paid, paid, or overdue. Draft and void are lifecycle states and take precedence where applicable.
+_Avoid_: Stored balance, accounting status
+
 ### Business Memory
 Knowledge entries maintained by the business owner. Used for RAG retrieval during AI conversations. Categories:
 - `business_rules`: How the business operates
@@ -569,6 +581,32 @@ three tabs — Form, Service page, Settings (publishing & defaults). Completion
 is recorded per user profile.
 _Avoid_: Service tour, editor walkthrough, form tour (a form is the intake mechanism inside a Service)
 
+### Email Templates
+
+**Quote Email Template**:
+The customizable block config for quote delivery email (`businesses.quote_email_template`, V2 blocks). Edited in Settings → Email templates under the Quote tab.
+_Avoid_: using `template` alone when invoice or follow-up is meant
+
+**Invoice Email Template**:
+The customizable block config for invoice delivery email (`businesses.invoice_email_template`, V2 blocks, nullable = defaults). Supports an optional CTA (no public invoice link by design — manual payment tracking only); includes a `payment-terms` block plus balance in totals.
+_Avoid_: invoice PDF, payment page
+
+**Quote Follow-up Email Template**:
+The single shared block config for automatic quote nudges (`businesses.quote_follow_up_template`, V2 blocks). Attempt 1 (`Following up`) vs 2+ (`Checking in`) stays send-time logic, not a merge tag; CTA is exactly one and stays visible; summary/tables/notes are unavailable in this template.
+_Avoid_: Follow-up (owner task), suggested message
+
+**Follow-up** (owner task) vs **Follow-up Email** (auto customer email) vs **Suggested Message** (copy-paste draft):
+A Follow-up is an owner reminder task (`follow_ups`, channel email/phone/etc., no send). A Follow-up Email is the unattended customer sequence (`quotes.autoFollowUp*`, `sendQuoteAutoFollowUpEmail`). A Suggested Message is copy-paste text only. Never use `follow-up` alone for the email.
+_Avoid_: follow-up email (ambiguous), auto-follow-up template (use Quote Follow-up Email Template)
+
+**Reply Snippet**:
+An orphaned `reply_snippets` title/body row with no send path. Distinct from any Email Template; manual replies copy the address for an external mailbox.
+_Avoid_: reply template, inquiry template
+
+**Email Block**:
+One draggable unit in a template (`greeting|intro|text|cta|summary|line-items|totals|notes|payment-terms|signature|closing|divider|spacer`). Singletons exist at most once; `text|divider|spacer` are repeatable/deletable. The canvas row is display-only; text + style editing lives in the inspector so selection never shifts drag positions.
+_Avoid_: Block (ambiguous with other builders), section, widget
+
 ### Reserved / rejected terms
 - ❌ **"Customer"** as a standalone entity — there is none; customer details are fields on an Inquiry or Quote.
 - ❌ **"AI Inquiry"** — an Inquiry created by the Agent is just an Inquiry, distinguished by `source` and `ai_assisted`.
@@ -620,6 +658,8 @@ Customer exceeds per-session message limit (50 messages). Agent returns polite e
 - Analytics dashboard
 - A/B testing
 - Autonomous pricing
+
+Invoice V1 is intentionally limited to document snapshots, manual payment tracking, derived balances/statuses, PDF/share support, and audit history. It does not process payments or claim Philippine tax compliance.
 
 ### Why These Boundaries Matter
 The AI agent in V1 is **a conversational inquiry form**, not a full customer service automation platform. It collects the same information as the form, just through natural conversation.
