@@ -1,31 +1,27 @@
 "use client";
 
-import Link from "next/link";
+import { useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
-import {
-  DashboardEmptyState,
-  DashboardSection,
-  DashboardTableContainer,
-} from "@/components/shared/dashboard-layout";
-import { Button } from "@/components/ui/button";
+import { DashboardEmptyState } from "@/components/shared/dashboard-layout";
+import { DataListPagination } from "@/components/shared/data-list-pagination";
+import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { BusinessAuditLogCards } from "@/features/audit/components/workspace-audit-log-cards";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  getAuditActionLabel,
+  getAuditEntityLabel,
+} from "@/features/audit/constants";
 import type { BusinessAuditLogPage } from "@/features/audit/types";
 import {
-  formatAuditActionSummary,
   formatAuditActorLabel,
   formatAuditEventDetails,
   formatAuditTimestamp,
@@ -40,139 +36,118 @@ export function BusinessAuditLogTable({
 }: BusinessAuditLogTableProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const searchParamsRecord = useMemo(
+    () => Object.fromEntries(searchParams.entries()),
+    [searchParams],
+  );
 
-  const buildPageHref = (pageNumber: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("page", String(pageNumber));
-    return `${pathname}?${params.toString()}`;
-  };
+  const firstItemIndex =
+    page.totalCount === 0 ? 0 : (page.page - 1) * page.pageSize + 1;
+  const lastItemIndex = Math.min(page.page * page.pageSize, page.totalCount);
 
   if (!page.items.length) {
     return (
-      <DashboardEmptyState
-        className="border"
-        description="Meaningful lifecycle, billing, member, and security actions will appear here as they happen."
-        title="No audit events yet"
-        variant="section"
-      />
+      <div className="p-4">
+        <DashboardEmptyState
+          description="Meaningful lifecycle, billing, member, and security actions will appear here as they happen."
+          title="No audit events yet"
+          variant="list"
+        />
+      </div>
     );
   }
 
   return (
-    <DashboardSection
-      description="Newest events first. This log records meaningful admin, lifecycle, billing, and security actions."
-      title="Business audit log"
-    >
-      <TooltipProvider delayDuration={300}>
-        <DashboardTableContainer>
-          <Table className="table-fixed">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[10rem]">When</TableHead>
-                <TableHead className="w-[12rem]">Actor</TableHead>
-                <TableHead className="w-[16rem]">Action</TableHead>
-                <TableHead>Details</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {page.items.map((item) => {
-                const timestamp = formatAuditTimestamp(item);
-                const actorLabel = formatAuditActorLabel(item);
-                const actionSummary = formatAuditActionSummary(item);
-                const fullAction = item.businessName
-                  ? `${actionSummary} in ${item.businessName}`
-                  : actionSummary;
-                const details = formatAuditEventDetails(item);
+    <>
+      <BusinessAuditLogCards items={page.items} />
+      <div className="hidden overflow-x-auto no-scrollbar xl:block">
+        <Table className="min-w-[60rem]">
+          <TableCaption className="sr-only">Newest audit events appear first.</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="whitespace-nowrap">When</TableHead>
+              <TableHead className="whitespace-nowrap">Actor</TableHead>
+              <TableHead className="w-[24rem]">Action</TableHead>
+              <TableHead>Details</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {page.items.map((item) => {
+              const timestamp = formatAuditTimestamp(item);
+              const actorLabel = formatAuditActorLabel(item);
+              const actionLabel = getAuditActionLabel(item.action);
+              const entityLabel = getAuditEntityLabel(item.entityType);
+              const details = formatAuditEventDetails(item);
 
-                return (
-                  <TableRow key={item.id}>
-                    <TableCell className="align-top w-[10rem]">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="flex flex-col gap-1 truncate cursor-default">
-                            <span className="text-sm font-medium text-foreground truncate" suppressHydrationWarning>
-                              {timestamp.absolute}
-                            </span>
-                            <span className="text-xs text-muted-foreground truncate" suppressHydrationWarning>
-                              {timestamp.relative}
-                            </span>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent suppressHydrationWarning>
-                          {timestamp.absolute} ({timestamp.relative})
-                        </TooltipContent>
-                      </Tooltip>
-                    </TableCell>
+              return (
+                <TableRow className="group/row" key={item.id}>
+                  <TableCell className="whitespace-nowrap">
+                    <div className="table-meta-stack">
+                      <span
+                        className="text-sm leading-5 font-medium text-foreground"
+                        suppressHydrationWarning
+                        title={`${timestamp.absolute} (${timestamp.relative})`}
+                      >
+                        {timestamp.absolute}
+                      </span>
+                      <span
+                        className="table-supporting-text"
+                        suppressHydrationWarning
+                        title={`${timestamp.absolute} (${timestamp.relative})`}
+                      >
+                        {timestamp.relative}
+                      </span>
+                    </div>
+                  </TableCell>
 
-                    <TableCell className="align-top w-[12rem]">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="block truncate text-sm font-medium text-foreground cursor-default">
-                            {actorLabel}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>{actorLabel}</TooltipContent>
-                      </Tooltip>
-                    </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <span className="table-emphasis">{actorLabel}</span>
+                  </TableCell>
 
-                    <TableCell className="align-top w-[16rem]">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="block truncate text-sm font-medium text-foreground cursor-default">
-                            {fullAction}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>{fullAction}</TooltipContent>
-                      </Tooltip>
-                    </TableCell>
+                  <TableCell className="w-[24rem]">
+                    <div className="table-meta-stack">
+                      <TruncatedTextWithTooltip
+                        className="table-emphasis"
+                        lines={2}
+                        text={actionLabel}
+                      />
+                      <TruncatedTextWithTooltip
+                        className="table-supporting-text"
+                        text={entityLabel}
+                      />
+                    </div>
+                  </TableCell>
 
-                    <TableCell className="align-top">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="block truncate text-sm leading-6 text-muted-foreground cursor-default">
-                            {details}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-md whitespace-normal">
-                          {details}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </DashboardTableContainer>
-      </TooltipProvider>
-
+                  <TableCell>
+                    <TruncatedTextWithTooltip
+                      className="table-supporting-text"
+                      lines={2}
+                      text={details}
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
       {page.pageCount > 1 ? (
-        <div className="flex flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            Page {page.page} of {page.pageCount}
+        <DataListPagination
+          currentPage={page.page}
+          pageSize={page.pageSize}
+          pathname={pathname}
+          searchParams={searchParamsRecord}
+          totalItems={page.totalCount}
+          totalPages={page.pageCount}
+        />
+      ) : (
+        <div className="flex flex-col gap-3 border-t border-border/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="data-list-toolbar-count">
+            Showing {firstItemIndex}-{lastItemIndex} of {page.totalCount}{" "}
+            {page.totalCount === 1 ? "audit event" : "audit events"}
           </p>
-          <div className="dashboard-actions">
-            <Button
-              asChild
-              disabled={page.page <= 1}
-              variant="outline"
-            >
-              <Link href={buildPageHref(page.page - 1)} prefetch={true}>
-                Previous
-              </Link>
-            </Button>
-            <Button
-              asChild
-              disabled={page.page >= page.pageCount}
-              variant="outline"
-            >
-              <Link href={buildPageHref(page.page + 1)} prefetch={true}>
-                Next
-              </Link>
-            </Button>
-          </div>
         </div>
-      ) : null}
-    </DashboardSection>
+      )}
+    </>
   );
 }

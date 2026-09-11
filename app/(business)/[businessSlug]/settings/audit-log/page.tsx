@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { DashboardSettingsSkeleton } from "@/components/shell/dashboard-settings-skeleton";
-import { PageHeader } from "@/components/shared/page-header";
 import { BusinessAuditLogFilters } from "@/features/audit/components/workspace-audit-log-filters";
+import {
+  AuditLogFiltersFallback,
+  AuditLogTableFallback,
+} from "@/features/audit/components/workspace-audit-log-fallbacks";
 import { BusinessAuditLogTable } from "@/features/audit/components/workspace-audit-log-table";
 import {
   getBusinessAuditLogFiltersBySlug,
@@ -22,58 +24,123 @@ export const metadata: Metadata = createNoIndexMetadata({
 
 export const instant = true;
 
+type AuditLogSettingsPageProps = {
+  params: Promise<{ businessSlug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+/**
+ * Audit log settings page — non-blocking structural shell.
+ *
+ * Matches (main) list pages (e.g. inquiries): the static container paints
+ * instantly, filters and table stream in behind their own component
+ * skeletons — no full-page skeleton. Same fallbacks as loading.tsx so hard
+ * load and client navigation show identical progressive regions.
+ *
+ * Single-flight data: params + page context resolve once in AuditLogShell;
+ * the two list queries start in parallel and each streams behind its own
+ * Suspense boundary so filters never wait for table data (or vice versa).
+ */
 export default function AuditLogSettingsPage({
   params,
   searchParams,
-}: {
-  params: Promise<{ businessSlug: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+}: AuditLogSettingsPageProps) {
   return (
-    <div className="flex flex-col gap-6 lg:gap-8">
-      <PageHeader
-        title="Audit log"
-        description="Review meaningful admin, lifecycle, billing, and security actions for this business."
-      />
-      <Suspense fallback={<DashboardSettingsSkeleton />}>
-        <AuditLogContent params={params} searchParams={searchParams} />
+    <div className="flex flex-col gap-6">
+      <Suspense
+        fallback={
+          <>
+            <AuditLogFiltersFallback />
+            <AuditLogTableFallback />
+          </>
+        }
+      >
+        <AuditLogShell params={params} searchParams={searchParams} />
       </Suspense>
     </div>
   );
 }
 
-async function AuditLogContent({
+async function AuditLogShell({
   params,
   searchParams,
-}: {
-  params: Promise<{ businessSlug: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+}: AuditLogSettingsPageProps) {
   const [{ businessSlug }, resolvedSearchParams] = await Promise.all([
     params,
     searchParams,
   ]);
-  const { user, businessContext } = await getBusinessOperationalPageContext(businessSlug);
+  const { user } = await getBusinessOperationalPageContext(businessSlug);
   const filters = parseAuditLogFilters(resolvedSearchParams);
 
-  const [page, filterOptions] = await Promise.all([
-    getBusinessAuditLogPageBySlug(user.id, businessSlug, filters),
-    getBusinessAuditLogFiltersBySlug(user.id, businessSlug),
-  ]);
-
-  if (!page || !filterOptions) {
-    notFound();
-  }
+  // Start both queries in parallel; each streams behind its own boundary.
+  const filterOptionsPromise = getBusinessAuditLogFiltersBySlug(
+    user.id,
+    businessSlug,
+  );
+  const pagePromise = getBusinessAuditLogPageBySlug(
+    user.id,
+    businessSlug,
+    filters,
+  );
 
   const actionPath = getBusinessSettingsPath(businessSlug, "audit-log");
 
   return (
-    <div className="flex flex-col gap-6">
+    <>
+      <Suspense fallback={<AuditLogFiltersFallback />}>
+        <AuditLogFiltersContent
+          actionPath={actionPath}
+          filterOptionsPromise={filterOptionsPromise}
+          filters={filters}
+        />
+      </Suspense>
+
+      <Suspense fallback={<AuditLogTableFallback />}>
+        <AuditLogTableContent pagePromise={pagePromise} />
+      </Suspense>
+    </>
+  );
+}
+
+async function AuditLogFiltersContent({
+  actionPath,
+  filterOptionsPromise,
+  filters,
+}: {
+  actionPath: string;
+  filterOptionsPromise: ReturnType<typeof getBusinessAuditLogFiltersBySlug>;
+  filters: ReturnType<typeof parseAuditLogFilters>;
+}) {
+  const filterOptions = await filterOptionsPromise;
+
+  if (!filterOptions) {
+    notFound();
+  }
+
+  return (
+    <div className="dashboard-table-shell mx-auto w-full max-w-2xl" data-list-card>
       <BusinessAuditLogFilters
         action={actionPath}
         filters={filters}
         options={filterOptions}
       />
+    </div>
+  );
+}
+
+async function AuditLogTableContent({
+  pagePromise,
+}: {
+  pagePromise: ReturnType<typeof getBusinessAuditLogPageBySlug>;
+}) {
+  const page = await pagePromise;
+
+  if (!page) {
+    notFound();
+  }
+
+  return (
+    <div className="dashboard-table-shell" data-list-card>
       <BusinessAuditLogTable page={page} />
     </div>
   );
