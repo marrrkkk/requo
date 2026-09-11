@@ -3,10 +3,8 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { RotateCcw } from "lucide-react";
 
-import { PageHeader } from "@/components/shared/page-header";
 import { ServerActionButton } from "@/components/shared/server-action-button";
-import { SettingsFormBodySkeleton } from "@/components/shell/settings-body-skeletons";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BusinessGeneralSettingsStaticFallback } from "@/components/shell/settings-body-skeletons";
 import {
   archiveBusinessAction,
   deleteBusinessPermanentlyAction,
@@ -30,22 +28,17 @@ export const instant = true;
 /**
  * General settings page — non-blocking structural shell.
  *
- * Returns the page header synchronously. All dynamic reads
- * (getBusinessOwnerPageContext, settings queries) are resolved
- * inside a Suspense-wrapped child server component.
+ * Static section titles, descriptions, and field labels paint instantly
+ * (like (main) PageHeader titles); only the controls that need DB values
+ * stream behind skeletons. All dynamic reads (getBusinessOwnerPageContext,
+ * settings queries) are resolved inside a Suspense-wrapped child server
+ * component.
  */
 export default function BusinessGeneralSettingsPage() {
   return (
-    <>
-      <PageHeader
-        eyebrow="Settings"
-        title="Business profile"
-        description="Customer-facing details used on inquiry pages, quotes, and emails."
-      />
-      <Suspense fallback={<SettingsFormBodySkeleton />}>
-        <BusinessGeneralSettingsContent />
-      </Suspense>
-    </>
+    <Suspense fallback={<BusinessGeneralSettingsStaticFallback />}>
+      <BusinessGeneralSettingsContent />
+    </Suspense>
   );
 }
 
@@ -65,30 +58,30 @@ async function BusinessGeneralSettingsContent() {
 
   if (settings.recordState === "archived") {
     return (
-      <>
-        <Card className="border-border/75 bg-card/97">
-          <CardHeader className="gap-2.5 pb-5">
-            <CardTitle>Restore business</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4 pt-0">
-            <p className="text-sm text-muted-foreground">
-              Restore this business to make it active again. You&apos;ll be able to
-              manage inquiries, quotes, and settings.
+      <div className="mx-auto flex w-full max-w-xl flex-col gap-10">
+        <section className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-sm font-semibold tracking-tight text-foreground">
+              Restore business
+            </h2>
+            <p className="text-sm leading-6 text-muted-foreground">
+              Restore this business to make it active again. You&apos;ll be
+              able to manage inquiries, quotes, and settings.
             </p>
-            <div data-allow-archived>
-              <ServerActionButton
-                action={unarchiveBusinessAction.bind(
-                  null,
-                  settings.id,
-                  settings.slug,
-                )}
-                icon={RotateCcw}
-                label="Restore business"
-                pendingLabel="Restoring..."
-              />
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div data-allow-archived>
+            <ServerActionButton
+              action={unarchiveBusinessAction.bind(
+                null,
+                settings.id,
+                settings.slug,
+              )}
+              icon={RotateCcw}
+              label="Restore business"
+              pendingLabel="Restoring..."
+            />
+          </div>
+        </section>
 
         <BusinessSettingsForm
           action={updateBusinessSettingsAction}
@@ -117,7 +110,7 @@ async function BusinessGeneralSettingsContent() {
             settings.slug,
           )}
         />
-      </>
+      </div>
     );
   }
 

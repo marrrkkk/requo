@@ -1,10 +1,9 @@
-import { Skeleton } from "@/components/ui/skeleton";
-
+/**
+ * BusinessSupportSettingsPage renders its PageHeader + cards synchronously
+ * (static shell, like (main) list pages) with only a null auth gate
+ * streaming — no skeleton needed. Null keeps hard load instant and avoids
+ * a full-page flash that would contradict the page's own Suspense(null).
+ */
 export default function SupportSettingsLoading() {
-  return (
-    <div className="space-y-6">
-      <Skeleton className="h-8 w-48" />
-      <Skeleton className="h-24 w-full" />
-    </div>
-  );
+  return null;
 }

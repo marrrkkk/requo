@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Info } from "lucide-react";
 
 import {
   FloatingFormActions,
@@ -18,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { GeneralSettingsSection } from "@/features/settings/components/business-settings-form/section";
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import type {
   BusinessQuoteSettingsActionState,
@@ -106,20 +106,13 @@ export function BusinessQuoteSettingsForm({
   }
 
   return (
-    <form action={formAction} className="form-stack pb-28">
-      <div className="flex flex-col gap-6">
-        {/* Info notice */}
-        <div className="flex items-start gap-3 rounded-xl border border-border/75 bg-muted/30 px-5 py-4">
-          <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            These defaults apply to new quotes only. Existing quotes keep their
-            stored values.
-          </p>
-        </div>
-
-        {/* Settings fields */}
- <section className="section-panel">
-          <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-10">
+      <form action={formAction} className="flex flex-col gap-10">
+        <GeneralSettingsSection
+          title="Quote defaults"
+          description="These defaults apply to new quotes only. Existing quotes keep their stored values."
+        >
+          <div className="flex flex-col gap-5">
             <Field
               data-invalid={
                 Boolean(state.fieldErrors?.defaultQuoteValidityDays) || undefined
@@ -154,16 +147,23 @@ export function BusinessQuoteSettingsForm({
                 <FieldError
                   errors={
                     state.fieldErrors?.defaultQuoteValidityDays?.[0]
-                      ? [{ message: state.fieldErrors.defaultQuoteValidityDays[0] }]
+                      ? [
+                          {
+                            message:
+                              state.fieldErrors.defaultQuoteValidityDays[0],
+                          },
+                        ]
                       : undefined
                   }
                 />
               </FieldContent>
             </Field>
 
-            <div className="border-t border-border" />
-
-            <Field data-invalid={Boolean(state.fieldErrors?.defaultQuoteNotes) || undefined}>
+            <Field
+              data-invalid={
+                Boolean(state.fieldErrors?.defaultQuoteNotes) || undefined
+              }
+            >
               <FieldLabel htmlFor="quote-settings-default-notes">
                 Default quote notes
               </FieldLabel>
@@ -173,7 +173,9 @@ export function BusinessQuoteSettingsForm({
                   id="quote-settings-default-notes"
                   maxLength={1600}
                   name="defaultQuoteNotes"
-                  onChange={(event) => setDefaultQuoteNotes(event.currentTarget.value)}
+                  onChange={(event) =>
+                    setDefaultQuoteNotes(event.currentTarget.value)
+                  }
                   placeholder="e.g., Delivery timeline, scope assumptions, or next steps..."
                   rows={6}
                   value={defaultQuoteNotes}
@@ -192,11 +194,13 @@ export function BusinessQuoteSettingsForm({
               </FieldContent>
             </Field>
 
-            <div className="border-t border-border" />
-
-            <Field data-invalid={Boolean(state.fieldErrors?.defaultQuoteTerms) || undefined}>
+            <Field
+              data-invalid={
+                Boolean(state.fieldErrors?.defaultQuoteTerms) || undefined
+              }
+            >
               <FieldLabel htmlFor="quote-settings-default-terms">
-                Default terms & conditions
+                Default terms &amp; conditions
               </FieldLabel>
               <FieldContent>
                 <Textarea
@@ -204,14 +208,16 @@ export function BusinessQuoteSettingsForm({
                   id="quote-settings-default-terms"
                   maxLength={4000}
                   name="defaultQuoteTerms"
-                  onChange={(event) => setDefaultQuoteTerms(event.currentTarget.value)}
+                  onChange={(event) =>
+                    setDefaultQuoteTerms(event.currentTarget.value)
+                  }
                   placeholder="e.g., Payment due within 30 days. 50% deposit required to begin work. Cancellation policy applies."
                   rows={6}
                   value={defaultQuoteTerms}
                 />
                 <FieldDescription>
-                  Automatically included in the terms section of every new quote.
-                  Displayed below line items on the public quote page.
+                  Automatically included in the terms section of every new
+                  quote. Displayed below line items on the public quote page.
                 </FieldDescription>
                 <FieldError
                   errors={
@@ -223,11 +229,13 @@ export function BusinessQuoteSettingsForm({
               </FieldContent>
             </Field>
           </div>
-        </section>
+        </GeneralSettingsSection>
 
-        {/* Workflow defaults */}
- <section className="section-panel">
-          <div className="flex flex-col gap-6">
+        <GeneralSettingsSection
+          title="Inquiry handling"
+          description="Automations that run as new inquiries arrive."
+        >
+          <div className="flex flex-col gap-5">
             <Field>
               <div className="flex items-center justify-between gap-4">
                 <div className="flex flex-col gap-1">
@@ -252,8 +260,6 @@ export function BusinessQuoteSettingsForm({
                 value={sendInquiryAckEmail ? "true" : "false"}
               />
             </Field>
-
-            <div className="border-t border-border" />
 
             <Field>
               <div className="flex items-center justify-between gap-4">
@@ -280,8 +286,6 @@ export function BusinessQuoteSettingsForm({
               />
             </Field>
 
-            <div className="border-t border-border" />
-
             <Field>
               <div className="flex items-center justify-between gap-4">
                 <div className="flex flex-col gap-1">
@@ -306,6 +310,7 @@ export function BusinessQuoteSettingsForm({
                 value={autoArchiveStaleInquiries ? "true" : "false"}
               />
             </Field>
+
             <Field
               data-invalid={
                 Boolean(state.fieldErrors?.autoArchiveStaleInquiryDays) ||
@@ -353,9 +358,14 @@ export function BusinessQuoteSettingsForm({
                 />
               </FieldContent>
             </Field>
+          </div>
+        </GeneralSettingsSection>
 
-            <div className="border-t border-border" />
-
+        <GeneralSettingsSection
+          title="Quote follow-ups"
+          description="Automations that run after a quote is sent."
+        >
+          <div className="flex flex-col gap-5">
             <Field>
               <div className="flex items-center justify-between gap-4">
                 <div className="flex flex-col gap-1">
@@ -380,6 +390,7 @@ export function BusinessQuoteSettingsForm({
                 value={autoFollowUpOnQuoteViewed ? "true" : "false"}
               />
             </Field>
+
             <Field
               data-invalid={
                 Boolean(state.fieldErrors?.quoteViewedFollowUpDelayDays) ||
@@ -428,19 +439,19 @@ export function BusinessQuoteSettingsForm({
               </FieldContent>
             </Field>
           </div>
-        </section>
-      </div>
+        </GeneralSettingsSection>
 
-      <FloatingFormActions
-        disableSubmit={!hasUnsavedChanges}
-        isPending={isPending}
-        message="You have unsaved quote settings."
-        onCancel={handleCancelChanges}
-        state={floatingActionsState}
-        submitLabel="Save quote settings"
-        submitPendingLabel="Saving..."
-        visible={shouldRenderFloatingActions}
-      />
-    </form>
+        <FloatingFormActions
+          disableSubmit={!hasUnsavedChanges}
+          isPending={isPending}
+          message="You have unsaved quote settings."
+          onCancel={handleCancelChanges}
+          state={floatingActionsState}
+          submitLabel="Save quote settings"
+          submitPendingLabel="Saving..."
+          visible={shouldRenderFloatingActions}
+        />
+      </form>
+    </div>
   );
 }

@@ -294,6 +294,7 @@ export async function updateBusinessSettings({
       id: businesses.id,
       slug: businesses.slug,
       shortDescription: businesses.shortDescription,
+      website: businesses.website,
       logoStoragePath: businesses.logoStoragePath,
       logoContentType: businesses.logoContentType,
     })
@@ -364,6 +365,7 @@ export async function updateBusinessSettings({
           countryCode: values.countryCode ?? null,
           shortDescription: values.shortDescription ?? null,
           contactEmail: values.contactEmail ?? null,
+          website: values.website ?? null,
           logoStoragePath: values.removeLogo
             ? nextLogoStoragePath
             : nextLogoStoragePath ?? previousLogoStoragePath ?? null,
@@ -730,6 +732,11 @@ export async function updateBusinessAiAgentSettings({
         aiAgentEnabled: values.aiAgentEnabled,
         aiAgentConfig: {
           tone: values.tone,
+          // Omit rather than store an empty string: the prompt builders treat
+          // an absent value as "no instructions" and skip the block entirely.
+          ...(values.aiAgentInstructions
+            ? { instructions: values.aiAgentInstructions }
+            : {}),
         },
         updatedAt: now,
       })
@@ -744,6 +751,7 @@ export async function updateBusinessAiAgentSettings({
       metadata: {
         aiAgentEnabled: values.aiAgentEnabled,
         tone: values.tone,
+        hasInstructions: Boolean(values.aiAgentInstructions),
       },
       createdAt: now,
       updatedAt: now,

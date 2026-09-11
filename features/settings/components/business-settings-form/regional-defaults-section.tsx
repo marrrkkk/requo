@@ -1,9 +1,6 @@
 "use client";
 
 import { CountryCombobox } from "@/components/shared/country-combobox";
-import {
-  FormSection,
-} from "@/components/shared/form-layout";
 import { Combobox } from "@/components/ui/combobox";
 import {
   Field,
@@ -15,6 +12,7 @@ import {
   businessCurrencyOptions,
   resolveCurrencyForCountry,
 } from "@/features/businesses/locale";
+import { GeneralSettingsSection } from "./section";
 
 type RegionalDefaultsSectionProps = {
   countryCode: string;
@@ -36,11 +34,11 @@ export function RegionalDefaultsSection({
   onCurrencyChange,
 }: RegionalDefaultsSectionProps) {
   return (
-    <FormSection
-      description="Applied to new quotes and pricing entries. Existing quotes keep their original currency."
+    <GeneralSettingsSection
       title="Regional defaults"
+      description="Applied to new quotes and pricing entries. Existing quotes keep their original currency."
     >
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="flex flex-col gap-5">
         <Field data-invalid={Boolean(countryCodeError) || undefined}>
           <FieldLabel htmlFor="settings-country-code">Country</FieldLabel>
           <FieldContent>
@@ -94,6 +92,6 @@ export function RegionalDefaultsSection({
           </FieldContent>
         </Field>
       </div>
-    </FormSection>
+    </GeneralSettingsSection>
   );
 }

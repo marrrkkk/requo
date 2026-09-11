@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { FileText, Info, Receipt, Send } from "lucide-react";
+import { RiFileTextLine, RiReceiptLine, RiSendPlaneLine } from "@remixicon/react";
 
 import {
   FloatingFormActions,
   useFloatingUnsavedChanges,
 } from "@/components/shared/floating-form-actions";
+import { Tab, TabList, Tabs } from "@/components/base/tabs/tabs";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
+import { useHashTab } from "@/hooks/use-hash-tab";
 import {
   Field,
   FieldContent,
@@ -15,7 +17,6 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import {
   EMAIL_TEMPLATE_KIND_DESCRIPTIONS,
@@ -51,9 +52,9 @@ type BusinessEmailTemplateFormProps = {
 const initialState: BusinessEmailTemplateActionState = {};
 
 const EMAIL_TEMPLATE_KIND_ICONS = {
-  quote: FileText,
-  invoice: Receipt,
-  "follow-up": Send,
+  quote: RiFileTextLine,
+  invoice: RiReceiptLine,
+  "follow-up": RiSendPlaneLine,
 } as const;
 
 type DraftValues = {
@@ -102,7 +103,8 @@ export function BusinessEmailTemplateForm({
     action,
     initialState,
   );
-  const [activeKind, setActiveKind] = useState<EmailTemplateKind>("quote");
+  const { selected: activeKind, handleSelectionChange: syncTemplateHash } =
+    useHashTab(EMAIL_TEMPLATE_KINDS, "quote");
   const initialDrafts = useMemo(
     () =>
       ({
@@ -156,7 +158,7 @@ export function BusinessEmailTemplateForm({
   }, []);
 
   function handleKindChange(kind: EmailTemplateKind) {
-    setActiveKind(kind);
+    syncTemplateHash(kind);
     setSelectedBlockId(null);
     setEditingBlockId(null);
   }
@@ -293,23 +295,24 @@ export function BusinessEmailTemplateForm({
     draft.blocks.find((block) => block.id === selectedBlockId) ?? null;
 
   return (
-    <form action={formAction} className="form-stack pb-28">
-      <div className="flex flex-col gap-6">
-        <Tabs
-          value={activeKind}
-          onValueChange={(value) =>
-            handleKindChange(value as EmailTemplateKind)
-          }
-        >
-          <TabsList aria-label="Email templates" className="h-auto max-w-full flex-wrap">
+    <form action={formAction} className="pb-28">
+      <Tabs
+        className="gap-0"
+        data-settings-subnav=""
+        selectedKey={activeKind}
+        onSelectionChange={(key) =>
+          handleKindChange(key as EmailTemplateKind)
+        }
+      >
+        <div className="sticky top-13 z-20 bg-muted lg:top-12">
+          <TabList aria-label="Email templates" className="justify-center">
             {EMAIL_TEMPLATE_KINDS.map((kind) => {
               const Icon = EMAIL_TEMPLATE_KIND_ICONS[kind];
               const dirty =
                 draftSerialized(drafts[kind]) !==
                 draftSerialized(saved[kind]);
               return (
-                <TabsTrigger key={kind} value={kind}>
-                  <Icon aria-hidden="true" />
+                <Tab key={kind} id={kind} icon={Icon}>
                   {EMAIL_TEMPLATE_KIND_LABELS[kind]}
                   {dirty ? (
                     <>
@@ -320,115 +323,125 @@ export function BusinessEmailTemplateForm({
                       <span className="sr-only">(unsaved changes)</span>
                     </>
                   ) : null}
-                </TabsTrigger>
+                </Tab>
               );
             })}
-          </TabsList>
-        </Tabs>
-        <p className="text-xs text-muted-foreground">
-          {EMAIL_TEMPLATE_KIND_DESCRIPTIONS[activeKind]}
-        </p>
-
-        <div className="flex items-start gap-3 rounded-xl border border-border/75 bg-muted/30 px-5 py-4">
-          <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-          <div className="text-sm text-muted-foreground">
-            <span>Available merge tags: </span>
-            {mergeTags.map((tag, index) => (
-              <span key={tag.tag}>
-                <code className="rounded bg-background px-1.5 py-0.5 text-xs font-medium text-foreground">
-                  {tag.tag}
-                </code>
-                <span className="text-xs"> ({tag.label})</span>
-                {index < mergeTags.length - 1 ? ", " : ""}
-              </span>
-            ))}
-          </div>
+          </TabList>
         </div>
 
-        <section className="section-panel">
-          <Field data-invalid={Boolean(subjectError) || undefined}>
-            <FieldLabel htmlFor="email-template-subject">
-              Subject line
-            </FieldLabel>
-            <FieldContent>
-              <Input
-                disabled={isPending}
-                id="email-template-subject"
-                maxLength={200}
-                name="subject"
-                onChange={(event) => updateSubject(event.currentTarget.value)}
-                placeholder={
-                  activeKind === "invoice"
-                    ? "Invoice {{invoiceNumber}} from {{businessName}} — due {{dueDate}}"
-                    : activeKind === "follow-up"
-                      ? "Following up: {{quoteNumber}} from {{businessName}}"
-                      : "{{quoteNumber}} from {{businessName}}"
-                }
-                value={draft.subject}
+        <div className="px-3 pt-4 sm:px-5 sm:pt-5 xl:px-6 xl:pt-6">
+          <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-6">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                {EMAIL_TEMPLATE_KIND_LABELS[activeKind]}
+              </h2>
+              <p className="text-sm font-semibold tracking-tight text-foreground">
+                {EMAIL_TEMPLATE_KIND_DESCRIPTIONS[activeKind]}
+              </p>
+            </div>
+
+            <div className="flex w-full max-w-xl flex-col gap-5">
+              <Field data-invalid={Boolean(subjectError) || undefined}>
+                <FieldLabel htmlFor="email-template-subject">
+                  Subject line
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    disabled={isPending}
+                    id="email-template-subject"
+                    maxLength={200}
+                    name="subject"
+                    onChange={(event) => updateSubject(event.currentTarget.value)}
+                    placeholder={
+                      activeKind === "invoice"
+                        ? "Invoice {{invoiceNumber}} from {{businessName}} — due {{dueDate}}"
+                        : activeKind === "follow-up"
+                          ? "Following up: {{quoteNumber}} from {{businessName}}"
+                          : "{{quoteNumber}} from {{businessName}}"
+                    }
+                    value={draft.subject}
+                  />
+                  <FieldError
+                    errors={subjectError ? [{ message: subjectError }] : undefined}
+                  />
+                </FieldContent>
+              </Field>
+              <input type="hidden" name="templateKind" value={activeKind} />
+              <input
+                type="hidden"
+                name="blocks"
+                value={JSON.stringify(draft.blocks)}
               />
-              <FieldError
-                errors={subjectError ? [{ message: subjectError }] : undefined}
-              />
-            </FieldContent>
-          </Field>
-          <input type="hidden" name="templateKind" value={activeKind} />
-          <input
-            type="hidden"
-            name="blocks"
-            value={JSON.stringify(draft.blocks)}
-          />
-        </section>
+              <Field>
+                <FieldLabel>Available merge tags</FieldLabel>
+                <FieldContent>
+                  <p className="text-sm leading-7 text-muted-foreground">
+                    {mergeTags.map((tag, index) => (
+                      <span key={tag.tag}>
+                        <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-foreground">
+                          {tag.tag}
+                        </code>
+                        <span className="text-xs"> ({tag.label})</span>
+                        {index < mergeTags.length - 1 ? ", " : ""}
+                      </span>
+                    ))}
+                  </p>
+                </FieldContent>
+              </Field>
+            </div>
 
-        <div>
-          <p className="text-sm font-medium text-foreground">Email content</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            This is your actual email. Click a block to edit it in the
-            inspector, drag blocks to reorder, hide blocks to skip them
-            without deleting.
-          </p>
-        </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Email content</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                This is your actual email. Click a block to edit it in the
+                inspector, drag blocks to reorder, hide blocks to skip them
+                without deleting.
+              </p>
+            </div>
 
-        <div className="mx-auto grid w-full max-w-[1000px] items-start gap-6 lg:grid-cols-[minmax(0,640px)_320px] lg:justify-center">
-          <div className="mx-auto w-full max-w-[640px] min-w-0 lg:mx-0">
-            <EmailCanvas
-              blocks={draft.blocks}
-              selectedBlockId={selectedBlockId}
-              editingBlockId={editingBlockId}
-              isPending={isPending}
-              prefersReducedMotion={prefersReducedMotion}
-              templateKind={activeKind}
-              onReorder={(next) =>
-                setDrafts((current) => ({
-                  ...current,
-                  [activeKind]: { ...current[activeKind], blocks: next },
-                }))
-              }
-              onSelect={handleSelectBlock}
-              onEdit={handleEditBlock}
-              onUpdate={updateBlock}
-              onUpdateStyle={updateBlockStyle}
-              onToggleVisibility={toggleBlockVisibility}
-              onRemove={removeBlock}
-              onInsert={addBlock}
-            />
-          </div>
-          <div className="mx-auto w-full max-w-[640px] min-w-0 lg:mx-0 lg:w-[320px] lg:max-w-none lg:sticky lg:top-4">
-            <EmailTemplateInspector
-              block={selectedBlock}
-              templateKind={activeKind}
-              disabled={isPending}
-              onUpdate={updateBlock}
-              onUpdateStyle={updateBlockStyle}
-              onDone={() => handleEditBlock(null)}
-            />
+            <div className="grid w-full items-start gap-6 lg:grid-cols-[minmax(0,640px)_320px] lg:justify-center">
+              <div className="mx-auto w-full max-w-[640px] min-w-0 lg:mx-0">
+                <EmailCanvas
+                  blocks={draft.blocks}
+                  selectedBlockId={selectedBlockId}
+                  editingBlockId={editingBlockId}
+                  isPending={isPending}
+                  prefersReducedMotion={prefersReducedMotion}
+                  templateKind={activeKind}
+                  onReorder={(next) =>
+                    setDrafts((current) => ({
+                      ...current,
+                      [activeKind]: { ...current[activeKind], blocks: next },
+                    }))
+                  }
+                  onSelect={handleSelectBlock}
+                  onEdit={handleEditBlock}
+                  onUpdate={updateBlock}
+                  onUpdateStyle={updateBlockStyle}
+                  onToggleVisibility={toggleBlockVisibility}
+                  onRemove={removeBlock}
+                  onInsert={addBlock}
+                />
+              </div>
+              <div className="mx-auto w-full max-w-[640px] min-w-0 lg:mx-0 lg:w-[320px] lg:max-w-none lg:sticky lg:top-24">
+                <EmailTemplateInspector
+                  block={selectedBlock}
+                  templateKind={activeKind}
+                  disabled={isPending}
+                  onUpdate={updateBlock}
+                  onUpdateStyle={updateBlockStyle}
+                  onDone={() => handleEditBlock(null)}
+                />
+              </div>
+            </div>
+            {blocksError ? (
+              <p className="text-sm text-destructive" role="alert">
+                {blocksError}
+              </p>
+            ) : null}
           </div>
         </div>
-        {blocksError ? (
-          <p className="text-sm text-destructive" role="alert">
-            {blocksError}
-          </p>
-        ) : null}
-      </div>
+      </Tabs>
 
       <FloatingFormActions
         disableSubmit={!hasUnsavedChanges}

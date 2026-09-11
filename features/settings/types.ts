@@ -27,6 +27,7 @@ export type BusinessSettingsView = {
   countryCode: string | null;
   shortDescription: string | null;
   contactEmail: string | null;
+  website: string | null;
   logoStoragePath: string | null;
   logoContentType: string | null;
   defaultEmailSignature: string | null;
@@ -55,6 +56,8 @@ export type BusinessSettingsView = {
   defaultCurrency: string;
   aiAgentEnabled: boolean;
   aiAgentTone: "friendly" | "professional" | "casual";
+  /** Owner-authored guidance injected into both AI surfaces. Empty when unset. */
+  aiAgentInstructions: string;
   updatedAt: Date;
 };
 
@@ -64,6 +67,7 @@ export type BusinessGeneralSettingsFieldName =
   | "countryCode"
   | "shortDescription"
   | "contactEmail"
+  | "website"
   | "defaultCurrency"
   | "defaultEmailSignature"
   | "logo";
@@ -102,7 +106,8 @@ export type BusinessNotificationSettingsActionState = {
 
 export type BusinessAiAgentSettingsFieldName =
   | "aiAgentEnabled"
-  | "tone";
+  | "tone"
+  | "aiAgentInstructions";
 
 export type BusinessAiAgentSettingsFieldErrors = Partial<
   Record<BusinessAiAgentSettingsFieldName, string[] | undefined>

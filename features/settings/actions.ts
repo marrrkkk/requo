@@ -124,6 +124,7 @@ export async function updateBusinessSettingsAction(
     countryCode: formData.get("countryCode"),
     shortDescription: formData.get("shortDescription"),
     contactEmail: formData.get("contactEmail"),
+    website: formData.get("website"),
     defaultCurrency: formData.get("defaultCurrency"),
     defaultEmailSignature: formData.get("defaultEmailSignature"),
     logo: formData.get("logo"),
@@ -298,6 +299,7 @@ export async function updateBusinessAiAgentSettingsAction(
   const validationResult = businessAiAgentSettingsSchema.safeParse({
     aiAgentEnabled: formData.get("aiAgentEnabled") === "on",
     tone: formData.get("tone"),
+    aiAgentInstructions: formData.get("aiAgentInstructions"),
   });
 
   if (!validationResult.success) {

@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { PageHeader } from "@/components/shared/page-header";
-import { SettingsNotificationsBodySkeleton } from "@/components/shell/settings-body-skeletons";
+import { BusinessNotificationSettingsStaticFallback } from "@/components/shell/settings-body-skeletons";
 import {
   sendTestPushNotificationAction,
   updateBusinessNotificationSettingsAction,
@@ -23,22 +22,16 @@ export const instant = true;
 /**
  * Notifications settings page — non-blocking structural shell.
  *
- * Returns the page header synchronously. All dynamic reads
- * (getBusinessOperationalPageContext, settings queries) are resolved
- * inside a Suspense-wrapped child server component.
+ * Static section titles, descriptions, and toggle labels paint instantly
+ * (like (main) PageHeader titles); only the Switch controls that need DB
+ * values stream behind skeletons. All dynamic reads are resolved inside a
+ * Suspense-wrapped child server component.
  */
 export default function BusinessNotificationSettingsPage() {
   return (
-    <>
-      <PageHeader
-        eyebrow="Settings"
-        title="Notifications"
-        description="Choose how you get notified — in-app or push."
-      />
-      <Suspense fallback={<SettingsNotificationsBodySkeleton />}>
-        <BusinessNotificationSettingsContent />
-      </Suspense>
-    </>
+    <Suspense fallback={<BusinessNotificationSettingsStaticFallback />}>
+      <BusinessNotificationSettingsContent />
+    </Suspense>
   );
 }
 

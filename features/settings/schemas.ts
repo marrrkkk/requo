@@ -17,6 +17,7 @@ import {
   inquiryPageTemplateSchema,
   maxInquiryPageCards,
 } from "@/features/inquiries/page-config";
+import { businessInstructionsMaxLength } from "@/lib/ai/business-instructions";
 import { isAcceptedFileType } from "@/lib/files";
 import {
   normalizePublicSlugInput,
@@ -223,6 +224,7 @@ export const businessGeneralSettingsSchema = z.object({
   countryCode: optionalCountryCode(),
   shortDescription: optionalText(280),
   contactEmail: optionalEmail(),
+  website: optionalExternalUrl(),
   defaultCurrency: supportedCurrencyCode(),
   defaultEmailSignature: optionalText(1200),
   logo: businessLogoSchema,
@@ -563,6 +565,7 @@ export type BusinessEmailTemplateSettingsInput = z.infer<
 export const businessAiAgentSettingsSchema = z.object({
   aiAgentEnabled: formBoolean().default(false),
   tone: z.enum(["friendly", "professional", "casual"]).default("friendly"),
+  aiAgentInstructions: optionalText(businessInstructionsMaxLength),
 });
 
 export type BusinessAiAgentSettingsInput = z.infer<

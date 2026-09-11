@@ -9,7 +9,6 @@ export type BusinessSettingsSection =
   | "profile"
   | "security"
   | "quote"
-  | "quote-templates"
   | "email"
   | "support"
   | "integrations"
@@ -17,7 +16,7 @@ export type BusinessSettingsSection =
   | "audit-log"
   | "agent"
   | "ai"
-  | "knowledge-base";
+  | "members";
 
 export function getBusinessPath(slug: string) {
   return `/${slug}`;
@@ -199,22 +198,6 @@ export function getBusinessAiSettingsPath(slug: string) {
   return `${getBusinessPath(slug)}/settings/ai`;
 }
 
-export function getBusinessAiAssistantSettingsPath(slug: string) {
-  return `${getBusinessAiSettingsPath(slug)}/assistant`;
-}
-
-export function getBusinessAiKnowledgeSettingsPath(slug: string) {
-  return `${getBusinessAiSettingsPath(slug)}/knowledge`;
-}
-
-export function getBusinessKnowledgeBaseSettingsPath(slug: string) {
-  return `${getBusinessPath(slug)}/settings/knowledge-base`;
-}
-
-export function getBusinessQuoteTemplatesSettingsPath(slug: string) {
-  return `${getBusinessPath(slug)}/settings/quote-templates`;
-}
-
 export function getBusinessMemberInvitePath(token: string) {
   return `/invite/${token}`;
 }
@@ -228,7 +211,7 @@ export function getBusinessServicePath(slug: string, serviceSlug: string) {
 }
 
 export function getBusinessMembersPath(slug: string) {
-  return `${getBusinessPath(slug)}/members`;
+  return getBusinessSettingsPath(slug, "members");
 }
 
 export function getBusinessNotificationsPath(slug: string) {
@@ -241,10 +224,6 @@ export function getBusinessProductsPath(slug: string) {
 
 export function getBusinessAssistantPath(slug: string) {
   return `${getBusinessPath(slug)}/assistant`;
-}
-
-export function getBusinessAssistantSettingsPath(slug: string) {
-  return `${getBusinessAssistantPath(slug)}/settings`;
 }
 
 export function getBusinessPublicChatPath(slug: string) {

@@ -364,4 +364,26 @@ describe("email template builder (direct canvas)", () => {
       screen.getByText(/edit in the inspector/i),
     ).toBeInTheDocument();
   });
+
+  it("deep-links email template tabs through the URL hash", async () => {
+    const user = userEvent.setup();
+    window.location.hash = "";
+    renderForm();
+    await user.click(screen.getByRole("tab", { name: /Invoice email/ }));
+    expect(window.location.hash).toBe("#invoice");
+    window.location.hash = "";
+  });
+
+  it("selects the email template tab from the URL hash on load", () => {
+    window.location.hash = "#follow-up";
+    try {
+      renderForm();
+      expect(
+        screen.getByRole("tab", { name: /Quote follow-up/ }),
+      ).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByText(/View quote/)).toBeInTheDocument();
+    } finally {
+      window.location.hash = "";
+    }
+  });
 });

@@ -13,6 +13,7 @@ import {
   ScrollText,
   Tag,
   User,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
@@ -20,7 +21,7 @@ import { usePathname } from "next/navigation";
 
 import {
   DashboardSidebar,
-  type DashboardNavItem,
+  type DashboardNavGroup,
 } from "@/components/application/dashboard/dashboard-sidebar";
 import type { SettingsNavigationGroup } from "@/features/settings/navigation";
 
@@ -30,6 +31,7 @@ import type { SettingsNavigationGroup } from "@/features/settings/navigation";
  */
 const boarduiSettingsIcons: Record<string, LucideIcon> = {
   user: User,
+  users: Users,
   palette: Palette,
   bell: Bell,
   building: Building2,
@@ -53,13 +55,13 @@ type BoarduiSettingsSidebarProps = {
 };
 
 /**
- * Settings sidebar wired to the BoardUI Sidebar following the docs usage
- * example (`DashboardSidebar` with `items` + `selected`).
+ * Settings sidebar wired to the BoardUI Sidebar (`DashboardSidebar` with
+ * `groups` + `selected`).
  *
- * The grouped settings navigation is flattened into BoardUI's flat item
- * list (group order preserved); the demo secondary Support/Settings rows
- * are hidden because the settings shell owns its own navigation, including
- * an explicit Help & Support entry rendered by the frame.
+ * The User / Workspace / Other navigation groups render as labeled
+ * sections; the demo secondary Support/Settings rows are hidden because
+ * the settings shell owns its own navigation (Help & Support lives in the
+ * Other group).
  */
 export function BoarduiSettingsSidebar({
   businessSlug: _businessSlug,
@@ -74,15 +76,18 @@ export function BoarduiSettingsSidebar({
     [groups],
   );
 
-  const items = useMemo<DashboardNavItem[]>(
+  const navGroups = useMemo<DashboardNavGroup[]>(
     () =>
-      flatItems.map((item) => ({
-        key: item.href,
-        label: item.label,
-        icon: boarduiSettingsIcons[item.icon] ?? User,
-        href: item.href,
+      groups.map((group) => ({
+        label: group.label,
+        items: group.items.map((item) => ({
+          key: item.href,
+          label: item.label,
+          icon: boarduiSettingsIcons[item.icon] ?? User,
+          href: item.href,
+        })),
       })),
-    [flatItems],
+    [groups],
   );
 
   const selected = useMemo(() => {
@@ -98,7 +103,7 @@ export function BoarduiSettingsSidebar({
 
   return (
     <DashboardSidebar
-      items={items}
+      groups={navGroups}
       selected={selected}
       topSlot={topSlot}
       bottomSlot={bottomSlot}

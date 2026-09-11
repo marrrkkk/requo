@@ -1,15 +1,17 @@
-import Link from "next/link";
 import { Suspense } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { BusinessAvatar } from "@/components/shared/business-avatar";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
+import { getUiScalePreferenceForUser } from "@/features/theme/ui-scale-queries";
+import { UiScaleSync } from "@/features/theme/components/ui-scale-sync";
 import { getUnifiedSettingsNavigation } from "@/features/settings/navigation";
 import { SettingsShellFrame, SettingsUserMenu } from "@/features/settings/components/settings-shell-frame";
 import {
+  BusinessSwitcher,
+  BusinessSwitcherSkeleton,
   MobileBusinessSwitcher,
   MobileBusinessSwitcherSkeleton,
   MobileUserMenu,
@@ -18,7 +20,6 @@ import {
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { BusinessCheckoutProvider } from "@/features/billing/components/business-checkout-provider";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
-import { getBusinessDashboardPath } from "@/features/businesses/routes";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { requireSession } from "@/lib/auth/session";
 
@@ -73,19 +74,9 @@ async function SettingsShell({
             <UserMenuSlot businessSlug={businessSlug} />
           </Suspense>
         }
-        businessNameSlot={
-          <Suspense
-            fallback={
-              <div
-                aria-hidden="true"
-                className="flex min-w-0 items-center gap-2.5 px-1 py-1"
-              >
-                <Skeleton className="size-8 shrink-0 rounded-lg" />
-                <Skeleton className="h-4 w-24 rounded-md" />
-              </div>
-            }
-          >
-            <BusinessNameSlot businessSlug={businessSlug} />
+        businessSwitcherSlot={
+          <Suspense fallback={<BusinessSwitcherSkeleton />}>
+            <BusinessSwitcherSlot businessSlug={businessSlug} />
           </Suspense>
         }
         mobileBusinessSwitcherSlot={
@@ -144,30 +135,36 @@ async function CheckoutProviderSlot({
 
 async function ThemeSyncSlot({ businessSlug }: { businessSlug: string }) {
   const { user } = await getAppShellContext(businessSlug);
-  const themePreference = await getThemePreferenceForUser(user.id);
-  return <ThemePreferenceSync themePreference={themePreference} userId={user.id} />;
+  const [themePreference, uiScale] = await Promise.all([
+    getThemePreferenceForUser(user.id),
+    getUiScalePreferenceForUser(user.id),
+  ]);
+  return (
+    <>
+      <ThemePreferenceSync themePreference={themePreference} userId={user.id} />
+      <UiScaleSync uiScale={uiScale} userId={user.id} />
+    </>
+  );
 }
 
-async function BusinessNameSlot({ businessSlug }: { businessSlug: string }) {
+async function BusinessSwitcherSlot({ businessSlug }: { businessSlug: string }) {
   const { businessContext } = await getAppShellContext(businessSlug);
-  const business = businessContext.business;
-  const logoUrl = business.logoStoragePath ? "/api/business/logo" : null;
-  const dashboardPath = getBusinessDashboardPath(businessSlug);
+  const session = await requireSession();
+  const allMemberships = await getBusinessMembershipsForUser(session.user.id, "all");
+  const memberships = allMemberships.filter(
+    (m) => m.business.recordState !== "trash",
+  );
+
+  const { getBusinessQuotaForUser } = await import("@/features/businesses/quota");
+  const businessQuota = await getBusinessQuotaForUser({ ownerUserId: session.user.id });
+
   return (
-    <Link
-      href={dashboardPath}
-      className="flex min-w-0 items-center gap-2.5 rounded-md px-1 py-1 transition-colors hover:bg-sidebar-accent"
-    >
-      <BusinessAvatar
-        name={business.name}
-        logoUrl={logoUrl}
-        size="sm"
-        loading="eager"
-      />
-      <span className="truncate text-sm font-medium text-foreground">
-        {business.name}
-      </span>
-    </Link>
+    <BusinessSwitcher
+      currentBusiness={businessContext}
+      memberships={memberships}
+      businessQuota={businessQuota}
+      compact
+    />
   );
 }
 
@@ -198,10 +195,10 @@ function UserMenuSkeleton() {
   return (
     <div
       aria-hidden="true"
-      className="flex w-full items-center gap-3 rounded-lg px-2 py-2"
+      className="flex w-full items-center gap-3 rounded-lg px-2 py-2 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0 group-data-[collapsed=true]/sidebar:py-0"
     >
       <Skeleton className="size-8 shrink-0 rounded-lg" />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-1 group-data-[collapsed=true]/sidebar:hidden">
         <Skeleton className="h-3.5 w-20 rounded" />
         <Skeleton className="h-3 w-28 rounded" />
       </div>

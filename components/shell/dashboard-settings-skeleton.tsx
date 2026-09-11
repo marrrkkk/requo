@@ -57,36 +57,106 @@ export function DashboardSettingsGeneralSkeleton() {
 export function DashboardSettingsQuoteSkeleton() {
   return (
     <DashboardSettingsShellSkeleton>
-      <div className="dashboard-side-stack">
-        <SettingsPageHeader descriptionWidth="w-[22rem]" titleWidth="max-w-sm" />
+      <div
+        className="sticky top-13 z-20 mb-4 border-b border-border/70 bg-muted lg:top-12"
+        data-settings-subnav=""
+      >
+        <div className="flex items-center justify-center gap-1">
+          <div className="flex items-center gap-2 px-3 py-1.5">
+            <Skeleton className="size-4 rounded-sm" />
+            <Skeleton className="h-4 w-12 rounded-md" />
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5">
+            <Skeleton className="size-4 rounded-sm" />
+            <Skeleton className="h-4 w-20 rounded-md" />
+          </div>
+        </div>
+      </div>
+      <div className="mx-auto flex w-full max-w-xl flex-col gap-10">
+        {/* Quote defaults */}
+        <div className="flex flex-col gap-3">
+          <div className="space-y-1">
+            <Skeleton className="h-4 w-28 rounded-md" />
+            <Skeleton className="h-4 w-72 rounded-md" />
+          </div>
+          <div className="flex flex-col gap-5">
+            <FieldSkeleton />
+            <FieldSkeleton className="h-24 rounded-md" />
+            <FieldSkeleton className="h-24 rounded-md" />
+          </div>
+        </div>
 
- <section className="section-panel">
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <Skeleton className="h-6 w-24 rounded-lg" />
-              <Skeleton className="h-4 w-40 rounded-md" />
-            </div>
-
-            <div className="rounded-xl border border-border/70 bg-muted/15 px-4 py-4">
-              <Skeleton className="h-5 w-48 rounded-md" />
-              <Skeleton className="mt-2 h-4 w-full max-w-xl rounded-md" />
-              <Skeleton className="mt-1 h-4 w-full max-w-lg rounded-md" />
-            </div>
-
+        {/* Inquiry handling */}
+        <div className="flex flex-col gap-3">
+          <div className="space-y-1">
+            <Skeleton className="h-4 w-32 rounded-md" />
+            <Skeleton className="h-4 w-56 rounded-md" />
+          </div>
+          <div className="flex flex-col gap-5">
+            <FieldSkeleton />
+            <FieldSkeleton />
+            <FieldSkeleton />
             <FieldSkeleton />
           </div>
-        </section>
+        </div>
 
- <section className="section-panel">
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <Skeleton className="h-6 w-40 rounded-lg" />
-              <Skeleton className="h-4 w-44 rounded-md" />
-            </div>
-
-            <FieldSkeleton className="h-40 rounded-md" />
+        {/* Quote follow-ups */}
+        <div className="flex flex-col gap-3">
+          <div className="space-y-1">
+            <Skeleton className="h-4 w-32 rounded-md" />
+            <Skeleton className="h-4 w-52 rounded-md" />
           </div>
-        </section>
+          <div className="flex flex-col gap-5">
+            <FieldSkeleton />
+            <FieldSkeleton />
+          </div>
+        </div>
+      </div>
+    </DashboardSettingsShellSkeleton>
+  );
+}
+
+export function DashboardSettingsAssistantSkeleton() {
+  return (
+    <DashboardSettingsShellSkeleton>
+      <div
+        className="sticky top-13 z-20 mb-4 border-b border-border/70 bg-muted lg:top-12"
+        data-settings-subnav=""
+      >
+        <div className="flex items-center justify-center gap-1">
+          <div className="flex items-center gap-2 px-3 py-1.5">
+            <Skeleton className="size-4 rounded-sm" />
+            <Skeleton className="h-4 w-16 rounded-md" />
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5">
+            <Skeleton className="size-4 rounded-sm" />
+            <Skeleton className="h-4 w-24 rounded-md" />
+          </div>
+        </div>
+      </div>
+      <div className="mx-auto flex w-full max-w-xl flex-col gap-10">
+        {/* Public chat */}
+        <div className="flex flex-col gap-3">
+          <div className="space-y-1">
+            <Skeleton className="h-4 w-24 rounded-md" />
+            <Skeleton className="h-4 w-72 rounded-md" />
+          </div>
+          <div className="flex flex-col gap-5">
+            <FieldSkeleton />
+            <FieldSkeleton />
+          </div>
+        </div>
+
+        {/* Business instructions */}
+        <div className="flex flex-col gap-3">
+          <div className="space-y-1">
+            <Skeleton className="h-4 w-36 rounded-md" />
+            <Skeleton className="h-4 w-64 rounded-md" />
+          </div>
+          <div className="flex flex-col gap-5">
+            <FieldSkeleton className="h-24 rounded-md" />
+          </div>
+        </div>
       </div>
     </DashboardSettingsShellSkeleton>
   );
@@ -252,40 +322,58 @@ export function DashboardSettingsPricingSkeleton() {
 export function DashboardSettingsProfileSkeleton() {
   return (
     <DashboardSettingsShellSkeleton>
-      <div className="dashboard-side-stack">
+      <div className="mx-auto flex w-full max-w-[36rem] min-w-0 flex-col gap-10">
+        {/* Picture */}
         <div className="flex flex-col gap-3">
-          <Skeleton className="h-6 w-32 rounded-lg sm:h-7" />
-        </div>
-
-        <div className="mx-auto flex w-full max-w-[36rem] flex-col gap-4">
-          <div className="soft-panel flex flex-col gap-4 shadow-none">
-            <div className="flex items-center gap-4">
-              <Skeleton className="size-16 shrink-0 rounded-full" />
-              <div className="min-w-0 flex-1 space-y-2">
-                <Skeleton className="h-4 w-32 rounded-md" />
-                <Skeleton className="h-4 w-40 rounded-md" />
-              </div>
+          <Skeleton className="h-4 w-16 rounded-md" />
+          <div className="flex items-start gap-4">
+            <Skeleton className="size-16 shrink-0 rounded-2xl" />
+            <div className="flex gap-2 pt-1">
+              <Skeleton className="h-8 w-24 rounded-md" />
+              <Skeleton className="h-8 w-24 rounded-md" />
             </div>
           </div>
+          <Skeleton className="h-4 w-64 rounded-md" />
+        </div>
 
-          {Array.from({ length: 2 }).map((_, cardIndex) => (
-            <section className="soft-panel shadow-none" key={cardIndex}>
-              <div className="flex flex-col gap-4">
-                <Skeleton className="h-5 w-28 rounded-md" />
-                <div className="divide-y divide-border/70">
-                  {Array.from({ length: 2 }).map((_, rowIndex) => (
-                    <div
-                      className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
-                      key={rowIndex}
-                    >
-                      <Skeleton className="h-4 w-24 rounded-md" />
-                      <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-60 sm:max-w-[15rem]" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-          ))}
+        {/* Name */}
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-4 w-14 rounded-md" />
+          <Skeleton className="h-4 w-48 rounded-md" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Skeleton className="h-9 rounded-md" />
+            <Skeleton className="h-9 rounded-md" />
+          </div>
+        </div>
+
+        {/* Email */}
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-4 w-14 rounded-md" />
+          <Skeleton className="h-4 w-56 rounded-md" />
+          <Skeleton className="h-9 rounded-md" />
+        </div>
+
+        {/* Password */}
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-4 w-28 rounded-md" />
+          <Skeleton className="h-4 w-52 rounded-md" />
+          <Skeleton className="h-9 rounded-md" />
+          <Skeleton className="h-9 rounded-md" />
+          <Skeleton className="h-9 w-36 rounded-md" />
+        </div>
+
+        {/* Devices */}
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-4 w-20 rounded-md" />
+          <Skeleton className="h-4 w-60 rounded-md" />
+          <Skeleton className="h-16 rounded-xl" />
+        </div>
+
+        {/* Danger zone */}
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-4 w-24 rounded-md" />
+          <Skeleton className="h-4 w-56 rounded-md" />
+          <Skeleton className="h-9 w-32 rounded-md" />
         </div>
       </div>
     </DashboardSettingsShellSkeleton>
@@ -654,28 +742,25 @@ function SettingsCardSkeleton({
 export function DashboardSettingsAppearanceSkeleton() {
   return (
     <DashboardSettingsShellSkeleton>
-      <div className="dashboard-side-stack">
-        <SettingsPageHeader
-          titleWidth="max-w-xs"
-          descriptionWidth="w-[22rem]"
-        />
+      <div className="mx-auto flex w-full max-w-xl flex-col gap-8">
+        {/* Theme preview cards grid — matches 3-column layout */}
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-4 w-24 rounded-md" />
+          <div className="grid gap-3 sm:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex flex-col gap-2">
+                <Skeleton className="h-24 rounded-xl" />
+                <Skeleton className="h-4 w-20 rounded-md" />
+              </div>
+            ))}
+          </div>
+        </div>
 
-        {/* Theme option cards grid — matches 3-column layout */}
-        <div className="grid gap-3 sm:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex min-h-[7.5rem] flex-col items-start gap-3 rounded-xl border border-border bg-card p-4"
-            >
-              <div className="flex w-full items-center justify-between">
-                <Skeleton className="size-5 rounded-md" />
-              </div>
-              <div className="space-y-1.5">
-                <Skeleton className="h-4 w-16 rounded-md" />
-                <Skeleton className="h-3 w-36 rounded-md" />
-              </div>
-            </div>
-          ))}
+        {/* Interface scale selector */}
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-4 w-20 rounded-md" />
+          <Skeleton className="h-4 w-64 rounded-md" />
+          <Skeleton className="h-9 w-full rounded-md" />
         </div>
       </div>
     </DashboardSettingsShellSkeleton>

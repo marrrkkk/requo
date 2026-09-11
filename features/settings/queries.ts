@@ -20,6 +20,7 @@ import {
   getBusinessSettingsCacheTags,
   settingsBusinessCacheLife,
 } from "@/lib/cache/business-tags";
+import { normalizeBusinessInstructions } from "@/lib/ai/business-instructions";
 import { db } from "@/lib/db/client";
 import { inquiries, businessInquiryForms, businesses } from "@/lib/db/schema";
 
@@ -46,6 +47,7 @@ export async function getBusinessSettingsForBusiness(
       businessType: businesses.businessType,
       shortDescription: businesses.shortDescription,
       contactEmail: businesses.contactEmail,
+      website: businesses.website,
       logoStoragePath: businesses.logoStoragePath,
       logoContentType: businesses.logoContentType,
       defaultEmailSignature: businesses.defaultEmailSignature,
@@ -90,7 +92,7 @@ export async function getBusinessSettingsForBusiness(
   if (!business) return null;
 
   const agentConfig = business.aiAgentConfig as
-    | { tone?: string }
+    | { tone?: string; instructions?: string }
     | null
     | undefined;
 
@@ -122,6 +124,8 @@ export async function getBusinessSettingsForBusiness(
       ["friendly", "professional", "casual"].includes(agentConfig.tone)
         ? (agentConfig.tone as "friendly" | "professional" | "casual")
         : "friendly",
+    aiAgentInstructions:
+      normalizeBusinessInstructions(agentConfig?.instructions) ?? "",
   };
 }
 

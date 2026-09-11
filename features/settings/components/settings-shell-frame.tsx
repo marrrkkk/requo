@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode, useTransition } from "react";
+import { usePathname } from "next/navigation";
+import { type ReactNode, useMemo, useTransition } from "react";
 import {
   ArrowLeft,
   Astroid,
@@ -46,9 +47,13 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
-import { cx } from "@/utils/cx";
 import { BoarduiSettingsSidebar } from "@/features/settings/components/boardui-settings-sidebar";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+} from "@/components/base/breadcrumb/breadcrumb";
+import { getDashboardBreadcrumbs } from "@/components/shell/dashboard-navigation";
 import { MobileSettingsBottomNav } from "@/components/shell/mobile-settings-bottom-nav";
 import { MobileTopBar } from "@/components/shell/mobile-top-bar";
 import type { SettingsNavigationGroup } from "@/features/settings/navigation";
@@ -82,7 +87,8 @@ export type SettingsShellFrameProps = {
   groups: SettingsNavigationGroup[];
   user?: SettingsUserData;
   userMenuSlot?: ReactNode;
-  businessNameSlot: ReactNode;
+  /** Streamed business switcher slot (same compact switcher as the main sidebar). */
+  businessSwitcherSlot: ReactNode;
   /** Streamed mobile top bar business switcher slot. */
   mobileBusinessSwitcherSlot?: ReactNode;
   /** Streamed mobile top bar user menu slot. */
@@ -93,14 +99,15 @@ export type SettingsShellFrameProps = {
  * Settings shell frame using the BoardUI Sidebar.
  *
  * `BoarduiSettingsSidebar` maps the grouped settings navigation onto
- * BoardUI's `DashboardSidebar` (`items` + `selected`) inside a
+ * BoardUI's `DashboardSidebar` (`groups` + `selected`) inside a
  * `flex min-h-screen bg-background-full` layout, following the docs usage
- * example. The business name streams in as the top slot; Help & Support
- * plus the user menu stream in as the bottom slot.
+ * example. The business switcher streams in as the top slot (same compact
+ * switcher as the main sidebar); the user menu streams in as the bottom
+ * slot. Help & Support lives in the Other navigation group.
  *
  * `SidebarProvider` is kept (without shadcn `Sidebar` chrome) because the
- * user menu consumes its sidebar context (`useSidebar` for mobile-drawer
- * dismissal).
+ * streamed business switcher / user menu slots consume its sidebar context
+ * (`useSidebar` for mobile-drawer dismissal).
  */
 export function SettingsShellFrame({
   children,
@@ -108,11 +115,17 @@ export function SettingsShellFrame({
   groups,
   user,
   userMenuSlot,
-  businessNameSlot,
+  businessSwitcherSlot,
   mobileBusinessSwitcherSlot,
   mobileUserMenuSlot,
 }: SettingsShellFrameProps) {
   const businessDashboardPath = getBusinessDashboardPath(businessSlug);
+  const pathname = usePathname();
+  const breadcrumbs = useMemo(
+    () => getDashboardBreadcrumbs(pathname),
+    [pathname],
+  );
+  const currentSectionLabel = breadcrumbs.at(-1)?.label ?? "Settings";
 
   return (
     <SidebarProvider defaultOpen>
@@ -122,30 +135,12 @@ export function SettingsShellFrame({
           <BoarduiSettingsSidebar
             businessSlug={businessSlug}
             groups={groups}
-            topSlot={businessNameSlot}
+            topSlot={businessSwitcherSlot}
             bottomSlot={
-              <div className="flex w-full flex-col gap-1">
-                <Link
-                  href={`/${businessSlug}/settings/support`}
-                  prefetch={true}
-                  className={cx(
-                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 transition-colors",
-                    "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                  )}
-                >
-                  <LifeBuoy
-                    className="size-4 shrink-0 text-muted-foreground"
-                    aria-hidden
-                  />
-                  <span className="whitespace-nowrap text-body-2-medium">
-                    Help & Support
-                  </span>
-                </Link>
-                {userMenuSlot ??
-                  (user ? (
-                    <SettingsUserMenu user={user} businessSlug={businessSlug} />
-                  ) : null)}
-              </div>
+              userMenuSlot ??
+              (user ? (
+                <SettingsUserMenu user={user} businessSlug={businessSlug} />
+              ) : null)
             }
           />
         </div>
@@ -154,12 +149,12 @@ export function SettingsShellFrame({
           {/* Mobile top app bar (below lg) */}
           <MobileTopBar
             businessControl={mobileBusinessSwitcherSlot}
-            pageTitle="Settings"
+            pageTitle={currentSectionLabel}
             userControl={mobileUserMenuSlot}
           />
 
           {/* Desktop topbar (lg and above) */}
-          <div className="sticky top-0 z-30 hidden h-12 items-stretch bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/80 lg:flex">
+          <div className="sticky top-0 z-30 hidden h-12 items-stretch bg-background lg:flex">
             <header className="flex min-w-0 flex-1 items-center">
               <div className="dashboard-topbar-inner min-w-0 flex-1">
                 <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
@@ -177,9 +172,35 @@ export function SettingsShellFrame({
                     aria-hidden="true"
                     className="hidden h-3.5 w-px shrink-0 self-center bg-border lg:block"
                   />
-                  <p className="text-sm font-medium text-foreground">
-                    Settings
-                  </p>
+                  <div className="min-w-0 flex-1">
+                    <Breadcrumb aria-label="Pages">
+                      {breadcrumbs.map((item, index) => {
+                        const isLast = index === breadcrumbs.length - 1;
+
+                        if (isLast || !item.href) {
+                          return (
+                            <BreadcrumbItem
+                              key={`${item.label}-${item.href ?? index}`}
+                              current
+                              className="text-sm font-normal text-foreground"
+                            >
+                              {item.label}
+                            </BreadcrumbItem>
+                          );
+                        }
+
+                        return (
+                          <BreadcrumbItem
+                            key={`${item.label}-${item.href ?? index}`}
+                            href={item.href}
+                            className="text-sm text-muted-foreground hover:bg-transparent hover:text-foreground"
+                          >
+                            {item.label}
+                          </BreadcrumbItem>
+                        );
+                      })}
+                    </Breadcrumb>
+                  </div>
                 </div>
               </div>
             </header>
@@ -233,7 +254,7 @@ export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserDat
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
-              className="data-[state=open]:bg-sidebar-accent"
+              className="cursor-pointer group-data-[collapsed=true]/sidebar:h-9 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:p-0 data-[state=open]:bg-sidebar-accent"
               size="lg"
               tooltip={user.name}
             >
@@ -251,7 +272,7 @@ export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserDat
                   {getInitials(user.name)}
                 </AvatarFallback>
               </Avatar>
-              <div className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
+              <div className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden">
                 <span className="truncate text-sm font-medium text-sidebar-foreground">
                   {user.name}
                 </span>
@@ -259,7 +280,7 @@ export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserDat
                   {user.email}
                 </span>
               </div>
-              <ChevronsUpDown className="ml-auto text-muted-foreground group-data-[collapsible=icon]:hidden" />
+              <ChevronsUpDown className="ml-auto text-muted-foreground group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

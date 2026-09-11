@@ -1,5 +1,10 @@
-import { DashboardSettingsGeneralSkeleton } from "@/components/shell/dashboard-settings-skeleton";
+import { BusinessGeneralSettingsStaticFallback } from "@/components/shell/settings-body-skeletons";
 
+/**
+ * Mirrors BusinessGeneralSettingsPage: real static copy (section titles,
+ * descriptions, field labels) paints instantly, only DB-backed controls
+ * show skeletons — no full-page gray flash.
+ */
 export default function BusinessGeneralSettingsLoading() {
-  return <DashboardSettingsGeneralSkeleton />;
+  return <BusinessGeneralSettingsStaticFallback />;
 }
