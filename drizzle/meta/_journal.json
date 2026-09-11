@@ -162,6 +162,34 @@
       "when": 1789050000000,
       "tag": "0022_email_templates",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1789100000000,
+      "tag": "0023_add_business_website",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1789144531872,
+      "tag": "0024_add_profile_ui_scale",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1789200000000,
+      "tag": "0025_business_invite_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1789300000000,
+      "tag": "0026_remove_account_issuer",
+      "breakpoints": true
     }
   ]
 }

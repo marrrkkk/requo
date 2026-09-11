@@ -1,6 +1,6 @@
 {
-  "id": "1d486845-74d7-4215-82ed-bfd419f9db6b",
-  "prevId": "b28dad1f-a4a1-485f-86e3-11c6ebbcf2c0",
+  "id": "ff564ccf-113f-480f-9101-9d5e57fbebc3",
+  "prevId": "db17c400-114f-4e30-8194-6b64606926ad",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -7878,6 +7878,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "website": {
+          "name": "website",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "logo_storage_path": {
           "name": "logo_storage_path",
           "type": "text",
@@ -8509,6 +8515,14 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'system'"
+        },
+        "ui_scale": {
+          "name": "ui_scale",
+          "type": "profile_ui_scale",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
         },
         "created_at": {
           "name": "created_at",
@@ -11329,6 +11343,15 @@
         "maya",
         "check",
         "other"
+      ]
+    },
+    "public.profile_ui_scale": {
+      "name": "profile_ui_scale",
+      "schema": "public",
+      "values": [
+        "small",
+        "default",
+        "large"
       ]
     }
   },

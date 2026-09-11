@@ -1,6 +1,6 @@
 {
-  "id": "1d486845-74d7-4215-82ed-bfd419f9db6b",
-  "prevId": "b28dad1f-a4a1-485f-86e3-11c6ebbcf2c0",
+  "id": "db17c400-114f-4e30-8194-6b64606926ad",
+  "prevId": "1d486845-74d7-4215-82ed-bfd419f9db6b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -7874,6 +7874,12 @@
         },
         "contact_email": {
           "name": "contact_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "website": {
+          "name": "website",
           "type": "text",
           "primaryKey": false,
           "notNull": false

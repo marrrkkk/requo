@@ -34,6 +34,12 @@ export const profileThemePreferenceEnum = pgEnum("profile_theme_preference", [
   "system",
 ]);
 
+export const profileUiScaleEnum = pgEnum("profile_ui_scale", [
+  "small",
+  "default",
+  "large",
+]);
+
 export const profiles = pgTable("profiles", {
   userId: text("user_id")
     .primaryKey()
@@ -59,6 +65,7 @@ export const profiles = pgTable("profiles", {
   themePreference: profileThemePreferenceEnum("theme_preference")
     .notNull()
     .default("system"),
+  uiScale: profileUiScaleEnum("ui_scale").notNull().default("default"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -91,6 +98,7 @@ export const businesses = pgTable(
     /** How inbound customers typically reach this business (onboarding insight). */
     customerContactChannel: text("customer_contact_channel"),
     contactEmail: text("contact_email"),
+    website: text("website"),
     logoStoragePath: text("logo_storage_path"),
     logoContentType: text("logo_content_type"),
     publicInquiryEnabled: boolean("public_inquiry_enabled")
@@ -355,5 +363,34 @@ export const businessMemberInvites = pgTable(
     index("business_member_invites_email_idx").on(table.email),
     index("business_member_invites_token_hash_idx").on(table.tokenHash),
     index("business_member_invites_expires_at_idx").on(table.expiresAt),
+  ],
+);
+
+export const businessInviteLinks = pgTable(
+  "business_invite_links",
+  {
+    id: text("id").primaryKey(),
+    businessId: text("business_id")
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: businessMemberRoleEnum("role").notNull().default("staff"),
+    token: text("token").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    disabledAt: timestamp("disabled_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("business_invite_links_business_unique").on(table.businessId),
+    uniqueIndex("business_invite_links_token_unique").on(table.token),
+    uniqueIndex("business_invite_links_token_hash_unique").on(table.tokenHash),
+    index("business_invite_links_token_hash_idx").on(table.tokenHash),
   ],
 );

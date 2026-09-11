@@ -1,6 +1,6 @@
 {
-  "id": "1d486845-74d7-4215-82ed-bfd419f9db6b",
-  "prevId": "b28dad1f-a4a1-485f-86e3-11c6ebbcf2c0",
+  "id": "505e6c38-f9b0-46f0-a3bc-864519315ce9",
+  "prevId": "ff564ccf-113f-480f-9101-9d5e57fbebc3",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -7878,6 +7878,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "website": {
+          "name": "website",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "logo_storage_path": {
           "name": "logo_storage_path",
           "type": "text",
@@ -8509,6 +8515,14 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'system'"
+        },
+        "ui_scale": {
+          "name": "ui_scale",
+          "type": "profile_ui_scale",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'default'"
         },
         "created_at": {
           "name": "created_at",
@@ -11006,6 +11020,165 @@
         }
       },
       "isRLSEnabled": false
+    },
+    "public.business_invite_links": {
+      "name": "business_invite_links",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "business_id": {
+          "name": "business_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "business_member_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'staff'"
+        },
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "disabled_at": {
+          "name": "disabled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "business_invite_links_business_unique": {
+          "name": "business_invite_links_business_unique",
+          "columns": [
+            {
+              "expression": "business_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "business_invite_links_token_unique": {
+          "name": "business_invite_links_token_unique",
+          "columns": [
+            {
+              "expression": "token",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "business_invite_links_token_hash_unique": {
+          "name": "business_invite_links_token_hash_unique",
+          "columns": [
+            {
+              "expression": "token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "business_invite_links_token_hash_idx": {
+          "name": "business_invite_links_token_hash_idx",
+          "columns": [
+            {
+              "expression": "token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "business_invite_links_business_id_businesses_id_fk": {
+          "name": "business_invite_links_business_id_businesses_id_fk",
+          "tableFrom": "business_invite_links",
+          "tableTo": "businesses",
+          "columnsFrom": [
+            "business_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "business_invite_links_created_by_user_id_user_id_fk": {
+          "name": "business_invite_links_created_by_user_id_user_id_fk",
+          "tableFrom": "business_invite_links",
+          "tableTo": "user",
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -11329,6 +11502,15 @@
         "maya",
         "check",
         "other"
+      ]
+    },
+    "public.profile_ui_scale": {
+      "name": "profile_ui_scale",
+      "schema": "public",
+      "values": [
+        "small",
+        "default",
+        "large"
       ]
     }
   },
