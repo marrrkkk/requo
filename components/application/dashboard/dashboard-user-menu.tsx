@@ -78,7 +78,7 @@ export function AccountMenuContent({ onSelect }: { onSelect: () => void }) {
   return (
     <>
       {/* Users with access */}
-      <div className="flex w-full flex-col gap-1.5 pt-[5px]">
+      <div className="flex w-full flex-col gap-1.5 pt-[0.3125rem]">
         <span className="px-2 text-body-medium text-muted-foreground">Users with access</span>
         <div className="flex w-full flex-col gap-1">
           {USERS.map((user) => (
@@ -151,7 +151,7 @@ export function DashboardUserMenu({
           "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           // Hover pill (Figma node 3829:4063): a fully-rounded 2px outline
           // drawn via a pseudo-element so it never shifts the layout.
-          "before:pointer-events-none before:absolute before:-inset-x-1.5 before:-inset-y-[5px] before:rounded-full before:border-2 before:border-transparent before:transition-colors before:duration-150",
+          "before:pointer-events-none before:absolute before:-inset-x-1.5 before:-inset-y-[0.3125rem] before:rounded-full before:border-2 before:border-transparent before:transition-colors before:duration-150",
           !suppressHover && "hover:before:border-border",
           // Collapsed, the trigger takes the rail's own 36px column and centres
           // the 32px avatar in it, instead of sizing to the avatar plus a gap
@@ -162,7 +162,7 @@ export function DashboardUserMenu({
           // The pill's insets go square too: 36×32 plus the expanded 6/5 reach
           // is a 48×42 stadium, not the circle the avatar wants. 3/5 lands it
           // on 42×42.
-          collapsed && "w-9 justify-center gap-0 before:-inset-x-[3px]",
+          collapsed && "w-9 justify-center gap-0 before:-inset-x-[0.1875rem]",
         )}
       >
         <Avatar size="md" color="neutral" initials="M" className={avatarClassName} />
@@ -178,7 +178,7 @@ export function DashboardUserMenu({
         placement={isMobile ? "bottom start" : "right top"}
         offset={8}
         className={cx(
-          "w-[265px] max-w-[calc(100vw-32px)] origin-top-left overflow-y-auto",
+          "w-[16.5625rem] max-w-[calc(100vw-2rem)] origin-top-left overflow-y-auto",
           "rounded-2xl border border-border bg-card p-2.5 shadow-[var(--overlay-surface-shadow)]",
           "transition duration-150 ease-out",
           "data-[entering]:opacity-0 data-[entering]:scale-95 data-[entering]:blur-[2px]",

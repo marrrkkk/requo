@@ -28,7 +28,6 @@ import { SettingsModal } from "@/components/application/settings/settings-modal"
 import { ThemeToggle } from "@/components/application/theme/theme-toggle";
 import { Badge } from "@/components/base/badges/badge";
 import { CloseButton } from "@/components/base/buttons/close-button";
-import { Kbd } from "@/components/base/kbd/kbd";
 import { cx } from "@/utils/cx";
 import { DashboardTeamMenu } from "./dashboard-team-menu";
 import { DashboardUserMenu } from "./dashboard-user-menu";
@@ -185,6 +184,12 @@ export interface DashboardNavItem {
   badge?: string | number;
 }
 
+/** A labeled section of navigation rows (e.g. User / Workspace / Other). */
+export interface DashboardNavGroup {
+  label: string;
+  items: DashboardNavItem[];
+}
+
 /** Kept as a name for callers that typed their `selected` prop; any key works. */
 export type DashboardNavKey = string;
 
@@ -244,6 +249,60 @@ function NavRows({
     });
 }
 
+function GroupedNavRows({
+  groups,
+  query,
+  selected,
+  collapsed,
+  secondaryMatch,
+}: {
+  groups: DashboardNavGroup[];
+  query: string;
+  selected: string;
+  collapsed: boolean;
+  /** Whether Support or Settings matches, so "No results" only shows when nothing does. */
+  secondaryMatch: boolean;
+}) {
+  const filtered = groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) =>
+        item.label.toLocaleLowerCase().includes(query),
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
+  if (filtered.length === 0 && !secondaryMatch && !collapsed) {
+    return <p className="px-2 py-3 text-body-regular text-muted-foreground">No results</p>;
+  }
+  return filtered.map((group) => (
+    <div key={group.label} className={cx("flex w-full flex-col gap-1", collapsed && "items-center")}>
+      {collapsed ? null : (
+        <span className="px-2 pt-2 text-body-2-medium text-muted-foreground/60">
+          {group.label}
+        </span>
+      )}
+      {group.items.map((item) => {
+        const isSelected = selected === item.key;
+        return (
+          <NavItem
+            key={item.key}
+            icon={item.icon}
+            label={item.label}
+            href={item.href}
+            isSelected={isSelected}
+            collapsed={collapsed}
+            badge={
+              item.badge !== undefined ? (
+                <Badge color="neutral">{item.badge}</Badge>
+              ) : undefined
+            }
+          />
+        );
+      })}
+    </div>
+  ));
+}
+
 export function DashboardSidebar({
   mobile = false,
   onClose,
@@ -251,6 +310,7 @@ export function DashboardSidebar({
   showThemeToggle = true,
   selected = "home",
   items = DASHBOARD_NAV,
+  groups,
   flat = false,
   className,
   topSlot,
@@ -275,6 +335,8 @@ export function DashboardSidebar({
   selected?: DashboardNavKey;
   /** Primary navigation rows. The Pro dashboard's set unless a screen brings its own. */
   items?: DashboardNavItem[];
+  /** Grouped navigation sections (e.g. User / Workspace / Other). Takes precedence over `items` when provided. */
+  groups?: DashboardNavGroup[];
   /** Removes the floating panel treatment for a sidebar revealed beneath mobile content. */
   flat?: boolean;
   className?: string;
@@ -358,8 +420,9 @@ export function DashboardSidebar({
 
   return (
     <aside
+      data-collapsed={collapsed}
       className={cx(
-        "flex h-full shrink-0 flex-col justify-between overflow-hidden",
+        "group/sidebar flex h-full shrink-0 flex-col justify-between overflow-hidden",
         flat
           ? "bg-background"
           : // Flush to the screen's left edge: no left border or inset gap,
@@ -371,10 +434,10 @@ export function DashboardSidebar({
         // Collapsed rail keeps the 60px spec: 1px border + 11px padding on each
         // side leaves an exactly 36px column so the w-9 (36px) icon items center.
         collapsed
-          ? "w-[60px] px-[11px] py-3"
+          ? "w-[3.75rem] px-[0.6875rem] py-3"
           : fluid
-            ? "w-full p-3 lg:w-[260px]"
-            : "w-[260px] p-3",
+            ? "w-full p-3 lg:w-[16.25rem]"
+            : "w-[16.25rem] p-3",
         className,
       )}
     >
@@ -385,7 +448,7 @@ export function DashboardSidebar({
           margin borrows that space back from the rail's own padding, leaving
           every child exactly where it was. */}
       <div
-        className="-m-2 flex min-h-0 w-[calc(100%+16px)] flex-col gap-3 overflow-y-auto p-2 [scrollbar-width:none]"
+        className="-m-2 flex min-h-0 w-[calc(100%+1rem)] flex-col gap-3 overflow-y-auto p-2 [scrollbar-width:none]"
       >
         {/* Workspace switcher / collapse control */}
         <div
@@ -403,19 +466,24 @@ export function DashboardSidebar({
               widths below are 16px larger than the footprint they produce. */}
           <div
             className={cx(
-              "-m-2 min-w-0 overflow-hidden p-2 transition-[max-width,opacity,transform] duration-300 ease-in-out",
-              // Collapsed: the switcher slot is fully hidden (its Collapsible
-              // keeps full height while invisible, leaving a dead gap).
-              collapsed && "hidden",
-              mobile && flat && searchActive
-                ? "max-w-0 scale-95 opacity-0"
-                : "max-w-[206px] scale-100 opacity-100",
+              "min-w-0 transition-[max-width,opacity,transform] duration-300 ease-in-out",
+              // Collapsed: the slot stays mounted in a centered 36px column.
+              // Expanded-only rows hide themselves via
+              // `group-data-[collapsed=true]/sidebar` (the aside carries
+              // `group/sidebar` + `data-collapsed`); avatar-only collapsed
+              // triggers do the reverse. Never `hidden` here — that would
+              // remove the collapsed business avatar too.
+              collapsed
+                ? "flex w-9 items-center justify-center"
+                : "-m-2 overflow-hidden p-2",
+              !collapsed &&
+                (mobile && flat && searchActive
+                  ? "max-w-0 scale-95 opacity-0"
+                  : "max-w-[12.875rem] scale-100 opacity-100"),
             )}
           >
             {topSlot ? (
-              <Collapsible collapsed={collapsed} className="w-full">
-                <div className="w-full min-w-0">{topSlot}</div>
-              </Collapsible>
+              <div className="w-full min-w-0">{topSlot}</div>
             ) : (
               <DashboardUserMenu
                 collapsed={collapsed}
@@ -551,11 +619,11 @@ export function DashboardSidebar({
               title={collapsed ? "Quick Search" : undefined}
               onClick={activateSearch}
               className={cx(
-                "flex cursor-pointer items-center gap-2 px-2 py-1.5 hover:bg-sidebar-accent/70",
+                "flex cursor-pointer items-center hover:bg-sidebar-accent/70",
                 "transition-[width,border-radius,background-color] duration-300 ease-in-out",
                 collapsed
-                  ? "w-9 justify-center rounded-full bg-sidebar-accent px-0"
-                  : "w-full rounded-full bg-sidebar-accent",
+                  ? "size-9 justify-center gap-0 rounded-full bg-sidebar-accent p-0"
+                  : "w-full gap-2 rounded-full bg-sidebar-accent px-2 py-1.5",
               )}
             >
               <span
@@ -571,9 +639,6 @@ export function DashboardSidebar({
                   </span>
                 </Collapsible>
               </span>
-              <Collapsible collapsed={collapsed}>
-                <Kbd>⌘L</Kbd>
-              </Collapsible>
             </button>
           ))}
 
@@ -581,19 +646,32 @@ export function DashboardSidebar({
               collapsed column is exactly as wide as a 36px item, so padding
               here pushes every item 2px right and the rail's own clip shaves
               that much off its selected fill and hover state. */}
-          <nav className={cx("flex w-full flex-col gap-1", collapsed ? "items-center" : "px-0.5")}>
-            <NavRows
-              items={items}
-              query={normalizedQuery}
-              selected={selected}
-              collapsed={collapsed}
-              secondaryMatch={secondaryMatch}
-            />
+          <nav
+            aria-label="Primary"
+            className={cx("flex w-full flex-col gap-1", collapsed ? "items-center" : "px-0.5")}
+          >
+            {groups && groups.length > 0 ? (
+              <GroupedNavRows
+                groups={groups}
+                query={normalizedQuery}
+                selected={selected}
+                collapsed={collapsed}
+                secondaryMatch={secondaryMatch}
+              />
+            ) : (
+              <NavRows
+                items={items}
+                query={normalizedQuery}
+                selected={selected}
+                collapsed={collapsed}
+                secondaryMatch={secondaryMatch}
+              />
+            )}
           </nav>
         </div>
       </div>
 
-      <div className="flex w-full shrink-0 flex-col gap-3">
+      <div className={cx("flex w-full shrink-0 flex-col gap-3", collapsed && "items-center")}>
         {showThemeToggle &&
           (collapsed ? (
             <ThemeToggle collapsed />
@@ -633,11 +711,14 @@ export function DashboardSidebar({
           </nav>
         )}
 
-        {/* Team card → opens the profile menu next to the sidebar */}
+        {/* Team card → opens the profile menu next to the sidebar. Stays
+            mounted when collapsed: expanded-only rows hide via
+            `group-data-[collapsed=true]/sidebar`, avatar-only collapsed
+            triggers do the reverse. */}
         {bottomSlot ? (
-          <Collapsible collapsed={collapsed} className="w-full">
-            <div className="w-full min-w-0">{bottomSlot}</div>
-          </Collapsible>
+          <div className={cx("w-full min-w-0", collapsed && "flex w-9 justify-center")}>
+            {bottomSlot}
+          </div>
         ) : (
           <DashboardTeamMenu
             collapsed={collapsed}

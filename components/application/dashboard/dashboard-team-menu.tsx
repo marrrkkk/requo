@@ -184,14 +184,14 @@ export function DashboardTeamMenu({
         placement={isMobile ? "bottom start" : "right bottom"}
         offset={8}
         className={cx(
-          "w-[265px] max-w-[calc(100vw-32px)] origin-bottom-left overflow-y-auto",
+          "w-[16.5625rem] max-w-[calc(100vw-2rem)] origin-bottom-left overflow-y-auto",
           "rounded-2xl border border-border bg-card p-2.5 shadow-[var(--overlay-surface-shadow)]",
           "transition duration-150 ease-out",
           "data-[entering]:opacity-0 data-[entering]:scale-95 data-[entering]:blur-[2px]",
           "data-[exiting]:opacity-0 data-[exiting]:scale-95 data-[exiting]:blur-[2px]",
         )}
       >
-        <AriaDialog aria-label="Board team menu" className="flex flex-col gap-[7px] outline-none">
+        <AriaDialog aria-label="Board team menu" className="flex flex-col gap-[0.4375rem] outline-none">
           {/* Header */}
           <div className="flex w-full items-center gap-2 px-2 pt-1">
             <Avatar size="md" color="blue" src="/brand/boardui_logo_circle.webp" alt="Board team" />

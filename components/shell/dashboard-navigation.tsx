@@ -9,7 +9,6 @@ import {
   Inbox,
   Package,
   PencilRuler,
-  Users,
 } from "lucide-react";
 
 
@@ -100,12 +99,6 @@ export function getDashboardNavigation(
       description: "Reusable blocks and packages for faster quotes.",
       icon: Package,
     },
-    {
-      href: getBusinessMembersPath(slug),
-      label: "Members",
-      description: "Manage team access and roles.",
-      icon: Users,
-    },
     ...(canViewBusinessAnalytics(role)
       ? [
           {
@@ -128,7 +121,7 @@ function resolveDashboardActivePathname(pathname: string) {
 
   const membersPath = getBusinessMembersPath(slug);
 
-  // Top-level members is available in main nav, not in settings.
+  // Members lives in settings now; keep it out of the main-nav active set.
   if (
     pathname === membersPath ||
     pathname.startsWith(`${membersPath}/`)
@@ -395,7 +388,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
     const sectionLabels: Record<string, string> = {
       general: "Business profile",
       notifications: "Notifications",
-      profile: "Your profile",
+      profile: "Profile",
       inquiry: "Services",
       quote: "Quote defaults",
       knowledge: "Knowledge",

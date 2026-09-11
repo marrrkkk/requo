@@ -106,8 +106,12 @@ export function DashboardShellFrame({
             businessSlug={businessSlug}
             topSlot={businessSwitcherSlot}
             bottomSlot={
-              <div className="flex w-full flex-col gap-2">
-                {checklistSlot}
+              <div className="flex w-full flex-col gap-2 group-data-[collapsed=true]/sidebar:items-center group-data-[collapsed=true]/sidebar:gap-0">
+                {checklistSlot ? (
+                  <div className="w-full group-data-[collapsed=true]/sidebar:hidden">
+                    {checklistSlot}
+                  </div>
+                ) : null}
                 {userMenuSlot}
               </div>
             }
@@ -129,7 +133,7 @@ export function DashboardShellFrame({
           />
 
           {/* Desktop Topbar row (lg and above) */}
-          <div className="sticky top-0 z-30 hidden h-12 items-stretch bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/80 lg:flex">
+          <div className="sticky top-0 z-30 hidden h-12 items-stretch bg-background lg:flex">
             <header className="flex min-w-0 flex-1 items-center">
               <div className="dashboard-topbar-inner min-w-0 flex-1">
                 <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">

@@ -45,7 +45,6 @@ import { useBusinessCheckout } from "@/features/billing/components/business-chec
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import {
   getBusinessDashboardPath,
-  getBusinessMembersPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
@@ -122,20 +121,21 @@ export function BusinessSwitcher({
         <DropdownMenuTrigger asChild>
         {compact ? (
           <button
-            className="group/business-switcher flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent"
+            className="group/business-switcher flex w-full cursor-pointer items-center gap-2 rounded-xl px-2 py-1.5 text-left transition-colors group-data-[collapsed=true]/sidebar:size-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:p-0 hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent"
             data-tour="business-switcher"
             type="button"
+            aria-label={`Switch business — current business ${business.name}`}
+            title={business.name}
           >
             <BusinessAvatar
               name={business.name}
               logoUrl={business.logoStoragePath ? "/api/business/logo" : null}
-              size="sm"
               loading="eager"
             />
-            <span className="min-w-0 flex-1 truncate text-sm font-medium text-sidebar-foreground">
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-sidebar-foreground group-data-[collapsed=true]/sidebar:hidden">
               {business.name}
             </span>
-            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground group-data-[collapsed=true]/sidebar:hidden" />
           </button>
         ) : (
         <button
@@ -147,7 +147,7 @@ export function BusinessSwitcher({
             <BusinessAvatar
               name={business.name}
               logoUrl={business.logoStoragePath ? "/api/business/logo" : null}
-              className="size-14 rounded-[0.9rem] border-sidebar-border shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] dark:border-white/8 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_1px_rgba(0,0,0,0.18)] [&_[data-slot=avatar-image]]:rounded-[0.9rem] [&_[data-slot=avatar-fallback]]:rounded-[0.9rem] [&_[data-slot=avatar-fallback]]:text-sm [&_[data-slot=avatar-fallback]]:tracking-[0.16em] [&_[data-slot=avatar-fallback]]:text-sidebar-foreground group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-image]]:group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-fallback]]:group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-fallback]]:group-data-[collapsible=icon]:text-xs"
+              className="size-14 rounded-[0.9rem] border-sidebar-border shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] dark:border-white/8 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_1px_rgba(0,0,0,0.18)] [&_[data-slot=avatar-image]]:rounded-[0.9rem] [&_[data-slot=avatar-fallback]]:rounded-[0.9rem] [&_[data-slot=avatar-fallback]]:text-sm [&_[data-slot=avatar-fallback]]:text-sidebar-foreground group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-image]]:group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-fallback]]:group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-fallback]]:group-data-[collapsible=icon]:text-xs"
             />
             <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
               <div className="flex items-center justify-between gap-3">
@@ -379,7 +379,7 @@ export function DashboardUserMenu({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
-              className="data-[state=open]:bg-sidebar-accent"
+              className="cursor-pointer group-data-[collapsed=true]/sidebar:h-9 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:p-0 data-[state=open]:bg-sidebar-accent"
               size="lg"
               tooltip={user.name}
             >
@@ -391,7 +391,7 @@ export function DashboardUserMenu({
                   {getInitials(user.name)}
                 </AvatarFallback>
               </Avatar>
-              <div className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
+              <div className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden">
                 <span className="truncate text-sm font-medium text-sidebar-foreground">
                   {user.name}
                 </span>
@@ -399,7 +399,7 @@ export function DashboardUserMenu({
                   {user.email}
                 </span>
               </div>
-              <ChevronsUpDown className="ml-auto text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[state=open]/menu-button:rotate-180 group-data-[collapsible=icon]:hidden" />
+              <ChevronsUpDown className="ml-auto text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[state=open]/menu-button:rotate-180 group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -887,13 +887,13 @@ function BusinessSwitcherSkeleton() {
   return (
     <div
       aria-hidden="true"
-      className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5"
+      className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0"
     >
       <div className="size-8 shrink-0 animate-pulse rounded-lg bg-muted" />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 group-data-[collapsed=true]/sidebar:hidden">
         <div className="h-4 w-3/4 animate-pulse rounded-md bg-muted" />
       </div>
-      <div className="size-4 shrink-0 animate-pulse rounded bg-muted" />
+      <div className="size-4 shrink-0 animate-pulse rounded bg-muted group-data-[collapsed=true]/sidebar:hidden" />
     </div>
   );
 }
@@ -902,10 +902,10 @@ function UserMenuSkeleton() {
   return (
     <div
       aria-hidden="true"
-      className="flex w-full items-center gap-3 rounded-lg px-2 py-2"
+      className="flex w-full items-center gap-3 rounded-lg px-2 py-2 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0 group-data-[collapsed=true]/sidebar:py-0"
     >
       <div className="size-8 shrink-0 animate-pulse rounded-lg bg-muted" />
-      <div className="min-w-0 flex-1 space-y-1.5">
+      <div className="min-w-0 flex-1 space-y-1.5 group-data-[collapsed=true]/sidebar:hidden">
         <div className="h-3.5 w-24 animate-pulse rounded-md bg-muted" />
         <div className="h-3 w-32 animate-pulse rounded-md bg-muted" />
       </div>

@@ -14,7 +14,6 @@ import {
   LayoutGrid,
   Package,
   PencilRuler,
-  Users,
   Settings,
 } from "lucide-react";
 
@@ -25,7 +24,6 @@ import {
   getBusinessFollowUpsPath,
   getBusinessServicesPath,
   getBusinessInquiriesPath,
-  getBusinessMembersPath,
   getBusinessProductsPath,
   getBusinessQuotesPath,
   getBusinessInvoicesPath,
@@ -67,7 +65,6 @@ export function MobileBottomNav({
   const followUpsHref = getBusinessFollowUpsPath(businessSlug);
   const servicesHref = getBusinessServicesPath(businessSlug);
   const productsHref = getBusinessProductsPath(businessSlug);
-  const membersHref = getBusinessMembersPath(businessSlug);
   const analyticsHref = getBusinessAnalyticsPath(businessSlug);
   const settingsHref = getBusinessSettingsPath(businessSlug, "general");
   const assistantHref = getBusinessAssistantPath(businessSlug);
@@ -79,14 +76,12 @@ export function MobileBottomNav({
   const isFollowUpsActive = isDashboardNavigationItemActive(pathname, followUpsHref);
   const isServicesActive = isDashboardNavigationItemActive(pathname, servicesHref);
   const isProductsActive = isDashboardNavigationItemActive(pathname, productsHref);
-  const isMembersActive = isDashboardNavigationItemActive(pathname, membersHref);
   const isAnalyticsActive = canViewBusinessAnalytics(role) && isDashboardNavigationItemActive(pathname, analyticsHref);
   const isAssistantActive = isDashboardNavigationItemActive(pathname, assistantHref);
 
   const isMoreActive =
     isServicesActive ||
     isProductsActive ||
-    isMembersActive ||
     isAnalyticsActive ||
     isAssistantActive ||
     isInvoicesActive ||
@@ -223,8 +218,8 @@ export function MobileBottomNav({
         >
           <SheetHeader className="pb-3 text-left">
             <SheetTitle>More</SheetTitle>
-            <SheetDescription className="sr-only">
-              Services, products, team members, analytics, and settings
+              <SheetDescription className="sr-only">
+              Services, products, analytics, and settings
             </SheetDescription>
           </SheetHeader>
 
@@ -290,22 +285,6 @@ export function MobileBottomNav({
               >
                 <Package className="size-4 shrink-0 text-muted-foreground" />
                 <span>Products</span>
-                <NavLinkStatus className="ml-auto" />
-              </Link>
-
-              <Link
-                href={membersHref}
-                prefetch={true}
-                onClick={() => setMoreOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  isMembersActive
-                    ? "bg-sidebar-primary/12 text-primary font-semibold"
-                    : "text-foreground hover:bg-muted",
-                )}
-              >
-                <Users className="size-4 shrink-0 text-muted-foreground" />
-                <span>Members</span>
                 <NavLinkStatus className="ml-auto" />
               </Link>
 

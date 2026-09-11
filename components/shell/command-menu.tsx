@@ -42,7 +42,7 @@ import {
 import {
   getBusinessFollowUpsPath,
   getBusinessServicesPath,
-  getBusinessKnowledgeBaseSettingsPath,
+  getBusinessAiSettingsPath,
   getBusinessMembersPath,
   getBusinessNewInquiryPath,
   getBusinessNewQuotePath,
@@ -244,7 +244,7 @@ export function CommandMenu({
       label: "Add knowledge base entry",
       icon: BookOpen,
       navigate: () =>
-        router.push(getBusinessKnowledgeBaseSettingsPath(businessSlug)),
+        router.push(`${getBusinessAiSettingsPath(businessSlug)}#knowledge`),
       feature: "knowledgeBase",
       visible: canOperate,
     },
