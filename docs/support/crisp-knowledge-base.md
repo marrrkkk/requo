@@ -90,7 +90,7 @@ Overdue invoices appear in the Invoices list, the home Invoices snapshot, and a 
 ### Team and billing
 
 **How do I invite a teammate?**
-Open `/<business-slug>/members`. Team invitations and role management require the Business plan.
+Open `/<business-slug>/settings/members`. Team invitations and role management require the Business plan.
 
 **Where are products managed?**
 Products are a main dashboard destination at `/<business-slug>/products`; the old settings pricing routes are removed.

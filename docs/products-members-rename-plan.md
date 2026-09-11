@@ -1,5 +1,7 @@
 # Rename Pricing Library To Products
 
+> Superseded in part: Members later moved back to `/:slug/settings/members` and the top-level `/members` route was removed.
+
 ## Summary
 
 Rename the quote-library concept from "Pricing" to "Products," move it from settings to a new `/products` main-dashboard route, and keep Members available only at `/members` in the main sidebar. Update the AI/importer terminology and persisted AI quote fields consistently, while preserving subscription billing pricing and ordinary quote price/review terminology.
