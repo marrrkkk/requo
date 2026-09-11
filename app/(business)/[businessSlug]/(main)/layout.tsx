@@ -23,6 +23,8 @@ import { getAccountProfileForUser } from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
+import { getUiScalePreferenceForUser } from "@/features/theme/ui-scale-queries";
+import { UiScaleSync } from "@/features/theme/components/ui-scale-sync";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
 import { getBusinessNotificationBellView } from "@/features/notifications/queries";
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
@@ -297,9 +299,17 @@ async function ChecklistSlot({ businessSlug }: { businessSlug: string }) {
 
 async function ThemeSyncSlot({ businessSlug }: { businessSlug: string }) {
   const { user } = await getAppShellContext(businessSlug);
-  const themePreference = await getThemePreferenceForUser(user.id);
+  const [themePreference, uiScale] = await Promise.all([
+    getThemePreferenceForUser(user.id),
+    getUiScalePreferenceForUser(user.id),
+  ]);
 
-  return <ThemePreferenceSync themePreference={themePreference} userId={user.id} />;
+  return (
+    <>
+      <ThemePreferenceSync themePreference={themePreference} userId={user.id} />
+      <UiScaleSync uiScale={uiScale} userId={user.id} />
+    </>
+  );
 }
 
 async function BannerSlot({ businessSlug }: { businessSlug: string }) {

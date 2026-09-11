@@ -1,29 +1,23 @@
 "use client";
 
 import { useTransition } from "react";
-import { MonitorCog, MoonStar, Sun } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { useTheme } from "@/components/theme-provider";
 import { updateThemePreferenceAction } from "@/features/theme/actions";
+import { InterfaceScaleSelect } from "@/features/theme/components/interface-scale-select";
 import {
   isThemePreference,
-  themePreferenceLabels,
   themePreferences,
   themeUserStorageKey,
   type ThemePreference,
 } from "@/features/theme/types";
 import { cn } from "@/lib/utils";
 
-const themePreferenceIcons = {
-  light: Sun,
-  dark: MoonStar,
-  system: MonitorCog,
-} satisfies Record<ThemePreference, typeof Sun>;
-
-const themePreferenceDescriptions: Record<ThemePreference, string> = {
-  light: "A clean, bright interface for daytime use.",
-  dark: "Easier on the eyes in low-light environments.",
-  system: "Matches your operating system preference automatically.",
+const themePreferenceCardLabels: Record<ThemePreference, string> = {
+  light: "Light",
+  dark: "Dark",
+  system: "System settings",
 };
 
 type AppearanceSettingsFormProps = {
@@ -54,46 +48,130 @@ export function AppearanceSettingsForm({ userId }: AppearanceSettingsFormProps) 
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      {themePreferences.map((preference) => {
-        const Icon = themePreferenceIcons[preference];
-        const isActive = activeTheme === preference;
+    <div className="flex w-full flex-col gap-8">
+      <section aria-labelledby="appearance-theme-heading" className="flex flex-col gap-3">
+        <h2
+          id="appearance-theme-heading"
+          className="text-sm leading-[1.35] font-medium text-foreground"
+        >
+          Appearance
+        </h2>
+        <div
+          role="radiogroup"
+          aria-label="Color theme"
+          className="grid gap-3 sm:grid-cols-3"
+        >
+          {themePreferences.map((preference) => {
+            const isActive = activeTheme === preference;
 
-        return (
-          <button
-            key={preference}
-            type="button"
-            disabled={isPending}
-            onClick={() => handleSelect(preference)}
-            className={cn(
-              "relative flex flex-col items-start gap-3 rounded-xl border p-4 text-left transition-colors",
-              "hover:border-primary/40 hover:bg-accent/40",
-              isActive
-                ? "border-primary bg-accent/50 ring-1 ring-primary/20"
-                : "border-border bg-card",
-              isPending && "opacity-60 pointer-events-none",
-            )}
+            return (
+              <div key={preference} className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={isActive}
+                  disabled={isPending}
+                  onClick={() => handleSelect(preference)}
+                  className={cn(
+                    "relative overflow-hidden rounded-xl border border-border text-left transition-colors",
+                    "focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+                    isPending && "pointer-events-none opacity-60",
+                  )}
+                >
+                  <ThemePreviewCard preference={preference} />
+                  {isActive && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute right-2 bottom-2 flex size-5 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm"
+                    >
+                      <Check className="size-3" strokeWidth={3} />
+                    </span>
+                  )}
+                  <span className="sr-only">
+                    {themePreferenceCardLabels[preference]}
+                    {isActive ? " (selected)" : ""}
+                  </span>
+                </button>
+                <p
+                  aria-hidden="true"
+                  className={cn(
+                    "text-sm leading-5",
+                    isActive
+                      ? "font-medium text-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {themePreferenceCardLabels[preference]}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section
+        aria-labelledby="appearance-interface-heading"
+        className="flex flex-col gap-3"
+      >
+        <div className="flex flex-col gap-1">
+          <h2
+            id="appearance-interface-heading"
+            className="text-sm leading-[1.35] font-medium text-foreground"
           >
-            <div className="flex w-full items-center justify-between">
-              <Icon className="size-5 text-muted-foreground" />
-              {isActive && (
-                <span className="text-xs font-medium uppercase tracking-wider text-primary">
-                  Active
-                </span>
-              )}
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">
-                {themePreferenceLabels[preference]}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {themePreferenceDescriptions[preference]}
-              </p>
-            </div>
-          </button>
-        );
-      })}
+            Interface
+          </h2>
+          <p className="text-sm leading-6 text-muted-foreground">
+            Adjust the size of the interface.
+          </p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="interface-scale"
+            className="text-sm leading-[1.35] font-medium text-muted-foreground"
+          >
+            Scale
+          </label>
+          <InterfaceScaleSelect userId={userId} id="interface-scale" />
+        </div>
+      </section>
     </div>
+  );
+}
+
+function ThemePreviewCard({ preference }: { preference: ThemePreference }) {
+  if (preference === "light") {
+    return (
+      <span aria-hidden="true" className="block bg-zinc-200 p-3">
+        <span className="block rounded-lg bg-white px-3 py-4 text-lg font-medium text-zinc-900">
+          Aa
+        </span>
+      </span>
+    );
+  }
+
+  if (preference === "dark") {
+    return (
+      <span aria-hidden="true" className="block bg-zinc-950 p-3">
+        <span className="block rounded-lg bg-zinc-900 px-3 py-4 text-lg font-medium text-white ring-1 ring-white/10">
+          Aa
+        </span>
+      </span>
+    );
+  }
+
+  return (
+    <span aria-hidden="true" className="flex bg-zinc-950">
+      <span className="flex-1 bg-zinc-200 p-3 pr-1.5">
+        <span className="block rounded-lg bg-white px-3 py-4 text-lg font-medium text-zinc-900">
+          Aa
+        </span>
+      </span>
+      <span className="flex-1 bg-zinc-950 p-3 pl-1.5">
+        <span className="block rounded-lg bg-zinc-900 px-3 py-4 text-lg font-medium text-white ring-1 ring-white/10">
+          Aa
+        </span>
+      </span>
+    </span>
   );
 }
 

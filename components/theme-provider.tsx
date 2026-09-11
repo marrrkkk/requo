@@ -16,9 +16,20 @@ import {
   type ThemePreference,
 } from "@/features/theme/types";
 import {
+  defaultUiScale,
+  isUiScale,
+  uiScaleRootFontSizePercent,
+  uiScaleStorageKey,
+  type UiScale,
+} from "@/features/theme/ui-scale-types";
+import {
   persistThemePreference,
   readPersistedThemePreference,
 } from "@/features/theme/persistence";
+import {
+  persistUiScalePreference,
+  readPersistedUiScalePreference,
+} from "@/features/theme/ui-scale-persistence";
 
 type ResolvedTheme = "light" | "dark";
 
@@ -28,12 +39,16 @@ type ThemeProviderProps = PropsWithChildren<{
   disableTransitionOnChange?: boolean;
   enableSystem?: boolean;
   storageKey?: string;
+  defaultUiScale?: UiScale;
+  uiScaleStorageKey?: string;
 }>;
 
 type ThemeContextValue = {
   resolvedTheme: ResolvedTheme;
   setTheme: (theme: ThemePreference) => void;
   theme: ThemePreference;
+  uiScale: UiScale;
+  setUiScale: (scale: UiScale) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -44,9 +59,14 @@ export function ThemeProvider({
   disableTransitionOnChange = false,
   enableSystem = true,
   storageKey = themeStorageKey,
+  defaultUiScale: defaultScale = defaultUiScale,
+  uiScaleStorageKey: scaleStorageKey = uiScaleStorageKey,
 }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<ThemePreference>(() =>
     readStoredTheme(storageKey, defaultTheme),
+  );
+  const [uiScale, setUiScaleState] = useState<UiScale>(() =>
+    readStoredUiScale(scaleStorageKey, defaultScale),
   );
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() =>
     getSystemTheme(),
@@ -75,9 +95,23 @@ export function ThemeProvider({
     [storageKey],
   );
 
+  const setUiScale = useCallback(
+    (nextScale: UiScale) => {
+      setUiScaleState(nextScale);
+      persistUiScalePreference(nextScale, {
+        storageKey: scaleStorageKey,
+      });
+    },
+    [scaleStorageKey],
+  );
+
   useEffect(() => {
     applyTheme(resolvedTheme);
   }, [applyTheme, resolvedTheme]);
+
+  useEffect(() => {
+    applyUiScale(uiScale);
+  }, [uiScale]);
 
   useEffect(() => {
     if (!enableSystem) {
@@ -117,13 +151,36 @@ export function ThemeProvider({
     };
   }, [defaultTheme, storageKey]);
 
+  useEffect(() => {
+    const handleScaleStorage = (event: StorageEvent) => {
+      if (event.key !== scaleStorageKey) {
+        return;
+      }
+
+      if (event.newValue && isUiScale(event.newValue)) {
+        setUiScaleState(event.newValue);
+        return;
+      }
+
+      setUiScaleState(defaultScale);
+    };
+
+    window.addEventListener("storage", handleScaleStorage);
+
+    return () => {
+      window.removeEventListener("storage", handleScaleStorage);
+    };
+  }, [defaultScale, scaleStorageKey]);
+
   const value = useMemo<ThemeContextValue>(
     () => ({
       resolvedTheme,
       setTheme,
       theme,
+      uiScale,
+      setUiScale,
     }),
-    [resolvedTheme, setTheme, theme],
+    [resolvedTheme, setTheme, theme, uiScale, setUiScale],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -140,6 +197,8 @@ export function useTheme() {
         resolvedTheme: "light",
         setTheme: () => {},
         theme: "system",
+        uiScale: "default",
+        setUiScale: () => {},
       } as ThemeContextValue;
     }
 
@@ -168,6 +227,27 @@ function readStoredTheme(
   } catch {}
 
   return fallbackTheme;
+}
+
+function readStoredUiScale(
+  storageKey: string,
+  fallbackScale: UiScale,
+): UiScale {
+  if (typeof window === "undefined") {
+    return fallbackScale;
+  }
+
+  try {
+    const storedScale = readPersistedUiScalePreference({
+      storageKey,
+    });
+
+    if (storedScale && isUiScale(storedScale)) {
+      return storedScale;
+    }
+  } catch {}
+
+  return fallbackScale;
 }
 
 function resolveTheme(
@@ -201,6 +281,13 @@ function applyResolvedTheme(theme: ResolvedTheme) {
 
   root.classList.toggle("dark", theme === "dark");
   root.style.colorScheme = theme;
+}
+
+function applyUiScale(scale: UiScale) {
+  const root = document.documentElement;
+
+  root.dataset.uiScale = scale;
+  root.style.fontSize = `${uiScaleRootFontSizePercent[scale]}%`;
 }
 
 function disableThemeTransitions() {
