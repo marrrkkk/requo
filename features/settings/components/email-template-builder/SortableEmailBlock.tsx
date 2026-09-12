@@ -208,7 +208,7 @@ export function SortableEmailBlock({
           <BlockContent block={block} templateKind={templateKind} />
         </div>
         {selected ? (
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="mt-1 text-caption-2-regular text-muted-foreground">
             Selected — edit in the inspector panel.
             {block.type === "cta"
               ? " One CTA per template. It moves and restyles, but stays visible."

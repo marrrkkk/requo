@@ -373,7 +373,7 @@ export function BusinessQuoteDefaultsStaticFallback() {
                 Follow up on viewed quotes
               </span>
               <span className="text-sm text-muted-foreground">
-                Create a follow-up task when a customer views a quote but hasn't
+                Create a follow-up task when a customer views a quote but hasn&apos;t
                 responded after the delay below.
               </span>
             </div>
