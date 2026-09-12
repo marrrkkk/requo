@@ -52,6 +52,13 @@ type BoarduiSettingsSidebarProps = {
   topSlot?: ReactNode;
   /** Rendered at the bottom of the sidebar in place of the demo team card. */
   bottomSlot?: ReactNode;
+  /** Rendered inside the mobile drawer: always expanded, close button instead of collapse. */
+  mobile?: boolean;
+  onClose?: () => void;
+  /** Hide the app-level theme control (e.g. mobile nav owns its own chrome). */
+  showThemeToggle?: boolean;
+  /** Extra classes merged onto the sidebar panel (e.g. fullscreen overrides). */
+  className?: string;
 };
 
 /**
@@ -68,6 +75,10 @@ export function BoarduiSettingsSidebar({
   groups,
   topSlot,
   bottomSlot,
+  mobile = false,
+  onClose,
+  showThemeToggle = true,
+  className,
 }: BoarduiSettingsSidebarProps) {
   const pathname = usePathname();
 
@@ -108,6 +119,10 @@ export function BoarduiSettingsSidebar({
       topSlot={topSlot}
       bottomSlot={bottomSlot}
       hideSecondaryNav
+      mobile={mobile}
+      onClose={onClose}
+      showThemeToggle={showThemeToggle}
+      className={className}
     />
   );
 }

@@ -18,6 +18,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MobileHeaderSlot, mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { DashboardTableContainer } from "@/components/shared/dashboard-layout";
 import { cn } from "@/lib/utils";
 import {
@@ -179,14 +180,20 @@ export function ServicesList({
         </div>
 
         {canCreateAdditionalForms ? (
+          <MobileHeaderSlot>
           <ResponsiveOverlay
             open={isCreateDialogOpen}
             onOpenChange={setIsCreateDialogOpen}
           >
             <ResponsiveOverlayTrigger asChild>
-              <Button size="sm">
+              <Button
+                aria-label="Create service"
+                title="Create service"
+                size="sm"
+                className={mobileNavbarIconButtonClassName}
+              >
                 <Plus data-icon="inline-start" />
-                Create service
+                <span className="hidden lg:inline">Create service</span>
               </Button>
             </ResponsiveOverlayTrigger>
             <ResponsiveOverlayContent className="sm:max-w-xl">
@@ -261,17 +268,25 @@ export function ServicesList({
               </form>
             </ResponsiveOverlayContent>
           </ResponsiveOverlay>
+          </MobileHeaderSlot>
         ) : (
+          <MobileHeaderSlot>
           <LockedAction
             feature="multipleForms"
             plan={effectiveplan}
             description="Create additional services for different offerings or audiences."
           >
-            <Button size="sm">
+            <Button
+              aria-label="Create service"
+              title="Create service"
+              size="sm"
+              className={mobileNavbarIconButtonClassName}
+            >
               <Plus data-icon="inline-start" />
-              Create service
+              <span className="hidden lg:inline">Create service</span>
             </Button>
           </LockedAction>
+          </MobileHeaderSlot>
         )}
       </div>
 

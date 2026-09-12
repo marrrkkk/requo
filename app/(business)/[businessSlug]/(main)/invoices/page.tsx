@@ -81,6 +81,7 @@ export default function InvoicesPage({
     <DashboardPage>
       <PageHeader
         title="Invoices"
+        className="[&_.dashboard-actions]:max-lg:hidden"
         actions={
           <Suspense fallback={<InvoiceListHeaderActionsFallback />}>
             <InvoicesHeaderActionsRegion params={params} searchParams={searchParams} />

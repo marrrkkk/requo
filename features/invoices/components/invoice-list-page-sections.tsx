@@ -5,6 +5,7 @@ import { DashboardListResultsSkeleton } from "@/components/shared/dashboard-list
 import {
   DashboardEmptyState,
 } from "@/components/shared/dashboard-layout";
+import { MobileHeaderSlot, mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { InvoiceExportCsvDropdown } from "@/features/invoices/components/invoice-export-csv-dropdown";
@@ -45,20 +46,26 @@ export async function InvoiceListHeaderActions({
   const totalItems = await totalItemsPromise;
 
   return (
-    <>
+    <MobileHeaderSlot>
       <InvoiceExportCsvDropdown
         businessSlug={businessSlug}
         canExport={canExport}
         filters={filters}
         resultCount={totalItems}
       />
-      <Button asChild className="h-11 sm:h-8">
+      <Button
+        asChild
+        aria-label="New invoice"
+        title="New invoice"
+        size="sm"
+        className={mobileNavbarIconButtonClassName}
+      >
         <Link href={getBusinessNewInvoicePath(businessSlug)} prefetch={true}>
           <ReceiptText data-icon="inline-start" />
-          New invoice
+          <span className="hidden lg:inline">New invoice</span>
         </Link>
       </Button>
-    </>
+    </MobileHeaderSlot>
   );
 }
 
@@ -149,8 +156,8 @@ export async function InvoiceListContentSection({
 export function InvoiceListHeaderActionsFallback() {
   return (
     <>
-      <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-32" />
-      <Skeleton className="h-11 w-full rounded-md sm:h-8 sm:w-36" />
+      <Skeleton className="h-8 w-full rounded-md sm:w-32" />
+      <Skeleton className="h-8 w-full rounded-md sm:w-36" />
     </>
   );
 }

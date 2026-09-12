@@ -14,6 +14,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MobileHeaderSlot, mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import {
   ResponsiveOverlay,
   ResponsiveOverlayContent,
@@ -195,39 +196,48 @@ export function BusinessProductLibraryManager({
           </TabsList>
         </Tabs>
 
-        <div className="flex flex-wrap gap-2">
+        <MobileHeaderSlot desktopClassName="flex flex-wrap gap-2">
           {importerEnabled ? (
             <Button
+              aria-label="Import from file"
+              title="Import from file"
               disabled={isAtLimit}
               onClick={() => setImporterOpen(true)}
               size="sm"
+              className={mobileNavbarIconButtonClassName}
               type="button"
               variant="outline"
             >
               <FileUp data-icon="inline-start" />
-              Import from file
+              <span className="hidden lg:inline">Import from file</span>
             </Button>
           ) : null}
           <Button
+            aria-label="New block"
+            title="New block"
             disabled={isAtLimit}
             onClick={() => openCreate("block")}
             size="sm"
+            className={mobileNavbarIconButtonClassName}
             type="button"
             variant="outline"
           >
             <Plus data-icon="inline-start" />
-            New block
+            <span className="hidden lg:inline">New block</span>
           </Button>
           <Button
+            aria-label="New package"
+            title="New package"
             disabled={isAtLimit}
             onClick={() => openCreate("package")}
             size="sm"
+            className={mobileNavbarIconButtonClassName}
             type="button"
           >
             <Plus data-icon="inline-start" />
-            New package
+            <span className="hidden lg:inline">New package</span>
           </Button>
-        </div>
+        </MobileHeaderSlot>
       </div>
 
       {/* Entries list */}

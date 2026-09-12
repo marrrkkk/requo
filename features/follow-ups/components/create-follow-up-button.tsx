@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { CalendarPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { Combobox } from "@/components/ui/combobox";
 import {
   ResponsiveOverlay,
@@ -144,9 +145,15 @@ export function CreateFollowUpButton({
       }}
     >
       <ResponsiveOverlayTrigger asChild>
-        <Button type="button">
+        <Button
+          aria-label="Create follow-up"
+          title="Create follow-up"
+          size="sm"
+          className={mobileNavbarIconButtonClassName}
+          type="button"
+        >
           <CalendarPlus data-icon="inline-start" />
-          Create follow-up
+          <span className="hidden lg:inline">Create follow-up</span>
         </Button>
       </ResponsiveOverlayTrigger>
       <ResponsiveOverlayContent className="sm:max-w-lg flex flex-col">

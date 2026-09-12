@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type ReactNode, useMemo, useTransition } from "react";
+import { type ReactNode, useMemo, useState, useTransition } from "react";
 import {
   ArrowLeft,
   Astroid,
   Bell,
   BookOpen,
   Building2,
-  ChevronsUpDown,
   FileText,
   Home as HomeIcon,
   LifeBuoy,
@@ -25,6 +24,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { authClient } from "@/lib/auth/client";
+import { ChevronDownSmall } from "@/components/foundations/icons/chevrons";
 import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-menu";
 import { clearPersistedThemePreference } from "@/features/theme/persistence";
 import { themeUserStorageKey } from "@/features/theme/types";
@@ -54,7 +54,9 @@ import {
   BreadcrumbItem,
 } from "@/components/base/breadcrumb/breadcrumb";
 import { getDashboardBreadcrumbs } from "@/components/shell/dashboard-navigation";
-import { MobileSettingsBottomNav } from "@/components/shell/mobile-settings-bottom-nav";
+import { MobileFloatingDock } from "@/components/shell/mobile-floating-dock";
+import { MobileFullscreenNav } from "@/components/shell/mobile-fullscreen-nav";
+import { MobileGlobalSearch } from "@/components/shell/mobile-global-search";
 import { MobileTopBar } from "@/components/shell/mobile-top-bar";
 import type { SettingsNavigationGroup } from "@/features/settings/navigation";
 
@@ -91,8 +93,6 @@ export type SettingsShellFrameProps = {
   businessSwitcherSlot: ReactNode;
   /** Streamed mobile top bar business switcher slot. */
   mobileBusinessSwitcherSlot?: ReactNode;
-  /** Streamed mobile top bar user menu slot. */
-  mobileUserMenuSlot?: ReactNode;
 };
 
 /**
@@ -117,15 +117,22 @@ export function SettingsShellFrame({
   userMenuSlot,
   businessSwitcherSlot,
   mobileBusinessSwitcherSlot,
-  mobileUserMenuSlot,
 }: SettingsShellFrameProps) {
   const businessDashboardPath = getBusinessDashboardPath(businessSlug);
   const pathname = usePathname();
+  const [navOpen, setNavOpen] = useState(false);
+  const [mainNavOpen, setMainNavOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const breadcrumbs = useMemo(
     () => getDashboardBreadcrumbs(pathname),
     [pathname],
   );
   const currentSectionLabel = breadcrumbs.at(-1)?.label ?? "Settings";
+  const sidebarBottomSlot =
+    userMenuSlot ??
+    (user ? (
+      <SettingsUserMenu user={user} businessSlug={businessSlug} />
+    ) : null);
 
   return (
     <SidebarProvider defaultOpen>
@@ -136,12 +143,7 @@ export function SettingsShellFrame({
             businessSlug={businessSlug}
             groups={groups}
             topSlot={businessSwitcherSlot}
-            bottomSlot={
-              userMenuSlot ??
-              (user ? (
-                <SettingsUserMenu user={user} businessSlug={businessSlug} />
-              ) : null)
-            }
+            bottomSlot={sidebarBottomSlot}
           />
         </div>
 
@@ -150,7 +152,6 @@ export function SettingsShellFrame({
           <MobileTopBar
             businessControl={mobileBusinessSwitcherSlot}
             pageTitle={currentSectionLabel}
-            userControl={mobileUserMenuSlot}
           />
 
           {/* Desktop topbar (lg and above) */}
@@ -206,16 +207,56 @@ export function SettingsShellFrame({
             </header>
           </div>
 
-          <div className="flex flex-1 flex-col pb-20 lg:pb-0">
+          <div className="flex flex-1 flex-col pb-28 lg:pb-0">
             <main className="dashboard-main">
-              <div className="dashboard-content dashboard-page">{children}</div>
+              <div className="dashboard-content dashboard-page px-1 sm:px-0">{children}</div>
             </main>
           </div>
 
-          <MobileSettingsBottomNav
+          {/* Mobile floating dock + fullscreen navs + global search.
+              Home always opens the main navigation, Settings opens the
+              settings navigation. */}
+          <MobileFloatingDock
+            navOpen={mainNavOpen}
+            settingsOpen={navOpen}
+            searchOpen={searchOpen}
+            onHomeClick={() => {
+              setSearchOpen(false);
+              setNavOpen(false);
+              setMainNavOpen((current) => !current);
+            }}
+            onSearchClick={() => {
+              setNavOpen(false);
+              setMainNavOpen(false);
+              setSearchOpen((current) => !current);
+            }}
+            onSettingsClick={() => {
+              setMainNavOpen(false);
+              setSearchOpen(false);
+              setNavOpen((current) => !current);
+            }}
+          />
+          <MobileFullscreenNav
+            open={mainNavOpen}
+            onOpenChange={setMainNavOpen}
             businessSlug={businessSlug}
+            variant="main"
+            topSlot={businessSwitcherSlot}
+            bottomSlot={sidebarBottomSlot}
+          />
+          <MobileFullscreenNav
+            open={navOpen}
+            onOpenChange={setNavOpen}
+            businessSlug={businessSlug}
+            variant="settings"
             groups={groups}
-            userMenuSlot={userMenuSlot ?? (user ? <SettingsUserMenu user={user} businessSlug={businessSlug} /> : null)}
+            topSlot={businessSwitcherSlot}
+            bottomSlot={sidebarBottomSlot}
+          />
+          <MobileGlobalSearch
+            open={searchOpen}
+            onOpenChange={setSearchOpen}
+            businessSlug={businessSlug}
           />
         </div>
       </div>
@@ -254,33 +295,37 @@ export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserDat
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
-              className="cursor-pointer group-data-[collapsed=true]/sidebar:h-9 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:p-0 data-[state=open]:bg-sidebar-accent"
+              className="h-auto cursor-pointer justify-between rounded-xl border-2 border-transparent bg-sidebar-accent py-2 pr-4 pl-2.5 hover:border-sidebar-border hover:bg-sidebar-accent group-data-[collapsed=true]/sidebar:h-9 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:border-transparent group-data-[collapsed=true]/sidebar:bg-transparent group-data-[collapsed=true]/sidebar:p-0 data-[state=open]:bg-sidebar-accent"
               size="lg"
               tooltip={user.name}
             >
-              <Avatar className="size-8 rounded-lg">
-                {user.avatarSrc ? (
-                  <AvatarImage
-                    alt={`${user.name} avatar`}
-                    src={user.avatarSrc}
-                    loading="eager"
-                    decoding="async"
-                    fetchPriority="high"
-                  />
-                ) : null}
-                <AvatarFallback className="rounded-lg">
-                  {getInitials(user.name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden">
-                <span className="truncate text-sm font-medium text-sidebar-foreground">
-                  {user.name}
+              <span className="flex min-w-0 items-center gap-2">
+                <Avatar className="size-8 rounded-full border-0 bg-transparent">
+                  {user.avatarSrc ? (
+                    <AvatarImage
+                      alt={`${user.name} avatar`}
+                      src={user.avatarSrc}
+                      loading="eager"
+                      decoding="async"
+                      fetchPriority="high"
+                    />
+                  ) : null}
+                  <AvatarFallback className="border-0 bg-transparent text-foreground">
+                    {getInitials(user.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="flex min-w-0 flex-1 flex-col items-start justify-center group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden">
+                  <span className="w-full truncate text-body-medium text-foreground">
+                    {user.name}
+                  </span>
+                  <span className="w-full truncate text-body-regular text-muted-foreground">
+                    {user.email}
+                  </span>
                 </span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {user.email}
-                </span>
-              </div>
-              <ChevronsUpDown className="ml-auto text-muted-foreground group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden" />
+              </span>
+              <span className="flex size-4 shrink-0 items-center justify-center rounded-xs bg-card group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden">
+                <ChevronDownSmall className="size-4 text-muted-foreground" />
+              </span>
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
