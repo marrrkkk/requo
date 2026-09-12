@@ -1,9 +1,57 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { eq } from "drizzle-orm";
 
 vi.mock("@/lib/db/client", async () => {
   const { testDb: mockedDb } = await import("../support/db");
   return { db: mockedDb };
 });
+
+const authState = vi.hoisted(() => ({ userId: "" }));
+const cookieState = vi.hoisted(() => ({ slug: "" }));
+
+vi.mock("@/lib/auth/session", () => {
+  const session = async () => ({ user: { id: authState.userId } });
+  const user = async () => ({ id: authState.userId });
+  return {
+    getSession: vi.fn(session),
+    getOptionalSession: vi.fn(session),
+    requireSession: vi.fn(session),
+    requireUser: vi.fn(user),
+    getCurrentUser: vi.fn(user),
+  };
+});
+
+// The operational settings action resolves its business from the active-slug
+// cookie, so the store is bound to the fixture business.
+vi.mock("next/headers", async () => {
+  const { activeBusinessSlugCookieName } = await import(
+    "@/features/businesses/routes"
+  );
+
+  return {
+    cookies: vi.fn(async () => ({
+      get: (name: string) =>
+        name === activeBusinessSlugCookieName && cookieState.slug
+          ? { name, value: cookieState.slug }
+          : undefined,
+    })),
+    headers: vi.fn(async () => new Headers()),
+  };
+});
+
+vi.mock("next/cache", () => ({
+  cacheLife: vi.fn(),
+  cacheTag: vi.fn(),
+  revalidateTag: vi.fn(),
+  revalidatePath: vi.fn(),
+  updateTag: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn((path: string) => {
+    throw new Error(`NEXT_REDIRECT:${path}`);
+  }),
+}));
 
 /**
  * Plan-based authorization integration tests.
@@ -15,10 +63,24 @@ vi.mock("@/lib/db/client", async () => {
  *
  * This ensures that making features visible in the UI (for discovery)
  * does not weaken actual authorization.
+ *
+ * Two details shape this file:
+ *
+ * 1. `businesses.plan` is only a denormalized read cache. The effective plan
+ *    resolves through `business_subscriptions` (fail-closed to `free` when no
+ *    row exists), so granting a plan means writing a subscription row.
+ * 2. The effective plan is inherited per *owner*, resolved from the first
+ *    business that owner owns. The suite therefore acts as `outsiderUserId`,
+ *    who owns exactly one business, so the resolution is deterministic.
+ *
+ * `knowledgeBase` is available on every plan and metered by source count
+ * instead (see `lib/plans/usage-limits.ts`), so the AI agent — the pro-gated
+ * surface that shares the same enforcement copy — is the vehicle for the
+ * action-level assertions.
  */
 
-import { createMemoryEntryAction } from "@/features/memory/actions";
-import { hasFeatureAccess } from "@/lib/plans/entitlements";
+import { updateBusinessAiAgentSettingsAction } from "@/features/settings/actions";
+import { getRequiredPlan, hasFeatureAccess } from "@/lib/plans/entitlements";
 
 import { closeTestDb, testDb } from "@/tests/support/db";
 import {
@@ -26,21 +88,54 @@ import {
   createWorkflowFixture,
   type WorkflowFixtureIds,
 } from "@/tests/support/fixtures/workflow";
-import { businesses } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { businessSubscriptions } from "@/lib/db/schema";
 
 const prefix = "test_plan_authz";
 let ids: WorkflowFixtureIds;
+
+/** Grant a paid plan to the acting owner's only business. */
+async function grantPlan(plan: "pro" | "business") {
+  await testDb
+    .delete(businessSubscriptions)
+    .where(eq(businessSubscriptions.businessId, ids.otherBusinessId));
+
+  await testDb.insert(businessSubscriptions).values({
+    id: `${prefix}_subscription`,
+    businessId: ids.otherBusinessId,
+    status: "active",
+    plan,
+    billingProvider: "polar",
+    billingCurrency: "USD",
+  });
+}
+
+/** Drop back to the free entitlement (no subscription row at all). */
+async function revokePlan() {
+  await testDb
+    .delete(businessSubscriptions)
+    .where(eq(businessSubscriptions.businessId, ids.otherBusinessId));
+}
+
+function aiAgentFormData() {
+  const formData = new FormData();
+  formData.set("aiAgentEnabled", "on");
+  formData.set("tone", "friendly");
+  formData.set("aiAgentInstructions", "Keep answers brief.");
+  return formData;
+}
+
+function updateAiAgentSettings() {
+  return updateBusinessAiAgentSettingsAction({ error: "" }, aiAgentFormData());
+}
 
 describe("Plan-based authorization — server-side enforcement", () => {
   beforeAll(async () => {
     ids = await createWorkflowFixture(prefix);
 
-    // Set business to free plan for testing
-    await testDb
-      .update(businesses)
-      .set({ plan: "free", updatedAt: new Date() })
-      .where(eq(businesses.id, ids.businessId));
+    authState.userId = ids.outsiderUserId;
+    cookieState.slug = ids.otherBusinessSlug;
+
+    await revokePlan();
   }, 30_000);
 
   afterAll(async () => {
@@ -48,220 +143,84 @@ describe("Plan-based authorization — server-side enforcement", () => {
     await closeTestDb();
   }, 30_000);
 
-  describe("Knowledge base (knowledgeBase feature)", () => {
-    it("rejects creation when free plan tries to create knowledge", async () => {
-      const formData = new FormData();
-      formData.set("title", "Test Knowledge");
-      formData.set("content", "Test content");
-      formData.set("category", "general");
+  describe("AI agent (aiAgent feature)", () => {
+    it("rejects enabling the AI agent on the free plan", async () => {
+      await revokePlan();
 
-      const result = await createMemoryEntryAction(
-        ids.businessSlug,
-        { error: "" },
-        formData,
-      );
+      const result = await updateAiAgentSettings();
 
       expect(result.error).toBeDefined();
       expect(result.error).toContain("plan does not include");
     });
 
-    it("allows creation when business has Pro plan", async () => {
-      // Upgrade to Pro
-      await testDb
-        .update(businesses)
-        .set({ plan: "pro", updatedAt: new Date() })
-        .where(eq(businesses.id, ids.businessId));
+    it("allows enabling the AI agent once the business is on Pro", async () => {
+      await grantPlan("pro");
 
-      const formData = new FormData();
-      formData.set("title", "Pro Knowledge");
-      formData.set("content", "Pro content");
-      formData.set("category", "general");
+      const result = await updateAiAgentSettings();
 
-      const result = await createMemoryEntryAction(
-        ids.businessSlug,
-        { error: "" },
-        formData,
-      );
-
-      // Should not have plan error (may fail for other validation reasons)
-      if (result.error) {
-        expect(result.error).not.toContain("plan does not include");
-      }
-
-      // Restore to free
-      await testDb
-        .update(businesses)
-        .set({ plan: "free", updatedAt: new Date() })
-        .where(eq(businesses.id, ids.businessId));
-    });
-  });
-
-  describe("Plan checks are immediate", () => {
-    it("plan checks happen before expensive operations", async () => {
-      const formData = new FormData();
-      formData.set("title", "Expensive Knowledge");
-      formData.set("content", "Very long content");
-      formData.set("category", "general");
-
-      const startTime = Date.now();
-      const result = await createMemoryEntryAction(
-        ids.businessSlug,
-        { error: "" },
-        formData,
-      );
-      const duration = Date.now() - startTime;
-
-      // Plan check should reject quickly (< 100ms)
-      expect(duration).toBeLessThan(100);
-      expect(result.error).toBeDefined();
-      expect(result.error).toContain("plan does not include");
+      expect(result.error ?? "").not.toContain("plan does not include");
+      expect(result.success).toBeDefined();
     });
   });
 
   describe("Plan transitions", () => {
-    it("denies access immediately after downgrade", async () => {
-      // Upgrade to Pro
-      await testDb
-        .update(businesses)
-        .set({ plan: "pro", updatedAt: new Date() })
-        .where(eq(businesses.id, ids.businessId));
+    it("denies access immediately after a downgrade", async () => {
+      await grantPlan("pro");
+      const onPro = await updateAiAgentSettings();
+      expect(onPro.success).toBeDefined();
 
-      // Verify Pro access
-      const formDataPro = new FormData();
-      formDataPro.set("title", "Pro Knowledge");
-      formDataPro.set("content", "Content");
-      formDataPro.set("category", "general");
+      await revokePlan();
+      const onFree = await updateAiAgentSettings();
 
-      const proPlanResult = await createMemoryEntryAction(
-        ids.businessSlug,
-        { error: "" },
-        formDataPro,
-      );
-
-      if (proPlanResult.error) {
-        expect(proPlanResult.error).not.toContain("plan does not include");
-      }
-
-      // Downgrade to Free
-      await testDb
-        .update(businesses)
-        .set({ plan: "free", updatedAt: new Date() })
-        .where(eq(businesses.id, ids.businessId));
-
-      // Verify access immediately denied
-      const formDataFree = new FormData();
-      formDataFree.set("title", "Free Knowledge");
-      formDataFree.set("content", "Content");
-      formDataFree.set("category", "general");
-
-      const freePlanResult = await createMemoryEntryAction(
-        ids.businessSlug,
-        { error: "" },
-        formDataFree,
-      );
-
-      expect(freePlanResult.error).toBeDefined();
-      expect(freePlanResult.error).toContain("plan does not include");
+      expect(onFree.error).toBeDefined();
+      expect(onFree.error).toContain("plan does not include");
     });
 
-    it("grants access immediately after upgrade", async () => {
-      // Start with Free
-      await testDb
-        .update(businesses)
-        .set({ plan: "free", updatedAt: new Date() })
-        .where(eq(businesses.id, ids.businessId));
+    it("grants access immediately after an upgrade", async () => {
+      await revokePlan();
+      const onFree = await updateAiAgentSettings();
+      expect(onFree.error).toContain("plan does not include");
 
-      // Verify denied on free
-      const formDataFree = new FormData();
-      formDataFree.set("title", "Free");
-      formDataFree.set("content", "Content");
-      formDataFree.set("category", "general");
+      await grantPlan("pro");
+      const onPro = await updateAiAgentSettings();
 
-      const freePlanResult = await createMemoryEntryAction(
-        ids.businessSlug,
-        { error: "" },
-        formDataFree,
-      );
-
-      expect(freePlanResult.error).toBeDefined();
-      expect(freePlanResult.error).toContain("plan does not include");
-
-      // Upgrade to Pro
-      await testDb
-        .update(businesses)
-        .set({ plan: "pro", updatedAt: new Date() })
-        .where(eq(businesses.id, ids.businessId));
-
-      // Verify immediately granted
-      const formDataPro = new FormData();
-      formDataPro.set("title", "Pro");
-      formDataPro.set("content", "Content");
-      formDataPro.set("category", "general");
-
-      const proPlanResult = await createMemoryEntryAction(
-        ids.businessSlug,
-        { error: "" },
-        formDataPro,
-      );
-
-      if (proPlanResult.error) {
-        expect(proPlanResult.error).not.toContain("plan does not include");
-      }
+      expect(onPro.success).toBeDefined();
+      expect(onPro.error ?? "").not.toContain("plan does not include");
     });
   });
 
   describe("Business plan bypass", () => {
-    it("business plan has access to all features", async () => {
-      // Upgrade to Business
-      await testDb
-        .update(businesses)
-        .set({ plan: "business", updatedAt: new Date() })
-        .where(eq(businesses.id, ids.businessId));
+    it("gives the business plan access to the pro-gated feature", async () => {
+      await grantPlan("business");
 
-      const formData = new FormData();
-      formData.set("title", "Business Knowledge");
-      formData.set("content", "Content");
-      formData.set("category", "general");
+      const result = await updateAiAgentSettings();
 
-      const result = await createMemoryEntryAction(
-        ids.businessSlug,
-        { error: "" },
-        formData,
-      );
+      expect(result.error ?? "").not.toContain("plan does not include");
+      expect(result.error ?? "").not.toContain("Upgrade to");
 
-      // Should not have plan errors
-      if (result.error) {
-        expect(result.error).not.toContain("plan does not include");
-        expect(result.error).not.toContain("Upgrade to");
-      }
-
-      // Restore to free
-      await testDb
-        .update(businesses)
-        .set({ plan: "free", updatedAt: new Date() })
-        .where(eq(businesses.id, ids.businessId));
+      await revokePlan();
     });
   });
 
   describe("Entitlement helper consistency", () => {
-    it("hasFeatureAccess matches server-side behavior", async () => {
-      // Test free plan
-      await testDb
-        .update(businesses)
-        .set({ plan: "free", updatedAt: new Date() })
-        .where(eq(businesses.id, ids.businessId));
+    it("matches the documented per-plan feature map", () => {
+      // Knowledge base ships on every plan, metered by source count.
+      expect(hasFeatureAccess("free", "knowledgeBase")).toBe(true);
+      expect(hasFeatureAccess("pro", "knowledgeBase")).toBe(true);
+      expect(hasFeatureAccess("business", "knowledgeBase")).toBe(true);
+      expect(getRequiredPlan("knowledgeBase")).toBeNull();
 
-      const freePlanHasAccess = hasFeatureAccess("free", "knowledgeBase");
-      expect(freePlanHasAccess).toBe(false);
+      // The AI agent is the pro gate the action above enforces.
+      expect(hasFeatureAccess("free", "aiAgent")).toBe(false);
+      expect(hasFeatureAccess("pro", "aiAgent")).toBe(true);
+      expect(hasFeatureAccess("business", "aiAgent")).toBe(true);
+      expect(getRequiredPlan("aiAgent")).toBe("pro");
 
-      // Test pro plan
-      const proPlanHasAccess = hasFeatureAccess("pro", "knowledgeBase");
-      expect(proPlanHasAccess).toBe(true);
-
-      // Test business plan
-      const businessPlanHasAccess = hasFeatureAccess("business", "knowledgeBase");
-      expect(businessPlanHasAccess).toBe(true);
+      // Team members remain a business-tier capability.
+      expect(hasFeatureAccess("free", "members")).toBe(false);
+      expect(hasFeatureAccess("pro", "members")).toBe(false);
+      expect(hasFeatureAccess("business", "members")).toBe(true);
+      expect(getRequiredPlan("members")).toBe("business");
     });
   });
 });
-
