@@ -39,9 +39,9 @@ export type RoutingProfileDefinition = {
 const ASSISTANT_CHAT_ORDER = [
   "google:gemini-2.5-flash-lite",
   "cerebras:gpt-oss-120b",
-  "cerebras:qwen-3-32b",
+  "cerebras:qwen-3.8-27b",
   "mistral:mistral-medium-latest",
-  "openrouter:z-ai/glm-4.5-air:free",
+  "openrouter:google/gemma-4-31b-it:free",
   "groq:openai/gpt-oss-120b",
   "groq:openai/gpt-oss-20b",
   "google:gemini-2.5-flash",
@@ -57,7 +57,7 @@ const AGENT_CHAT_ORDER = [
   "groq:openai/gpt-oss-120b",
   "google:gemini-2.5-flash-lite",
   "cerebras:gpt-oss-120b",
-  "cerebras:qwen-3-32b",
+  "cerebras:qwen-3.8-27b",
   "mistral:mistral-small-latest",
   "openrouter:nvidia/nemotron-3-super-120b-a12b:free",
 ] as Array<`${string}:${string}`>;
@@ -70,11 +70,11 @@ const AGENT_CHAT_ORDER = [
 const QUOTE_ORDER = [
   "mistral:mistral-medium-latest",
   "cerebras:gpt-oss-120b",
-  "cerebras:qwen-3-32b",
+  "cerebras:qwen-3.8-27b",
   "google:gemini-2.5-flash",
-  "openrouter:deepseek/deepseek-v4-flash:free",
+  "openrouter:nvidia/nemotron-3.5-lightning:free",
   "openrouter:nvidia/nemotron-3-super-120b-a12b:free",
-  "openrouter:openai/gpt-oss-120b:free",
+  "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free",
   "google:gemini-2.5-pro",
 ] as Array<`${string}:${string}`>;
 
@@ -85,9 +85,9 @@ const QUOTE_ORDER = [
 const SHORT_TEXT_ORDER = [
   "groq:openai/gpt-oss-20b",
   "cloudflare:@cf/openai/gpt-oss-20b",
-  "cerebras:qwen-3-32b",
-  "nvidia:meta/llama-3.1-8b-instruct",
-  "openrouter:z-ai/glm-4.5-air:free",
+  "cerebras:qwen-3.8-27b",
+  "nvidia:openai/gpt-oss-20b",
+  "openrouter:google/gemma-4-31b-it:free",
 ] as Array<`${string}:${string}`>;
 
 const EXTRACTION_ORDER = [
