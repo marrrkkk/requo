@@ -21,14 +21,30 @@ const orchestratorEnv = vi.hoisted(() => ({
   nvidia: true,
 }));
 
+// Getters, not captured values: model selection reads these per call, and
+// tests toggle providers off to assert the unavailable path.
 vi.mock("@/lib/env", () => ({
-  isGroqConfigured: orchestratorEnv.groq,
-  isCerebrasConfigured: orchestratorEnv.cerebras,
-  isGeminiConfigured: orchestratorEnv.gemini,
-  isOpenRouterConfigured: orchestratorEnv.openrouter,
-  isMistralConfigured: orchestratorEnv.mistral,
-  isCloudflareAiConfigured: orchestratorEnv.cloudflare,
-  isNvidiaNimConfigured: orchestratorEnv.nvidia,
+  get isGroqConfigured() {
+    return orchestratorEnv.groq;
+  },
+  get isCerebrasConfigured() {
+    return orchestratorEnv.cerebras;
+  },
+  get isGeminiConfigured() {
+    return orchestratorEnv.gemini;
+  },
+  get isOpenRouterConfigured() {
+    return orchestratorEnv.openrouter;
+  },
+  get isMistralConfigured() {
+    return orchestratorEnv.mistral;
+  },
+  get isCloudflareAiConfigured() {
+    return orchestratorEnv.cloudflare;
+  },
+  get isNvidiaNimConfigured() {
+    return orchestratorEnv.nvidia;
+  },
 }));
 
 const orchestratorCache = vi.hoisted(() => ({ map: new Map<string, unknown>() }));
@@ -405,7 +421,7 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
         customerContactMethod: "email",
         customerContactHandle: "sam@example.com",
         customerEmail: "sam@example.com",
-        serviceCategory: "Banners",
+        serviceSlug: "banners",
         details: "Two vinyl banners for a weekend sale.",
       }),
       textTurn("Review what I'll send below."),
@@ -449,7 +465,7 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
       status: "pending",
       values: expect.objectContaining({
         customerName: "Sam Rivera",
-        serviceCategory: "Banners",
+        serviceSlug: "banners",
       }),
     });
   });
@@ -461,7 +477,7 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
         customerName: "Sam Rivera",
         customerContactMethod: "email",
         customerContactHandle: "sam@example.com",
-        serviceCategory: "Banners",
+        serviceSlug: "banners",
         details: "Two vinyl banners.",
       }),
       textTurn("First draft."),
@@ -479,7 +495,7 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
         customerName: "Sam Rivera",
         customerContactMethod: "email",
         customerContactHandle: "sam@example.com",
-        serviceCategory: "Banners",
+        serviceSlug: "banners",
         details: "Three vinyl banners.",
       }),
       textTurn("Revised."),
@@ -509,7 +525,7 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
         customerName: "Sam Rivera",
         customerContactMethod: "email",
         customerContactHandle: "sam@example.com",
-        serviceCategory: "Banners",
+        serviceSlug: "banners",
         details: "Two vinyl banners.",
       }),
       textTurn("Draft ready."),
@@ -556,9 +572,15 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
     };
     vi.mocked(registry.languageModel).mockReturnValue(model as never);
 
-    await expect(
-      runAgent({ sessionToken: session.publicToken, userMessage: "Hi" }),
-    ).rejects.toThrow("Provider unavailable");
+    // The failure surfaces after the stream has been handed back, so the
+    // surface answers with its own copy instead of throwing at the caller.
+    const response = await runAgent({
+      sessionToken: session.publicToken,
+      userMessage: "Hi",
+    });
+    expect(response.status).toBe(200);
+    // The provider's message must never reach the customer.
+    expect(await readStreamText(response)).not.toContain("Provider unavailable");
 
     const latestRun = await testDb.query.aiAgentRuns.findFirst({
       where: (runs, { eq: rawEq }) => rawEq(runs.sessionId, session.sessionId),

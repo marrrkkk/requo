@@ -17,14 +17,30 @@ const envState = vi.hoisted(() => ({
   nvidia: true,
 }));
 
+// Getters, not captured values: the router reads these per call, and tests
+// toggle providers off to assert the unavailable path.
 vi.mock("@/lib/env", () => ({
-  isGroqConfigured: envState.groq,
-  isCerebrasConfigured: envState.cerebras,
-  isGeminiConfigured: envState.gemini,
-  isOpenRouterConfigured: envState.openrouter,
-  isMistralConfigured: envState.mistral,
-  isCloudflareAiConfigured: envState.cloudflare,
-  isNvidiaNimConfigured: envState.nvidia,
+  get isGroqConfigured() {
+    return envState.groq;
+  },
+  get isCerebrasConfigured() {
+    return envState.cerebras;
+  },
+  get isGeminiConfigured() {
+    return envState.gemini;
+  },
+  get isOpenRouterConfigured() {
+    return envState.openrouter;
+  },
+  get isMistralConfigured() {
+    return envState.mistral;
+  },
+  get isCloudflareAiConfigured() {
+    return envState.cloudflare;
+  },
+  get isNvidiaNimConfigured() {
+    return envState.nvidia;
+  },
 }));
 
 // NOTE: no capacity-selector mock — selection and fallback run for real.

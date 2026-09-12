@@ -72,7 +72,7 @@ describe("ai-agent sessions & messages", () => {
     expect(session.state).toEqual({
       collected: {},
       values: {},
-      missing: ["customerName", "customerContactMethod", "customerContactHandle", "serviceCategory", "details"],
+      missing: ["customerName", "customerContactMethod", "customerContactHandle", "serviceSlug", "details"],
     });
     expect(session.completedAt).toBeNull();
   });
@@ -109,8 +109,8 @@ describe("ai-agent sessions & messages", () => {
     await updateSessionState({
       sessionId: result.sessionId,
       state: {
-        collected: { customerName: true, serviceCategory: true },
-        values: { customerName: "Taylor Nguyen", serviceCategory: "Window graphics" },
+        collected: { customerName: true, serviceSlug: true },
+        values: { customerName: "Taylor Nguyen", serviceSlug: "window-graphics" },
         missing: ["customerContactMethod", "customerContactHandle", "details"],
       },
     });
@@ -126,8 +126,8 @@ describe("ai-agent sessions & messages", () => {
       .where(eq(aiAgentSessions.id, result.sessionId));
 
     expect(updated.state).toEqual({
-      collected: { customerName: true, serviceCategory: true },
-      values: { customerName: "Taylor Nguyen", serviceCategory: "Window graphics" },
+      collected: { customerName: true, serviceSlug: true },
+      values: { customerName: "Taylor Nguyen", serviceSlug: "window-graphics" },
       missing: ["customerContactMethod", "customerContactHandle", "details"],
     });
     expect(updated.metadata).toEqual({ searchAttempts: 2, customRef: "kept" });
@@ -193,7 +193,7 @@ describe("ai-agent sessions & messages", () => {
         customerName: "Ana Torres",
         customerContactMethod: "email",
         customerContactHandle: "ana@example.com",
-        serviceCategory: "Signage",
+        serviceSlug: "signage",
         details: "Two panels.",
       },
       proposedAt: new Date().toISOString(),

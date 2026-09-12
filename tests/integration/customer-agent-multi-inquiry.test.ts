@@ -94,7 +94,7 @@ describe("customer agent multi-inquiry (approval-gated)", () => {
       customerEmail: "john@example.com",
       customerContactMethod: "email",
       customerContactHandle: "john@example.com",
-      serviceCategory: "Website Development",
+      serviceSlug: "website-development",
       details: "Need an e-commerce site",
     });
 
@@ -105,7 +105,7 @@ describe("customer agent multi-inquiry (approval-gated)", () => {
       customerEmail: "john@example.com",
       customerContactMethod: "email",
       customerContactHandle: "john@example.com",
-      serviceCategory: "Mobile App Development",
+      serviceSlug: "mobile-app-development",
       details: "Need a mobile app for my bakery",
     });
 
@@ -124,9 +124,12 @@ describe("customer agent multi-inquiry (approval-gated)", () => {
     );
 
     expect(sessionInquiries).toHaveLength(2);
-    expect(sessionInquiries[0].source).toBe("ai_agent");
-    expect(sessionInquiries[1].source).toBe("ai_agent");
-  });
+    expect(sessionInquiries[0].source).toBe("ai_assistant");
+    expect(sessionInquiries[1].source).toBe("ai_assistant");
+    expect(sessionInquiries[0].businessInquiryFormId).toBe(ids.formId);
+    expect(sessionInquiries[1].businessInquiryFormId).toBe(ids.formId);
+    // Two propose + approve cycles against a real database.
+  }, 30_000);
 
   it("tracks all created inquiry IDs in session metadata", async () => {
     const { sessionId, publicToken } = await createActiveAgentSession(ids.businessId);
@@ -136,7 +139,7 @@ describe("customer agent multi-inquiry (approval-gated)", () => {
       customerEmail: "jane@example.com",
       customerContactMethod: "email",
       customerContactHandle: "jane@example.com",
-      serviceCategory: "Consulting",
+      serviceSlug: "consulting",
       details: "Need business consulting",
     });
 
@@ -145,7 +148,7 @@ describe("customer agent multi-inquiry (approval-gated)", () => {
       customerEmail: "jane@example.com",
       customerContactMethod: "email",
       customerContactHandle: "jane@example.com",
-      serviceCategory: "Training",
+      serviceSlug: "training",
       details: "Need staff training",
     });
 
@@ -161,7 +164,7 @@ describe("customer agent multi-inquiry (approval-gated)", () => {
     expect(metadata.createdInquiryIds).toContain(result1.inquiryId);
     expect(metadata.createdInquiryIds).toContain(result2.inquiryId);
     expect(metadata.lastCreatedInquiryId).toBe(result2.inquiryId);
-  });
+  }, 30_000);
 
   it("session status is completed after approval", async () => {
     const { sessionId, publicToken } = await createActiveAgentSession(ids.businessId);
@@ -171,7 +174,7 @@ describe("customer agent multi-inquiry (approval-gated)", () => {
       customerEmail: "test@example.com",
       customerContactMethod: "email",
       customerContactHandle: "test@example.com",
-      serviceCategory: "General",
+      serviceSlug: "general",
       details: "Test inquiry",
     });
 
@@ -184,5 +187,5 @@ describe("customer agent multi-inquiry (approval-gated)", () => {
 
     expect(session.status).toBe("completed");
     expect(session.completedAt).toBeInstanceOf(Date);
-  });
+  }, 30_000);
 });
