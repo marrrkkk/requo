@@ -23,6 +23,7 @@ import type { BusinessContext } from "@/lib/db/business-access";
 import type { BusinessQuotaSnapshot } from "@/features/businesses/types";
 import { BusinessAvatar } from "@/components/shared/business-avatar";
 import { PlanBadge } from "@/components/shared/paywall";
+import { ChevronDownSmall } from "@/components/foundations/icons/chevrons";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -379,27 +380,31 @@ export function DashboardUserMenu({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
-              className="cursor-pointer group-data-[collapsed=true]/sidebar:h-9 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:p-0 data-[state=open]:bg-sidebar-accent"
+              className="h-auto cursor-pointer justify-between rounded-xl border-2 border-transparent bg-sidebar-accent py-2 pr-4 pl-2.5 hover:border-sidebar-border hover:bg-sidebar-accent group-data-[collapsed=true]/sidebar:h-9 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:border-transparent group-data-[collapsed=true]/sidebar:bg-transparent group-data-[collapsed=true]/sidebar:p-0 data-[state=open]:bg-sidebar-accent"
               size="lg"
               tooltip={user.name}
             >
-              <Avatar className="rounded-lg">
-                {user.avatarSrc ? (
-                  <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
-                ) : null}
-                <AvatarFallback className="rounded-lg">
-                  {getInitials(user.name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden">
-                <span className="truncate text-sm font-medium text-sidebar-foreground">
-                  {user.name}
+              <span className="flex min-w-0 items-center gap-2">
+                <Avatar className="rounded-full border-0 bg-transparent">
+                  {user.avatarSrc ? (
+                    <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
+                  ) : null}
+                  <AvatarFallback className="border-0 bg-transparent text-foreground">
+                    {getInitials(user.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="flex min-w-0 flex-1 flex-col items-start justify-center group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden">
+                  <span className="w-full truncate text-body-medium text-foreground">
+                    {user.name}
+                  </span>
+                  <span className="w-full truncate text-body-regular text-muted-foreground">
+                    {user.email}
+                  </span>
                 </span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {user.email}
-                </span>
-              </div>
-              <ChevronsUpDown className="ml-auto text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[state=open]/menu-button:rotate-180 group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden" />
+              </span>
+              <span className="flex size-4 shrink-0 items-center justify-center rounded-xs bg-card group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden">
+                <ChevronDownSmall className="size-4 text-muted-foreground" />
+              </span>
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

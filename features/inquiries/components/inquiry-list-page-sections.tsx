@@ -5,6 +5,7 @@ import { DashboardListResultsSkeleton } from "@/components/shared/dashboard-list
 import {
   DashboardEmptyState,
 } from "@/components/shared/dashboard-layout";
+import { MobileHeaderSlot, mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ArchivedInquiriesSheet } from "@/features/inquiries/components/archived-inquiries-sheet";
@@ -78,7 +79,7 @@ export async function InquiryListHeaderActions({
   ];
 
   return (
-    <>
+    <MobileHeaderSlot>
       <InquiryExportCsvDropdown
         businessSlug={businessSlug}
         canExport={canExport}
@@ -91,13 +92,19 @@ export async function InquiryListHeaderActions({
         items={archivedItems}
         unarchiveAction={unarchiveAction}
       />
-      <Button asChild className="h-11 sm:h-8">
+      <Button
+        asChild
+        aria-label="Quick-add inquiry"
+        title="Quick-add inquiry"
+        size="sm"
+        className={mobileNavbarIconButtonClassName}
+      >
         <Link href={getBusinessNewInquiryPath(businessSlug)} prefetch={true}>
           <Plus data-icon="inline-start" />
-          Quick-add inquiry
+          <span className="hidden lg:inline">Quick-add inquiry</span>
         </Link>
       </Button>
-    </>
+    </MobileHeaderSlot>
   );
 }
 
@@ -128,7 +135,7 @@ export async function InquiryListControlsSection({
 
   return (
     <InquiryListToolbar
-      key={`${filters.view}:${filters.status}:${filters.form}:${filters.q ?? ""}:${filters.sort}`}
+      key={`${filters.view}:${filters.status}:${filters.form}:${filters.source}:${filters.q ?? ""}:${filters.sort}`}
       filters={filters}
       formOptions={formOptions}
       resultCount={totalItems}
@@ -216,9 +223,9 @@ export async function InquiryListContentSection({
 export function InquiryListHeaderActionsFallback() {
   return (
     <>
-      <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-32" />
-      <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-28" />
-      <Skeleton className="h-11 w-full rounded-md sm:h-8 sm:w-40" />
+      <Skeleton className="h-8 w-full rounded-md sm:w-32" />
+      <Skeleton className="h-8 w-full rounded-md sm:w-28" />
+      <Skeleton className="h-8 w-full rounded-md sm:w-40" />
     </>
   );
 }

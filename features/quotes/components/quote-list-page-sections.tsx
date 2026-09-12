@@ -5,6 +5,7 @@ import { DashboardListResultsSkeleton } from "@/components/shared/dashboard-list
 import {
   DashboardEmptyState,
 } from "@/components/shared/dashboard-layout";
+import { MobileHeaderSlot, mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ArchivedQuotesSheet } from "@/features/quotes/components/archived-quotes-sheet";
@@ -60,7 +61,7 @@ export async function QuoteListHeaderActions({
   ]);
 
   return (
-    <>
+    <MobileHeaderSlot>
       <QuoteExportCsvDropdown
         businessSlug={businessSlug}
         canExport={canExport}
@@ -72,13 +73,19 @@ export async function QuoteListHeaderActions({
         items={archivedItems}
         restoreAction={restoreAction}
       />
-      <Button asChild className="h-11 sm:h-8">
+      <Button
+        asChild
+        aria-label="Create quote"
+        title="Create quote"
+        size="sm"
+        className={mobileNavbarIconButtonClassName}
+      >
         <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>
           <ReceiptText data-icon="inline-start" />
-          Create quote
+          <span className="hidden lg:inline">Create quote</span>
         </Link>
       </Button>
-    </>
+    </MobileHeaderSlot>
   );
 }
 
@@ -182,9 +189,9 @@ export async function QuoteListContentSection({
 export function QuoteListHeaderActionsFallback() {
   return (
     <>
-      <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-32" />
-      <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-28" />
-      <Skeleton className="h-11 w-full rounded-md sm:h-8 sm:w-36" />
+      <Skeleton className="h-8 w-full rounded-md sm:w-32" />
+      <Skeleton className="h-8 w-full rounded-md sm:w-28" />
+      <Skeleton className="h-8 w-full rounded-md sm:w-36" />
     </>
   );
 }

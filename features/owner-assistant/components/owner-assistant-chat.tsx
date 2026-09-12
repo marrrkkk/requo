@@ -13,6 +13,7 @@ import { getToolName, isToolUIPart, type UIMessage } from "ai";
 import { MessageSquarePlus, RotateCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { MobileHeaderSlot, mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { ChatComposer } from "@/components/shared/chat/chat-composer";
 import { ChatJumpToLatest } from "@/components/shared/chat/chat-jump-to-latest";
 import { ChatMarkdown } from "@/components/shared/chat/chat-markdown";
@@ -469,23 +470,27 @@ export function OwnerAssistantChat({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-assistant-pane="">
-      {/* New chat on the left, history on the right. */}
-      <div className="flex items-center justify-between gap-2 px-3 pt-3 md:px-6">
+      {/* New chat on the left, history on the right. Portals into the
+          mobile navbar below `lg`. */}
+      <MobileHeaderSlot desktopClassName="flex items-center justify-between gap-2 px-3 pt-3 md:px-6">
         <Button
+          aria-label="New chat"
+          title="New chat"
           disabled={isEmpty}
           onClick={handleNewChat}
           size="sm"
+          className={mobileNavbarIconButtonClassName}
           type="button"
           variant="ghost"
         >
           <MessageSquarePlus data-icon="inline-start" />
-          New chat
+          <span className="hidden lg:inline">New chat</span>
         </Button>
         <AssistantHistoryPanel
           activeSessionId={activeSessionId}
           businessSlug={businessSlug}
         />
-      </div>
+      </MobileHeaderSlot>
 
       {/* Transcript fills the pane; the composer overlays the bottom so only
           the input box covers messages. */}

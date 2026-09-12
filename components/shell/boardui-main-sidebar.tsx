@@ -28,6 +28,15 @@ type BoarduiMainSidebarProps = {
   bottomSlot?: ReactNode;
   /** When provided, Quick Search opens the global quick-actions dialog. */
   onQuickSearch?: () => void;
+  /** Rendered inside the mobile drawer: always expanded, close button instead of collapse. */
+  mobile?: boolean;
+  onClose?: () => void;
+  /** Hide the app-level theme control (e.g. mobile nav owns its own chrome). */
+  showThemeToggle?: boolean;
+  /** Hides the Support/Settings secondary rows. */
+  hideSecondaryNav?: boolean;
+  /** Extra classes merged onto the sidebar panel (e.g. fullscreen overrides). */
+  className?: string;
 };
 
 /**
@@ -44,6 +53,11 @@ export function BoarduiMainSidebar({
   topSlot,
   bottomSlot,
   onQuickSearch,
+  mobile = false,
+  onClose,
+  showThemeToggle = true,
+  hideSecondaryNav = false,
+  className,
 }: BoarduiMainSidebarProps) {
   const pathname = usePathname();
 
@@ -82,6 +96,11 @@ export function BoarduiMainSidebar({
       settingsHref={getDefaultBusinessSettingsPath(businessSlug, role)}
       supportHref={`/${businessSlug}/settings/support`}
       onQuickSearch={onQuickSearch}
+      mobile={mobile}
+      onClose={onClose}
+      showThemeToggle={showThemeToggle}
+      hideSecondaryNav={hideSecondaryNav}
+      className={className}
     />
   );
 }

@@ -9,8 +9,6 @@ import {
   UserMenuSkeleton,
   MobileBusinessSwitcher,
   MobileBusinessSwitcherSkeleton,
-  MobileUserMenu,
-  MobileUserMenuSkeleton,
 } from "@/components/shell/dashboard-shell-slots";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
@@ -92,11 +90,6 @@ async function BusinessMainShell({
         userMenuSlot={
           <Suspense fallback={<UserMenuSkeleton />}>
             <UserMenuSlot businessSlug={businessSlug} />
-          </Suspense>
-        }
-        mobileUserMenuSlot={
-          <Suspense fallback={<MobileUserMenuSkeleton />}>
-            <MobileUserMenuSlot businessSlug={businessSlug} />
           </Suspense>
         }
         notificationSlot={
@@ -193,32 +186,6 @@ async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
 
   return (
     <DashboardUserMenu
-      user={{
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        avatarSrc,
-      }}
-      businessRole={businessContext.role}
-      businessSlug={businessContext.business.slug}
-      businessId={businessContext.business.id}
-      plan={businessContext.business.plan}
-    />
-  );
-}
-
-async function MobileUserMenuSlot({ businessSlug }: { businessSlug: string }) {
-  const { user, businessContext } = await getAppShellContext(businessSlug);
-  const profile = await getAccountProfileForUser(user.id);
-
-  const avatarSrc = resolveUserAvatarSrc({
-    avatarStoragePath: profile?.avatarStoragePath,
-    profileUpdatedAt: profile?.updatedAt,
-    oauthImage: user.image ?? null,
-  });
-
-  return (
-    <MobileUserMenu
       user={{
         id: user.id,
         email: user.email,
