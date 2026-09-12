@@ -127,11 +127,36 @@ function providers(): ProviderSpec[] {
       listModels: async () => {
         const account = mustGetEnv("CLOUDFLARE_ACCOUNT_ID");
         const token = mustGetEnv("CLOUDFLARE_API_TOKEN");
-        const json = await fetchJson(
-          `https://api.cloudflare.com/client/v4/accounts/${account}/ai/models`,
-          { Authorization: `Bearer ${token}` },
-        );
-        return extractIds(json);
+        const headers = { Authorization: `Bearer ${token}` };
+
+        // Workers AI moved to the paginated `/ai/models/search` endpoint; the
+        // old `/ai/models` listing 404s. Its rows carry the `@cf/...` model
+        // name in `name` (with `id` holding an opaque UUID), so the generic
+        // `extractIds` — which prefers `id` — cannot be used here.
+        const perPage = 100;
+        const names: string[] = [];
+
+        for (let page = 1; page <= 50; page += 1) {
+          const json = (await fetchJson(
+            `https://api.cloudflare.com/client/v4/accounts/${account}/ai/models/search?per_page=${perPage}&page=${page}`,
+            headers,
+          )) as { result?: unknown };
+
+          const rows = Array.isArray(json.result) ? json.result : [];
+          const pageNames = rows
+            .map((row) =>
+              typeof (row as { name?: unknown })?.name === "string"
+                ? String((row as { name: string }).name)
+                : null,
+            )
+            .filter((name): name is string => Boolean(name));
+
+          names.push(...pageNames);
+
+          if (rows.length < perPage) break;
+        }
+
+        return names;
       },
     },
     {
