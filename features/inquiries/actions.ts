@@ -143,7 +143,6 @@ export async function submitPublicInquiryAction(
     {
       maxAttachmentSizeBytes:
         getPublicInquiryAttachmentMaxBytes(plan),
-      defaultServiceCategory: business.form?.name ?? undefined,
     },
   );
 

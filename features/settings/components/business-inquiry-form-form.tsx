@@ -1127,8 +1127,7 @@ function ProjectFieldCard({
   });
   const isSystem = field.kind === "system";
   const isHiddenSystemField = isSystem && !field.enabled;
-  const isLockedRequired =
-    isSystem && (field.key === "serviceCategory" || field.key === "details");
+  const isLockedRequired = isSystem && field.key === "details";
   const canToggleEnabled = isSystem && !isLockedRequired;
   const canToggleRequired =
     field.kind === "custom"
@@ -1903,8 +1902,6 @@ function getFieldTypeLabel(field: InquiryFormFieldDefinition) {
 
 function getSystemFieldTitle(field: InquiryFormSystemFieldDefinition) {
   switch (field.key) {
-    case "serviceCategory":
-      return "Service/category";
     case "requestedDeadline":
       return "Requested deadline";
     case "budgetText":

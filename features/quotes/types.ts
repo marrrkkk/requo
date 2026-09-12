@@ -138,7 +138,7 @@ export type QuoteLinkedInquirySummary = {
   customerEmail: string | null;
   customerContactMethod: string;
   customerContactHandle: string;
-  serviceCategory: string;
+  subject: string | null;
   requestedDeadline: string | null;
   status: InquiryStatus;
   recordState: InquiryRecordState;
@@ -152,7 +152,7 @@ export type QuoteInquiryPrefill = {
   customerEmail: string | null;
   customerContactMethod: string;
   customerContactHandle: string;
-  serviceCategory: string;
+  subject: string | null;
   status: InquiryStatus;
   recordState: InquiryRecordState;
   details: string;

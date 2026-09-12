@@ -65,7 +65,6 @@ export async function getInquiryAssistantContextForBusiness({
         customerEmail: inquiries.customerEmail,
         customerContactMethod: inquiries.customerContactMethod,
         customerContactHandle: inquiries.customerContactHandle,
-        serviceCategory: inquiries.serviceCategory,
         requestedDeadline: inquiries.requestedDeadline,
         budgetText: inquiries.budgetText,
         subject: inquiries.subject,

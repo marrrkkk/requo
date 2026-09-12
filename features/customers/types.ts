@@ -9,7 +9,7 @@ export type CustomerHistoryInquiryItem = {
   customerEmail: string | null;
   customerContactMethod: string;
   customerContactHandle: string;
-  serviceCategory: string;
+  subject: string | null;
   status: InquiryStatus;
   submittedAt: Date;
 };

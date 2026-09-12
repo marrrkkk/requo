@@ -111,8 +111,6 @@ function getContactHandleInputMode(method: InquiryContactMethod) {
 function getProjectFieldMaxLength(field: InquiryFormFieldDefinition) {
   if (field.kind === "system") {
     switch (field.key) {
-      case "serviceCategory":
-        return 120;
       case "budgetText":
         return 120;
       case "details":
@@ -617,7 +615,6 @@ function renderProjectInput({
         disabled={isPending}
         id={inputId}
         maxLength={getProjectFieldMaxLength(field)}
-        minLength={field.key === "serviceCategory" ? 2 : undefined}
         name={inputName}
         placeholder={field.placeholder}
         required={field.required}

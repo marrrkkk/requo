@@ -26,7 +26,7 @@ export const searchInquiriesSchema = z.object({
   customerEmail: z.string().email().optional(),
   customerName: z.string().optional(),
   aiAssisted: z.boolean().optional(),
-  serviceCategory: z.string().optional(),
+  serviceSlug: z.string().optional(),
   tags: z.array(z.string()).optional(),
   limit: z.number().min(1).max(100).default(20),
   offset: z.number().min(0).default(0),
@@ -37,7 +37,7 @@ export const searchInquiriesSchema = z.object({
 export const getInquiryStatsSchema = z.object({
   dateRange: dateRangeSchema.optional(),
   groupBy: z
-    .enum(["status", "source", "serviceCategory", "day", "week", "month"])
+    .enum(["status", "source", "day", "week", "month"])
     .optional(),
 });
 
@@ -114,7 +114,7 @@ export const createInquirySchema = z.object({
   customerEmail: z.string().email(),
   customerContactMethod: z.enum(["email", "phone", "other"]).optional(),
   customerContactHandle: z.string().optional(),
-  serviceCategory: z.string().min(1),
+  serviceSlug: z.string().min(1),
   details: z.string().min(1),
   requestedDeadline: z.string().datetime().optional(),
   budgetText: z.string().optional(),

@@ -143,7 +143,6 @@ export type InquiryAssistantContext = {
     customerEmail: string | null;
     customerContactMethod: string;
     customerContactHandle: string;
-    serviceCategory: string;
     requestedDeadline: string | null;
     budgetText: string | null;
     subject: string | null;

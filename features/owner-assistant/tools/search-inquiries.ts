@@ -16,7 +16,8 @@ type SearchInquiriesOutput =
           customerName: string;
           customerEmail: string;
           status: string;
-          serviceCategory: string | null;
+          serviceName: string | null;
+          serviceSlug: string | null;
           source: string | null;
           aiAssisted: boolean | null;
           createdAt: string;
@@ -46,6 +47,7 @@ export const searchInquiriesTool = tool<
       const result = await searchInquiriesQuery(context.businessId, params);
 
       const statusText = params.status ? ` with status "${params.status}"` : "";
+      const serviceText = params.serviceSlug ? ` for service "${params.serviceSlug}"` : "";
       const dateText = params.dateRange
         ? ` from ${new Date(params.dateRange.start).toLocaleDateString()} to ${new Date(params.dateRange.end).toLocaleDateString()}`
         : "";
@@ -58,7 +60,8 @@ export const searchInquiriesTool = tool<
             customerName: row.customerName,
             customerEmail: row.customerEmail ?? "",
             status: row.status,
-            serviceCategory: row.serviceCategory,
+            serviceName: row.serviceName,
+            serviceSlug: row.serviceSlug,
             source: row.source,
             aiAssisted: row.aiAssisted,
             createdAt:
@@ -69,7 +72,7 @@ export const searchInquiriesTool = tool<
           total: Number(result.total),
           hasMore: result.hasMore,
         },
-        summary: `Found ${result.results.length} inquiries${statusText}${dateText}`,
+        summary: `Found ${result.results.length} inquiries${statusText}${serviceText}${dateText}`,
         metadata: {
           total: Number(result.total),
           filtered: result.results.length,

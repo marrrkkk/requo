@@ -228,7 +228,7 @@ function formatInquiryContextLines(
     `Customer: ${context.inquiry.customerName}`,
   ];
   if (context.inquiry.customerEmail) headerFields.push(`email: ${context.inquiry.customerEmail}`);
-  if (context.inquiry.serviceCategory) headerFields.push(`category: ${context.inquiry.serviceCategory}`);
+  if (context.inquiry.inquiryFormName) headerFields.push(`service: ${context.inquiry.inquiryFormName}`);
   if (context.inquiry.subject) headerFields.push(`subject: ${context.inquiry.subject}`);
   if (context.inquiry.requestedDeadline) headerFields.push(`deadline: ${context.inquiry.requestedDeadline}`);
   if (context.inquiry.budgetText) headerFields.push(`budget: ${context.inquiry.budgetText}`);
@@ -1246,7 +1246,7 @@ export async function generateQuoteDraftForBusiness(
     ? [
         inquiryContext.inquiry.subject ?? "",
         inquiryContext.inquiry.details ?? "",
-        inquiryContext.inquiry.serviceCategory ?? "",
+        inquiryContext.inquiry.inquiryFormName ?? "",
       ]
         .filter(Boolean)
         .join(" ")
@@ -1579,7 +1579,7 @@ export async function generateQuoteImprovementForBusiness(
   const inquiryText = [
     inquiryContext.inquiry.subject ?? "",
     inquiryContext.inquiry.details ?? "",
-    inquiryContext.inquiry.serviceCategory ?? "",
+    inquiryContext.inquiry.inquiryFormName ?? "",
   ]
     .filter(Boolean)
     .join(" ");

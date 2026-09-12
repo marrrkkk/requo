@@ -159,7 +159,7 @@ async function NewQuoteContent({
           customerContactMethod: inquiryPrefill.customerContactMethod,
           customerContactHandle: inquiryPrefill.customerContactHandle,
           recordState: inquiryPrefill.recordState,
-          serviceCategory: inquiryPrefill.serviceCategory,
+          subject: inquiryPrefill.subject,
           requestedDeadline: inquiryPrefill.requestedDeadline,
           status: inquiryPrefill.status,
           details: inquiryPrefill.details,

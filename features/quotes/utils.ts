@@ -281,7 +281,7 @@ export function getDefaultQuoteValidityDate(validityDays = 14) {
 }
 
 export function buildQuoteTitleFromInquiry(inquiry: QuoteInquiryPrefill) {
-  return `${inquiry.serviceCategory} quote`;
+  return `${inquiry.subject ?? inquiry.customerName} quote`;
 }
 
 export function getQuoteEditorInitialValuesFromInquiry(

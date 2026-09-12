@@ -5,6 +5,7 @@ import {
   formatFileSize,
   formatInquiryBudget,
   formatInquiryDateTime,
+  getInquirySourceLabel,
 } from "@/features/inquiries/utils";
 import { formatQuoteMoney } from "@/features/quotes/utils";
 
@@ -73,8 +74,8 @@ export async function createInquiryPdf(data: InquiryDocumentData) {
   drawField(report, "Email", data.customerEmail || "Not provided");
   drawField(report, "Contact method", data.customerContactMethod);
   drawField(report, "Contact", data.customerContactHandle);
-  drawField(report, "Channel", data.inquiryFormName || "Manual");
-  drawField(report, "Category", data.serviceCategory);
+  drawField(report, "Service", data.inquiryFormName || getInquirySourceLabel(data.source));
+  drawField(report, "Source", getInquirySourceLabel(data.source));
   drawField(report, "Status", data.status);
   drawField(report, "Budget", formatInquiryBudget(data.budgetText));
   drawField(report, "Deadline", data.requestedDeadline || "Not provided");

@@ -35,13 +35,15 @@ export const qualificationStateSchema = z.object({
 });
 
 // Create inquiry tool (also the propose tool input — every field the
-// inquiry-params schema accepts is editable on the card)
+// inquiry-params schema accepts is editable on the card).
+// The Service is owned by the parent Service form: the agent resolves a live
+// service slug via get_services instead of asking for free-text category.
 export const createInquiryParamsSchema = z.object({
   customerName: z.string().min(1, "Customer name is required"),
   customerEmail: z.string().email("Invalid email").optional(),
   customerContactMethod: z.string().min(1, "Contact method is required"),
   customerContactHandle: z.string().min(1, "Contact handle is required"),
-  serviceCategory: z.string().min(1, "Service category is required"),
+  serviceSlug: z.string().min(1, "Service is required"),
   details: z.string().min(1, "Details are required"),
   budgetText: z.string().optional(),
   requestedDeadline: z.string().optional(),

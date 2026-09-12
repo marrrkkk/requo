@@ -6,11 +6,11 @@ export type InquiryDocumentData = {
   businessCurrency: string;
   referenceId: string;
   inquiryFormName: string | null;
+  source: string | null;
   customerName: string;
   customerEmail: string | null;
   customerContactMethod: string;
   customerContactHandle: string;
-  serviceCategory: string;
   requestedDeadline: string | null;
   budgetText: string | null;
   subject: string | null;
@@ -43,11 +43,11 @@ export function getInquiryDocumentData({
     businessCurrency,
     referenceId: inquiry.id,
     inquiryFormName: inquiry.inquiryFormName,
+    source: inquiry.source,
     customerName: inquiry.customerName,
     customerEmail: inquiry.customerEmail,
     customerContactMethod: inquiry.customerContactMethod,
     customerContactHandle: inquiry.customerContactHandle,
-    serviceCategory: inquiry.serviceCategory,
     requestedDeadline: inquiry.requestedDeadline,
     budgetText: inquiry.budgetText,
     subject: inquiry.subject,

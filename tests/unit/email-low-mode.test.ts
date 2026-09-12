@@ -173,7 +173,7 @@ describe("inquiry acknowledgment email", () => {
     inquiryId: "inquiry_123",
     customerEmail: "customer@example.com",
     customerName: "Ava Cruz",
-    serviceCategory: "Signage",
+    serviceName: "Signage",
     details: "We need a new storefront sign.",
   };
 

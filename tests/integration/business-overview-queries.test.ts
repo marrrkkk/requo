@@ -103,7 +103,7 @@ async function createOverviewFixture() {
     customerEmail: "overview@example.com",
     customerContactMethod: "email",
     customerContactHandle: "overview@example.com",
-    serviceCategory: "General",
+    serviceCategory: null,
     details: "Overview fixture inquiry.",
     submittedFieldSnapshot: {
       version: 1,

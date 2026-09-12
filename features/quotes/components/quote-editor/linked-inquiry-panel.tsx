@@ -67,7 +67,7 @@ export function LinkedInquiryPanel({
         <div className="min-w-0 flex-1">
           <p className="meta-label">Linked inquiry</p>
           <p className="mt-1 truncate font-medium text-foreground">
-            {inquiry.serviceCategory}
+            {inquiry.subject ?? inquiry.customerName}
           </p>
           <p className="mt-0.5 truncate text-sm text-muted-foreground">
             {contactValue ?? inquiry.customerName}
@@ -95,9 +95,9 @@ export function LinkedInquiryPanel({
               </dd>
             </div>
             <div>
-              <dt className="meta-label">Category</dt>
+              <dt className="meta-label">Subject</dt>
               <dd className="mt-1 text-sm text-foreground">
-                {inquiry.serviceCategory}
+                {inquiry.subject ?? "—"}
               </dd>
             </div>
             <div>

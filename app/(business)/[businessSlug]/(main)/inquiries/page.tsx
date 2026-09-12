@@ -83,6 +83,7 @@ export default function InquiriesPage({
     <DashboardPage>
       <PageHeader
         title="Inquiries"
+        className="[&_.dashboard-actions]:max-lg:hidden"
         actions={
           <Suspense fallback={<InquiryListHeaderActionsFallback />}>
             <InquiriesHeaderActionsRegion params={params} searchParams={searchParams} />
@@ -125,6 +126,7 @@ async function InquiriesHeaderActionsRegion({
         view: "active" as const,
         status: "all" as const,
         form: "all",
+        source: "all" as const,
         sort: "newest" as const,
         escalated: false,
         page: 1,
@@ -134,6 +136,7 @@ async function InquiriesHeaderActionsRegion({
     view: filters.view,
     status: filters.status,
     form: filters.form,
+    source: filters.source,
     sort: filters.sort,
     escalated: filters.escalated ?? false,
   };
@@ -152,7 +155,7 @@ async function InquiriesHeaderActionsRegion({
   );
   const archivedItemsPromise = getInquiryListPageForBusiness({
     businessId: businessContext.business.id,
-    filters: { view: "archived", status: "all", form: "all", sort: "newest", escalated: false },
+    filters: { view: "archived", status: "all", form: "all", source: "all", sort: "newest", escalated: false },
     page: 1,
     pageSize: 50,
   });
@@ -193,6 +196,7 @@ async function InquiriesControlsRegion({
         view: "active" as const,
         status: "all" as const,
         form: "all",
+        source: "all" as const,
         sort: "newest" as const,
         escalated: false,
         page: 1,
@@ -202,6 +206,7 @@ async function InquiriesControlsRegion({
     view: filters.view,
     status: filters.status,
     form: filters.form,
+    source: filters.source,
     sort: filters.sort,
     escalated: filters.escalated ?? false,
   };
@@ -220,7 +225,7 @@ async function InquiriesControlsRegion({
   );
   const archivedItemsPromise = getInquiryListPageForBusiness({
     businessId: businessContext.business.id,
-    filters: { view: "archived", status: "all", form: "all", sort: "newest", escalated: false },
+    filters: { view: "archived", status: "all", form: "all", source: "all", sort: "newest", escalated: false },
     page: 1,
     pageSize: 50,
   });
@@ -261,6 +266,7 @@ async function InquiriesListRegion({
         view: "active" as const,
         status: "all" as const,
         form: "all",
+        source: "all" as const,
         sort: "newest" as const,
         escalated: false,
         page: 1,
@@ -270,6 +276,7 @@ async function InquiriesListRegion({
     view: filters.view,
     status: filters.status,
     form: filters.form,
+    source: filters.source,
     sort: filters.sort,
     escalated: filters.escalated ?? false,
   };
@@ -310,6 +317,7 @@ async function InquiriesListRegion({
     baseFilters.q ||
       baseFilters.status !== "all" ||
       baseFilters.form !== "all" ||
+      baseFilters.source !== "all" ||
       baseFilters.sort !== "newest" ||
       baseFilters.escalated,
   );

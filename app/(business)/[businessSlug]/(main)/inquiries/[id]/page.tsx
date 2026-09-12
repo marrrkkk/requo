@@ -71,7 +71,6 @@ import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-stat
 import { getInquiryDetailForBusiness, getInquiryDuplicateForBusiness } from "@/features/inquiries/queries";
 import { inquiryRouteParamsSchema } from "@/features/inquiries/schemas";
 import {
-  AI_AGENT_SOURCES,
   formatFileSize,
   formatInquiryBudget,
   formatInquiryDate,
@@ -330,17 +329,13 @@ async function InquiryDetailRegion({
               />
               <InfoTile
                 icon={Tag}
-                label={
-                  inquiry.submittedFieldSnapshot?.fields?.find(
-                    (f) => f.id === "serviceCategory",
-                  )?.label ?? "Category"
-                }
-                value={inquiry.serviceCategory}
+                label="Source"
+                value={getInquirySourceLabel(inquiry.source)}
               />
             </div>
 
             {inquiry.subject &&
-            inquiry.subject !== inquiry.serviceCategory ? (
+            inquiry.subject !== (inquiry.inquiryFormName ?? "") ? (
               <div className="soft-panel shadow-none">
                 <p className="meta-label">Subject</p>
                 <p className="mt-2 text-sm leading-6 text-foreground">

@@ -23,15 +23,16 @@ describe("inquiry form generation with workflows", () => {
         expect(config.contactFields.preferredContact).toBeDefined();
         expect(config.projectFields.length).toBeGreaterThan(0);
 
-        // Verify required fields exist
-        const serviceCategoryFields = config.projectFields.filter(
-          (f) => f.kind === "system" && f.key === "serviceCategory",
+        // Verify required fields exist: the Service is owned by the parent
+        // form, so no customer-facing service selector; details stays locked.
+        const legacyServiceFields = config.projectFields.filter(
+          (f) => f.kind === "system" && (f as { key?: string }).key === "serviceCategory",
         );
         const detailsFields = config.projectFields.filter(
           (f) => f.kind === "system" && f.key === "details",
         );
 
-        expect(serviceCategoryFields).toHaveLength(1);
+        expect(legacyServiceFields).toHaveLength(0);
         expect(detailsFields).toHaveLength(1);
       }
     });
@@ -71,17 +72,16 @@ describe("inquiry form generation with workflows", () => {
         expect(config.contactFields.customerName).toBeDefined();
         expect(config.projectFields.length).toBeGreaterThan(0);
 
-        // Verify required system fields exist
-        const serviceCategoryFields = config.projectFields.filter(
-          (f) => f.kind === "system" && f.key === "serviceCategory",
+        // Verify required system fields exist (details locked; no service selector)
+        const legacyServiceFields = config.projectFields.filter(
+          (f) => f.kind === "system" && (f as { key?: string }).key === "serviceCategory",
         );
         const detailsFields = config.projectFields.filter(
           (f) => f.kind === "system" && f.key === "details",
         );
 
-        expect(serviceCategoryFields).toHaveLength(1);
+        expect(legacyServiceFields).toHaveLength(0);
         expect(detailsFields).toHaveLength(1);
-        expect(serviceCategoryFields[0]?.required).toBe(true);
         expect(detailsFields[0]?.required).toBe(true);
       }
     });
@@ -147,14 +147,14 @@ describe("inquiry form generation with workflows", () => {
       expect(hasFrequencyField).toBe(false);
 
       // Should have general project fields or business-type-appropriate project fields
-      const hasServiceCategoryField = config.projectFields.some(
-        (f) => f.kind === "system" && f.key === "serviceCategory",
+      const legacyServiceField = config.projectFields.some(
+        (f) => f.kind === "system" && (f as { key?: string }).key === "serviceCategory",
       );
       const hasDetailsField = config.projectFields.some(
         (f) => f.kind === "system" && f.key === "details",
       );
 
-      expect(hasServiceCategoryField).toBe(true);
+      expect(legacyServiceField).toBe(false);
       expect(hasDetailsField).toBe(true);
     });
 
@@ -217,30 +217,27 @@ describe("inquiry form generation with workflows", () => {
       }
     });
 
-    it("ensures serviceCategory and details fields are always required", () => {
+    it("ensures details field is always required and service selector is gone", () => {
       for (const starterWorkflow of starterWorkflowKeys) {
         const config = createInquiryFormConfigDefaults({
           businessType: "general_project_services",
           starterWorkflow,
         });
 
-        const serviceField = config.projectFields.find(
-          (f) => f.kind === "system" && f.key === "serviceCategory",
+        const legacyServiceField = config.projectFields.find(
+          (f) => f.kind === "system" && (f as { key?: string }).key === "serviceCategory",
         );
         const detailsField = config.projectFields.find(
           (f) => f.kind === "system" && f.key === "details",
         );
 
-        expect(serviceField).toBeDefined();
-        if (serviceField?.kind === "system") {
-          expect(serviceField.enabled).toBe(true);
-          expect(serviceField.required).toBe(true);
-        }
+        expect(legacyServiceField).toBeUndefined();
 
         expect(detailsField).toBeDefined();
         if (detailsField?.kind === "system") {
           expect(detailsField.enabled).toBe(true);
           expect(detailsField.required).toBe(true);
+          expect(detailsField.label).toBe("What do you need help with?");
         }
       }
     });

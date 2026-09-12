@@ -35,10 +35,6 @@ export function ManualInquiryPreview({
   selectedFileName: string | null;
   selectedForm: InquiryEditorForm;
 }) {
-  const serviceCategoryField = projectFields.find(
-    (field): field is InquiryFormSystemFieldDefinition =>
-      field.kind === "system" && field.key === "serviceCategory",
-  );
   const detailsField = projectFields.find(
     (field): field is InquiryFormSystemFieldDefinition =>
       field.kind === "system" && field.key === "details",
@@ -53,16 +49,13 @@ export function ManualInquiryPreview({
   );
   const additionalFields = projectFields.filter((field) => {
     if (field.kind === "system") {
-      return !["serviceCategory", "requestedDeadline", "budgetText", "details"].includes(
+      return !["requestedDeadline", "budgetText", "details"].includes(
         field.key,
       );
     }
 
     return true;
   });
-  const serviceCategory = serviceCategoryField
-    ? getPreviewValueDisplay(serviceCategoryField, projectValues)
-    : "Not provided";
   const details = detailsField
     ? getPreviewValueDisplay(detailsField, projectValues)
     : "Not provided";
@@ -81,7 +74,7 @@ export function ManualInquiryPreview({
             <div className="flex min-w-0 flex-col gap-2">
               <p className="meta-label">Inquiry preview</p>
               <h2 className="font-heading text-3xl font-semibold tracking-tight text-foreground">
-                {serviceCategory !== "Not provided" ? serviceCategory : "New inquiry"}
+                {selectedForm.name}
               </h2>
               <p className="text-sm leading-6 text-muted-foreground">
                 Saved with the {selectedForm.name} form.
