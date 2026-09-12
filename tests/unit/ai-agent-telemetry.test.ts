@@ -32,7 +32,7 @@ describe("computeEstimatedCostCents (catalog-priced)", () => {
       computeEstimatedCostCents({
         inputTokens: 1_000_000,
         outputTokens: 1_000_000,
-        model: "z-ai/glm-4.5-air:free",
+        model: "nvidia/nemotron-3-ultra-550b-a55b:free",
         provider: "openrouter",
       }),
     ).toBe(0);

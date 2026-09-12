@@ -135,7 +135,7 @@ const BASE_CATALOG: ModelEntry[] = [
     costCentsPerMillion: { input: 6, output: 6 },
   },
   {
-    modelId: "cerebras:qwen-3-32b",
+    modelId: "cerebras:qwen-3.8-27b",
     quality: 7,
     contextWindow: 32_768,
     maxOutputTokens: 8_192,
@@ -288,7 +288,7 @@ const BASE_CATALOG: ModelEntry[] = [
 
   // ─── NVIDIA NIM: 40 RPM hard cap, credit-based; configured at 20 RPM ───
   {
-    modelId: "nvidia:nvidia/llama-3.3-nemotron-super-49b-v1",
+    modelId: "nvidia:nvidia/llama-3.1-nemotron-70b-instruct",
     quality: 8,
     contextWindow: 131_072,
     maxOutputTokens: 4_096,
@@ -300,7 +300,7 @@ const BASE_CATALOG: ModelEntry[] = [
     costCentsPerMillion: { input: 0, output: 0 },
   },
   {
-    modelId: "nvidia:meta/llama-3.3-70b-instruct",
+    modelId: "nvidia:nvidia/llama-3.1-nemotron-51b-instruct",
     quality: 8,
     contextWindow: 131_072,
     maxOutputTokens: 4_096,
@@ -312,7 +312,7 @@ const BASE_CATALOG: ModelEntry[] = [
     costCentsPerMillion: { input: 0, output: 0 },
   },
   {
-    modelId: "nvidia:meta/llama-3.1-8b-instruct",
+    modelId: "nvidia:openai/gpt-oss-20b",
     quality: 7,
     contextWindow: 131_072,
     maxOutputTokens: 4_096,
@@ -326,12 +326,12 @@ const BASE_CATALOG: ModelEntry[] = [
 
   // ─── OpenRouter: 20 RPM · 50 RPD (no credits); last-resort overflow ───
   {
-    modelId: "openrouter:openai/gpt-oss-120b:free",
+    modelId: "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free",
     quality: 8,
-    contextWindow: 131_072,
-    maxOutputTokens: 8_192,
+    contextWindow: 1_000_000,
+    maxOutputTokens: 65_536,
     toolCapable: true,
-    structuredOutput: true,
+    structuredOutput: false,
     limits: { rpm: 20, rpd: 50, tpm: 20_000, tpd: 0 },
     sharedWithProvider: [],
     dayResets: "utc-midnight",
@@ -350,22 +350,22 @@ const BASE_CATALOG: ModelEntry[] = [
     costCentsPerMillion: { input: 0, output: 0 },
   },
   {
-    modelId: "openrouter:deepseek/deepseek-v4-flash:free",
+    modelId: "openrouter:nvidia/nemotron-3.5-lightning:free",
     quality: 7,
-    contextWindow: 1_048_576,
-    maxOutputTokens: 8_192,
+    contextWindow: 1_000_000,
+    maxOutputTokens: 65_536,
     toolCapable: true,
-    structuredOutput: true,
+    structuredOutput: false,
     limits: { rpm: 20, rpd: 50, tpm: 20_000, tpd: 0 },
     sharedWithProvider: [],
     dayResets: "utc-midnight",
     costCentsPerMillion: { input: 0, output: 0 },
   },
   {
-    modelId: "openrouter:z-ai/glm-4.5-air:free",
+    modelId: "openrouter:google/gemma-4-31b-it:free",
     quality: 7,
     contextWindow: 262_144,
-    maxOutputTokens: 8_192,
+    maxOutputTokens: 32_768,
     toolCapable: true,
     structuredOutput: true,
     limits: { rpm: 20, rpd: 50, tpm: 20_000, tpd: 0 },
