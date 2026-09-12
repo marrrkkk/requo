@@ -214,7 +214,7 @@ async function QuoteDetailContent({
         customerContactMethod: quote.linkedInquiry.customerContactMethod,
         customerContactHandle: quote.linkedInquiry.customerContactHandle,
         recordState: quote.linkedInquiry.recordState,
-        serviceCategory: quote.linkedInquiry.serviceCategory,
+        subject: quote.linkedInquiry.subject,
         requestedDeadline: quote.linkedInquiry.requestedDeadline,
         status: quote.linkedInquiry.status,
         details: quote.linkedInquiry.details,
@@ -307,7 +307,7 @@ async function QuoteDetailContent({
                   <span aria-hidden="true">|</span>
                   <TruncatedTextWithTooltip
                     className="max-w-52"
-                    text={quote.linkedInquiry.serviceCategory}
+                    text={quote.linkedInquiry.subject ?? quote.linkedInquiry.customerName}
                   />
                 </>
               }
@@ -315,7 +315,7 @@ async function QuoteDetailContent({
             />
           </DashboardDetailFeed>
           <div className="grid gap-3 sm:grid-cols-2">
-            <InfoTile label="Category" value={quote.linkedInquiry.serviceCategory} />
+            <InfoTile label="Subject" value={quote.linkedInquiry.subject ?? "—"} />
             <InfoTile label="Deadline" value={quote.linkedInquiry.requestedDeadline ?? "No deadline"} />
           </div>
         </div>

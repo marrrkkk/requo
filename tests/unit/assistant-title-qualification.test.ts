@@ -50,7 +50,7 @@ describe("advanceQualificationFromMessage", () => {
     expect(next.missing).not.toContain("customerName");
     expect(next.missing).not.toContain("customerContactHandle");
     // Service and details still need collecting for a short greeting.
-    expect(next.missing).toContain("serviceCategory");
+    expect(next.missing).toContain("serviceSlug");
   });
 
   it("extracts a phone handle when no email is present", () => {
@@ -83,7 +83,7 @@ describe("advanceQualificationFromMessage", () => {
     const state: QualificationState = {
       collected: { customerName: true },
       values: { customerName: "Original Name" },
-      missing: ["customerContactMethod", "customerContactHandle", "serviceCategory", "details"],
+      missing: ["customerContactMethod", "customerContactHandle", "serviceSlug", "details"],
     };
 
     const next = advanceQualificationFromMessage(

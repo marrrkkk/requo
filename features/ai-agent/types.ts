@@ -57,7 +57,7 @@ export type ProposedInquiry = {
     customerEmail?: string | null;
     customerContactMethod: string;
     customerContactHandle: string;
-    serviceCategory: string;
+    serviceSlug: string;
     details: string;
     budgetText?: string;
     requestedDeadline?: string;

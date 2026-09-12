@@ -155,7 +155,8 @@ describe('features/inquiries/actions', () => {
       subject: 'Test Subject',
       customerName: 'Customer',
       customerEmail: `${inquiryId}@example.com`,
-      serviceCategory: 'Test',
+      serviceCategory: null,
+      source: 'manual',
       details: 'Some details',
       submittedFieldSnapshot: { version: 1, businessType: 'print_signage', fields: [] },
       submittedAt: new Date(),
@@ -176,7 +177,6 @@ describe('features/inquiries/actions', () => {
       formData.set('customerEmail', 'manual.request@example.com');
       formData.set('customerContactMethod', 'email');
       formData.set('customerContactHandle', 'manual.request@example.com');
-      formData.set('serviceCategory', 'Vehicle wrap install');
       formData.set(
         'details',
         'Customer called to request a site visit and pricing for a storefront wrap.',
@@ -195,14 +195,12 @@ describe('features/inquiries/actions', () => {
       expect(createdInquiry.businessId).toBe('test_biz_w2');
       expect(createdInquiry.businessInquiryFormId).toBe('test_form_w2');
       expect(createdInquiry.customerName).toBe('Manual Request Customer');
-      expect(createdInquiry.source).toBe('manual-dashboard');
+      expect(createdInquiry.source).toBe('manual');
+      expect(createdInquiry.serviceCategory).toBeNull();
+      expect(createdInquiry.subject).toBe('Test Form');
       expect(createdInquiry.status).toBe('new');
       expect(createdInquiry.submittedFieldSnapshot?.fields).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({
-            id: 'serviceCategory',
-            displayValue: 'Vehicle wrap install',
-          }),
           expect.objectContaining({
             id: 'details',
             displayValue:
@@ -267,6 +265,7 @@ describe('features/inquiries/actions', () => {
           view: 'active',
           status: 'all',
           form: 'all',
+          source: 'all',
           sort: 'newest',
           escalated: false,
         },
@@ -291,6 +290,7 @@ describe('features/inquiries/actions', () => {
           view: 'active',
           status: 'all',
           form: 'all',
+          source: 'all',
           sort: 'newest',
           escalated: false,
         },

@@ -73,6 +73,7 @@ import type {
   InquiryListQueryFilters,
   PublicInquiryBusiness,
 } from "@/features/inquiries/types";
+import { normalizeInquirySource } from "@/features/inquiries/types";
 
 export async function getPublicInquiryBusinessBySlug(
   slug: string,
@@ -437,6 +438,25 @@ function getInquiryListConditions({
     );
   }
 
+  if (filters.source && filters.source !== "all") {
+    const canonicalSource = normalizeInquirySource(filters.source);
+    const legacyEquivalents = Object.entries({
+      "public-inquiry-page": "service_form",
+      "manual-dashboard": "manual",
+      ai_agent: "ai_assistant",
+      ai_agent_handoff: "ai_assistant",
+      ai: "ai_assistant",
+    } as const)
+      .filter(([, canonical]) => canonical === canonicalSource)
+      .map(([legacy]) => legacy);
+    conditions.push(
+      or(
+        eq(inquiries.source, canonicalSource),
+        ...legacyEquivalents.map((legacy) => eq(inquiries.source, legacy)),
+      )!,
+    );
+  }
+
   if (filters.q) {
     const pattern = `%${filters.q}%`;
 
@@ -444,7 +464,7 @@ function getInquiryListConditions({
       or(
         ilike(inquiries.customerName, pattern),
         ilike(inquiries.customerEmail, pattern),
-        ilike(inquiries.serviceCategory, pattern),
+        ilike(inquiries.details, pattern),
         ilike(inquiries.subject, pattern),
       )!,
     );
@@ -577,11 +597,12 @@ export async function getInquiryListPageForBusiness({
 type InquiryExportRow = {
   id: string;
   inquiryFormName: string | null;
+  inquiryFormSlug: string | null;
+  source: string | null;
   customerName: string;
   customerEmail: string | null;
   customerContactMethod: string;
   customerContactHandle: string;
-  serviceCategory: string;
   requestedDeadline: string | null;
   budgetText: string | null;
   subject: string | null;
@@ -618,11 +639,12 @@ export async function getInquiryExportRowsForBusiness({
     .select({
       id: inquiries.id,
       inquiryFormName: businessInquiryForms.name,
+      inquiryFormSlug: businessInquiryForms.slug,
+      source: inquiries.source,
       customerName: inquiries.customerName,
       customerEmail: inquiries.customerEmail,
       customerContactMethod: inquiries.customerContactMethod,
       customerContactHandle: inquiries.customerContactHandle,
-      serviceCategory: inquiries.serviceCategory,
       requestedDeadline: inquiries.requestedDeadline,
       budgetText: inquiries.budgetText,
       subject: inquiries.subject,

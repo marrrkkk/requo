@@ -113,7 +113,7 @@ function renderQuoteEditor() {
         customerEmail: "taylor@example.com",
         customerContactMethod: "email",
         customerContactHandle: "taylor@example.com",
-        serviceCategory: "Event catering",
+        subject: "Event catering",
         requestedDeadline: null,
         status: "new",
         recordState: "active",

@@ -109,7 +109,7 @@ describe("features/follow-ups/mutations", () => {
       customerEmail: "taylor@example.com",
       customerContactMethod: "email",
       customerContactHandle: "taylor@example.com",
-      serviceCategory: "Website redesign",
+      serviceCategory: null,
       details: "Customer needs a redesigned marketing website.",
       submittedAt: now,
       createdAt: now,

@@ -181,7 +181,7 @@ export async function DashboardNeedsAttentionSection({
       key: `overdue-inquiry:${inquiry.id}`,
       label: "Overdue inquiry",
       title: inquiry.customerName,
-      description: inquiry.serviceCategory,
+      description: inquiry.subject ?? inquiry.customerName,
       meta: `Submitted ${formatQuoteDate(inquiry.submittedAt)}`,
       actionLabel: "Create quote",
       tone: "urgent" as const,
@@ -207,7 +207,7 @@ export async function DashboardNeedsAttentionSection({
       key: `new-inquiry:${inquiry.id}`,
       label: "New inquiry",
       title: inquiry.customerName,
-      description: inquiry.serviceCategory,
+      description: inquiry.subject ?? inquiry.customerName,
       meta: `Submitted ${formatQuoteDate(inquiry.submittedAt)}`,
       actionLabel: "Create quote",
       tone: "normal" as const,
@@ -751,7 +751,7 @@ function OverviewInquiryRow({
             className="h-6 border-transparent bg-muted/70 px-2.5 text-xs font-medium text-muted-foreground"
             variant="secondary"
           >
-            {inquiry.serviceCategory}
+            {inquiry.subject ?? "Inquiry"}
           </Badge>
           <span className="truncate">
             {metaLabel} {formatQuoteDate(inquiry.submittedAt)}

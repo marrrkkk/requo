@@ -17,7 +17,7 @@ function pendingProposal(): ProposedInquiry {
       customerEmail: "ana@example.com",
       customerContactMethod: "email",
       customerContactHandle: "ana@example.com",
-      serviceCategory: "Storefront signage",
+      serviceSlug: "storefront-signage",
       details: "Two front-window panels.",
       budgetText: "$400 - $900",
       requestedDeadline: "2026-06-15",
@@ -46,7 +46,7 @@ describe("ProposedInquiryCard", () => {
     expect(screen.getByLabelText("Your name")).toBeInTheDocument();
     expect(screen.getByLabelText(/Email/)).toBeInTheDocument();
     expect(screen.getByLabelText("Contact details")).toBeInTheDocument();
-    expect(screen.getByLabelText("Service needed")).toBeInTheDocument();
+    expect(screen.getByLabelText("Service")).toBeInTheDocument();
     expect(screen.getByLabelText("Project details")).toBeInTheDocument();
     expect(screen.getByLabelText(/Budget/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Deadline/)).toBeInTheDocument();

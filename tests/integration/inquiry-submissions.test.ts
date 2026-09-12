@@ -52,7 +52,6 @@ function inquiryFormData(email = "new-customer@example.com") {
   formData.set("customerEmail", email);
   formData.set("customerContactMethod", "email");
   formData.set("customerContactHandle", email);
-  formData.set("serviceCategory", "Storefront refresh");
   formData.set("budgetText", "Around $2,000");
   formData.set(
     "details",
@@ -103,17 +102,13 @@ describe("features/inquiries public and manual submissions", () => {
         businessId: ids.businessId,
         businessInquiryFormId: ids.formId,
         status: "new",
-        source: "public-inquiry-page",
+        source: "service_form",
         customerEmail: "new-customer@example.com",
-        serviceCategory: "Storefront refresh",
+        serviceCategory: null,
       }),
     );
     expect(storedInquiry.submittedFieldSnapshot?.fields).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          id: "serviceCategory",
-          displayValue: "Storefront refresh",
-        }),
         expect.objectContaining({
           id: "details",
           displayValue:
@@ -171,7 +166,7 @@ describe("features/inquiries public and manual submissions", () => {
       .from(inquiries)
       .where(eq(inquiries.id, created.inquiryId));
 
-    expect(storedInquiry.source).toBe("manual-dashboard");
+    expect(storedInquiry.source).toBe("manual");
 
     const [activity] = await testDb
       .select()

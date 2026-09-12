@@ -204,7 +204,7 @@ function cleanProposalForSend(values: ProposalValues): Record<string, unknown> {
     customerName: values.customerName.trim(),
     customerContactMethod: values.customerContactMethod.trim(),
     customerContactHandle: values.customerContactHandle.trim(),
-    serviceCategory: values.serviceCategory.trim(),
+    serviceSlug: values.serviceSlug.trim(),
     details: values.details.trim(),
   };
   const email = values.customerEmail?.trim();
@@ -224,7 +224,7 @@ function cleanProposalForApproval(values: ProposalValues): Record<string, unknow
       : {}),
     customerContactMethod: values.customerContactMethod.trim(),
     customerContactHandle: values.customerContactHandle.trim(),
-    serviceCategory: values.serviceCategory.trim(),
+    serviceSlug: values.serviceSlug.trim(),
     details: values.details.trim(),
     ...(values.budgetText?.trim()
       ? { budgetText: values.budgetText.trim() }

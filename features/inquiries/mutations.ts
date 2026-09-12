@@ -24,6 +24,7 @@ import {
 import type {
   InquiryStatus,
   InquiryWorkflowStatus,
+  InquirySourceValue,
 } from "@/features/inquiries/types";
 import { inquirySources } from "@/features/inquiries/types";
 import { getInquiryStatusLabel } from "@/features/inquiries/utils";
@@ -46,7 +47,7 @@ type CreateInquirySubmissionInput = {
   business: InquirySubmissionBusinessRef;
   submission: PublicInquirySubmissionInput;
   actorUserId: string | null;
-  source: string;
+  source: InquirySourceValue;
   activity: {
     type: string;
     summary: string;
@@ -130,17 +131,18 @@ export async function createInquirySubmission({
 
   try {
     await db.transaction(async (tx) => {
+      const serviceName = business.form?.name ?? "General inquiry";
       await tx.insert(inquiries).values({
         id: inquiryId,
         businessId: business.id,
         businessInquiryFormId: business.form?.id ?? null,
         status: "new",
-        subject: submission.serviceCategory,
+        subject: serviceName,
         customerName: submission.customerName,
         customerEmail: submission.customerEmail ?? null,
         customerContactMethod: submission.customerContactMethod,
         customerContactHandle: submission.customerContactHandle,
-        serviceCategory: submission.serviceCategory,
+        serviceCategory: null,
         requestedDeadline: submission.requestedDeadline ?? null,
         budgetText: submission.budgetText ?? null,
         details: submission.details,
@@ -182,7 +184,6 @@ export async function createInquirySubmission({
           inquiryFormSlug: business.form?.slug ?? null,
           inquiryFormName: business.form?.name ?? null,
           hasAttachment: Boolean(preparedAttachment),
-          serviceCategory: submission.serviceCategory,
         },
         createdAt: now,
         updatedAt: now,
@@ -202,7 +203,7 @@ export async function createInquirySubmission({
           inquiryId,
           type: "public_inquiry_submitted",
           title: `New inquiry from ${submission.customerName}`,
-          summary: `${submission.serviceCategory}${business.form ? ` via ${business.form.name}` : ""}`,
+          summary: `${business.form?.name ?? "General inquiry"} via ${source}`,
           metadata: {
             customerEmail: submission.customerEmail,
             customerName: submission.customerName,
@@ -210,7 +211,6 @@ export async function createInquirySubmission({
             inquiryFormId: business.form?.id ?? null,
             inquiryFormName: business.form?.name ?? null,
             inquiryFormSlug: business.form?.slug ?? null,
-            serviceCategory: submission.serviceCategory,
           },
           now,
         });
@@ -239,7 +239,7 @@ export async function createInquirySubmission({
     inquiryId,
     customerEmail: submission.customerEmail,
     customerName: submission.customerName,
-    serviceCategory: submission.serviceCategory,
+    serviceName: business.form?.name ?? "General inquiry",
     details: submission.details,
   }).catch((error) => {
     console.error("[inquiry.received] Failed to send acknowledgment email.", error);
@@ -254,11 +254,10 @@ export async function createInquirySubmission({
       inquiry: {
         customerName: submission.customerName,
         customerEmail: submission.customerEmail ?? null,
-        serviceCategory: submission.serviceCategory,
         requestedDeadline: submission.requestedDeadline ?? null,
         budgetText: submission.budgetText ?? null,
         details: submission.details,
-        subject: submission.serviceCategory,
+        subject: business.form?.name ?? "",
         submittedAt: now,
       },
     });
@@ -293,10 +292,10 @@ export async function createPublicInquirySubmission({
     business,
     submission,
     actorUserId: null,
-    source: inquirySources.publicInquiryPage,
+    source: inquirySources.serviceForm,
     activity: {
       type: "inquiry.submitted_public",
-      summary: "Inquiry submitted through the public inquiry page.",
+      summary: "Inquiry submitted through the service form.",
     },
     notifyInAppOnNewInquiry: true,
   });
@@ -306,12 +305,12 @@ export async function createManualInquirySubmission({
   business,
   submission,
   actorUserId,
-  source = inquirySources.manualDashboard,
+  source = inquirySources.manual,
 }: {
   business: InquirySubmissionBusinessRef;
   submission: PublicInquirySubmissionInput;
   actorUserId: string;
-  source?: string;
+  source?: InquirySourceValue;
 }): Promise<CreatePublicInquirySubmissionResult> {
   return createInquirySubmission({
     business,
@@ -319,14 +318,8 @@ export async function createManualInquirySubmission({
     actorUserId,
     source,
     activity: {
-      type:
-        source === "ai"
-          ? "inquiry.created_ai"
-          : "inquiry.created_manual",
-      summary:
-        source === "ai"
-          ? "Inquiry created from an AI-confirmed action."
-          : "Inquiry created manually from the dashboard.",
+      type: "inquiry.created_manual",
+      summary: "Inquiry created manually from the dashboard.",
     },
     notifyInAppOnNewInquiry: false,
   });
@@ -352,10 +345,10 @@ export async function createAgentInquirySubmission({
     business,
     submission,
     actorUserId: null,
-    source: "ai_agent",
+    source: inquirySources.aiAssistant,
     activity: {
       type: "inquiry.submitted_ai_agent",
-      summary: "Inquiry submitted through AI agent conversation.",
+      summary: "Inquiry submitted through AI assistant conversation.",
     },
     notifyInAppOnNewInquiry: true,
     aiAssisted: true,
@@ -418,10 +411,10 @@ export async function createAgentHandoffSubmission({
     business,
     submission,
     actorUserId: null,
-    source: "ai_agent_handoff",
+    source: inquirySources.aiAssistant,
     activity: {
       type: "inquiry.submitted_ai_agent",
-      summary: "Customer escalated to a human from the AI agent conversation.",
+      summary: "Customer escalated to a human from the AI assistant conversation.",
     },
     notifyInAppOnNewInquiry: true,
     aiAssisted: true,
@@ -464,7 +457,7 @@ export async function createAssistantInquirySubmission({
     business,
     submission,
     actorUserId,
-    source: inquirySources.manualDashboard,
+    source: inquirySources.manual,
     activity: {
       type: "inquiry.created_manual",
       summary: "Inquiry created by the business Assistant.",
@@ -556,7 +549,6 @@ export async function changeInquiryStatusForBusiness({
         archivedAt: inquiries.archivedAt,
         businessId: businesses.id,
         customerName: inquiries.customerName,
-        serviceCategory: inquiries.serviceCategory,
       })
       .from(inquiries)
       .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
@@ -630,7 +622,6 @@ type UpdateInquiryFieldsForBusinessInput = {
     customerEmail: string | null;
     customerContactMethod: string;
     customerContactHandle: string;
-    serviceCategory: string;
     requestedDeadline: string | null;
     budgetText: string | null;
     details: string;
@@ -662,7 +653,6 @@ export async function updateInquiryFieldsForBusiness({
         archivedAt: inquiries.archivedAt,
         businessId: businesses.id,
         customerName: inquiries.customerName,
-        serviceCategory: inquiries.serviceCategory,
       })
       .from(inquiries)
       .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
@@ -712,7 +702,6 @@ export async function updateInquiryFieldsForBusiness({
       metadata: {
         changedFields: Object.keys(cleanFields),
         customerName: existingInquiry.customerName,
-        serviceCategory: existingInquiry.serviceCategory,
       },
       createdAt: now,
     });
@@ -745,7 +734,6 @@ export async function archiveInquiryForBusiness({
         archivedAt: inquiries.archivedAt,
         businessId: businesses.id,
         customerName: inquiries.customerName,
-        serviceCategory: inquiries.serviceCategory,
       })
       .from(inquiries)
       .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
@@ -794,7 +782,6 @@ export async function archiveInquiryForBusiness({
       action: "request.archived",
       metadata: {
         customerName: existingInquiry.customerName,
-        serviceCategory: existingInquiry.serviceCategory,
       },
       createdAt: now,
     });
@@ -823,7 +810,6 @@ export async function unarchiveInquiryForBusiness({
         archivedAt: inquiries.archivedAt,
         businessId: businesses.id,
         customerName: inquiries.customerName,
-        serviceCategory: inquiries.serviceCategory,
       })
       .from(inquiries)
       .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
@@ -893,7 +879,6 @@ export async function deleteInquiryForBusiness({
         deletedAt: inquiries.deletedAt,
         businessId: businesses.id,
         customerName: inquiries.customerName,
-        serviceCategory: inquiries.serviceCategory,
       })
       .from(inquiries)
       .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
@@ -942,7 +927,6 @@ export async function deleteInquiryForBusiness({
       action: "request.deleted",
       metadata: {
         customerName: existingInquiry.customerName,
-        serviceCategory: existingInquiry.serviceCategory,
       },
       createdAt: now,
     });

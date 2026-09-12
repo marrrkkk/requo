@@ -7,8 +7,8 @@ import { tool } from "ai";
 import type { ToolExecutionOptions } from "ai";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
-import { businesses } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { businesses, businessInquiryForms } from "@/lib/db/schema";
+import { and, eq, isNull } from "drizzle-orm";
 import { createInquirySchema } from "../schemas";
 import { createAssistantInquirySubmission } from "@/features/inquiries/mutations";
 import { writeAuditLog } from "@/features/audit/mutations";
@@ -65,15 +65,77 @@ export const createInquiryTool = tool<CreateInquiryInput, CreateInquiryOutput>({
         (contactMethod === "email" ? params.customerEmail : "") ??
         "";
 
+      // Every inquiry belongs to a Service form. Resolve the requested slug,
+      // falling back to the default form.
+      const [selectedForm] = await db
+        .select({
+          id: businessInquiryForms.id,
+          name: businessInquiryForms.name,
+          slug: businessInquiryForms.slug,
+          businessType: businessInquiryForms.businessType,
+          isDefault: businessInquiryForms.isDefault,
+          publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
+        })
+        .from(businessInquiryForms)
+        .where(
+          and(
+            eq(businessInquiryForms.businessId, business.id),
+            eq(businessInquiryForms.slug, params.serviceSlug),
+            isNull(businessInquiryForms.archivedAt),
+          ),
+        )
+        .limit(1);
+      const [resolvedForm] = selectedForm
+        ? [selectedForm]
+        : await db
+            .select({
+              id: businessInquiryForms.id,
+              name: businessInquiryForms.name,
+              slug: businessInquiryForms.slug,
+              businessType: businessInquiryForms.businessType,
+              isDefault: businessInquiryForms.isDefault,
+              publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
+            })
+            .from(businessInquiryForms)
+            .where(
+              and(
+                eq(businessInquiryForms.businessId, business.id),
+                eq(businessInquiryForms.isDefault, true),
+                isNull(businessInquiryForms.archivedAt),
+              ),
+            )
+            .limit(1);
+
+      if (!resolvedForm) {
+        return {
+          type: "error",
+          error: "NOT_FOUND",
+          message: "No active service is available for this business",
+          summary: "Could not create the inquiry because no service form exists",
+          retryable: false,
+        };
+      }
+
       const { inquiryId } = await createAssistantInquirySubmission({
-        business: { id: business.id, name: business.name, slug: business.slug },
+        business: {
+          id: business.id,
+          name: business.name,
+          slug: business.slug,
+          form: {
+            id: resolvedForm.id,
+            name: resolvedForm.name,
+            slug: resolvedForm.slug,
+            businessType: resolvedForm.businessType as never,
+            isDefault: resolvedForm.isDefault,
+            publicInquiryEnabled: resolvedForm.publicInquiryEnabled,
+          },
+        },
         actorUserId: context.userId,
         submission: {
           customerName: params.customerName,
           customerEmail: params.customerEmail,
           customerContactMethod: contactMethod,
           customerContactHandle: contactHandle,
-          serviceCategory: params.serviceCategory,
           requestedDeadline: params.requestedDeadline,
           budgetText: params.budgetText,
           details: params.details,
@@ -101,7 +163,7 @@ export const createInquiryTool = tool<CreateInquiryInput, CreateInquiryOutput>({
         metadata: {
           source: "assistant",
           customerName: params.customerName,
-          serviceCategory: params.serviceCategory,
+          serviceSlug: resolvedForm.slug,
         },
       });
 

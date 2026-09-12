@@ -53,8 +53,10 @@ export function formatAuditEventDetails(item: BusinessAuditLogItem) {
     case "request.trashed":
     case "request.restored": {
       const customerName = getStringValue(metadata, "customerName");
-      const serviceCategory = getStringValue(metadata, "serviceCategory");
-      return [customerName, serviceCategory].filter(Boolean).join(" - ") || "Request record";
+      const serviceName =
+        getStringValue(metadata, "serviceSlug") ??
+        getStringValue(metadata, "serviceCategory");
+      return [customerName, serviceName].filter(Boolean).join(" - ") || "Request record";
     }
     case "quote.created":
     case "quote.sent":

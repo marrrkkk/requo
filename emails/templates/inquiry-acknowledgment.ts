@@ -10,7 +10,7 @@ type InquiryAcknowledgmentTemplateInput = {
 export function renderInquiryAcknowledgmentEmail({
   businessName,
   customerName,
-  serviceCategory,
+  serviceCategory: serviceName,
   details,
 }: InquiryAcknowledgmentTemplateInput) {
   const subject = `We received your inquiry — ${businessName}`;
@@ -18,13 +18,13 @@ export function renderInquiryAcknowledgmentEmail({
   const html = renderEmailLayout({
     label: "Inquiry",
     title: `Thanks for reaching out${customerName ? `, ${customerName}` : ""}!`,
-    preheader: `We received your inquiry about ${serviceCategory} and will get back to you soon.`,
+    preheader: `We received your ${serviceName} inquiry and will get back to you soon.`,
     footerContext: businessName,
     children: `
-      <p style="margin: 0 0 12px; color: ${emailBrand.foregroundColor}; font-size: 15px; line-height: 24px;">We received your inquiry about <strong>${serviceCategory}</strong> and will get back to you soon.</p>
+      <p style="margin: 0 0 12px; color: ${emailBrand.foregroundColor}; font-size: 15px; line-height: 24px;">We received your <strong>${serviceName}</strong> inquiry and will get back to you soon.</p>
       <p style="margin: 0 0 12px; color: ${emailBrand.mutedTextColor}; font-size: 14px; line-height: 22px;">There is nothing else you need to do right now. If anything changes, we will reach out using the contact details you provided.</p>
       ${renderDetailsCard("Your inquiry", [
-        { label: "Service", value: serviceCategory },
+        { label: "Service", value: serviceName },
         { label: "Sent to", value: businessName },
       ])}
       ${

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Archive, Inbox, RotateCcw, Search, SearchX } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import {
   Empty,
   EmptyHeader,
@@ -83,7 +84,7 @@ export function ArchivedInquiriesSheet({
       if (!q) return true;
       return (
         item.customerName.toLowerCase().includes(q) ||
-        item.serviceCategory.toLowerCase().includes(q) ||
+        getInquirySourceLabel(item.source).toLowerCase().includes(q) ||
         (item.subject?.toLowerCase().includes(q) ?? false)
       );
     });
@@ -92,11 +93,18 @@ export function ArchivedInquiriesSheet({
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button type="button" variant="outline">
+        <Button
+          aria-label="Archived inquiries"
+          title="Archived inquiries"
+          size="sm"
+          className={mobileNavbarIconButtonClassName}
+          type="button"
+          variant="outline"
+        >
           <Archive data-icon="inline-start" />
-          Archived
+          <span className="hidden lg:inline">Archived</span>
           {items.length > 0 ? (
-            <span className="ml-1 tabular-nums text-muted-foreground">
+            <span className="ml-1 tabular-nums text-muted-foreground max-lg:hidden">
               ({items.length})
             </span>
           ) : null}
@@ -119,7 +127,7 @@ export function ArchivedInquiriesSheet({
                 <Input
                   className="pl-9"
                   onChange={(event) => setQuery(event.currentTarget.value)}
-                  placeholder="Search by name or category..."
+                  placeholder="Search by name or source..."
                   type="search"
                   value={query}
                 />
@@ -220,7 +228,7 @@ export function ArchivedInquiriesSheet({
                       {item.customerName}
                     </Link>
                     <p className="truncate text-xs text-muted-foreground">
-                      {item.serviceCategory}
+                      {item.inquiryFormName ?? getInquirySourceLabel(item.source)}
                     </p>
                   </div>
                   <InquiryStatusBadge status={item.status} />

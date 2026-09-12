@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { PenLine, PencilRuler } from "lucide-react";
-import { RequoIcon } from "@/components/shared/requo-icon";
 import type { MotionState } from "@/hooks/use-animated-list";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,7 +15,6 @@ import {
 } from "@/components/ui/table";
 import type { DashboardInquiryListItem } from "@/features/inquiries/types";
 import {
-  AI_AGENT_SOURCES,
   formatInquiryDate,
   getInquirySourceLabel,
 } from "@/features/inquiries/utils";
@@ -29,10 +27,7 @@ function getInquiryChannelDisplay(inquiry: DashboardInquiryListItem) {
   if (inquiry.inquiryFormName) {
     return { label: inquiry.inquiryFormName, icon: PencilRuler };
   }
-  if (inquiry.source && AI_AGENT_SOURCES.has(inquiry.source)) {
-    return { label: getInquirySourceLabel(inquiry.source), icon: RequoIcon };
-  }
-  return { label: "Manual", icon: PenLine };
+  return { label: getInquirySourceLabel(inquiry.source), icon: PenLine };
 }
 
 type InquiryListTableProps = {
@@ -71,9 +66,9 @@ export function InquiryListTable({
             </TableHead>
             <TableHead className="w-[17rem]">Customer</TableHead>
             <TableHead className="w-[13rem]">Service</TableHead>
-            <TableHead className="w-[13rem]">Category</TableHead>
-            <TableHead className="w-[8rem]">Created</TableHead>
+            <TableHead className="w-[13rem]">Source</TableHead>
             <TableHead className="w-[8.75rem]">Status</TableHead>
+            <TableHead className="w-[8rem]">Created</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -137,17 +132,8 @@ export function InquiryListTable({
                     className="table-emphasis"
                     href={inquiryHref}
                     prefetch={true}
-                    text={inquiry.serviceCategory}
+                    text={getInquirySourceLabel(inquiry.source)}
                   />
-                </TableCell>
-                <TableCell className="w-[8rem]">
-                  <Link
-                    className="block text-sm text-muted-foreground transition-colors hover:text-primary group-hover/row:text-primary"
-                    href={inquiryHref}
-                    prefetch={true}
-                  >
-                    {formatInquiryDate(inquiry.submittedAt)}
-                  </Link>
                 </TableCell>
                 <TableCell className="w-[8.75rem]">
                   <Link
@@ -159,6 +145,15 @@ export function InquiryListTable({
                     {inquiry.recordState !== "active" ? (
                       <InquiryRecordStateBadge state={inquiry.recordState} />
                     ) : null}
+                  </Link>
+                </TableCell>
+                <TableCell className="w-[8rem]">
+                  <Link
+                    className="block text-sm text-muted-foreground transition-colors hover:text-primary group-hover/row:text-primary"
+                    href={inquiryHref}
+                    prefetch={true}
+                  >
+                    {formatInquiryDate(inquiry.submittedAt)}
                   </Link>
                 </TableCell>
               </TableRow>

@@ -72,7 +72,6 @@ export const contactFieldFixedLabels: Record<InquiryContactFieldKey, string> = {
  * Used as fallback when no snapshot label is available.
  */
 export const systemFieldDefaultLabels: Record<InquiryProjectSystemFieldKey, string> = {
-  serviceCategory: "Service",
   requestedDeadline: "Deadline",
   budgetText: "Budget",
   details: "Message",
@@ -195,7 +194,6 @@ export function normalizeInquiryContactHandleSubmissionValue(
 }
 
 export const inquiryProjectSystemFieldKeys = [
-  "serviceCategory",
   "requestedDeadline",
   "budgetText",
   "details",
@@ -405,25 +403,36 @@ export const inquiryFormConfigSchema = z
     projectFields: z.array(inquiryFormFieldSchema).max(24),
   })
   .superRefine((value, context) => {
-    const serviceCategoryFields = value.projectFields.filter(
-      (field) => field.kind === "system" && field.key === "serviceCategory",
-    );
     const detailsFields = value.projectFields.filter(
       (field) => field.kind === "system" && field.key === "details",
     );
-
-    if (serviceCategoryFields.length !== 1) {
-      context.addIssue({
-        code: "custom",
-        message: "Include exactly one service/category field.",
-        path: ["projectFields"],
-      });
-    }
 
     if (detailsFields.length !== 1) {
       context.addIssue({
         code: "custom",
         message: "Include exactly one details field.",
+        path: ["projectFields"],
+      });
+    }
+
+    // Legacy configs may still carry a serviceCategory field from before the
+    // Service-owned form refactor. It is no longer a customer-facing question
+    // and must not be present going forward.
+    const legacyServiceFields = value.projectFields.filter(
+      (field) =>
+        (field.kind === "system" &&
+          (field as { key?: string }).key === "serviceCategory") ||
+        (field.kind === "custom" &&
+          ((field as { id?: string }).id === "serviceCategory" ||
+            getInquiryFormFieldInputName(field as never) ===
+              "serviceCategory")),
+    );
+
+    if (legacyServiceFields.length > 0) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "Service selection is owned by the Service form and must not be a customer-facing field.",
         path: ["projectFields"],
       });
     }
@@ -464,13 +473,10 @@ export const inquiryFormConfigSchema = z
       ids.add(id);
 
       if (field.kind === "system") {
-        if (
-          (field.key === "serviceCategory" || field.key === "details") &&
-          (!field.enabled || !field.required)
-        ) {
+        if (field.key === "details" && (!field.enabled || !field.required)) {
           context.addIssue({
             code: "custom",
-            message: "Service/category and details must stay enabled and required.",
+            message: "Details must stay enabled and required.",
             path: ["projectFields"],
           });
         }
@@ -621,14 +627,6 @@ const placeholderDefinitions = {
 
   // Project field placeholders by field key and business type
   project: {
-    serviceCategory: {
-      contractor_home_improvement: "Remodel, install, repair, cleanup...",
-      creative_marketing_services: "Branding, design, website, content...",
-      consulting_professional_services: "Consulting, advisory, audit, workshop...",
-      event_services_rentals: "Photography, videography, DJ, catering, rentals...",
-      cleaning_services: "Deep clean, regular maintenance, move-out...",
-      general_project_services: "What service do you need?",
-    },
     details: {
       contractor_home_improvement: "Describe the project, site conditions, materials, and timeline...",
       creative_marketing_services: "Share the goal, audience, deliverables, and creative direction...",
@@ -711,9 +709,9 @@ function createGeneralProjectServicesFields(
   businessType: StarterTemplateBusinessType = "general_project_services",
 ) {
   return [
-    createSystemField("serviceCategory", {
-      label: "Service needed",
-      placeholder: getProjectPlaceholder("serviceCategory", businessType),
+    createSystemField("details", {
+      label: "What do you need help with?",
+      placeholder: getProjectPlaceholder("details", businessType),
       required: true,
     }),
     createCustomField("site-location", "short_text", {
@@ -729,11 +727,6 @@ function createGeneralProjectServicesFields(
       label: "Budget range",
       placeholder: getProjectPlaceholder("budgetText", businessType),
       enabled: true,
-    }),
-    createSystemField("details", {
-      label: "Inquiry details",
-      placeholder: getProjectPlaceholder("details", businessType),
-      required: true,
     }),
     createSystemField("attachment", {
       label: "Reference files",
@@ -752,9 +745,9 @@ function createContractorHomeImprovementFields() {
   const businessType: StarterTemplateBusinessType = "contractor_home_improvement";
 
   return [
-    createSystemField("serviceCategory", {
-      label: "Project or service needed",
-      placeholder: getProjectPlaceholder("serviceCategory", businessType),
+    createSystemField("details", {
+      label: "What do you need help with?",
+      placeholder: getProjectPlaceholder("details", businessType),
       required: true,
     }),
     createCustomField("service-address", "short_text", {
@@ -782,10 +775,10 @@ function createContractorHomeImprovementFields() {
       placeholder: getProjectPlaceholder("requestedDeadline", businessType),
       enabled: true,
     }),
-    createSystemField("details", {
-      label: "Project details",
-      placeholder: getProjectPlaceholder("details", businessType),
-      required: true,
+    createSystemField("budgetText", {
+      label: "Budget range",
+      placeholder: getProjectPlaceholder("budgetText", businessType),
+      enabled: true,
     }),
     createSystemField("attachment", {
       label: "Photos or plans",
@@ -798,9 +791,9 @@ function createCreativeMarketingServicesFields() {
   const businessType: StarterTemplateBusinessType = "creative_marketing_services";
 
   return [
-    createSystemField("serviceCategory", {
-      label: "Project or service needed",
-      placeholder: getProjectPlaceholder("serviceCategory", businessType),
+    createSystemField("details", {
+      label: "What do you need help with?",
+      placeholder: getProjectPlaceholder("details", businessType),
       required: true,
     }),
     createCustomField("deliverables", "long_text", {
@@ -829,11 +822,6 @@ function createCreativeMarketingServicesFields() {
       placeholder: getProjectPlaceholder("budgetText", businessType),
       enabled: true,
     }),
-    createSystemField("details", {
-      label: "Project brief",
-      placeholder: getProjectPlaceholder("details", businessType),
-      required: true,
-    }),
     createSystemField("attachment", {
       label: "Brief or reference files",
       enabled: true,
@@ -845,9 +833,9 @@ function createConsultingProfessionalServicesFields() {
   const businessType: StarterTemplateBusinessType = "consulting_professional_services";
 
   return [
-    createSystemField("serviceCategory", {
-      label: "Service needed",
-      placeholder: getProjectPlaceholder("serviceCategory", businessType),
+    createSystemField("details", {
+      label: "What do you need help with?",
+      placeholder: getProjectPlaceholder("details", businessType),
       required: true,
     }),
     createCustomField("goal", "long_text", {
@@ -874,11 +862,6 @@ function createConsultingProfessionalServicesFields() {
       placeholder: getProjectPlaceholder("budgetText", businessType),
       enabled: true,
     }),
-    createSystemField("details", {
-      label: "Background",
-      placeholder: getProjectPlaceholder("details", businessType),
-      required: true,
-    }),
     createSystemField("attachment", {
       label: "Reference file",
       enabled: true,
@@ -890,9 +873,9 @@ function createEventServicesFields() {
   const businessType: StarterTemplateBusinessType = "event_services_rentals";
 
   return [
-    createSystemField("serviceCategory", {
-      label: "Service needed",
-      placeholder: getProjectPlaceholder("serviceCategory", businessType),
+    createSystemField("details", {
+      label: "What do you need help with?",
+      placeholder: getProjectPlaceholder("details", businessType),
       required: true,
     }),
     createCustomField("event-date", "date", {
@@ -922,11 +905,6 @@ function createEventServicesFields() {
       placeholder: getProjectPlaceholder("budgetText", businessType),
       enabled: true,
     }),
-    createSystemField("details", {
-      label: "Event details",
-      placeholder: getProjectPlaceholder("details", businessType),
-      required: true,
-    }),
     createSystemField("attachment", {
       label: "Reference files",
       enabled: true,
@@ -938,9 +916,9 @@ function createRecurringServiceFields() {
   const businessType: StarterTemplateBusinessType = "cleaning_services";
 
   return [
-    createSystemField("serviceCategory", {
-      label: "Service needed",
-      placeholder: getProjectPlaceholder("serviceCategory", businessType),
+    createSystemField("details", {
+      label: "What do you need help with?",
+      placeholder: getProjectPlaceholder("details", businessType),
       required: true,
     }),
     createCustomField("service-address", "short_text", {
@@ -973,11 +951,6 @@ function createRecurringServiceFields() {
     createCustomField("access-notes", "short_text", {
       label: "Access notes",
       placeholder: "Gate code, parking, unit number",
-    }),
-    createSystemField("details", {
-      label: "Additional details",
-      placeholder: getProjectPlaceholder("details", businessType),
-      required: true,
     }),
     createSystemField("attachment", {
       label: "Photos",
@@ -1060,14 +1033,53 @@ export function createInquiryFormConfigDefaults({
   };
 }
 
+/**
+ * Strips the legacy `serviceCategory` customer-facing field from persisted
+ * configs. The Service is now owned by the parent Service form
+ * (`businessInquiryFormId`), so asking the customer to select it is redundant.
+ */
+function stripLegacyServiceCategoryField(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  const record = value as { projectFields?: unknown };
+
+  if (!Array.isArray(record.projectFields)) {
+    return value;
+  }
+
+  return {
+    ...record,
+    projectFields: record.projectFields.filter((field) => {
+      if (!field || typeof field !== "object" || Array.isArray(field)) {
+        return true;
+      }
+
+      const candidate = field as { kind?: unknown; key?: unknown; id?: unknown };
+
+      if (candidate.kind === "system" && candidate.key === "serviceCategory") {
+        return false;
+      }
+
+      if (candidate.id === "serviceCategory") {
+        return false;
+      }
+
+      return true;
+    }),
+  };
+}
+
 export function getNormalizedInquiryFormConfig(
   value: unknown,
   defaults?: CreateInquiryFormConfigDefaultsInput,
 ) {
   const fallback = createInquiryFormConfigDefaults(defaults);
-  const parsed = inquiryFormConfigSchema.safeParse(
+  const normalizedValue = stripLegacyServiceCategoryField(
     normalizeInquiryFormConfigValue(value, fallback.businessType),
   );
+  const parsed = inquiryFormConfigSchema.safeParse(normalizedValue);
 
   if (!parsed.success) {
     return fallback;
@@ -1151,6 +1163,11 @@ function resolveFieldKind(field: InquirySubmittedFieldSnapshotField): InquiryFie
     return "system";
   }
 
+  // Legacy snapshots may still carry a serviceCategory field.
+  if (field.id === "serviceCategory") {
+    return "system";
+  }
+
   return "custom";
 }
 
@@ -1175,10 +1192,10 @@ export function getContactSubmittedFields(
 }
 
 /**
- * Summary-level system fields (category, budget, deadline).
+ * Summary-level system fields (budget, deadline).
  * Excludes details and attachment which are displayed in their own sections.
  */
-const summaryFieldIds = new Set<string>(["serviceCategory", "requestedDeadline", "budgetText"]);
+const summaryFieldIds = new Set<string>(["requestedDeadline", "budgetText"]);
 
 export function getSummarySubmittedFields(
   snapshot: InquirySubmittedFieldSnapshot | null | undefined,

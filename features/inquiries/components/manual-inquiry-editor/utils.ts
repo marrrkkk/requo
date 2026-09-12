@@ -80,8 +80,6 @@ export function getContactHandleInputMode(method: InquiryContactMethod) {
 export function getProjectFieldMaxLength(field: InquiryFormFieldDefinition) {
   if (field.kind === "system") {
     switch (field.key) {
-      case "serviceCategory":
-        return 120;
       case "budgetText":
         return 120;
       case "details":

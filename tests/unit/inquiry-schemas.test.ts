@@ -36,7 +36,6 @@ function validFormData() {
   formData.set("customerEmail", "taylor@example.com");
   formData.set("customerContactMethod", "email");
   formData.set("customerContactHandle", "taylor@example.com");
-  formData.set("serviceCategory", "Window graphics");
   formData.set("requestedDeadline", "2026-05-15");
   formData.set("budgetText", "Around $1,500");
   formData.set(
@@ -58,22 +57,23 @@ describe("inquiry validation schemas", () => {
         customerEmail: "taylor@example.com",
         customerContactMethod: "email",
         customerContactHandle: "taylor@example.com",
-        serviceCategory: "Window graphics",
         requestedDeadline: "2026-05-15",
         budgetText: "Around $1,500",
       }),
     );
+    expect(data).not.toHaveProperty("serviceCategory");
     expect(data.submittedFieldSnapshot.fields).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          id: "serviceCategory",
-          displayValue: "Window graphics",
-        }),
         expect.objectContaining({
           id: "details",
           displayValue:
             "Need two storefront panels and a door decal for a spring launch.",
         }),
+      ]),
+    );
+    expect(data.submittedFieldSnapshot.fields).toEqual(
+      expect.not.arrayContaining([
+        expect.objectContaining({ id: "serviceCategory" }),
       ]),
     );
   });
@@ -204,10 +204,9 @@ describe("inquiry validation schemas", () => {
         field.kind === "system" ? field.key : field.id,
       ),
     ).toEqual([
-      "serviceCategory",
+      "details",
       "requestedDeadline",
       "budgetText",
-      "details",
     ]);
 
     const result = validateManualQuickInquirySubmission(

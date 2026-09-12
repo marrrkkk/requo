@@ -127,7 +127,7 @@ export function CustomerHistoryPanel({
                       href={getBusinessInquiryPath(businessSlug, inquiry.id)}
                     >
                       <FileText className="size-4 text-muted-foreground" />
-                      <span>{inquiry.serviceCategory}</span>
+                      <span>{inquiry.subject ?? "Inquiry"}</span>
                     </Link>
                   }
                 />
@@ -243,7 +243,7 @@ function getCustomerHistoryTimeline(history: CustomerHistoryData): CustomerHisto
     ...history.inquiries.map((inquiry) => ({
       kind: "inquiry" as const,
       id: inquiry.id,
-      label: inquiry.serviceCategory,
+      label: inquiry.subject ?? "Inquiry",
       status: inquiry.status,
       date: inquiry.submittedAt,
     })),

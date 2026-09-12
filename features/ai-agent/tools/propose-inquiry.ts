@@ -33,7 +33,7 @@ export const proposeInquiryTool = tool<
   { proposal: ProposedInquiry; message: string }
 >({
   description:
-    "Propose an inquiry when you have collected all required information from the visitor: name, contact method and handle, service category, and project details. This stages the proposal for the visitor to review and send — it does not create anything yet. Only call this when you have complete information. Optional details like budget and deadline can be left for the visitor to fill in on the card.",
+    "Propose an inquiry when you have collected all required information from the visitor: name, contact method and handle, service (a live service slug from get_services), and project details. This stages the proposal for the visitor to review and send — it does not create anything yet. Only call this when you have complete information. Optional details like budget and deadline can be left for the visitor to fill in on the card.",
   inputSchema: createInquiryParamsSchema,
   execute: async (params, options: ToolExecutionOptions) => {
     const context = options.experimental_context as AgentToolContext;
@@ -47,7 +47,7 @@ export const proposeInquiryTool = tool<
         customerEmail: params.customerEmail ?? null,
         customerContactMethod: params.customerContactMethod,
         customerContactHandle: params.customerContactHandle,
-        serviceCategory: params.serviceCategory,
+        serviceSlug: params.serviceSlug,
         details: params.details,
         budgetText: params.budgetText,
         requestedDeadline: params.requestedDeadline,
@@ -76,7 +76,7 @@ export const proposeInquiryTool = tool<
           customerEmail: params.customerEmail ?? null,
           customerContactMethod: params.customerContactMethod,
           customerContactHandle: params.customerContactHandle,
-          serviceCategory: params.serviceCategory,
+          serviceSlug: params.serviceSlug,
           details: params.details,
         },
         missing: [],
