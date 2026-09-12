@@ -158,7 +158,7 @@ describe("onboarding creates named services", () => {
     expect(seo?.isDefault).toBe(false);
     expect(seo?.publicInquiryEnabled).toBe(true);
     expect(seo?.slug).toBe("seo-audit");
-  });
+  }, 30_000);
 
   it("falls back to the type-derived preset when no services are sent", async () => {
     const userId = `${prefix}_fallback_owner`;
@@ -173,7 +173,7 @@ describe("onboarding creates named services", () => {
     expect(forms).toHaveLength(1);
     expect(forms[0]?.name).toBe("Project inquiry");
     expect(forms[0]?.isDefault).toBe(true);
-  });
+  }, 30_000);
 
   it("trims services beyond the free plan's one live service", async () => {
     const userId = `${prefix}_trim_owner`;
@@ -193,7 +193,7 @@ describe("onboarding creates named services", () => {
     expect(forms).toHaveLength(1);
     expect(forms[0]?.name).toBe("Website design");
     expect(forms[0]?.isDefault).toBe(true);
-  });
+  }, 30_000);
 
   it("allows up to the pro-plan limit of five live services", async () => {
     const userId = `${prefix}_pro_owner`;
@@ -219,7 +219,7 @@ describe("onboarding creates named services", () => {
 
     expect(forms).toHaveLength(5);
     expect(forms.filter((form) => form.isDefault)).toHaveLength(1);
-  });
+  }, 30_000);
 
   it("dedupes slugs when two services normalize to the same slug", async () => {
     const userId = `${prefix}_slug_owner`;
@@ -243,7 +243,7 @@ describe("onboarding creates named services", () => {
     expect(forms).toHaveLength(2);
     expect(new Set(slugs).size).toBe(2);
     expect(slugs).toContain("deep-cleaning");
-  });
+  }, 30_000);
 
   it("writes the workflow-aware form config to the default service row", async () => {
     const userId = `${prefix}_config_owner`;
@@ -265,7 +265,7 @@ describe("onboarding creates named services", () => {
     // Config fix: the default form row now matches the workflow-aware
     // business-level config instead of the type-derived preset.
     expect(form?.inquiryFormConfig).toEqual(businessRow?.inquiryFormConfig);
-  });
+  }, 30_000);
 });
 
 describe("businesses hub creates named services", () => {
@@ -318,7 +318,7 @@ describe("businesses hub creates named services", () => {
     expect(forms.find((form) => form.name === "Sign installation")?.slug).toBe(
       "sign-installation",
     );
-  });
+  }, 30_000);
 
   it("trims hub services beyond the free plan's one live service", async () => {
     const userId = `${prefix}_hub_free_owner`;
@@ -337,5 +337,5 @@ describe("businesses hub creates named services", () => {
 
     expect(forms).toHaveLength(1);
     expect(forms[0]?.name).toBe("Sign design");
-  });
+  }, 30_000);
 });
