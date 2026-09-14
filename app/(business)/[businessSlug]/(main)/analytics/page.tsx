@@ -18,11 +18,14 @@ import { generateAnalyticsSummary } from "@/features/analytics/ai-summary";
 import {
   getBasicSparklineData,
   getBusinessAnalytics,
+  getDashboardKpiComparison,
   getFreeAnalytics,
   getProAnalytics,
   getRevenueForecast,
   getTopSources,
 } from "@/features/analytics/queries";
+import { formatMoney, formatRelativeDelta } from "@/features/analytics/utils";
+import { getInvoiceOverviewForBusiness } from "@/features/invoices/queries";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { canViewBusinessAnalytics } from "@/lib/business-members";
@@ -208,8 +211,13 @@ async function AnalyticsTabsRegion({ params, searchParams }: AnalyticsPageProps)
               <CoreAnalyticsRegion
                 businessId={businessId}
                 businessSlug={business.slug}
+                currency={business.defaultCurrency}
+                plan={plan}
                 since={since}
                 until={until}
+                hasPerformance={hasPerformance}
+                hasOperations={hasOperations}
+                upgradeAction={{ ...upgradeAction }}
               />
             </RegionErrorBoundary>
           </Suspense>
@@ -245,18 +253,55 @@ async function AnalyticsTabsRegion({ params, searchParams }: AnalyticsPageProps)
 async function CoreAnalyticsRegion({
   businessId,
   businessSlug,
+  currency,
+  plan,
   since,
   until,
+  hasPerformance,
+  hasOperations,
+  upgradeAction,
 }: {
   businessId: string;
   businessSlug: string;
+  currency: string;
+  plan: Parameters<typeof hasFeatureAccess>[0];
   since: Date;
   until: Date;
+  hasPerformance: boolean;
+  hasOperations: boolean;
+  upgradeAction: {
+    userId: string;
+    businessId: string;
+    businessSlug: string;
+    currentPlan: Parameters<typeof hasFeatureAccess>[0];
+  };
 }) {
-  const [freeData, sparklineData] = await Promise.all([
-    getFreeAnalytics(businessId, since, until),
-    getBasicSparklineData(businessId, since, until),
-  ]);
+  // Gated queries only run when the plan entitles them; free users get the
+  // free pipeline plus locked placeholders (no premium data in the DOM).
+  // The revenue comparison covers a fixed 30-day window, so its delta only
+  // applies when the selected range matches it. Invoice balances are core
+  // product data and load for every plan.
+  const rangeDays = Math.round((until.getTime() - since.getTime()) / (1000 * 60 * 60 * 24));
+  const [freeData, sparklineData, proData, businessData, invoiceOverviewData, kpiComparison] =
+    await Promise.all([
+      getFreeAnalytics(businessId, since, until),
+      getBasicSparklineData(businessId, since, until),
+      hasPerformance ? getProAnalytics(businessId, since, until) : Promise.resolve(null),
+      hasOperations ? getBusinessAnalytics(businessId, since, until) : Promise.resolve(null),
+      getInvoiceOverviewForBusiness({ businessId }).catch(() => null),
+      hasOperations && rangeDays >= 28 && rangeDays <= 32
+        ? getDashboardKpiComparison(businessId)
+        : Promise.resolve(null),
+    ]);
+
+  const revenueDelta =
+    businessData && kpiComparison
+      ? formatRelativeDelta(
+          businessData.revenue.acceptedValueInCents,
+          kpiComparison.wonInCentsPrior,
+          (v) => formatMoney(v, currency),
+        )
+      : null;
 
   return (
     <BasicAnalyticsView
@@ -265,6 +310,15 @@ async function CoreAnalyticsRegion({
       businessSlug={businessSlug}
       since={since}
       until={until}
+      currency={currency}
+      plan={plan}
+      hasPerformance={hasPerformance}
+      hasOperations={hasOperations}
+      pro={proData}
+      revenue={businessData?.revenue ?? null}
+      revenueDelta={revenueDelta}
+      invoiceOverview={invoiceOverviewData}
+      upgradeAction={upgradeAction}
     />
   );
 }
@@ -376,35 +430,47 @@ function AnalyticsTabsSkeleton() {
 
 function CoreAnalyticsSkeleton() {
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <Skeleton className="mb-4 h-3 w-36 rounded-md" />
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex min-h-28 flex-col justify-between rounded-lg border bg-card p-5"
-            >
-              <Skeleton className="h-3 w-24 rounded-md" />
-              <Skeleton className="h-7 w-16 rounded-md" />
-            </div>
-          ))}
-        </div>
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-5">
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-5 w-40 rounded-md" />
+        <Skeleton className="h-4 w-72 rounded-md" />
       </div>
-      <Skeleton className="h-[280px] w-full rounded-xl" />
+      {/* Hero KPI cards */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex min-h-28 flex-col gap-2.5 rounded-xl border border-border/60 bg-muted/40 p-4"
+          >
+            <Skeleton className="size-7 rounded-lg" />
+            <Skeleton className="h-3 w-24 rounded-md" />
+            <Skeleton className="h-6 w-20 rounded-md" />
+          </div>
+        ))}
+      </div>
+      {/* Funnel + outcomes cards */}
+      <div className="grid gap-3 sm:gap-4 xl:grid-cols-2">
+        <Skeleton className="h-56 w-full rounded-xl" />
+        <Skeleton className="h-56 w-full rounded-xl" />
+      </div>
+      {/* Trend card */}
+      <Skeleton className="h-72 w-full rounded-xl" />
+      {/* Money-in card */}
+      <Skeleton className="h-36 w-full rounded-xl" />
     </div>
   );
 }
 
 function AdvancedAnalyticsSkeleton() {
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 rounded-xl bg-surface-muted p-4">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
-          ))}
-        </div>
+    <div className="flex flex-col gap-4 sm:gap-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-32 rounded-xl" />
+        ))}
+      </div>
+      <div className="grid gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+        <Skeleton className="h-[280px] rounded-xl" />
         <Skeleton className="h-[280px] rounded-xl" />
       </div>
     </div>

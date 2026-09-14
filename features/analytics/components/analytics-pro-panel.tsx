@@ -1,12 +1,11 @@
 "use client";
 
-import { DashboardStatsGrid } from "@/components/shared/dashboard-layout";
 import { LazyAnalyticsTrendChart } from "@/components/shared/lazy-recharts";
 import { AnalyticsChartCard } from "@/features/analytics/components/analytics-chart-card";
-import { AnalyticsMetricCard } from "@/features/analytics/components/analytics-metric-card";
-import { AnalyticsFunnel } from "@/features/analytics/components/analytics-funnel";
+import { AnalyticsFunnelVisual } from "@/features/analytics/components/analytics-funnel-visual";
+import { AnalyticsKpiCard } from "@/features/analytics/components/analytics-kpi-card";
 import type { FreeAnalyticsData, ProAnalyticsData, ReferrerSource } from "@/features/analytics/types";
-import { computeDelta, formatDelta, formatPercent } from "@/features/analytics/utils";
+import { formatPercent, formatRelativeDelta } from "@/features/analytics/utils";
 import {
   CheckCircle2,
   Eye,
@@ -24,49 +23,51 @@ export function AnalyticsProPanel({
   pro: ProAnalyticsData;
   topSources?: ReferrerSource[] | null;
 }) {
-  const fvDelta = computeDelta(free.formViews, pro.priorPeriod.formViews);
-  const inqDelta = computeDelta(free.inquirySubmissions, pro.priorPeriod.inquirySubmissions);
-  const sentDelta = computeDelta(free.quotesSent, pro.priorPeriod.quotesSent);
-  const accDelta = computeDelta(free.quotesAccepted, pro.priorPeriod.quotesAccepted);
+  const fvDelta = formatRelativeDelta(free.formViews, pro.priorPeriod.formViews);
+  const inqDelta = formatRelativeDelta(free.inquirySubmissions, pro.priorPeriod.inquirySubmissions);
+  const sentDelta = formatRelativeDelta(free.quotesSent, pro.priorPeriod.quotesSent);
+  const accDelta = formatRelativeDelta(free.quotesAccepted, pro.priorPeriod.quotesAccepted);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 sm:gap-5">
       {/* Top metrics with deltas */}
-      <DashboardStatsGrid>
-        <AnalyticsMetricCard
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <AnalyticsKpiCard
           icon={Eye}
           title="Form views"
           value={`${free.formViews}`}
           description={`${free.uniqueVisitors} unique visitors`}
-          delta={{ label: `${formatDelta(fvDelta)} vs prior 30d`, direction: fvDelta.direction }}
+          delta={fvDelta}
         />
-        <AnalyticsMetricCard
+        <AnalyticsKpiCard
           icon={Inbox}
           title="Inquiries"
           value={`${free.inquirySubmissions}`}
           description={`${formatPercent(free.formConversionRate)} conversion`}
-          delta={{ label: `${formatDelta(inqDelta)} vs prior 30d`, direction: inqDelta.direction }}
+          delta={inqDelta}
         />
-        <AnalyticsMetricCard
+        <AnalyticsKpiCard
           icon={FileText}
           title="Quotes sent"
           value={`${free.quotesSent}`}
           description={`${free.quotesViewed} viewed`}
-          delta={{ label: `${formatDelta(sentDelta)} vs prior 30d`, direction: sentDelta.direction }}
+          delta={sentDelta}
         />
-        <AnalyticsMetricCard
+        <AnalyticsKpiCard
           icon={CheckCircle2}
           title="Accepted"
           value={`${free.quotesAccepted}`}
           description={`${formatPercent(free.quoteAcceptanceRate)} rate`}
-          delta={{ label: `${formatDelta(accDelta)} vs prior 30d`, direction: accDelta.direction }}
+          delta={accDelta}
         />
-      </DashboardStatsGrid>
+      </div>
 
       {/* Trend + Funnel */}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,0.38fr)]">
+      <div className="grid gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
         <LazyAnalyticsTrendChart points={pro.trend} />
-        <AnalyticsFunnel steps={pro.funnel} />
+        <AnalyticsChartCard title="Inquiry funnel">
+          <AnalyticsFunnelVisual steps={pro.funnel} />
+        </AnalyticsChartCard>
       </div>
 
       {/* Top traffic sources */}
@@ -79,7 +80,7 @@ export function AnalyticsProPanel({
             {topSources.map((source, i) => (
               <div
                 key={source.domain}
-                className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2.5"
+                className="flex items-center justify-between rounded-lg border border-border/60 bg-card px-3 py-2.5"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
