@@ -142,9 +142,11 @@ Eight one-off scripts were removed (list above). No npm script was removed.
 - Remaining knip duplicate export: `getAccountBillingOverview` (canonical) vs
   deprecated `getBusinessBillingOverview` (14 call sites). Resolving it is a
   rename refactor, out of scope here.
-- Missing declared dependencies detected by knip: `@radix-ui/react-checkbox`
-  (`components/ui/checkbox.tsx`) and `@ai-sdk/provider` (3 AI modules). These
-  should be **added** to `package.json`, not removed — flagged, not changed.
+- Missing declared dependencies detected by knip — both resolved in a
+  follow-up commit: `components/ui/checkbox.tsx` now imports the unified
+  `radix-ui` package like the other 19 primitives (instead of the undeclared
+  hoisted `@radix-ui/react-checkbox`), and `@ai-sdk/provider` is declared in
+  `package.json` since three AI modules import it directly.
 
 ## Verification
 
