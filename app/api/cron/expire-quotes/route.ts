@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { syncExpiredQuotesGlobal } from "@/features/quotes/mutations";
+import { isAuthorizedCronRequest } from "@/lib/security/cron";
 
 export const maxDuration = 30;
 
@@ -11,8 +12,7 @@ export const maxDuration = 30;
  * Simple UPDATE query — no Inngest step functions, no retry logic, completes in <10s.
  */
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
