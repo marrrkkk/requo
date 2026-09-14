@@ -86,9 +86,9 @@
 }
 
 @theme {
-  /* BoardUI composite type utilities (values mirror styles/typography.css,
-     which is not in the render path — only tokens registered here resolve
-     to utilities). Small-end ramp: body-2 = 13px, caption = 11–12px. */
+  /* BoardUI composite type utilities (values mirror the BoardUI typography
+     source, which is not in the render path — only tokens registered here
+     resolve to utilities). Small-end ramp: body-2 = 13px, caption = 11–12px. */
   --text-body-regular: 0.875rem;
   --text-body-regular--line-height: 1.25rem;
   --text-body-regular--letter-spacing: 0;
@@ -2758,8 +2758,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
      thinking state in both chat surfaces. The label reuses the
      ai-chat-text-shimmer travel above; its base/highlight both derive from
      the tone the component sets via --bui-agent-thinking-tone, so every tone
-     shimmers consistently. Verbatim from styles/globals.css (the BoardUI
-     entry is not imported; only this section is wired). */
+     shimmers consistently. Verbatim from the BoardUI stylesheet (which is not
+     imported; only this section is wired). */
   .bui-agent-thinking-label {
     color: transparent;
     background-image: linear-gradient(
@@ -2937,8 +2937,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
 /* BoardUI chart cards compat (components/application/dashboard/*): soft fade
    applied to an animated number each time its target changes. Verbatim from
-   styles/globals.css (the BoardUI entry is not imported; only this section
-   is wired). */
+   the BoardUI stylesheet (which is not imported; only this section is wired). */
 @keyframes number-fade {
   from {
     opacity: 0.35;
