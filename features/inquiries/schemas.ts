@@ -793,6 +793,12 @@ export const inquiryListFiltersSchema = z.object({
       return first === "1" || first === "true";
     }, z.boolean())
     .catch(false),
+  unread: z
+    .preprocess((value) => {
+      const first = firstString(value);
+      return first === "1" || first === "true";
+    }, z.boolean())
+    .catch(false),
   page: coercePositiveInteger("Page").catch(1),
 });
 

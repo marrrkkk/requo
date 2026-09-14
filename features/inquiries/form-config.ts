@@ -746,7 +746,7 @@ function createContractorHomeImprovementFields() {
 
   return [
     createSystemField("details", {
-      label: "What do you need help with?",
+      label: "Describe the project or work needed",
       placeholder: getProjectPlaceholder("details", businessType),
       required: true,
     }),
@@ -792,13 +792,8 @@ function createCreativeMarketingServicesFields() {
 
   return [
     createSystemField("details", {
-      label: "What do you need help with?",
+      label: "Tell us about the project",
       placeholder: getProjectPlaceholder("details", businessType),
-      required: true,
-    }),
-    createCustomField("deliverables", "long_text", {
-      label: "Deliverables",
-      placeholder: "What needs to be created, delivered, or completed?",
       required: true,
     }),
     createCustomField("project-timing", "date", {
@@ -814,16 +809,13 @@ function createCreativeMarketingServicesFields() {
         createOption("video", "Video"),
       ],
     }),
-    createCustomField("reference-materials-ready", "boolean", {
-      label: "Reference files ready?",
-    }),
     createSystemField("budgetText", {
       label: "Budget",
       placeholder: getProjectPlaceholder("budgetText", businessType),
       enabled: true,
     }),
     createSystemField("attachment", {
-      label: "Brief or reference files",
+      label: "Reference files",
       enabled: true,
     }),
   ] satisfies InquiryFormFieldDefinition[];
@@ -834,13 +826,8 @@ function createConsultingProfessionalServicesFields() {
 
   return [
     createSystemField("details", {
-      label: "What do you need help with?",
+      label: "What are you trying to solve?",
       placeholder: getProjectPlaceholder("details", businessType),
-      required: true,
-    }),
-    createCustomField("goal", "long_text", {
-      label: "Goal",
-      placeholder: "What are you trying to solve or improve?",
       required: true,
     }),
     createCustomField("format", "select", {
@@ -863,7 +850,7 @@ function createConsultingProfessionalServicesFields() {
       enabled: true,
     }),
     createSystemField("attachment", {
-      label: "Reference file",
+      label: "Reference files",
       enabled: true,
     }),
   ] satisfies InquiryFormFieldDefinition[];
@@ -874,7 +861,7 @@ function createEventServicesFields() {
 
   return [
     createSystemField("details", {
-      label: "What do you need help with?",
+      label: "Tell us about your event",
       placeholder: getProjectPlaceholder("details", businessType),
       required: true,
     }),
@@ -917,7 +904,7 @@ function createRecurringServiceFields() {
 
   return [
     createSystemField("details", {
-      label: "What do you need help with?",
+      label: "What service do you need?",
       placeholder: getProjectPlaceholder("details", businessType),
       required: true,
     }),
@@ -1071,13 +1058,61 @@ function stripLegacyServiceCategoryField(value: unknown) {
   };
 }
 
+/**
+ * Custom field ids removed from the starter templates because they duplicated
+ * the required `details` brief or asked a redundant question next to the
+ * direct file upload. Persisted configs that still carry them are cleaned on
+ * read so existing businesses stop showing the old fields. Historical inquiry
+ * answers are unaffected (they live in snapshot rows, not the form config).
+ */
+const removedLegacyCustomFieldIds = new Set([
+  "deliverables",
+  "goal",
+  "reference-materials-ready",
+]);
+
+function stripRemovedLegacyCustomFields(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  const record = value as { projectFields?: unknown };
+
+  if (!Array.isArray(record.projectFields)) {
+    return value;
+  }
+
+  return {
+    ...record,
+    projectFields: record.projectFields.filter((field) => {
+      if (!field || typeof field !== "object" || Array.isArray(field)) {
+        return true;
+      }
+
+      const candidate = field as { kind?: unknown; id?: unknown };
+
+      if (
+        candidate.kind === "custom" &&
+        typeof candidate.id === "string" &&
+        removedLegacyCustomFieldIds.has(candidate.id)
+      ) {
+        return false;
+      }
+
+      return true;
+    }),
+  };
+}
+
 export function getNormalizedInquiryFormConfig(
   value: unknown,
   defaults?: CreateInquiryFormConfigDefaultsInput,
 ) {
   const fallback = createInquiryFormConfigDefaults(defaults);
-  const normalizedValue = stripLegacyServiceCategoryField(
-    normalizeInquiryFormConfigValue(value, fallback.businessType),
+  const normalizedValue = stripRemovedLegacyCustomFields(
+    stripLegacyServiceCategoryField(
+      normalizeInquiryFormConfigValue(value, fallback.businessType),
+    ),
   );
   const parsed = inquiryFormConfigSchema.safeParse(normalizedValue);
 

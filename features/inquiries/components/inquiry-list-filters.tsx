@@ -111,6 +111,7 @@ export function InquiryListFilters({
   }, [form, navigate, query, sort, source, status, view]);
 
   return (
+    <div className="flex flex-col gap-2">
     <DataListToolbar
       description="Search by customer, email, or subject."
       resultLabel={`${resultCount} ${resultCount === 1 ? "inquiry" : "inquiries"}`}
@@ -178,5 +179,6 @@ export function InquiryListFilters({
         query.trim() || status !== "all" || form !== "all" || source !== "all" || sort !== "newest",
       )}
     />
+    </div>
   );
 }

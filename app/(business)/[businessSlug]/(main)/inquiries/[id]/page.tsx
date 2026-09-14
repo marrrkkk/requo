@@ -68,6 +68,7 @@ import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry
 import { InquiryExportPopover } from "@/features/inquiries/components/inquiry-export-popover";
 import { InquiryManageDropdown } from "@/features/inquiries/components/inquiry-manage-dropdown";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
+import { InquiryViewedTracker } from "@/features/inquiries/components/inquiry-viewed-tracker";
 import { getInquiryDetailForBusiness, getInquiryDuplicateForBusiness } from "@/features/inquiries/queries";
 import { inquiryRouteParamsSchema } from "@/features/inquiries/schemas";
 import {
@@ -142,7 +143,7 @@ async function InquiryDetailRegion({
   params,
 }: InquiryDetailPageProps) {
   const resolvedParams = await params;
-  const { user, businessContext } = await getAppShellContext(resolvedParams.businessSlug);
+  const { businessContext } = await getAppShellContext(resolvedParams.businessSlug);
 
   const parsedParams = inquiryRouteParamsSchema.safeParse(resolvedParams);
 
@@ -167,6 +168,12 @@ async function InquiryDetailRegion({
   if (!inquiry) {
     notFound();
   }
+
+  // Shared per-business read receipt runs client-side via
+  // `<InquiryViewedTracker>` (Server Action + `updateTag`). Doing the DB
+  // write + `updateTag` here during render throws
+  // "used updateTag during render which is unsupported".
+  const isUnreadInitially = !inquiry.firstViewedAt;
 
   const duplicateRecord = await duplicatePromise;
 
@@ -207,6 +214,10 @@ async function InquiryDetailRegion({
 
   return (
     <DashboardPage className="pb-24">
+      <InquiryViewedTracker
+        inquiryId={inquiry.id}
+        isUnreadInitially={isUnreadInitially}
+      />
       {duplicateRecord && !duplicateRecord.dismissedAt ? (
         <InquiryDuplicateBanner
           duplicate={{

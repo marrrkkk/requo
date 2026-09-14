@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PenLine, PencilRuler } from "lucide-react";
 import type { MotionState } from "@/hooks/use-animated-list";
 
+import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import {
@@ -90,8 +91,20 @@ export function InquiryListTable({
                 <TableCell className="w-[17rem]">
                   <div className="table-meta-stack max-w-full">
                     <div className="flex items-center gap-1.5">
+                      {inquiry.isUnread ? (
+                        <>
+                          <span
+                            aria-hidden="true"
+                            className="size-2 shrink-0 rounded-full bg-primary"
+                          />
+                          <span className="sr-only">Unread: </span>
+                        </>
+                      ) : null}
                       <TruncatedTextWithTooltip
-                        className="table-link"
+                        className={cn(
+                          "table-link",
+                          inquiry.isUnread && "font-semibold",
+                        )}
                         href={inquiryHref}
                         prefetch={true}
                         text={inquiry.customerName}

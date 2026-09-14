@@ -11,6 +11,7 @@ import {
   getActiveDashboardNavigationItem,
   getDashboardBreadcrumbs,
 } from "@/components/shell/dashboard-navigation";
+import { NavBadgeProvider } from "@/components/shell/nav-badge-context";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -62,6 +63,8 @@ export type DashboardShellFrameProps = {
   themeSyncSlot?: ReactNode;
   /** Streamed banner slot below the top nav. */
   bannerSlot?: ReactNode;
+  /** Streamed nav-badge sync slot (e.g. unread inquiry count). */
+  navBadgeSlot?: ReactNode;
 };
 
 /**
@@ -99,6 +102,7 @@ export function DashboardShellFrame({
   checklistSlot,
   themeSyncSlot,
   bannerSlot,
+  navBadgeSlot,
 }: DashboardShellFrameProps) {
   const pathname = usePathname();
   const [commandOpen, setCommandOpen] = useState(false);
@@ -132,6 +136,8 @@ export function DashboardShellFrame({
   return (
     <SidebarProvider defaultOpen>
       {themeSyncSlot}
+      <NavBadgeProvider>
+      {navBadgeSlot}
       <div className="flex min-h-svh flex-1 bg-background">
         {/* Desktop sidebar — BoardUI panel flush to the left screen edge (hidden below lg; mobile uses the top bar + floating dock). */}
         <div className="sticky top-0 hidden h-svh shrink-0 lg:block">
@@ -256,6 +262,7 @@ export function DashboardShellFrame({
           </MobileHeaderSlotProvider>
         </div>
       </div>
+      </NavBadgeProvider>
       {/* Global quick-actions dialog — opened from the sidebar Quick Search. */}
       <CommandMenu
         businessSlug={businessSlug}

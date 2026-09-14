@@ -1,6 +1,6 @@
 "use server";
 
-import { updateTag } from "next/cache";
+import { revalidateTag, updateTag } from "next/cache";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -27,6 +27,7 @@ import {
   createManualInquirySubmission,
   createPublicInquirySubmission,
   deleteInquiryForBusiness,
+  markInquiryViewedForBusiness,
   unarchiveInquiryForBusiness,
 } from "@/features/inquiries/mutations";
 import {
@@ -689,5 +690,58 @@ export async function bulkChangeInquiryStatusAction(
   } catch (error) {
     console.error("Failed to bulk change inquiry status.", error);
     return { error: "We couldn't update those inquiries right now." };
+  }
+}
+
+/**
+ * Shared per-business read receipt for opening the inquiry detail.
+ *
+ * Must run as a Server Action (invoked from a client tracker after paint) —
+ * cache invalidation cannot happen during render or inside `"use cache"`
+ * functions.
+ *
+ * Uses stale-while-revalidate (`revalidateTag(..., "max")`, invoices
+ * `invalidate()` pattern) — never `updateTag`. Back navigation keeps serving
+ * the instant router-cache payload with no skeleton (stale content is served
+ * while the fresh read happens in the background). Instant read UI comes
+ * from the client tracker (local viewed store patch applied by the list +
+ * badge decrement gated on `marked`). The DB write persists the truth and
+ * the revalidation converges the hot list/badge cache in the background, so
+ * reloads and other sessions catch up without any manual refresh.
+ */
+export async function markInquiryViewedAction(
+  inquiryId: string,
+): Promise<{ marked: boolean }> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return { marked: false };
+  }
+
+  const { user, businessContext } = ownerAccess;
+
+  try {
+    const { marked } = await markInquiryViewedForBusiness({
+      businessId: businessContext.business.id,
+      inquiryId,
+      actorUserId: user.id,
+    });
+
+    // Only the first view changes anything — skip revalidation on revisits
+    // so repeat opens stay fully cache-hot. List + unread badge share these
+    // tags, so one pass converges both.
+    if (marked) {
+      for (const tag of getBusinessInquiryListCacheTags(
+        businessContext.business.id,
+      )) {
+        revalidateTag(tag, "max");
+      }
+    }
+
+    return { marked };
+  } catch (error) {
+    console.error("Failed to mark inquiry viewed.", error);
+
+    return { marked: false };
   }
 }

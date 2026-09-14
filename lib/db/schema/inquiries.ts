@@ -69,6 +69,10 @@ export const inquiries = pgTable(
       .notNull()
       .defaultNow(),
     lastRespondedAt: timestamp("last_responded_at", { withTimezone: true }),
+    firstViewedAt: timestamp("first_viewed_at", { withTimezone: true }),
+    firstViewedBy: text("first_viewed_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     archivedBy: text("archived_by").references(() => user.id, {
       onDelete: "set null",
@@ -113,6 +117,11 @@ export const inquiries = pgTable(
       table.businessId,
       table.submittedAt,
     ),
+    index("inquiries_business_unviewed_idx")
+      .on(table.businessId)
+      .where(
+        sql`${table.firstViewedAt} is null and ${table.archivedAt} is null and ${table.deletedAt} is null`,
+      ),
     index("inquiries_open_deadline_idx")
       .on(table.businessId, table.requestedDeadline)
       .where(

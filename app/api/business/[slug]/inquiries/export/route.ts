@@ -63,6 +63,7 @@ export async function GET(
         source: "all" as const,
         sort: "newest" as const,
         escalated: false,
+        unread: false,
         page: 1,
       };
 
@@ -84,6 +85,7 @@ export async function GET(
       source: filters.source,
       sort: filters.sort,
       escalated: filters.escalated ?? false,
+      unread: filters.unread ?? false,
     },
     from,
     to,

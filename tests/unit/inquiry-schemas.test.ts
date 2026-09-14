@@ -4,6 +4,7 @@ import { getInquiryFormFieldInputName } from "@/features/inquiries/form-config";
 import { createInquiryFormConfigDefaults } from "@/features/inquiries/form-config";
 import {
   createManualQuickInquiryFormConfig,
+  inquiryListFiltersSchema,
   validateManualQuickInquirySubmission,
   validatePublicInquirySubmission,
 } from "@/features/inquiries/schemas";
@@ -219,6 +220,22 @@ describe("inquiry validation schemas", () => {
       expect.not.arrayContaining([
         expect.objectContaining({ id: "attachment" }),
       ]),
+    );
+  });
+});
+
+describe("inquiryListFiltersSchema unread filter", () => {
+  it("parses ?unread=1 and ?unread=true as true", () => {
+    expect(inquiryListFiltersSchema.parse({ unread: "1" }).unread).toBe(true);
+    expect(inquiryListFiltersSchema.parse({ unread: "true" }).unread).toBe(
+      true,
+    );
+  });
+
+  it("defaults unread to false when absent or unrecognized", () => {
+    expect(inquiryListFiltersSchema.parse({}).unread).toBe(false);
+    expect(inquiryListFiltersSchema.parse({ unread: "yes" }).unread).toBe(
+      false,
     );
   });
 });

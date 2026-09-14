@@ -268,6 +268,7 @@ describe('features/inquiries/actions', () => {
           source: 'all',
           sort: 'newest',
           escalated: false,
+          unread: false,
         },
       });
 
@@ -293,6 +294,7 @@ describe('features/inquiries/actions', () => {
           source: 'all',
           sort: 'newest',
           escalated: false,
+          unread: false,
         },
       });
 
