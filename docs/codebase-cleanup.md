@@ -75,8 +75,14 @@ Totals across the cleanup commits: **124 files deleted**, 12 modified,
 - **Unused stylesheets**: `styles/{globals,theme,typography}.css` (the BoardUI
   entry was never imported — `styles/typeset.css` stays, it is imported).
 - **One-off scripts**: `apply-migration-0003`, `backfill-polar-subscription`,
-  `billing-reset`→ (deferred, see below), `debug-billing-events`, `fix-db`,
-  `fix-plan-column`, `generate-og-fallback`, `verify-index-usage` (+ `.sql`).
+  `debug-billing-events`, `fix-db`, `fix-plan-column`, `generate-og-fallback`,
+  `verify-index-usage` (+ `.sql`), and — after explicit sign-off — the
+  destructive local rescue tools `db-nuke`, `wipe-db`, `billing-reset`.
+- **Sign-off removals**: `components/base/kbd/kbd.tsx`,
+  `features/businesses/components/business-status-badge.tsx`,
+  `features/admin/components/primitives/admin-error-state.tsx`, and
+  `tests/support/third-party-mocks.ts` (its `fetch-guard.ts` message and
+  `tests/README.md` note were reworded to stop pointing at it).
 - **Unreferenced assets**: `public/{next,vercel,globe,file,window}.svg`,
   `public/{calendar,mastercard,qrph}.svg`.
 
@@ -125,20 +131,11 @@ Eight one-off scripts were removed (list above). No npm script was removed.
 | `features/paywall/**` (except `lib/server-access.ts`) | Documented paywall system; still wired |
 | `drizzle/**`, RLS, seeds | Migration history and DB lifecycle — never touched |
 
-## Potentially dead but uncertain (kept for a decision)
+## Potentially dead but uncertain
 
-- `components/base/kbd/kbd.tsx` — BoardUI primitive with no usage; the
-  BoardUI/shadcn duality is an open decision in `docs/technical-debt.md` §3.
-- `features/businesses/components/business-status-badge.tsx` and
-  `features/admin/components/primitives/admin-error-state.tsx` — created in the
-  recent WIP, currently unreferenced; likely awaiting wiring rather than dead.
-- `tests/support/third-party-mocks.ts` — no longer imported (only referenced in
-  `tests/README.md`); kept because it documents the outbound-network contract.
-- `scripts/db-nuke.ts`, `scripts/wipe-db.ts`, `scripts/billing-reset.ts` —
-  unreferenced destructive dev tools; removal needs explicit sign-off.
-- `.tmp-verify-profile.mjs`, `.tmp-pw-run*/`, `.tmp-pw-output/`,
-  `tests/e2e/tmp-profile-name-save.spec.ts` — in-flight local artifacts from the
-  parallel profile-name work; not touched.
+- `.tmp-cache-audit.mjs`, `.tmp-verify-profile.mjs`, `tests/e2e/tmp-profile-name-save.spec.ts`,
+  and the `features/account/*` + `features/theme/*` edits — in-flight local work
+  from the parallel profile/theme change; not touched.
 - Remaining knip duplicate export: `getAccountBillingOverview` (canonical) vs
   deprecated `getBusinessBillingOverview` (14 call sites). Resolving it is a
   rename refactor, out of scope here.

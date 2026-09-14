@@ -2,10 +2,10 @@
  * Outbound-HTTP guard used by Vitest unit/component runs.
  *
  * Monkey-patches `globalThis.fetch` so any request to a host other than
- * `127.0.0.1` or `localhost` fails fast with a message pointing the reader at
- * `tests/support/third-party-mocks.ts`. Local requests are delegated to the
- * original `fetch` unchanged so Next.js route handlers and local Postgres
- * plumbing keep working.
+ * `127.0.0.1` or `localhost` fails fast. Tests that exercise a third-party
+ * client must mock that client rather than reaching the network. Local
+ * requests are delegated to the original `fetch` unchanged so Next.js route
+ * handlers and local Postgres plumbing keep working.
  *
  * Required by Requirements 7.3 and 7.4.
  */
@@ -38,7 +38,7 @@ export function installFetchGuard(): void {
     if (!LOCAL_HOSTNAMES.has(hostname)) {
       throw new Error(
         `[outbound-http-guard] Blocked request to ${hostname} from a test. ` +
-          `Mock the client via tests/support/third-party-mocks.ts.`,
+          `Mock the third-party client in this test instead.`,
       );
     }
 
