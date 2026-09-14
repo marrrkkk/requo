@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/env", () => ({
+  // Redis is unconfigured in tests: the cache layer must fall back to memory.
+  env: {
+    UPSTASH_REDIS_REST_URL: undefined,
+    UPSTASH_REDIS_REST_TOKEN: undefined,
+  },
   isGroqConfigured: true,
   isCerebrasConfigured: true,
   isGeminiConfigured: true,

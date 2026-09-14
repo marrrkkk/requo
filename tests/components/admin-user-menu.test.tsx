@@ -86,7 +86,7 @@ describe("admin user menu", () => {
   it("reuses the main app's sidebar user-row treatment", () => {
     const { container } = renderMenu();
 
-    const trigger = screen.getByRole("button", { name: /jane doe/i });
+    const trigger = screen.getByRole("button", { name: /jane/i });
     expect(trigger.className).toContain("bg-sidebar-accent");
     expect(trigger.className).toContain("rounded-xl");
 
@@ -98,7 +98,7 @@ describe("admin user menu", () => {
     const browser = userEvent.setup();
     renderMenu();
 
-    await browser.click(screen.getByRole("button", { name: /jane doe/i }));
+    await browser.click(screen.getByRole("button", { name: /jane/i }));
     const menu = await screen.findByRole("menu");
     await browser.click(within(menu).getByText("Sign out"));
 
@@ -112,7 +112,7 @@ describe("admin user menu", () => {
     const browser = userEvent.setup();
     renderMenu();
 
-    await browser.click(screen.getByRole("button", { name: /jane doe/i }));
+    await browser.click(screen.getByRole("button", { name: /jane/i }));
     const menu = await screen.findByRole("menu");
     await browser.click(within(menu).getByText("Sign out"));
 
@@ -129,7 +129,7 @@ describe("admin user menu", () => {
     const browser = userEvent.setup();
     renderMenu();
 
-    await browser.click(screen.getByRole("button", { name: /jane doe/i }));
+    await browser.click(screen.getByRole("button", { name: /jane/i }));
     const menu = await screen.findByRole("menu");
     await browser.click(within(menu).getByText("Sign out"));
 
