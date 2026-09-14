@@ -32,13 +32,15 @@ controls, external contracts, and design-system foundations were preserved.
 Knip findings were treated as leads only. All 114 unused-file candidates were
 verified by reference; false positives (`public/sw.js`, `styles/typeset.css`,
 documented scripts, `.agents/skills` assets, template-string references) were
-retained rather than ignored via config. Unused-file count went 114 → 19, and
-the 4 unused dependencies are gone.
+retained rather than ignored via config. Unused-file count went 114 → 9, the 4
+unused dependencies are gone, and both unlisted-dependency findings are fixed.
 
 ## Cleanup performed
 
-Totals across the cleanup commits: **124 files deleted**, 12 modified,
-−14,292 / +23 lines.
+Totals from the WIP baseline to the final cleanup commit: **131 files
+removed**, 18 modified, 4 added, −14,981 / +11,959 lines. The deletion count and
+negative delta are what matter; the insertions are the generated `0030`
+drizzle snapshot plus these two new docs.
 
 ### Deleted files
 
@@ -155,16 +157,17 @@ Run on `cleanup/dead-code` after the final batch:
 | `npm run check` (lint + typecheck + SEO audits + model catalog) | ✅ |
 | `npm run test` (93 unit files / 767 tests, 25 component files / 170 tests) | ✅ |
 | `npm run build` (production, Next 16.3.5) | ✅ all routes compiled |
-| `npx knip` | unused files 114 → 19 (all justified keeps) |
+| `npx knip` | unused files 114 → 9 (all justified keeps); no unused or unlisted dependencies |
 
 Not run here because they need a local database and a running app:
 `npm run test:integration`, `npm run test:e2e:smoke`. Run them before merging.
 
 ## Notes
 
-- Recommended follow-ups: add `knip.json` (entries for `app/**`, `scripts/**`,
-  test configs; ignore `.agents/**`) if the check should run in CI — it is not
+- The `quote_post_acceptance_status` enum was dropped in `0030` and
+  `docs/technical-debt.md` §2 is marked resolved; migration `0030` has not been
+  applied to any database yet — `npm run db:migrate` (or the deploy build) will
+  do it.
+- Optional follow-ups: add `knip.json` (entries for `app/**`, `scripts/**`, test
+  configs; ignore `.agents/**`) if the check should run in CI — knip is not
   installed as a dependency on purpose.
-- Approved but **not yet executed**: dropping the unused
-  `quote_post_acceptance_status` enum (`docs/technical-debt.md` §2) via a
-  dedicated `0030` migration. It is a schema change and should ship on its own.
