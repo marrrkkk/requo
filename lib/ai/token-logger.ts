@@ -161,26 +161,12 @@ export async function logAiInvocation(
     unpriced,
   };
 
-  // Database insert
-  await db.insert(aiTokenLogs).values({
-    id,
-    userId,
-    businessId,
-    taskType,
-    model,
-    provider,
-    inputTokens,
-    outputTokens,
-    totalTokens,
-    estimatedCostCents: estimatedCostCents !== null ? Math.round(estimatedCostCents) : null,
-    cacheHit,
-    latencyMs,
-    status,
-    errorMessage: truncatedErrorMessage,
-    unpriced,
-  });
-
-  // Structured JSON console.info line for server log aggregation
+  // Structured JSON console.info line for server log aggregation.
+  //
+  // Emitted BEFORE the insert on purpose: this line is the fallback when the
+  // database write fails, so a throw from `db.insert` must not take the log
+  // line down with it — that would lose the invocation from both sinks at
+  // once, which is precisely when the record matters most.
   console.info(
     JSON.stringify({
       type: "ai_invocation",
@@ -199,6 +185,25 @@ export async function logAiInvocation(
       status,
     }),
   );
+
+  // Database insert
+  await db.insert(aiTokenLogs).values({
+    id,
+    userId,
+    businessId,
+    taskType,
+    model,
+    provider,
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    estimatedCostCents: estimatedCostCents !== null ? Math.round(estimatedCostCents) : null,
+    cacheHit,
+    latencyMs,
+    status,
+    errorMessage: truncatedErrorMessage,
+    unpriced,
+  });
 
   return entry;
 }

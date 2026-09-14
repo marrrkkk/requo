@@ -368,6 +368,7 @@ export const inquiryQualifiedAiDraft = inngest.createFunction(
       const result = await generateQuoteDraftForBusiness({
         businessId: data.businessId,
         userId: business.ownerUserId,
+        plan: business.plan,
         inquiryId: data.inquiryId,
       });
 

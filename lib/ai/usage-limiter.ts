@@ -1,12 +1,12 @@
 import "server-only";
 
-import { and, eq, gte, sum } from "drizzle-orm";
+import { and, eq, gte, isNull, or, sum } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { aiUsageEvents } from "@/lib/db/schema";
 import type { AiTaskType } from "./types";
 import type { BusinessPlan } from "@/lib/plans/plans";
-import { getUpgradePlan, planMeta } from "@/lib/plans/plans";
+import { getUpgradePlan } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { cacheLayer } from "@/lib/ai/cache-layer";
 
@@ -18,6 +18,21 @@ import { cacheLayer } from "@/lib/ai/cache-layer";
 // - Subscriptions are business-scoped, so each subscribed business receives
 //   its own full allowance; an owner's other businesses never consume it
 // - Requests are rejected only when the business's own usage meets the limit
+//
+// Plan-scoped tracking (reset on plan change):
+// - Each usage event records the plan in effect when it was metered
+//   (`aiUsageEvents.plan`), and the monthly sum is filtered to that plan.
+// - Changing plan mid-month therefore starts a fresh allowance for the new
+//   plan instead of carrying the previous plan's total against it: an upgrade
+//   immediately receives the full new allowance, a downgrade starts at the
+//   full (smaller) allowance. No proration math is required.
+// - Rows written before plan attribution existed have `plan IS NULL` and count
+//   toward whichever plan is current, so no business loses an already
+//   accumulated allowance at deploy time.
+//
+// Weighting:
+// - Weight is derived from the tokens an invocation actually spent rather than
+//   a fixed per-task constant (see `computeCreditsForTokens`).
 //
 // Cooldown:
 // - 3-second minimum between consecutive requests (same user + task type)
@@ -41,7 +56,12 @@ export const PLAN_LIMITS: Record<BusinessPlan, number> = {
 };
 
 // ---------------------------------------------------------------------------
-// Task weights
+// Fallback task weights
+//
+// Credits are metered from real token usage. These fixed per-task weights are
+// only a fallback for an invocation that returns no token accounting at all
+// (a provider that omits `usage`), so a metered call can never silently cost
+// zero credits.
 // ---------------------------------------------------------------------------
 
 export const TASK_WEIGHTS: Record<AiTaskType, number> = {
@@ -50,6 +70,79 @@ export const TASK_WEIGHTS: Record<AiTaskType, number> = {
   agent_conversation: 1, // One credit per agent turn (cheaper — public-facing, lighter quality tier)
   assistant_message: 1, // One credit per assistant turn; separate daily bucket enforced in conversation-limits
 };
+
+// ---------------------------------------------------------------------------
+// Token → credit conversion
+//
+// credit = max(1, ceil((inputTokens + 4 × outputTokens) / 5000))
+//
+// Output tokens are weighted 4× because generation is roughly an order of
+// magnitude more expensive than reading the same volume, and because output
+// length is what actually drives spend. The 5,000-token divisor keeps a
+// typical quote draft (~2 credits) and chat turn (~1 credit) in the same range
+// the previous fixed weights produced.
+// ---------------------------------------------------------------------------
+
+/** Weighted tokens per credit. */
+export const CREDIT_TOKEN_DIVISOR = 5_000;
+
+/** Multiplier applied to output tokens when computing weighted tokens. */
+export const OUTPUT_TOKEN_MULTIPLIER = 4;
+
+/** Every metered invocation costs at least this much. */
+export const MIN_CREDITS_PER_INVOCATION = 1;
+
+/** Token accounting for one invocation, if the provider reported any. */
+export type InvocationTokenUsage =
+  | {
+      inputTokens?: number | null;
+      outputTokens?: number | null;
+    }
+  | null
+  | undefined;
+
+/**
+ * Converts an invocation's token spend into credits.
+ *
+ * Always returns at least `MIN_CREDITS_PER_INVOCATION`, so a recorded
+ * invocation is never free.
+ */
+export function computeCreditsForTokens(
+  inputTokens: number,
+  outputTokens: number,
+): number {
+  const safeInput = Number.isFinite(inputTokens) ? Math.max(0, inputTokens) : 0;
+  const safeOutput = Number.isFinite(outputTokens)
+    ? Math.max(0, outputTokens)
+    : 0;
+
+  const weightedTokens = safeInput + safeOutput * OUTPUT_TOKEN_MULTIPLIER;
+
+  return Math.max(
+    MIN_CREDITS_PER_INVOCATION,
+    Math.ceil(weightedTokens / CREDIT_TOKEN_DIVISOR),
+  );
+}
+
+/**
+ * Resolves the credit weight to record for one invocation.
+ *
+ * Uses real token usage when the provider reported it, and falls back to the
+ * fixed per-task weight when there is no token accounting at all.
+ */
+export function computeUsageWeight(
+  taskType: AiTaskType,
+  usage?: InvocationTokenUsage,
+): number {
+  if (usage === null || usage === undefined) {
+    return TASK_WEIGHTS[taskType];
+  }
+
+  return computeCreditsForTokens(
+    usage.inputTokens ?? 0,
+    usage.outputTokens ?? 0,
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Cooldown tracking (via Cache Layer)
@@ -90,8 +183,17 @@ function getCurrentMonthKey(): string {
   return `${year}-${month}`;
 }
 
-export function getBusinessUsageCacheKey(businessId: string): string {
-  return `ai_usage:business:${businessId}:${getCurrentMonthKey()}`;
+/**
+ * Cache key for a business's monthly usage under a specific plan.
+ *
+ * The plan is part of the key on purpose: usage is plan-scoped, so a stale
+ * cross-plan count must never be served after a plan change.
+ */
+export function getBusinessUsageCacheKey(
+  businessId: string,
+  plan: BusinessPlan,
+): string {
+  return `ai_usage:business:${businessId}:${plan}:${getCurrentMonthKey()}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,6 +205,17 @@ function getStartOfCurrentMonthUTC(): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
 
+/**
+ * SQL predicate scoping usage rows to a plan.
+ *
+ * Legacy rows written before plan attribution have `plan IS NULL` and count
+ * toward whichever plan is current, so no business loses its accumulated
+ * allowance at deploy time.
+ */
+function planScope(plan: BusinessPlan) {
+  return or(eq(aiUsageEvents.plan, plan), isNull(aiUsageEvents.plan));
+}
+
 // ---------------------------------------------------------------------------
 // Public functions
 // ---------------------------------------------------------------------------
@@ -110,7 +223,7 @@ function getStartOfCurrentMonthUTC(): Date {
 /**
  * Checks whether an AI request is allowed based on:
  * 1. Cooldown (3-second minimum between same user + task type)
- * 2. Monthly weighted usage quota (business-level)
+ * 2. Monthly weighted usage quota (business-level, scoped to the current plan)
  *
  * Uses a cache-first strategy:
  * - Reads the cached business usage count from Cache Layer (Redis + in-memory)
@@ -144,7 +257,7 @@ export async function checkUsageLimit(
 
   // --- Quota check (cache-first with DB fallback) ---
   const limit = PLAN_LIMITS[plan];
-  const businessUsage = await getCachedOrDbBusinessUsage(businessId);
+  const businessUsage = await getCachedOrDbBusinessUsage(businessId, plan);
 
   if (businessUsage >= limit) {
     return buildQuotaExceededResult(plan);
@@ -154,8 +267,8 @@ export async function checkUsageLimit(
 }
 
 /**
- * Retrieves business-level monthly usage, using cache-first strategy with
- * DB fallback.
+ * Retrieves business-level monthly usage for a plan, using a cache-first
+ * strategy with DB fallback.
  *
  * On cache hit: returns the cached value immediately.
  * On cache miss: executes DB SUM aggregate and stores the result with 60s TTL.
@@ -163,8 +276,9 @@ export async function checkUsageLimit(
  */
 async function getCachedOrDbBusinessUsage(
   businessId: string,
+  plan: BusinessPlan,
 ): Promise<number> {
-  const businessCacheKey = getBusinessUsageCacheKey(businessId);
+  const businessCacheKey = getBusinessUsageCacheKey(businessId, plan);
 
   // Try a cache-first read
   let cachedBusinessUsage: number | null = null;
@@ -192,6 +306,7 @@ async function getCachedOrDbBusinessUsage(
       and(
         eq(aiUsageEvents.businessId, businessId),
         gte(aiUsageEvents.createdAt, monthStart),
+        planScope(plan),
       ),
     );
 
@@ -218,15 +333,20 @@ async function getCachedOrDbBusinessUsage(
  * Records a usage event in the database. Call this after a successful AI
  * invocation (not on cache hits or cooldown rejections).
  *
- * After the DB insert, atomically increments the business-level cached
- * counter by the invocation weight. On increment failure: deletes the cache
- * key and logs a warning without interrupting the caller.
+ * `weight` is normally derived from the invocation's real token usage via
+ * `computeUsageWeight`. `plan` is the plan in effect for this invocation and
+ * scopes the event, so a later plan change starts a fresh allowance.
+ *
+ * After the DB insert, atomically increments the plan-scoped cached counter by
+ * the invocation weight. On increment failure: deletes the cache key and logs
+ * a warning without interrupting the caller.
  */
 export async function recordUsage(
   userId: string,
   businessId: string,
   taskType: AiTaskType,
   weight: number,
+  plan: BusinessPlan,
 ): Promise<void> {
   const id = `aue_${crypto.randomUUID().replace(/-/g, "")}`;
 
@@ -236,10 +356,11 @@ export async function recordUsage(
     businessId,
     taskType,
     weight,
+    plan,
   });
 
   // Atomically increment the cached counter (non-blocking, never interrupts caller)
-  const businessCacheKey = getBusinessUsageCacheKey(businessId);
+  const businessCacheKey = getBusinessUsageCacheKey(businessId, plan);
 
   await safeIncrementCache(businessCacheKey, weight);
 }
@@ -262,8 +383,8 @@ export async function resetCooldown(userId: string, taskType: AiTaskType): Promi
 }
 
 /**
- * Returns the current month's usage for a business and the plan limit.
- * Used for displaying credit status in the UI.
+ * Returns the current month's usage for a business under the given plan, plus
+ * the plan limit. Used for displaying credit status in the UI.
  */
 export async function getMonthlyUsageSummary(
   businessId: string,
@@ -279,6 +400,7 @@ export async function getMonthlyUsageSummary(
       and(
         eq(aiUsageEvents.businessId, businessId),
         gte(aiUsageEvents.createdAt, monthStart),
+        planScope(plan),
       ),
     );
 

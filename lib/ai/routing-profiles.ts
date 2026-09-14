@@ -37,7 +37,7 @@ export type RoutingProfileDefinition = {
  * that; Groq's 8K TPM puts it late in the chain, not first.
  */
 const ASSISTANT_CHAT_ORDER = [
-  "google:gemini-2.5-flash-lite",
+  "google:gemini-3.5-flash-lite",
   "cerebras:gpt-oss-120b",
   "cerebras:qwen-3.8-27b",
   "mistral:mistral-medium-latest",
@@ -55,7 +55,7 @@ const ASSISTANT_CHAT_ORDER = [
 const AGENT_CHAT_ORDER = [
   "groq:openai/gpt-oss-20b",
   "groq:openai/gpt-oss-120b",
-  "google:gemini-2.5-flash-lite",
+  "google:gemini-3.5-flash-lite",
   "cerebras:gpt-oss-120b",
   "cerebras:qwen-3.8-27b",
   "mistral:mistral-small-latest",
@@ -92,7 +92,7 @@ const SHORT_TEXT_ORDER = [
 
 const EXTRACTION_ORDER = [
   "google:gemini-2.5-flash",
-  "google:gemini-2.5-flash-lite",
+  "google:gemini-3.5-flash-lite",
 ] as Array<`${string}:${string}`>;
 
 export const ROUTING_PROFILES: Record<

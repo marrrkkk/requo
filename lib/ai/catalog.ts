@@ -148,17 +148,29 @@ const BASE_CATALOG: ModelEntry[] = [
   },
 
   // ─── Gemini: unpublished; conservative estimates, per-project, Pacific reset ───
+  // 2.5 Flash-Lite is retired for this project: the API answers every request
+  // with "no longer available to new users" while the `models` listing still
+  // returns the identifier, so the drift check cannot see the breakage.
+  // 3.5 Flash-Lite is the replacement the API itself names. Capabilities
+  // (context, output cap, tool calling, structured output) were probed live;
+  // RPD is AI Studio's September 2026 free-tier figure. RPM keeps the family's
+  // conservative 15 because Google no longer publishes per-model burst limits.
+  // It is a thinking model, and unlike 2.5 it cannot be told to stop thinking:
+  // `thinkingBudget: 0` is rejected with "Request contains an invalid
+  // argument", so callers pass `thinkingBudget: 1` instead (see the assistant
+  // and agent orchestrators). Reasoning arrives on a separate channel, so the
+  // router's `text`/`textStream` path is unaffected.
   {
-    modelId: "google:gemini-2.5-flash-lite",
+    modelId: "google:gemini-3.5-flash-lite",
     quality: 8,
     contextWindow: 1_048_576,
-    maxOutputTokens: 8_192,
+    maxOutputTokens: 65_536,
     toolCapable: true,
     structuredOutput: true,
-    limits: { rpm: 15, rpd: 1_000, tpm: 250_000, tpd: 0 },
+    limits: { rpm: 15, rpd: 500, tpm: 250_000, tpd: 0 },
     sharedWithProvider: [],
     dayResets: "pacific-midnight",
-    costCentsPerMillion: { input: 7.5, output: 30 },
+    costCentsPerMillion: { input: 30, output: 250 },
   },
   {
     modelId: "google:gemini-2.5-flash",
@@ -170,7 +182,7 @@ const BASE_CATALOG: ModelEntry[] = [
     limits: { rpm: 10, rpd: 250, tpm: 250_000, tpd: 0 },
     sharedWithProvider: [],
     dayResets: "pacific-midnight",
-    costCentsPerMillion: { input: 15, output: 60 },
+    costCentsPerMillion: { input: 30, output: 250 },
   },
   {
     modelId: "google:gemini-2.5-pro",
@@ -182,7 +194,10 @@ const BASE_CATALOG: ModelEntry[] = [
     limits: { rpm: 5, rpd: 100, tpm: 250_000, tpd: 0 },
     sharedWithProvider: [],
     dayResets: "pacific-midnight",
-    costCentsPerMillion: { input: 125, output: 500 },
+    // Standard rate for prompts up to 200K tokens. Beyond that Google charges
+    // 250 input / 1000 output cents, which a single pair cannot express — the
+    // long-prompt case is under-costed here rather than the common one.
+    costCentsPerMillion: { input: 125, output: 1_000 },
     reserve: true,
   },
 
@@ -287,30 +302,11 @@ const BASE_CATALOG: ModelEntry[] = [
   },
 
   // ─── NVIDIA NIM: 40 RPM hard cap, credit-based; configured at 20 RPM ───
-  {
-    modelId: "nvidia:nvidia/llama-3.1-nemotron-70b-instruct",
-    quality: 8,
-    contextWindow: 131_072,
-    maxOutputTokens: 4_096,
-    toolCapable: false,
-    structuredOutput: false,
-    limits: { rpm: 20, rpd: 0, tpm: 20_000, tpd: 0 },
-    sharedWithProvider: [],
-    dayResets: "utc-midnight",
-    costCentsPerMillion: { input: 0, output: 0 },
-  },
-  {
-    modelId: "nvidia:nvidia/llama-3.1-nemotron-51b-instruct",
-    quality: 8,
-    contextWindow: 131_072,
-    maxOutputTokens: 4_096,
-    toolCapable: false,
-    structuredOutput: false,
-    limits: { rpm: 20, rpd: 0, tpm: 20_000, tpd: 0 },
-    sharedWithProvider: [],
-    dayResets: "utc-midnight",
-    costCentsPerMillion: { input: 0, output: 0 },
-  },
+  // The two Llama 3.1 Nemotron entries are gone: /v1/models still lists them,
+  // but /v1/chat/completions answers 404, so they could never serve a request.
+  // The entry kept here is NVIDIA's gpt-oss-20b host. The callable Nemotron
+  // 3.x generation is reached through OpenRouter, not through this provider,
+  // so no Nemotron identifier belongs in the `nvidia:` block.
   {
     modelId: "nvidia:openai/gpt-oss-20b",
     quality: 7,
@@ -426,7 +422,7 @@ export function getDerivedCostTable(): Record<
 /** Model identifiers used by the importer (multimodal extraction). */
 export const EXTRACTION_MODEL_IDS = [
   "google:gemini-2.5-flash",
-  "google:gemini-2.5-flash-lite",
+  "google:gemini-3.5-flash-lite",
 ] as const;
 
 /** Registry prefixes the runtime knows. */

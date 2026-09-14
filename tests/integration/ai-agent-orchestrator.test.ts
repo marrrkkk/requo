@@ -49,11 +49,29 @@ vi.mock("@/lib/env", () => ({
 
 const orchestratorCache = vi.hoisted(() => ({ map: new Map<string, unknown>() }));
 
-vi.mock("@/lib/ai/usage-limiter", () => ({
-  checkUsageLimit: vi.fn(async () => ({ allowed: true })),
-  recordUsage: vi.fn(async () => {}),
-  TASK_WEIGHTS: { agent_conversation: 1, assistant_message: 1 },
-}));
+vi.mock("@/lib/ai/usage-limiter", () => {
+  const weights: Record<string, number> = {
+    agent_conversation: 1,
+    assistant_message: 1,
+  };
+
+  return {
+    checkUsageLimit: vi.fn(async () => ({ allowed: true })),
+    recordUsage: vi.fn(async () => {}),
+    TASK_WEIGHTS: weights,
+    // Mirrors the real token→credit formula so call-site wiring is exercised:
+    // max(1, ceil((inputTokens + 4 × outputTokens) / 5000)).
+    computeUsageWeight: (
+      taskType: string,
+      usage?: { inputTokens?: number | null; outputTokens?: number | null } | null,
+    ) => {
+      if (usage === null || usage === undefined) return weights[taskType] ?? 1;
+      const weighted =
+        (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0) * 4;
+      return Math.max(1, Math.ceil(weighted / 5000));
+    },
+  };
+});
 
 vi.mock("@/lib/ai/cache-layer", () => ({
   cacheLayer: {
@@ -268,12 +286,14 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
     expect(checkUsageLimit).toHaveBeenCalledWith(
       expect.objectContaining({ businessId: ids.businessId }),
     );
-    expect(recordUsage).toHaveBeenCalledWith(
-      "system:ai-agent",
-      ids.businessId,
-      "agent_conversation",
-      1,
-    );
+
+    // Usage is metered from the turn's token spend and scoped to the plan.
+    const usageCall = vi.mocked(recordUsage).mock.calls.at(-1);
+    expect(usageCall?.[0]).toBe("system:ai-agent");
+    expect(usageCall?.[1]).toBe(ids.businessId);
+    expect(usageCall?.[2]).toBe("agent_conversation");
+    expect(usageCall?.[3]).toBeGreaterThanOrEqual(1);
+    expect(["free", "pro", "business"]).toContain(usageCall?.[4]);
 
     const latestRun = await testDb.query.aiAgentRuns.findFirst({
       where: (runs, { eq: rawEq }) => rawEq(runs.sessionId, session.sessionId),

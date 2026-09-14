@@ -24,6 +24,17 @@ export const EMBEDDING_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24 hours
 const EMBEDDING_CACHE_PREFIX = "embed:";
 const MAX_EMBEDDING_INPUT_LENGTH = 20_000;
 
+/**
+ * Gemini embedding models are Matryoshka: they default to 3072 dimensions and
+ * only return 768 when asked. The dimensionality therefore has to travel with
+ * every request — without it the provider returns 3072, the guard below
+ * discards the vector, and every call degrades to lexical retrieval while
+ * looking like a provider outage.
+ */
+const EMBEDDING_PROVIDER_OPTIONS = {
+  google: { outputDimensionality: EMBEDDING_DIMENSIONS },
+} as const;
+
 function contentHash(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }
@@ -92,6 +103,7 @@ export async function generateEmbedding(
     const { embedding } = await embed({
       model,
       value: normalized,
+      providerOptions: EMBEDDING_PROVIDER_OPTIONS,
     });
 
     if (!Array.isArray(embedding) || embedding.length !== EMBEDDING_DIMENSIONS) {
@@ -210,6 +222,7 @@ async function generateEmbeddingBatch(
         model,
         values: slice,
         maxParallelCalls: 5,
+        providerOptions: EMBEDDING_PROVIDER_OPTIONS,
       });
 
       for (let index = 0; index < slice.length; index++) {

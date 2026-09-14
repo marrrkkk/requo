@@ -68,11 +68,29 @@ vi.mock("@/lib/env", () => ({
 
 const assistantCache = vi.hoisted(() => ({ map: new Map<string, unknown>() }));
 
-vi.mock("@/lib/ai/usage-limiter", () => ({
-  checkUsageLimit: vi.fn(async () => ({ allowed: true })),
-  recordUsage: vi.fn(async () => {}),
-  TASK_WEIGHTS: { agent_conversation: 1, assistant_message: 1 },
-}));
+vi.mock("@/lib/ai/usage-limiter", () => {
+  const weights: Record<string, number> = {
+    agent_conversation: 1,
+    assistant_message: 1,
+  };
+
+  return {
+    checkUsageLimit: vi.fn(async () => ({ allowed: true })),
+    recordUsage: vi.fn(async () => {}),
+    TASK_WEIGHTS: weights,
+    // Mirrors the real token→credit formula so call-site wiring is exercised:
+    // max(1, ceil((inputTokens + 4 × outputTokens) / 5000)).
+    computeUsageWeight: (
+      taskType: string,
+      usage?: { inputTokens?: number | null; outputTokens?: number | null } | null,
+    ) => {
+      if (usage === null || usage === undefined) return weights[taskType] ?? 1;
+      const weighted =
+        (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0) * 4;
+      return Math.max(1, Math.ceil(weighted / 5000));
+    },
+  };
+});
 
 vi.mock("@/lib/ai/cache-layer", () => ({
   cacheLayer: {
@@ -179,7 +197,7 @@ describe("owner-assistant chat API route (provider seam)", () => {
   it("recovers past a dead head identifier without losing the turn", async () => {
     const healthy = mockModelForTurns([textTurn("Still here.")]);
     vi.mocked(registry.languageModel).mockImplementation(((modelId: string) => {
-      if (modelId === "google:gemini-2.5-flash-lite") {
+      if (modelId === "google:gemini-3.5-flash-lite") {
         return {
           provider: "mock",
           modelId,
@@ -231,7 +249,7 @@ describe("owner-assistant chat API route (provider seam)", () => {
       role: "assistant",
       content: "You have 3 open inquiries.",
       provider: "google",
-      model: "gemini-2.5-flash-lite",
+      model: "gemini-3.5-flash-lite",
     });
   });
 

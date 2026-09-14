@@ -4,7 +4,6 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import {
-  KNOWLEDGE_FILE_ACCEPT_EXTENSIONS,
   KNOWLEDGE_FILE_MAX_BYTES,
 } from "@/features/memory/types";
 import {
@@ -25,6 +24,8 @@ import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { sanitizeMemoryContent } from "@/lib/ai/input-sanitizer";
 import { logAiSecurityEvent } from "@/lib/ai/security-events";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getFileExtension, resolveSafeContentType } from "@/lib/files";
+import { KNOWLEDGE_FILE_ACCEPT } from "@/features/memory/types";
 import { db } from "@/lib/db/client";
 import { businessKnowledgeFiles } from "@/lib/db/schema";
 import { getBusinessMemoryCacheTags } from "@/lib/cache/business-tags";
@@ -288,10 +289,42 @@ export async function deleteMemoryEntryAction(
 // Knowledge files
 // ---------------------------------------------------------------------------
 
-const supportedExtensionPattern = new RegExp(
-  `${KNOWLEDGE_FILE_ACCEPT_EXTENSIONS.map((ext) => ext.replace(".", "\\.")).join("|")}$`,
-  "i",
-);
+const KNOWLEDGE_EXTENSION_TO_MIME: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".csv": "text/csv",
+  ".txt": "text/plain",
+  ".md": "text/markdown",
+  ".markdown": "text/markdown",
+};
+
+const KNOWLEDGE_ALLOWED_MIME_TYPES: readonly string[] = KNOWLEDGE_FILE_ACCEPT;
+
+function isPdfMagicBytes(content: ArrayBuffer | Uint8Array): boolean {
+  const bytes =
+    content instanceof Uint8Array
+      ? content
+      : new Uint8Array(content.slice(0, 5));
+  const head = bytes.slice(0, 5);
+  return (
+    head.length >= 4 &&
+    head[0] === 0x25 && // %
+    head[1] === 0x50 && // P
+    head[2] === 0x44 && // D
+    head[3] === 0x46 // F
+  );
+}
+
+function looksLikeHtmlOrSvg(content: ArrayBuffer | Uint8Array): boolean {
+  const bytes =
+    content instanceof Uint8Array ? content : new Uint8Array(content);
+  const sample = Buffer.from(bytes.slice(0, 512)).toString("utf8").trimStart().toLowerCase();
+  return (
+    sample.startsWith("<!doctype html") ||
+    sample.startsWith("<html") ||
+    sample.startsWith("<script") ||
+    sample.startsWith("<svg")
+  );
+}
 
 export async function uploadKnowledgeFileAction(
   businessSlug: string,
@@ -342,9 +375,38 @@ export async function uploadKnowledgeFileAction(
     return { error: firstIssue?.message ?? "Check the file and try again." };
   }
 
-  if (!supportedExtensionPattern.test(parsed.data.fileName)) {
+  // Validate by final extension only (anchored, case-insensitive).
+  // Rejects double extensions like `evil.pdf.exe` because the final
+  // extension `.exe` is not allowlisted.
+  const finalExtension = getFileExtension(parsed.data.fileName);
+
+  if (!finalExtension || !(finalExtension in KNOWLEDGE_EXTENSION_TO_MIME)) {
     return {
       error: "This file type is not supported. Use PDF, CSV, TXT, or Markdown.",
+    };
+  }
+
+  // Derive storage content type from the extension, never from client MIME.
+  const safeContentType = resolveSafeContentType(
+    { name: parsed.data.fileName, type: parsed.data.mimeType },
+    {
+      extensionToMimeType: KNOWLEDGE_EXTENSION_TO_MIME,
+      allowedMimeTypes: KNOWLEDGE_ALLOWED_MIME_TYPES,
+      fallback: "application/octet-stream",
+    },
+  );
+
+  // Magic-byte / content sniffing: PDFs must start with %PDF; text types
+  // must not be disguised HTML/SVG/script payloads.
+  if (finalExtension === ".pdf") {
+    if (!isPdfMagicBytes(parsed.data.content)) {
+      return {
+        error: "That file does not look like a valid PDF.",
+      };
+    }
+  } else if (looksLikeHtmlOrSvg(parsed.data.content)) {
+    return {
+      error: "HTML files are not supported. Use PDF, CSV, TXT, or Markdown.",
     };
   }
 
@@ -362,7 +424,7 @@ export async function uploadKnowledgeFileAction(
   }
 
   const fileId = createId("knf");
-  const extension = parsed.data.fileName.match(/\.[^.]+$/)?.[0] ?? "";
+  const extension = finalExtension;
   const storagePath = `${businessId}/${fileId}${extension.toLowerCase()}`;
 
   try {
@@ -370,7 +432,7 @@ export async function uploadKnowledgeFileAction(
     const { error } = await supabase.storage
       .from(KNOWLEDGE_FILES_BUCKET)
       .upload(storagePath, parsed.data.content, {
-        contentType: parsed.data.mimeType,
+        contentType: safeContentType,
         upsert: false,
       });
 
@@ -384,7 +446,7 @@ export async function uploadKnowledgeFileAction(
       businessId,
       originalFileName: parsed.data.fileName,
       storagePath,
-      mimeType: parsed.data.mimeType,
+      mimeType: safeContentType,
       byteSize: parsed.data.byteSize,
       status: "pending",
     });

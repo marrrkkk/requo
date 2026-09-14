@@ -8,6 +8,19 @@ export const aiUsageEvents = pgTable(
     businessId: text("business_id").notNull(),
     taskType: text("task_type").notNull(),
     weight: integer("weight").notNull(),
+    /**
+     * The business plan in effect when the invocation was metered.
+     *
+     * Monthly usage is summed per (business, plan), so a mid-month plan change
+     * starts a fresh allowance for the new plan instead of carrying the old
+     * plan's accumulated total against it.
+     *
+     * Nullable on purpose: rows written before plan attribution existed have no
+     * plan. Those legacy rows are treated as belonging to whichever plan is
+     * current (`plan = current OR plan IS NULL`) so no business loses its
+     * already-accumulated allowance at deploy time.
+     */
+    plan: text("plan"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -16,6 +29,11 @@ export const aiUsageEvents = pgTable(
     index("ai_usage_events_user_month_idx").on(table.userId, table.createdAt),
     index("ai_usage_events_business_month_idx").on(
       table.businessId,
+      table.createdAt,
+    ),
+    index("ai_usage_events_business_plan_month_idx").on(
+      table.businessId,
+      table.plan,
       table.createdAt,
     ),
   ],
