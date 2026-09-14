@@ -1,0 +1,1 @@
+DROP TYPE "public"."quote_post_acceptance_status";

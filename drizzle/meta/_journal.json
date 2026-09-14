@@ -211,6 +211,13 @@
       "when": 1789375826504,
       "tag": "0029_ai_usage_plan_attribution",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1789425628380,
+      "tag": "0030_omniscient_cassandra_nova",
+      "breakpoints": true
     }
   ]
 }
