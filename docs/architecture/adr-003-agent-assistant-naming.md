@@ -23,7 +23,7 @@ ambiguous.
 - Internal identifiers keep their current names (`ai_agent_*`,
   `owner_assistant_*`, `features/ai-agent/`, `features/owner-assistant/`).
   Renaming tables and modules is churn without product value.
-- The glossary (`CONTEXT.md` Language section) is the source of truth and
+- The glossary (`docs/domain.md` Terminology section) is the source of truth and
   stays a glossary: no implementation detail. `assistant-and-agent.md`
   describes how the two surfaces are built.
 

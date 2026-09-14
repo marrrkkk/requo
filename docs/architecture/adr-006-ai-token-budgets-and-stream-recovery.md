@@ -20,8 +20,10 @@ failure could therefore look like a silent no-reply in the UI.
 3. Bound conversational context. Keep the opening message and recent turns,
    and insert a small deterministic summary for omitted messages. Do not call a
    second model solely to summarize context.
-4. Limit Agent and Assistant turns to three tool steps and use surface-specific
-   output budgets (`600` and `900` tokens respectively).
+4. Limit Agent and Assistant turns to five tool steps (`stopWhen:
+   stepCountIs(5)`, with the Assistant narrowing to synthesis-only at step 4)
+   and use surface-specific output budgets (`600` and `2000` tokens
+   respectively, `lib/ai/token-budget.ts`).
 5. Preserve partial streamed output and expose a retry action in the chat UI.
    Retries are bounded by the client and must not duplicate side-effecting
    operations; high-risk tools continue to require confirmation.

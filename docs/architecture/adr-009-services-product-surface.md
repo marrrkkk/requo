@@ -52,7 +52,7 @@ page's hero copy as if it were a catalog description.
   the create schema (`BusinessInquiryFormCreateInput`) must drop the field.
 - No migration and no public-route changes. The business type remains
   available per service for AI drafting and preset application.
-- The glossary (`CONTEXT.md`) documents the Service/inquiry/form terms; this
+- The glossary (`docs/domain.md`) documents the Service/inquiry/form terms; this
   ADR records the data-behavior trade-off (inherited template vs. per-service
   template power, resolved by keeping the column and moving the control to
   Settings).

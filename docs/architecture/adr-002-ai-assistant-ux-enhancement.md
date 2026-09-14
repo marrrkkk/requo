@@ -5,6 +5,19 @@
 **Deciders**: Implementation team  
 **Context**: Requo AI Assistant V2 — Rebrand and UX Enhancement
 
+> **Partially superseded.** [ADR-003](./adr-003-agent-assistant-naming.md)
+> withdrew the customer-surface rename phases; [ADR-004](./adr-004-agent-transcript-privacy.md)
+> withdrew the owner conversation dashboard; [ADR-005](./adr-005-proposed-inquiry-approval.md)
+> replaced fully-autonomous filing with visitor-approved proposals. Several
+> Round 2/3 items were never built as specified: RLS is default-deny rather
+> than `auth.uid()` policies, `ai_assistant_beta_enabled` is stored but never
+> read, and there are no top-level `/assistant/*` routes (owner surface lives
+> at `/[businessSlug]/assistant`, settings at `/[businessSlug]/settings/ai`).
+> What shipped: `ai_assisted` attribution, dual rate limits, usage checks,
+> `stopWhen: stepCountIs(5)`, the `/b/[slug]/inquire` hub, and `sessionStorage`
+> session tokens. Read the phase plan below as history, not a work list.
+> Current behavior: `docs/ai.md`, `docs/authentication.md`.
+
 ---
 
 ## Context
@@ -438,8 +451,8 @@ CREATE INDEX inquiries_ai_assisted_idx
 ## References
 
 - [ADR 001: AI Agent Architecture](./adr-001-ai-agent.md) — Original AI Agent decisions
-- [CONTEXT.md](../../CONTEXT.md) — Domain model
-- [Entitlement-Visibility Architecture](../../AGENTS.md#entitlement-visibility-architecture) — Plan gating patterns
+- [Domain model](../../docs/domain.md) — Terminology and lifecycles
+- [Entitlement-visibility rules](../../docs/authentication.md#plan-entitlements) — Plan gating patterns
 - [AI Router](../../lib/ai/router.ts) — Model selection and fallback
 - [Usage Limiter](../../lib/ai/usage-limiter.ts) — Quota enforcement
 

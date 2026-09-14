@@ -3,8 +3,10 @@
 **Status**: Accepted
 **Date**: 2026-09-05
 **Deciders**: Implementation team
-**Context**: `docs/specs/instant-navigation-progressive-data-loading.md`,
-`docs/architecture/instant-navigation.md`
+**Context**: `docs/architecture/instant-navigation.md`
+(previous spec `docs/specs/instant-navigation-progressive-data-loading.md` was
+removed during the documentation reset; this ADR and the deep-dive above are
+the surviving records)
 
 ---
 
@@ -142,13 +144,12 @@ content before its redirect/paywall decision.
 
 ## References
 
-- `docs/specs/instant-navigation-progressive-data-loading.md`
 - `docs/architecture/instant-navigation.md`
 - Bundled Next.js docs (source of truth): `node_modules/next/dist/docs/`
   (`01-app/02-guides/instant-navigation.md`,
   `01-app/03-api-reference/03-file-conventions/02-route-segment-config/instant.md`,
   `01-app/02-guides/adopting-partial-prefetching.md`)
-- `CONTEXT.md` — Language (static shell, progressive region, instant
+- `docs/domain.md` — Terminology (static shell, progressive region, instant
   navigation)
 
 ---
