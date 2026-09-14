@@ -1,5 +1,7 @@
 export type AccountProfileRecord = {
   fullName: string;
+  firstName: string | null;
+  lastName: string | null;
   jobTitle: string | null;
   phone: string | null;
   avatarStoragePath: string | null;

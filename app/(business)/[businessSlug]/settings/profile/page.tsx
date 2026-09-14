@@ -71,6 +71,8 @@ async function SettingsProfileContent() {
       key={`account-profile-${profile?.updatedAt?.getTime() ?? 0}`}
       profile={{
         fullName: profile?.fullName ?? user.user.name,
+        firstName: profile?.firstName ?? null,
+        lastName: profile?.lastName ?? null,
         jobTitle: profile?.jobTitle ?? null,
         phone: profile?.phone ?? null,
         avatarStoragePath: profile?.avatarStoragePath ?? null,

@@ -6,6 +6,7 @@ import type { StarterWorkflowKey } from "@/features/businesses/starter-workflows
 import { createBusinessRecordForUser } from "@/features/businesses/mutations";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import type { InquiryFormConfig } from "@/features/inquiries/form-config";
+import { joinFullName } from "@/features/account/name";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { db } from "@/lib/db/client";
 import { businessMembers, businesses, profiles } from "@/lib/db/schema";
@@ -61,15 +62,16 @@ export async function completeOnboardingForUser({
   await ensureProfileForUser(user);
 
   const now = new Date();
-  const fullName = `${firstName} ${lastName}`.trim();
+  const trimmedLastName = lastName.trim();
+  const fullName = joinFullName(firstName, trimmedLastName);
 
   return db.transaction(async (tx) => {
     await tx
       .update(profiles)
       .set({
         fullName,
-        firstName,
-        lastName,
+        firstName: firstName.trim(),
+        lastName: trimmedLastName ? trimmedLastName : null,
         ...(jobTitle ? { jobTitle } : {}),
         ...(companySize ? { companySize } : {}),
         ...(referralSource ? { referralSource } : {}),

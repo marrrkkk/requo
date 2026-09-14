@@ -34,6 +34,8 @@ async function getCachedAccountProfile(
   const [profile] = await db
     .select({
       fullName: profiles.fullName,
+      firstName: profiles.firstName,
+      lastName: profiles.lastName,
       jobTitle: profiles.jobTitle,
       phone: profiles.phone,
       avatarStoragePath: profiles.avatarStoragePath,

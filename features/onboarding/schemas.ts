@@ -139,11 +139,14 @@ export const onboardingBusinessBasicsSchema = z.object({
     .trim()
     .min(1, "Enter your first name.")
     .max(60, "Use 60 characters or fewer."),
+  // Last name is required by default; single-name Google users are granted an
+  // auto-skip (empty string) which the server action authorizes per-user.
+  // Keeping the base schema permissive lets the action own that decision.
   lastName: z
     .string()
     .trim()
-    .min(1, "Enter your last name.")
-    .max(60, "Use 60 characters or fewer."),
+    .max(60, "Use 60 characters or fewer.")
+    .default(""),
 });
 
 /**

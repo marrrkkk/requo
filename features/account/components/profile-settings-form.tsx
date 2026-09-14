@@ -58,6 +58,11 @@ import type {
   AccountSessionView,
 } from "@/features/account/types";
 import {
+  getDisplayFirstName,
+  joinFullName,
+  splitFullName,
+} from "@/features/account/name";
+import {
   profileAvatarAccept,
   profileAvatarAllowedMimeTypes,
   profileAvatarMaxSize,
@@ -122,9 +127,21 @@ export function ProfileSettingsForm({
   const [removeAvatar, setRemoveAvatar] = useState(false);
   const [hasPendingAvatar, setHasPendingAvatar] = useState(false);
   const [avatarResetSignal, setAvatarResetSignal] = useState(0);
-  const initialName = splitFullName(profile.fullName);
+  const initialName =
+    profile.firstName || profile.lastName
+      ? {
+          firstName: (profile.firstName ?? "").trim(),
+          lastName: (profile.lastName ?? "").trim(),
+        }
+      : splitFullName(profile.fullName);
   const [firstName, setFirstName] = useState(initialName.firstName);
   const [lastName, setLastName] = useState(initialName.lastName);
+  const displayFirstName =
+    getDisplayFirstName({
+      firstName,
+      fullName: profile.fullName,
+      fallback: profile.fullName,
+    }) || profile.fullName;
   const fullNameError = state.fieldErrors?.fullName?.[0];
 
   const hasNameChanges =
@@ -170,7 +187,7 @@ export function ProfileSettingsForm({
           >
             <ProfileAvatarField
               disabled={isPending}
-              displayName={joinFullName(firstName, lastName) || profile.fullName}
+              displayName={displayFirstName}
               fieldError={state.fieldErrors?.avatar?.[0]}
               hasUploadedAvatar={Boolean(profile.avatarStoragePath)}
               initialAvatarSrc={profile.avatarSrc}
@@ -187,7 +204,7 @@ export function ProfileSettingsForm({
 
           <AccountSection
             title="Name"
-            description="Your name as it will be displayed"
+            description="Your first name is shown across Requo. Last name is optional."
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="grid gap-1.5">
@@ -212,7 +229,8 @@ export function ProfileSettingsForm({
                   className="text-xs text-muted-foreground"
                   htmlFor="account-last-name"
                 >
-                  Last Name
+                  Last Name{" "}
+                  <span className="font-normal">(optional)</span>
                 </label>
                 <Input
                   aria-invalid={Boolean(fullNameError) || undefined}
@@ -220,7 +238,7 @@ export function ProfileSettingsForm({
                   id="account-last-name"
                   maxLength={60}
                   onChange={(event) => setLastName(event.target.value)}
-                  placeholder="Louie"
+                  placeholder="Optional"
                   value={lastName}
                 />
               </div>
@@ -1253,27 +1271,6 @@ function DeleteAccountSection({
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
-
-function splitFullName(fullName: string) {
-  const segments = fullName.trim().split(/\s+/).filter(Boolean);
-
-  if (segments.length === 0) {
-    return { firstName: "", lastName: "" };
-  }
-
-  if (segments.length === 1) {
-    return { firstName: segments[0] ?? "", lastName: "" };
-  }
-
-  return {
-    firstName: segments[0] ?? "",
-    lastName: segments.slice(1).join(" "),
-  };
-}
-
-function joinFullName(firstName: string, lastName: string) {
-  return `${firstName.trim()} ${lastName.trim()}`.trim().replace(/\s+/g, " ");
-}
 
 async function loadAvatarAsset(file: File): Promise<LoadedAvatarAsset> {
   const url = URL.createObjectURL(file);

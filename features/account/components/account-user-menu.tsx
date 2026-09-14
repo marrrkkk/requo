@@ -5,6 +5,7 @@ import { LogOut, User } from "lucide-react";
 import { useTransition } from "react";
 
 import { authClient } from "@/lib/auth/client";
+import { getDisplayFirstName } from "@/features/account/name";
 import { dashboardPath } from "@/features/businesses/routes";
 import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-menu";
 import { clearPersistedThemePreference } from "@/features/theme/persistence";
@@ -33,6 +34,8 @@ type AccountUserMenuProps = {
 
 export function AccountUserMenu({ user }: AccountUserMenuProps) {
   const [isPending, startTransition] = useTransition();
+  const displayName =
+    getDisplayFirstName({ fullName: user.name }) || user.name;
 
   function handleLogout() {
     startTransition(async () => {
@@ -60,9 +63,9 @@ export function AccountUserMenu({ user }: AccountUserMenuProps) {
         >
           <Avatar className="size-8">
             {user.avatarSrc ? (
-              <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
+              <AvatarImage alt={`${displayName} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
             ) : null}
-            <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+            <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
           </Avatar>
         </button>
       </DropdownMenuTrigger>
@@ -71,13 +74,13 @@ export function AccountUserMenu({ user }: AccountUserMenuProps) {
           <div className="flex items-center gap-3">
             <Avatar className="size-8">
               {user.avatarSrc ? (
-                <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
+                <AvatarImage alt={`${displayName} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
               ) : null}
-              <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+              <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-foreground">
-                {user.name}
+                {displayName}
               </p>
               <p className="truncate text-xs text-muted-foreground">
                 {user.email}

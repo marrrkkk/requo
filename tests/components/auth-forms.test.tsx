@@ -128,7 +128,8 @@ describe("auth forms", () => {
     const user = userEvent.setup();
     render(<SignupForm />);
 
-    await user.type(screen.getByLabelText("Full name"), "Alicia Cruz");
+    await user.type(screen.getByLabelText("First name"), "Alicia");
+    await user.type(screen.getByLabelText("Last name"), "Cruz");
     await user.type(screen.getByLabelText("Email address"), "alicia@example.com");
     await user.type(screen.getByLabelText("Password"), "Password123!");
     await user.click(screen.getByRole("button", { name: "Create account" }));
@@ -148,7 +149,7 @@ describe("auth forms", () => {
     );
     expect(toastSuccessMock).not.toHaveBeenCalled();
     await waitFor(() =>
-      expect(screen.getByLabelText("Full name")).toHaveValue(""),
+      expect(screen.getByLabelText("First name")).toHaveValue(""),
     );
   });
 
