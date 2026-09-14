@@ -328,6 +328,38 @@ List pages drop the `PageHeader` description (it restates the title);
 settings and detail pages keep theirs. Each list route's loading shell
 mirrors this composition so the shell and the resolved page agree.
 
+## Responsive Design
+
+Dashboard, settings, and admin surfaces share one responsive contract:
+
+- Page shell: `dashboard-main px-3 py-4 sm:px-5 sm:py-5 xl:px-6 xl:py-6`.
+- Sidebar rail 240px with 32px nav items on desktop; mobile uses the top bar, fullscreen nav, and floating dock (`components/shell/mobile-*`).
+- Filters live in the toolbar on desktop and move into a `Sheet` on mobile; desktop filter labels are visually hidden (placeholders carry hints) while the mobile sheet keeps visible labels.
+- Tables (`DashboardTableContainer`, rows edge-to-edge) collapse to stacked mobile rows via `mobile-record-row` with the same content hierarchy and tokens.
+- Assistant history renders as a header popover on desktop and a bottom sheet on mobile.
+- Marketing, auth, public inquiry pages, the public Agent chat, and print/PDF output keep their generous scale — density rules do not apply there.
+
+Implementation: `components/shell/*`, `components/shared/dashboard-layout.tsx`, `components/shared/mobile-record-row.tsx`.
+
+## Accessibility
+
+Accessibility is default behavior, not an enhancement pass:
+
+- Focus: `focus-visible:ring-2 focus-visible:ring-border-focus-ring` (BoardUI compat) / `ring` token; never remove visible focus states.
+- Forms: `Field` carries `data-invalid`, controls carry `aria-invalid`; every input has a `FieldLabel` (or `sr-only` label for icon-only actions).
+- Overlays: `DialogTitle` / `SheetTitle` required even when visually hidden; preserve close controls and focus trapping.
+- Buttons: loading state is `disabled` + `Spinner` with the text label kept; icon-only buttons include `sr-only` text.
+- Contrast: body copy uses `foreground` / `muted-foreground` only; status uses semantic badge/alert patterns, never raw palette utilities.
+- Motion: chat surfaces and shared utilities ship `prefers-reduced-motion` fallbacks; keep them when touching motion code.
+
+## Known inconsistencies
+
+Established patterns above win for new work. These contradictions exist in the codebase — do not copy them into new code, and do not silently "fix" them outside a dedicated cleanup:
+
+- **BoardUI vs shadcn duality.** `components/base/*` (16 dirs) plus `components/application/`/`components/foundations/` exist alongside canonical `components/ui/*`; only 3 BoardUI compat tokens are mapped (`app/globals.css`). New UI builds on `components/ui/*` + `components/shared/*`. See `docs/technical-debt.md`.
+- **Legacy styling debt.** Remaining `space-y-*`/`space-x-*` stacks (use `flex`/`grid` + `gap-*`) and raw status-color utilities (use badge/alert/shared status patterns). Flagged by `audit:density`.
+- **Quote editor grid class.** The quote editor `<form>` carries the raw `dashboard-detail-layout` grid class because the shared layout wrapper cannot wrap forms yet — migrate when the wrapper supports form elements.
+
 ## Cleanup Targets
 
 - Replace remaining `space-y-*` and `space-x-*` stacks with `flex`/`grid` plus `gap-*`.

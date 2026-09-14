@@ -5,13 +5,17 @@ description: Requo repository-specific architecture, design system, provider bou
 
 # Requo Repo Guide
 
-Read these sources first when relevant:
+Read these sources first when relevant (paths relative to this skill file):
 
-- `../../../DESIGN.md` for UI work
-- `../../../docs/architecture/requo-architecture.md` for structure
-- `../../../app/globals.css` for semantic tokens, surfaces, and motion utilities
-- `../../../components/shared/dashboard-layout.tsx`, `../../../components/shared/form-layout.tsx`, and `../../../components/shared/page-header.tsx` for shared layout patterns
-- `../../../app/onboarding/page.tsx` and `../../../lib/auth/config.ts` for current auth and onboarding behavior
+- `../../../DESIGN.md` for UI work; `../../../app/globals.css` for tokens, surfaces, motion
+- `../../../docs/architecture.md` for structure; `../../../docs/frontend.md` for App Router patterns
+- `../../../docs/domain.md` for business concepts; `../../../docs/workflows.md` for cross-feature flows
+- `../../../docs/ai.md` for AI work (deep dive: `../../../docs/architecture/assistant-and-agent.md`)
+- `../../../docs/data.md` for database; `../../../docs/authentication.md` for auth/authz
+- `../../../docs/integrations.md` for external services; `../../../docs/development.md` for commands
+- `../../../docs/technical-debt.md` for known inconsistencies (read before "fixing" them)
+- `../../../components/shared/dashboard-layout.tsx`, `../../../components/shared/form-layout.tsx`, `../../../components/shared/page-header.tsx` for layout patterns
+- `../../../app/onboarding/page.tsx` and `../../../lib/auth/config.ts` for auth and onboarding behavior
 
 ## Working Defaults
 
@@ -50,8 +54,22 @@ Read these sources first when relevant:
 - `business_subscriptions` is authoritative; `businesses.plan` is a denormalized read cache.
 - `lib/billing/subscription-service.ts` is the single write path for subscription mutations.
 - `lib/billing/webhook-processor.ts` records provider events in `billing_events` for idempotency.
-- `lib/billing/refunds.ts` is the single path for Polar refund requests.
+- Refunds are portal-initiated in Polar and reach Requo via subscription webhooks (no refunds module in `lib/billing/`).
 - Polar webhook route: `app/api/billing/polar/webhook/route.ts`.
+
+## Pitfalls (caught by past audits — do not repeat)
+
+- **Agent ≠ Assistant.** Agent = customer-facing anonymous chat (`features/ai-agent/`); Assistant = owner-facing authenticated chat (`features/owner-assistant/`). Never swap the words (ADR 003).
+- **Agent has 4 tools**, not 5: `search_knowledge`, `get_business_info`, `get_services`, `propose_inquiry`. The handoff helper exists but is not wired as a model tool.
+- **Inquiry sources** are `service_form | ai_assistant | manual | api | unknown` (`features/inquiries/types.ts`); legacy values (`ai_agent`, …) normalize via `normalizeInquirySource`. Never write legacy values.
+- **Models never emit money.** Quote-draft prompts return `unitPriceInCents: 0` + candidate IDs; the server hydrates DB prices. Never trust model prices.
+- **Route all provider calls through `lib/ai/router.ts`** + `selectModels`. Never import a provider SDK in `features/`.
+- **Customer-visible or pipeline-mutating AI writes need confirmation** (`send_quote`, `update_inquiry_status`); draft-only writes do not.
+- **Plan locks, role hides.** Never filter navigation by plan — gate with `features/paywall/` components + server-side `hasFeatureAccess` before expensive work.
+- **Dashboard pages:** `export const instant = true`, synchronous shell, dynamic reads only in `<Suspense>` children. Never `instant = false` to silence a failure — use the escape-hatch registry.
+- **Panel padding is baked in** (`section-panel`, `soft-panel`); opt out with `data-padding="none"`. Call-site padding on the same attribute is silently ignored and fails `audit:density`.
+- **Do not add** Supabase Auth (Better Auth only), pgvector (embeddings are `jsonb`), payment gateways, or a `lib/billing/refunds.ts` (refunds are portal-initiated).
+- **Update `docs/` when architecture or behavior changes materially**, and re-grep for dangling references when deleting or moving docs.
 
 ## Testing
 

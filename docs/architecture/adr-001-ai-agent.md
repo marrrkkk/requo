@@ -5,6 +5,16 @@
 **Deciders**: Implementation team  
 **Context**: Requo AI Agent V1 MVP
 
+> **Superseded in part.** Decision 6 (fully autonomous filing) was amended by
+> [ADR-005](./adr-005-proposed-inquiry-approval.md): the Agent stages a
+> Proposed Inquiry for visitor approval instead of filing directly. Naming
+> follows [ADR-003](./adr-003-agent-assistant-naming.md), transcript privacy
+> follows [ADR-004](./adr-004-agent-transcript-privacy.md). Implementation
+> details drifted: AI SDK v6 uses `stopWhen: stepCountIs(5)` (not `maxSteps`)
+> and the token lives in `sessionStorage` (not `localStorage`); inquiry
+> sources were refactored (`ai_agent` → `ai_assistant`, migration `0027`).
+> Current behavior: `docs/ai.md`, `docs/domain.md`.
+
 ---
 
 ## Context
@@ -170,7 +180,7 @@ Requo currently captures customer inquiries through traditional web forms. We wa
 ### Consequences
 
 - **Positive**: Secure, simple, clear tenant isolation
-- **Negative**: Client must manage token in localStorage (acceptable for modern web apps)
+- **Negative**: Client must manage token in sessionStorage (acceptable for modern web apps)
 - **Risk**: Token leakage (mitigated by HTTPS, short expiry, no sensitive data in token itself)
 
 ---
@@ -383,9 +393,9 @@ Requo currently captures customer inquiries through traditional web forms. We wa
 ## References
 
 - [Vercel AI SDK 6.0 Documentation](https://sdk.vercel.ai/docs)
-- [Requo Architecture](./requo-architecture.md)
-- [CONTEXT.md](../CONTEXT.md) — Domain model
-- [AI Agent Implementation Plan](./ai-agent-implementation-plan.md) — Full technical spec
+- [Requo Architecture](../../docs/architecture.md)
+- [Domain model](../../docs/domain.md) — Terminology and lifecycles
+- [Requo AI architecture](../../docs/ai.md) — Current Agent behavior
 
 ---
 

@@ -2,7 +2,7 @@
 
 Two conversational surfaces, one shared product core. **Agent** always means
 the customer-facing anonymous surface; **Assistant** always means the
-owner-facing authenticated surface (glossary: `CONTEXT.md` Language section).
+owner-facing authenticated surface (glossary: `docs/domain.md` Terminology section).
 
 ## Surfaces
 
@@ -56,23 +56,26 @@ is public and anonymous (ADR 004):
    derivation) → build prompt from history **after** the persist → `streamText`
    with tools over the UI message stream.
 3. Telemetry: run rows (Agent), `recordUsage` into the shared monthly credit
-   pool (hard ceiling), `logAiInvocation` per surface for attributable spend.
+   pool (plan-scoped, token-weighted, hard ceiling), `logAiInvocation` per
+   surface for attributable spend.
    Model output is filtered (`filterAiOutput`) before persistence.
 
 ## Tools
 
 - Agent tools (`features/ai-agent/tools/`): `search_knowledge`,
-  `get_business_info`, `get_services`, `propose_inquiry`, `request_human_handoff`.
+  `get_business_info`, `get_services`, `propose_inquiry`.
   The model has no commit authority: `propose_inquiry` stages a Proposed
   Inquiry on the session and returns it. The only path from proposal to Inquiry
   is the visitor-approved server action (`approveAgentProposalAction`), which
   consumes the proposal exactly once and then routes through the shared
   exported submission wrapper (`createAgentInquirySubmission`) in
   `features/inquiries/mutations.ts` — the same intake path as public/manual
-  submissions, preserving `source` (`ai_agent`) and `aiAssisted: true`.
-  Escalation (`request_human_handoff`) is the second commit path and stays
-  ungated and immediate via `createAgentHandoffSubmission` (`ai_agent_handoff`,
-  `escalated`). Two commit paths with different rules is intentional (ADR 005).
+  submissions, preserving `source` (`ai_assistant`) and `aiAssisted: true`.
+  Escalation is the second commit path and stays ungated and immediate:
+  `createAgentHandoffSubmission` in `features/inquiries/mutations.ts`
+  (`escalated`, `source ai_assistant`). Note: the handoff helper is not
+  currently wired as a model tool, so model-initiated handoff is unreachable
+  until wired. Two commit paths with different rules is intentional (ADR 005).
 - Assistant tools (`features/owner-assistant/tools/`): read tools over
   business-scoped queries (archived/deleted excluded, case-insensitive match,
   dollars never raw cents), `search_knowledge` via `retrieveBusinessKnowledge`,
