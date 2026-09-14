@@ -54,6 +54,9 @@ import { getFollowUpRelatedHref } from "@/features/follow-ups/components/follow-
 import {
   FollowUpDueBadge,
 } from "@/features/follow-ups/components/follow-up-status-badge";
+import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
+import type { QuoteStatus } from "@/features/quotes/types";
+import { quoteStatuses } from "@/features/quotes/types";
 import {
   formatFollowUpDate,
   getFollowUpChannelLabel,
@@ -66,6 +69,12 @@ import {
   useOptimisticMutation,
 } from "@/hooks/use-optimistic-mutation";
 import { cn } from "@/lib/utils";
+
+const quoteStatusSet = new Set<string>(quoteStatuses);
+
+function isQuoteStatus(value: string | null | undefined): value is QuoteStatus {
+  return typeof value === "string" && quoteStatusSet.has(value);
+}
 
 type AutoSequenceItem = Extract<
   FollowUpActivityItem,
@@ -546,13 +555,16 @@ function FollowUpCard({
             {followUp.related.label}
           </span>
         ) : null}
-        {followUp.quoteContext?.status ? (
-          <Badge variant="outline" className="rounded-full">
-            {followUp.quoteContext.status.replace(/_/g, " ")}
-            {isQuoteViewed ? " · viewed" : ""}
+        {isQuoteStatus(followUp.quoteContext?.status) &&
+        followUp.quoteContext.status !== "sent" ? (
+          <QuoteStatusBadge status={followUp.quoteContext.status} />
+        ) : null}
+        {isQuoteViewed ? (
+          <Badge variant="secondary" className="rounded-full">
+            Viewed
           </Badge>
         ) : null}
-        <Badge variant="secondary" className="rounded-full">
+        <Badge variant="outline" className="rounded-full">
           {followUp.nextActionLabel}
         </Badge>
       </div>
@@ -687,14 +699,15 @@ function FollowUpDetailDialog({
                       {quoteAmount}
                     </span>
                   ) : null}
-                  {followUp.quoteContext.status ? (
-                    <Badge variant="outline" className="rounded-full">
-                      {followUp.quoteContext.status.replace(/_/g, " ")}
+                  {isQuoteStatus(followUp.quoteContext.status) &&
+                  followUp.quoteContext.status !== "sent" ? (
+                    <QuoteStatusBadge status={followUp.quoteContext.status} />
+                  ) : null}
+                  {followUp.quoteContext.viewedAt ? (
+                    <Badge variant="secondary" className="rounded-full">
+                      Viewed
                     </Badge>
                   ) : null}
-                  <Badge variant="outline" className="rounded-full">
-                    {followUp.quoteContext.viewedAt ? "Viewed" : "Not viewed"}
-                  </Badge>
                   {followUp.quoteContext.sentAt ? (
                     <span>Sent {formatFollowUpDate(followUp.quoteContext.sentAt)}</span>
                   ) : null}
