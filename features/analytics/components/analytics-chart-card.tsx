@@ -23,7 +23,7 @@ export function AnalyticsChartCard({
   className?: string;
 }) {
   return (
-    <Card className={cn("gap-0 bg-background/72", className)}>
+    <Card className={cn("gap-0 border-border/60 bg-muted/40 shadow-none", className)}>
       <CardHeader className="gap-2">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
