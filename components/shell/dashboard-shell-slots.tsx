@@ -15,6 +15,7 @@ import {
 import Link from "next/link";
 
 import { authClient } from "@/lib/auth/client";
+import { getDisplayFirstName } from "@/features/account/name";
 import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-menu";
 import { clearPersistedThemePreference } from "@/features/theme/persistence";
 import { themeUserStorageKey } from "@/features/theme/types";
@@ -345,6 +346,8 @@ export function DashboardUserMenu({
 }) {
   const [isPending, startTransition] = useTransition();
   const { isMobile, setOpenMobile } = useSidebar();
+  const displayName =
+    getDisplayFirstName({ fullName: user.name }) || user.name;
 
   function closeMobileSidebar() {
     if (isMobile) {
@@ -382,20 +385,20 @@ export function DashboardUserMenu({
             <SidebarMenuButton
               className="h-auto cursor-pointer justify-between rounded-xl border-2 border-transparent bg-sidebar-accent py-2 pr-4 pl-2.5 hover:border-sidebar-border hover:bg-sidebar-accent group-data-[collapsed=true]/sidebar:h-9 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:border-transparent group-data-[collapsed=true]/sidebar:bg-transparent group-data-[collapsed=true]/sidebar:p-0 data-[state=open]:bg-sidebar-accent"
               size="lg"
-              tooltip={user.name}
+              tooltip={displayName}
             >
               <span className="flex min-w-0 items-center gap-2">
                 <Avatar className="rounded-full border-0 bg-transparent">
                   {user.avatarSrc ? (
-                    <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
+                    <AvatarImage alt={`${displayName} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
                   ) : null}
                   <AvatarFallback className="border-0 bg-transparent text-foreground">
-                    {getInitials(user.name)}
+                    {getInitials(displayName)}
                   </AvatarFallback>
                 </Avatar>
                 <span className="flex min-w-0 flex-1 flex-col items-start justify-center group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden">
                   <span className="w-full truncate text-body-medium text-foreground">
-                    {user.name}
+                    {displayName}
                   </span>
                   <span className="w-full truncate text-body-regular text-muted-foreground">
                     {user.email}
@@ -415,15 +418,15 @@ export function DashboardUserMenu({
               <div className="flex items-center gap-3">
                 <Avatar className="rounded-lg">
                   {user.avatarSrc ? (
-                    <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
+                    <AvatarImage alt={`${displayName} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
                   ) : null}
                   <AvatarFallback className="rounded-lg">
-                    {getInitials(user.name)}
+                    {getInitials(displayName)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">
-                    {user.name}
+                    {displayName}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
                     {user.email}
@@ -741,6 +744,8 @@ export function MobileUserMenu({
   businessId: string;
 }) {
   const [isPending, startTransition] = useTransition();
+  const displayName =
+    getDisplayFirstName({ fullName: user.name }) || user.name;
 
   function handleLogout() {
     startTransition(async () => {
@@ -769,10 +774,10 @@ export function MobileUserMenu({
         >
           <Avatar className="size-8 rounded-lg">
             {user.avatarSrc ? (
-              <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
+              <AvatarImage alt={`${displayName} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
             ) : null}
             <AvatarFallback className="rounded-lg text-xs">
-              {getInitials(user.name)}
+              {getInitials(displayName)}
             </AvatarFallback>
           </Avatar>
         </button>
@@ -785,15 +790,15 @@ export function MobileUserMenu({
           <div className="flex items-center gap-3">
             <Avatar className="rounded-lg">
               {user.avatarSrc ? (
-                <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
+                <AvatarImage alt={`${displayName} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
               ) : null}
               <AvatarFallback className="rounded-lg">
-                {getInitials(user.name)}
+                {getInitials(displayName)}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-foreground">
-                {user.name}
+                {displayName}
               </p>
               <p className="truncate text-xs text-muted-foreground">
                 {user.email}

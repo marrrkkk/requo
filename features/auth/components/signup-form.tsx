@@ -21,6 +21,7 @@ import {
   magicLinkSignupRequestSchema,
   signupSchema,
 } from "@/features/auth/schemas";
+import { joinFullName } from "@/features/account/name";
 import type { AuthFormState } from "@/features/auth/types";
 import { AuthFormFeedback } from "@/features/auth/components/auth-form-feedback";
 import { onboardingPath } from "@/features/onboarding/routes";
@@ -65,7 +66,8 @@ export function SignupForm({
 
     const formData = new FormData(event.currentTarget);
     const validationResult = signupSchema.safeParse({
-      name: formData.get("name"),
+      firstName: formData.get("firstName"),
+      lastName: formData.get("lastName"),
       email: formData.get("email"),
       password: formData.get("password"),
     });
@@ -81,7 +83,12 @@ export function SignupForm({
 
     startTransition(async () => {
       const result = await authClient.signUp.email({
-        ...validationResult.data,
+        name: joinFullName(
+          validationResult.data.firstName,
+          validationResult.data.lastName,
+        ),
+        email: validationResult.data.email,
+        password: validationResult.data.password,
         callbackURL: verificationCallback,
       });
 
@@ -131,15 +138,19 @@ export function SignupForm({
       return;
     }
 
-    const nameInput = document.getElementById(
-      "signup-name",
+    const firstNameInput = document.getElementById(
+      "signup-first-name",
+    ) as HTMLInputElement | null;
+    const lastNameInput = document.getElementById(
+      "signup-last-name",
     ) as HTMLInputElement | null;
     const emailInput = document.getElementById(
       "signup-email",
     ) as HTMLInputElement | null;
 
     const validationResult = magicLinkSignupRequestSchema.safeParse({
-      name: nameInput?.value ?? "",
+      firstName: firstNameInput?.value ?? "",
+      lastName: lastNameInput?.value ?? "",
       email: emailInput?.value ?? "",
     });
 
@@ -160,7 +171,10 @@ export function SignupForm({
     startTransition(async () => {
       const result = await authClient.signIn.magicLink({
         email: validationResult.data.email,
-        name: validationResult.data.name,
+        name: joinFullName(
+          validationResult.data.firstName,
+          validationResult.data.lastName,
+        ),
         callbackURL: dashboardPath,
         newUserCallbackURL: nextPath,
         errorCallbackURL,
@@ -184,7 +198,8 @@ export function SignupForm({
     });
   }
 
-  const nameError = getFieldError(state.fieldErrors, "name");
+  const firstNameError = getFieldError(state.fieldErrors, "firstName");
+  const lastNameError = getFieldError(state.fieldErrors, "lastName");
   const emailError = getFieldError(state.fieldErrors, "email");
   const passwordError = getFieldError(state.fieldErrors, "password");
 
@@ -213,23 +228,47 @@ export function SignupForm({
       <AuthEmailDivider />
 
       <FieldGroup>
-        <Field data-invalid={Boolean(nameError) || undefined}>
-          <FieldLabel htmlFor="signup-name">Full name</FieldLabel>
-          <FieldContent>
-            <Input
-              id="signup-name"
-              name="name"
-              autoComplete="name"
-              maxLength={120}
-              minLength={2}
-              placeholder="Alicia Cruz"
-              required
-              aria-invalid={Boolean(nameError) || undefined}
-              disabled={isPending}
-            />
-            <FieldError errors={nameError ? [{ message: nameError }] : undefined} />
-          </FieldContent>
-        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field data-invalid={Boolean(firstNameError) || undefined}>
+            <FieldLabel htmlFor="signup-first-name">First name</FieldLabel>
+            <FieldContent>
+              <Input
+                id="signup-first-name"
+                name="firstName"
+                autoComplete="given-name"
+                maxLength={60}
+                minLength={1}
+                placeholder="Alicia"
+                required
+                aria-invalid={Boolean(firstNameError) || undefined}
+                disabled={isPending}
+              />
+              <FieldError
+                errors={firstNameError ? [{ message: firstNameError }] : undefined}
+              />
+            </FieldContent>
+          </Field>
+
+          <Field data-invalid={Boolean(lastNameError) || undefined}>
+            <FieldLabel htmlFor="signup-last-name">Last name</FieldLabel>
+            <FieldContent>
+              <Input
+                id="signup-last-name"
+                name="lastName"
+                autoComplete="family-name"
+                maxLength={60}
+                minLength={1}
+                placeholder="Cruz"
+                required
+                aria-invalid={Boolean(lastNameError) || undefined}
+                disabled={isPending}
+              />
+              <FieldError
+                errors={lastNameError ? [{ message: lastNameError }] : undefined}
+              />
+            </FieldContent>
+          </Field>
+        </div>
 
         <Field data-invalid={Boolean(emailError) || undefined}>
           <FieldLabel htmlFor="signup-email">Email address</FieldLabel>

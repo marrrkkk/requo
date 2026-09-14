@@ -47,6 +47,7 @@ export function OnboardingForm({
   detectedCountryCode,
   initialProfile,
   plan = "free",
+  lastNameOptional = false,
 }: OnboardingFormProps) {
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
@@ -269,7 +270,9 @@ export function OnboardingForm({
     const nextErrors: Partial<Record<OnboardingFieldName, string>> = {};
 
     for (const field of fields) {
-      const error = getFieldValidationError(field, draft);
+      const error = getFieldValidationError(field, draft, {
+        lastNameOptional,
+      });
 
       if (error) {
         nextErrors[field] = error;
@@ -496,6 +499,7 @@ export function OnboardingForm({
                 handleCountryChange={handleCountryChange}
                 isDraftHydrated={isDraftHydrated}
                 isPending={isPending}
+                lastNameOptional={lastNameOptional}
                 setSlugManuallyEdited={setSlugManuallyEdited}
                 slugAvailability={slugAvailability}
                 slugManuallyEdited={slugManuallyEdited}

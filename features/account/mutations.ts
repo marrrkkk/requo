@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import type { AccountProfileInput } from "@/features/account/schemas";
+import { splitFullName } from "@/features/account/name";
 import {
   profileAvatarBucket,
   profileAvatarExtensionToMimeType,
@@ -118,11 +119,15 @@ export async function updateAccountProfile({
     }
   }
 
+  const split = splitFullName(values.fullName);
+
   try {
     await db
       .update(profiles)
       .set({
         fullName: values.fullName,
+        firstName: split.firstName || null,
+        lastName: split.lastName || null,
         jobTitle: values.jobTitle,
         phone: values.phone,
         avatarStoragePath: values.removeAvatar

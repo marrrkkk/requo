@@ -4,6 +4,7 @@ import type { BusinessPlan } from "@/lib/plans/plans";
 
 import { writeAuditLog } from "@/features/audit/mutations";
 import { assertBusinessQuotaAvailableForUser } from "@/features/businesses/quota";
+import { splitFullName } from "@/features/account/name";
 import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
 import { createInquiryFormConfigDefaults } from "@/features/inquiries/form-config";
 import { createInquiryPageConfigDefaults } from "@/features/inquiries/page-config";
@@ -68,11 +69,15 @@ export async function ensureProfileForUser(user: BootstrapUser) {
     return;
   }
 
+  const split = splitFullName(user.name);
+
   await db
     .insert(profiles)
     .values({
       userId: user.id,
       fullName: user.name,
+      firstName: split.firstName || null,
+      lastName: split.lastName || null,
       createdAt: now,
       updatedAt: now,
     })
@@ -97,11 +102,14 @@ export async function bootstrapBusinessForUser(
       .limit(1);
 
     if (!existingProfile) {
+      const split = splitFullName(user.name);
       await tx
         .insert(profiles)
         .values({
           userId: user.id,
           fullName: user.name,
+          firstName: split.firstName || null,
+          lastName: split.lastName || null,
           createdAt: now,
           updatedAt: now,
         })

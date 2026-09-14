@@ -27,6 +27,10 @@ import { completeOnboardingForUser } from "@/features/onboarding/mutations";
 import { parseOnboardingServices } from "@/features/onboarding/schemas";
 import { completeOnboardingSchema } from "@/features/onboarding/schemas";
 import type { OnboardingActionState } from "@/features/onboarding/types";
+import { isSingleTokenName } from "@/features/account/name";
+import { db } from "@/lib/db/client";
+import { account, profiles } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import {
   profileAvatarBucket,
   profileAvatarExtensionToMimeType,
@@ -100,6 +104,44 @@ export async function completeOnboardingAction(
       validationResult.error,
       "Check the highlighted details and try again.",
     );
+  }
+
+  // Last name is required except for the auto-skip: a user whose auth name is
+  // a single token (e.g. Google mononym "Madonna") with no stored last name
+  // and a Google-linked account may proceed with first name only.
+  if (!validationResult.data.lastName.trim()) {
+    const [existingProfile, googleAccount] = await Promise.all([
+      db
+        .select({ lastName: profiles.lastName })
+        .from(profiles)
+        .where(eq(profiles.userId, user.id))
+        .limit(1)
+        .then((rows) => rows[0] ?? null),
+      db
+        .select({ providerId: account.providerId })
+        .from(account)
+        .where(eq(account.userId, user.id))
+        .limit(10)
+        .then((rows) =>
+          rows.some((row) => row.providerId === "google"),
+        )
+        .catch(() => false),
+    ]);
+
+    const storedLastName = (existingProfile?.lastName ?? "").trim();
+    const eligibleForSkip =
+      storedLastName === "" &&
+      isSingleTokenName(user.name) &&
+      googleAccount;
+
+    if (!eligibleForSkip) {
+      return {
+        error: "Check the highlighted details and try again.",
+        fieldErrors: {
+          lastName: ["Enter your last name."],
+        },
+      };
+    }
   }
 
   const inquiryFormConfigOverride = parseInquiryFormConfigOverride(

@@ -4,6 +4,11 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
+import {
+  extractFirstName,
+  extractLastName,
+  isSingleTokenName,
+} from "@/features/account/name";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { isSupportedBusinessCountryCode } from "@/features/businesses/locale";
 import { dashboardPath } from "@/features/businesses/routes";
@@ -52,19 +57,46 @@ async function OnboardingPageContent() {
     email: session.user.email,
   });
 
-  const [themePreference, uiScale, memberships, profile] = await timed(
-    "onboarding.parallelShellFetches",
-    Promise.all([
-      getThemePreferenceForUser(session.user.id),
-      getUiScalePreferenceForUser(session.user.id),
-      getBusinessMembershipsForUser(session.user.id),
-      getAccountProfileForUser(session.user.id),
-    ]),
-  );
+  const [themePreference, uiScale, memberships, profile, googleLinked] =
+    await timed(
+      "onboarding.parallelShellFetches",
+      Promise.all([
+        getThemePreferenceForUser(session.user.id),
+        getUiScalePreferenceForUser(session.user.id),
+        getBusinessMembershipsForUser(session.user.id),
+        getAccountProfileForUser(session.user.id),
+        import("@/lib/db/client").then(({ db }) =>
+          import("@/lib/db/schema").then(({ account }) =>
+            import("drizzle-orm").then(({ eq }) =>
+              db
+                .select({ providerId: account.providerId })
+                .from(account)
+                .where(eq(account.userId, session.user.id))
+                .limit(10)
+                .then((rows) =>
+                  rows.some((row) => row.providerId === "google"),
+                )
+                .catch(() => false),
+            ),
+          ),
+        ),
+      ]),
+    );
 
   if (memberships.length > 0 || profile?.onboardingCompletedAt) {
     redirect(dashboardPath);
   }
+
+  const prefilledFirstName =
+    profile?.firstName?.trim() || extractFirstName(session.user.name);
+  const prefilledLastName =
+    profile?.lastName?.trim() || extractLastName(session.user.name);
+  // Auto-skip: single-name Google account with no stored last name.
+  const lastNameOptional =
+    prefilledLastName === "" &&
+    (profile?.lastName ?? "").trim() === "" &&
+    isSingleTokenName(session.user.name) &&
+    googleLinked;
 
   const headerStore = await headers();
   const geoCountry =
@@ -91,24 +123,15 @@ async function OnboardingPageContent() {
               action={completeOnboardingAction}
               detectedCountryCode={detectedCountryCode}
               initialProfile={{
-                firstName: extractFirstName(session.user.name),
-                lastName: extractLastName(session.user.name),
+                firstName: prefilledFirstName,
+                lastName: prefilledLastName,
                 avatarUrl: session.user.image ?? null,
               }}
+              lastNameOptional={lastNameOptional}
             />
           </div>
         </div>
       </div>
     </>
   );
-}
-
-function extractFirstName(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/);
-  return parts[0] ?? "";
-}
-
-function extractLastName(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/);
-  return parts.length > 1 ? parts.slice(1).join(" ") : "";
 }

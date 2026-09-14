@@ -16,12 +16,21 @@ export const loginSchema = z.object({
 /** Email-only validation for requesting a Better Auth magic link. */
 export const magicLinkEmailSchema = loginSchema.pick({ email: true });
 
+const personFirstNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Enter your first name.")
+  .max(60, "Use 60 characters or fewer.");
+
+const personLastNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Enter your last name.")
+  .max(60, "Use 60 characters or fewer.");
+
 export const signupSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(2, "Enter your full name.")
-    .max(120, "Use 120 characters or fewer."),
+  firstName: personFirstNameSchema,
+  lastName: personLastNameSchema,
   email: z
     .string()
     .trim()
@@ -36,7 +45,8 @@ export const signupSchema = z.object({
 
 /** Name + email when requesting a magic link from the signup form. */
 export const magicLinkSignupRequestSchema = signupSchema.pick({
-  name: true,
+  firstName: true,
+  lastName: true,
   email: true,
 });
 
