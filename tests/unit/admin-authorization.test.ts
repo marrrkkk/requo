@@ -25,7 +25,11 @@ vi.mock("@/lib/auth/session", () => ({
   getOptionalSession: getOptionalSessionMock,
 }));
 
-import { requireAdminUser } from "@/features/admin/access";
+import {
+  getMainAppUrl,
+  requireAdminConsoleUser,
+  requireAdminUser,
+} from "@/features/admin/access";
 
 const adminUser = {
   id: "admin_1",
@@ -110,5 +114,52 @@ describe("features/admin/access requireAdminUser", () => {
       session,
       user: session.user,
     });
+  });
+});
+
+describe("features/admin/access requireAdminConsoleUser", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    redirectMock.mockImplementation((url: string) => {
+      throw new Error(`NEXT_REDIRECT ${url}`);
+    });
+  });
+
+  it("sends logged-out visitors back to the main app, not the admin login", async () => {
+    getOptionalSessionMock.mockResolvedValue(null);
+
+    await expect(requireAdminConsoleUser()).rejects.toThrow(
+      `NEXT_REDIRECT ${getMainAppUrl()}`,
+    );
+    expect(redirectMock).toHaveBeenCalledWith(getMainAppUrl());
+  });
+
+  it("sends authenticated non-admins back to the main app instead of looping on /login", async () => {
+    getOptionalSessionMock.mockResolvedValue(makeSession(memberUser));
+
+    await expect(requireAdminConsoleUser()).rejects.toThrow(
+      `NEXT_REDIRECT ${getMainAppUrl()}`,
+    );
+    expect(redirectMock).toHaveBeenCalledWith(getMainAppUrl());
+    expect(redirectMock).not.toHaveBeenCalledWith("/login");
+  });
+
+  it("returns the session context for an admin user", async () => {
+    const session = makeSession(adminUser);
+    getOptionalSessionMock.mockResolvedValue(session);
+
+    const context = await requireAdminConsoleUser();
+
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(context).toEqual({
+      session,
+      user: session.user,
+    });
+  });
+});
+
+describe("features/admin/access getMainAppUrl", () => {
+  it("returns the base origin without any path", () => {
+    expect(getMainAppUrl()).toMatch(/^https?:\/\/[^/]+$/);
   });
 });

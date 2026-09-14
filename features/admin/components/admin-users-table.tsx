@@ -1,22 +1,18 @@
-import Link from "next/link";
+"use client";
+
+import { Users } from "lucide-react";
 
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
-import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  AdminDataTable,
+  type AdminDataTableColumn,
+} from "@/features/admin/components/primitives/admin-data-table";
+import {
+  AdminUserStatusBadge,
+  getAdminUserAccountStatus,
+} from "@/features/admin/components/primitives/admin-status-badges";
 import { getAdminUserDetailPath } from "@/features/admin/navigation";
 import type { AdminUserRow } from "@/features/admin/types";
-
-type AdminUsersTableProps = {
-  users: AdminUserRow[];
-};
 
 /** Short, repo-consistent date formatter for table cells. */
 const tableDateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -39,107 +35,108 @@ function formatTableDate(value: Date | null): string {
   return tableDateFormatter.format(date);
 }
 
-/**
- * Admin users list table (task 12.2).
- *
- * Columns: Email, Name, Email verified, Suspended badge, Created,
- * Last session. Matches `AdminUserRow` from `features/admin/types.ts`
- * and the design doc's list columns (email, name, emailVerified,
- * suspended, createdAt, lastSessionAt). Default ordering is
- * `createdAt desc` (Req 3.4); the caption surfaces that so screen
- * readers announce the ordering too.
- *
- * Reuses the shared list-card + `Table` wrappers per DESIGN.md.
- * No new visual primitives.
- */
-export function AdminUsersTable({ users }: AdminUsersTableProps) {
-  return (
-    <div className="overflow-x-auto no-scrollbar">
-      <Table className="min-w-[60rem] table-fixed">
-        <TableCaption className="sr-only">
-          Newest users appear first.
-        </TableCaption>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[18rem]">Email</TableHead>
-            <TableHead className="w-[14rem]">Name</TableHead>
-            <TableHead className="w-[8rem]">Email verified</TableHead>
-            <TableHead className="w-[8rem]">Suspended</TableHead>
-            <TableHead className="w-[8rem]">Created</TableHead>
-            <TableHead className="w-[10rem]">Last session</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {users.map((user) => {
-            const href = getAdminUserDetailPath(user.id);
+const adminUserColumns: AdminDataTableColumn<AdminUserRow>[] = [
+  {
+    id: "email",
+    header: "Email",
+    width: "w-[18rem]",
+    cell: (user) => (
+      <TruncatedTextWithTooltip
+        className="table-link"
+        href={getAdminUserDetailPath(user.id)}
+        prefetch={true}
+        text={user.email}
+      />
+    ),
+  },
+  {
+    id: "name",
+    header: "Name",
+    width: "w-[12rem]",
+    cell: (user) => (
+      <TruncatedTextWithTooltip
+        className="table-emphasis"
+        href={getAdminUserDetailPath(user.id)}
+        prefetch={true}
+        text={user.name || "—"}
+      />
+    ),
+  },
+  {
+    id: "status",
+    header: "Status",
+    width: "w-[9rem]",
+    cell: (user) => (
+      <AdminUserStatusBadge status={getAdminUserAccountStatus(user)} />
+    ),
+  },
+  {
+    id: "created",
+    header: "Created",
+    width: "w-[8rem]",
+    cell: (user) => (
+      <span className="text-sm text-muted-foreground">
+        {formatTableDate(user.createdAt)}
+      </span>
+    ),
+  },
+  {
+    id: "lastSession",
+    header: "Last session",
+    width: "w-[8rem]",
+    cell: (user) => (
+      <span className="text-sm text-muted-foreground">
+        {formatTableDate(user.lastSessionAt)}
+      </span>
+    ),
+  },
+];
 
-            return (
-              <TableRow className="group/row" key={user.id}>
-                <TableCell className="w-[18rem]">
-                  <TruncatedTextWithTooltip
-                    className="table-link"
-                    href={href}
-                    prefetch={true}
-                    text={user.email}
-                  />
-                </TableCell>
-                <TableCell className="w-[14rem]">
-                  <TruncatedTextWithTooltip
-                    className="table-emphasis"
-                    href={href}
-                    prefetch={true}
-                    text={user.name || "—"}
-                  />
-                </TableCell>
-                <TableCell className="w-[8rem]">
-                  <Link
-                    className="inline-flex max-w-full"
-                    href={href}
-                    prefetch={true}
-                  >
-                    {user.emailVerified ? (
-                      <Badge variant="secondary">Verified</Badge>
-                    ) : (
-                      <Badge variant="ghost">Unverified</Badge>
-                    )}
-                  </Link>
-                </TableCell>
-                <TableCell className="w-[8rem]">
-                  <Link
-                    className="inline-flex max-w-full"
-                    href={href}
-                    prefetch={true}
-                  >
-                    {user.banned ? (
-                      <Badge variant="destructive">Suspended</Badge>
-                    ) : (
-                      <Badge variant="ghost">Active</Badge>
-                    )}
-                  </Link>
-                </TableCell>
-                <TableCell className="w-[8rem]">
-                  <Link
-                    className="block text-sm text-muted-foreground transition-colors hover:text-primary group-hover/row:text-primary"
-                    href={href}
-                    prefetch={true}
-                  >
-                    {formatTableDate(user.createdAt)}
-                  </Link>
-                </TableCell>
-                <TableCell className="w-[10rem]">
-                  <Link
-                    className="block text-sm text-muted-foreground transition-colors hover:text-primary group-hover/row:text-primary"
-                    href={href}
-                    prefetch={true}
-                  >
-                    {formatTableDate(user.lastSessionAt)}
-                  </Link>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+type AdminUsersTableProps = {
+  users: AdminUserRow[];
+  hasActiveFilters: boolean;
+  toolbar?: React.ReactNode;
+  pagination?: React.ReactNode;
+};
+
+/**
+ * Admin users list on the shared `AdminDataTable`.
+ *
+ * Fixed `createdAt DESC` ordering (the list query owns it) — no sortable
+ * columns. Account status renders through `AdminUserStatusBadge` so the
+ * list shows the same suspended/unverified/admin treatment as the rest of
+ * the console. Below `xl` each row becomes a `MobileRecordRow` card.
+ */
+export function AdminUsersTable({
+  users,
+  hasActiveFilters,
+  toolbar,
+  pagination,
+}: AdminUsersTableProps) {
+  return (
+    <AdminDataTable
+      columns={adminUserColumns}
+      empty={{
+        title: hasActiveFilters ? "No users match these filters." : "No users yet",
+        description: hasActiveFilters
+          ? "Try a different email, name, or status filter."
+          : "No users yet. Sign-ups will appear here.",
+        icon: Users,
+      }}
+      getRowHref={(user) => getAdminUserDetailPath(user.id)}
+      getRowId={(user) => user.id}
+      minWidthClass="min-w-[60rem]"
+      mobileCard={(user) => ({
+        title: user.email,
+        subtitle: user.name || "No name",
+        statusBadge: (
+          <AdminUserStatusBadge status={getAdminUserAccountStatus(user)} />
+        ),
+        metadata: <span>Created {formatTableDate(user.createdAt)}</span>,
+      })}
+      pagination={pagination}
+      rows={users}
+      toolbar={toolbar}
+    />
   );
 }

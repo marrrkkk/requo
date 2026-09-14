@@ -1,0 +1,60 @@
+"use client";
+
+import type { ReactNode } from "react";
+
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AdminHeader } from "@/features/admin/components/shell/admin-header";
+import { AdminMobileNav } from "@/features/admin/components/shell/admin-mobile-nav";
+import { BoarduiAdminSidebar } from "@/features/admin/components/shell/admin-sidebar";
+import type { AdminShellUser } from "@/features/admin/components/shell/admin-user-menu";
+
+export type AdminShellProps = {
+  children: ReactNode;
+  /** Streamed slot below the topbar (impersonation banner). */
+  banner?: ReactNode;
+  /** Signed-in admin, resolved server-side by the console layout. */
+  user: AdminShellUser;
+};
+
+/**
+ * Structural admin console shell.
+ *
+ * Deliberately mirrors `DashboardShellFrame`'s layout — the same sticky rail
+ * column, `dashboard-topbar-inner` topbar, and `dashboard-main` /
+ * `dashboard-content` content box — so the admin console reads as the same
+ * product as the business dashboard. It is a separate component only because
+ * `DashboardShellFrame` is business-slug coupled (business switcher,
+ * notifications, onboarding checklist, assistant-route detection, unified
+ * settings navigation), none of which apply here.
+ *
+ * `SidebarProvider` is kept for the shadcn sidebar context the shared
+ * `SidebarMenu*` primitives inside the admin rail consume.
+ */
+export function AdminShell({ children, banner, user }: AdminShellProps) {
+  return (
+    <SidebarProvider defaultOpen>
+      <div className="flex min-h-svh flex-1 bg-background">
+        {/* Desktop rail — hidden below lg; mobile uses the topbar + bottom dock. */}
+        <div className="sticky top-0 hidden h-svh shrink-0 lg:block">
+          <BoarduiAdminSidebar user={user} />
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col" data-slot="sidebar-inset">
+          <AdminHeader user={user} />
+          {banner}
+
+          <div
+            className="min-w-0 flex-1 pb-28 lg:pb-0"
+            data-slot="dashboard-scroll-area"
+          >
+            <main className="dashboard-main">
+              <div className="dashboard-content">{children}</div>
+            </main>
+          </div>
+
+          <AdminMobileNav user={user} />
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}

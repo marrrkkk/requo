@@ -39,3 +39,18 @@ export function adminAuditTag(): string {
 export function adminSystemTag(): string {
   return `${ADMIN_SCOPE}:system`;
 }
+
+/** Tag for the admin AI overview aggregates (24h/7d windows). */
+export function adminAiTag(): string {
+  return `${ADMIN_SCOPE}:ai`;
+}
+
+/** Tag for the admin email list and email-detail queries. */
+export function adminEmailsTag(): string {
+  return `${ADMIN_SCOPE}:emails`;
+}
+
+/** Tag for the admin usage report aggregates. */
+export function adminUsageTag(): string {
+  return `${ADMIN_SCOPE}:usage`;
+}
