@@ -81,12 +81,6 @@ export const invoiceEmailSampleMergeValues: InvoiceEmailMergeValues = {
   totalAmount: "$2,500.00",
 };
 
-/** Follow-up shares the quote tag set; attempt number stays send-time logic. */
-export const quoteFollowUpEmailMergeTags = quoteEmailMergeTags;
-export type QuoteFollowUpEmailMergeValues = QuoteEmailMergeValues;
-export const quoteFollowUpEmailSampleMergeValues: QuoteEmailMergeValues =
-  quoteEmailSampleMergeValues;
-
 export const EMAIL_TEMPLATE_KINDS: readonly EmailTemplateKind[] = [
   "quote",
   "invoice",

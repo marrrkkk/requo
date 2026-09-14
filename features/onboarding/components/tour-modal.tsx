@@ -336,9 +336,6 @@ export function HomeOverviewPreview() {
   );
 }
 
-/** @deprecated Use {@link HomeOverviewPreview} */
-export const BusinessSwitcherPreview = HomeOverviewPreview;
-
 export function InquiriesPreview() {
   return (
     <div className="flex gap-3">
