@@ -9,12 +9,10 @@ Architectural inconsistencies found during the documentation reset. Documented o
 - Impact: low today (Drizzle applies journal order), but the next `db:generate` numbering needs care to avoid a third collision.
 - Direction: leave history untouched (never edit committed migrations); verify the next generated prefix sequences correctly.
 
-## 2. Unused `quote_post_acceptance_status` enum
+## 2. ~~Unused `quote_post_acceptance_status` enum~~ (resolved)
 
-- Evidence: defined in `lib/db/schema/quotes.ts:31`; zero references in `lib/`, `features/`, `app/` (searched `post_acceptance`).
-- Affected: quote domain readability — readers expect a post-acceptance workflow that does not exist.
-- Impact: low (dead enum, no table column references found); post-acceptance work is tracked via invoices, not this enum.
-- Direction: remove the enum in a dedicated migration after confirming no DB-side dependency; do not bundle with feature work.
+- Evidence: was defined in `lib/db/schema/quotes.ts`; zero references in `lib/`, `features/`, `app/`.
+- Resolved: the declaration was removed and `drizzle/0030_omniscient_cassandra_nova.sql` drops the type. The column and its index were already dropped back in `0012_remove_jobs_invoices_automations.sql`, and no table, policy, or view referenced the type, so the drop is data-free. Post-acceptance state continues to live on invoices, not this enum.
 
 ## 3. BoardUI / shadcn duality
 
