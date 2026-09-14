@@ -3,9 +3,8 @@ import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
-import { requireAdminUser } from "@/features/admin/access";
-import { wrapAdminRouteWithViewLog } from "@/features/admin/audit";
-import { AdminDashboard } from "@/features/admin/components/admin-dashboard";
+import { AdminOverview } from "@/features/admin/components/overview/admin-overview";
+import { withAdminViewLog } from "@/features/admin/page-shell";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 import AdminLoading from "./loading";
@@ -13,44 +12,30 @@ import AdminLoading from "./loading";
 export const instant = true;
 
 export const metadata: Metadata = createNoIndexMetadata({
-  absoluteTitle: "Admin - Requo",
-  description: "Internal Requo admin dashboard with key operational counts.",
+  absoluteTitle: "Overview - Requo admin",
+  description: "Platform health, pipelines, and recent activity.",
 });
 
-export default function AdminDashboardPage() {
+export default function AdminOverviewPage() {
   return (
     <Suspense fallback={<AdminLoading />}>
-      <AdminDashboardPageContent />
+      <AdminOverviewPageContent />
     </Suspense>
   );
 }
 
-async function AdminDashboardPageContent() {
-  const { session, user: admin } = await requireAdminUser();
-
-  const renderPage = wrapAdminRouteWithViewLog(
-    async () => (
+async function AdminOverviewPageContent() {
+  return withAdminViewLog(
+    { action: "view.dashboard", targetType: "dashboard" },
+    () => (
       <DashboardPage>
         <PageHeader
           eyebrow="Admin"
-          title="Dashboard"
-          description="System status, platform metrics, and admin shortcuts."
+          title="Overview"
+          description="Platform health, pipelines, and recent activity."
         />
-        <AdminDashboard />
+        <AdminOverview />
       </DashboardPage>
     ),
-    {
-      adminUserId: admin.id,
-      adminEmail: admin.email,
-      impersonatedUserId: session.session?.impersonatedBy
-        ? session.user.id
-        : null,
-    },
-    {
-      action: "view.dashboard",
-      targetType: "dashboard",
-    },
   );
-
-  return renderPage();
 }

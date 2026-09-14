@@ -10,6 +10,7 @@ import { z } from "zod";
 
 import {
   ADMIN_ACTIONS,
+  ADMIN_AI_PROVIDERS,
   ADMIN_AUDIT_PAGE_SIZE,
   ADMIN_DEFAULT_PAGE_SIZE,
   ADMIN_MAX_PAGE_SIZE,
@@ -19,7 +20,17 @@ import {
   billingProviders,
   subscriptionStatuses,
 } from "@/lib/db/schema/subscriptions";
+import {
+  emailProviders,
+  emailTypes,
+  emailOutboxStatuses,
+} from "@/lib/db/schema/email";
 import { businessPlans, type BusinessPlan } from "@/lib/plans/plans";
+import { inquiryStatuses } from "@/features/inquiries/types";
+import { quoteStatuses } from "@/features/quotes/types";
+import {
+  ADMIN_USAGE_BUSINESS_RESOURCES,
+} from "@/features/admin/types";
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
@@ -236,18 +247,49 @@ const paginationShape = {
     .catch(ADMIN_DEFAULT_PAGE_SIZE),
 } as const;
 
+/**
+ * Free-text search param.
+ *
+ * The admin filter UIs write `q` — matching the rest of the app's list
+ * toolbars — while `search` is kept as an alias so previously bookmarked
+ * admin URLs keep working. {@link normalizeSearchAlias} collapses the pair
+ * before validation so every list-filter schema exposes a single `search`
+ * field.
+ */
+const searchValueSchema = z
+  .preprocess(
+    (value) => emptyToUndefined(firstString(value)),
+    z
+      .string()
+      .trim()
+      .max(120, "Search must be 120 characters or fewer.")
+      .optional(),
+  )
+  .catch(undefined);
+
 const searchQueryShape = {
-  search: z
-    .preprocess(
-      (value) => emptyToUndefined(firstString(value)),
-      z
-        .string()
-        .trim()
-        .max(120, "Search must be 120 characters or fewer.")
-        .optional(),
-    )
-    .catch(undefined),
+  search: searchValueSchema,
 } as const;
+
+/**
+ * Map `q` onto `search` on the raw search-params object.
+ *
+ * Runs as a `z.preprocess` step so `q` never appears on a parsed filter
+ * object: callers only ever read `search`.
+ */
+function normalizeSearchAlias(input: unknown): unknown {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return input;
+  }
+
+  const record = input as Record<string, unknown>;
+
+  if (record.search == null && record.q != null) {
+    return { ...record, search: record.q };
+  }
+
+  return input;
+}
 
 /* ── List / filter inputs ────────────────────────────────────────────────── */
 
@@ -258,47 +300,195 @@ const adminUserStatusFilterSchema = z.enum([
   "suspended",
 ]);
 
-export const adminUsersListFiltersSchema = z.object({
-  status: z
-    .preprocess(
-      (value) => emptyToUndefined(firstString(value)),
-      adminUserStatusFilterSchema.optional(),
-    )
-    .catch("all" as const),
-  ...searchQueryShape,
+export const adminUsersListFiltersSchema = z.preprocess(
+  normalizeSearchAlias,
+  z.object({
+    status: z
+      .preprocess(
+        (value) => emptyToUndefined(firstString(value)),
+        adminUserStatusFilterSchema.optional(),
+      )
+      .catch("all" as const),
+    ...searchQueryShape,
+    ...paginationShape,
+  }),
+);
+
+export const adminBusinessesListFiltersSchema = z.preprocess(
+  normalizeSearchAlias,
+  z.object({
+    plan: z
+      .preprocess(
+        (value) => emptyToUndefined(firstString(value)),
+        businessPlanSchema.optional(),
+      )
+      .catch(undefined),
+    ...searchQueryShape,
+    ...paginationShape,
+  }),
+);
+
+export const adminSubscriptionsListFiltersSchema = z.preprocess(
+  normalizeSearchAlias,
+  z.object({
+    status: z
+      .preprocess(
+        (value) => emptyToUndefined(firstString(value)),
+        subscriptionStatusSchema.optional(),
+      )
+      .catch(undefined),
+    provider: z
+      .preprocess(
+        (value) => emptyToUndefined(firstString(value)),
+        billingProviderSchema.optional(),
+      )
+      .catch(undefined),
+    ...searchQueryShape,
+    ...paginationShape,
+  }),
+);
+
+export const adminInquiriesListFiltersSchema = z.preprocess(
+  normalizeSearchAlias,
+  z.object({
+    status: z
+      .preprocess(
+        (value) => emptyToUndefined(firstString(value)),
+        z.enum(inquiryStatuses).optional(),
+      )
+      .catch(undefined),
+    ...searchQueryShape,
+    ...paginationShape,
+  }),
+);
+
+export const adminQuotesListFiltersSchema = z.preprocess(
+  normalizeSearchAlias,
+  z.object({
+    status: z
+      .preprocess(
+        (value) => emptyToUndefined(firstString(value)),
+        z.enum(quoteStatuses).optional(),
+      )
+      .catch(undefined),
+    ...searchQueryShape,
+    ...paginationShape,
+  }),
+);
+
+/** Parse an optional `YYYY-MM-DD` date param, tolerating garbage. */
+function toOptionalDate(value: unknown): Date | undefined {
+  const first = firstString(value);
+
+  if (typeof first !== "string" || !first.trim()) {
+    return undefined;
+  }
+
+  const date = new Date(first);
+
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+const dateRangeShape = {
+  from: z.preprocess(toOptionalDate, z.date().optional()).catch(undefined),
+  to: z.preprocess(toOptionalDate, z.date().optional()).catch(undefined),
+} as const;
+
+/** Free-text match (model / task type) used by the AI request filters. */
+const aiTextFilterSchema = z
+  .preprocess(
+    (value) => emptyToUndefined(firstString(value)),
+    z.string().trim().max(120, "Filter must be 120 characters or fewer.").optional(),
+  )
+  .catch(undefined);
+
+const aiProviderFilterSchema = z
+  .preprocess(
+    (value) => emptyToUndefined(firstString(value)),
+    z.enum(ADMIN_AI_PROVIDERS).optional(),
+  )
+  .catch(undefined);
+
+const aiCallStatusFilterSchema = z
+  .preprocess(
+    (value) => emptyToUndefined(firstString(value)),
+    z.enum(["success", "error"]).optional(),
+  )
+  .catch(undefined);
+
+export const adminAiRequestsFiltersSchema = z.preprocess(
+  normalizeSearchAlias,
+  z.object({
+    provider: aiProviderFilterSchema,
+    model: aiTextFilterSchema,
+    taskType: aiTextFilterSchema,
+    status: aiCallStatusFilterSchema,
+    businessId: z
+      .preprocess(
+        (value) => emptyToUndefined(firstString(value)),
+        adminIdSchema.optional(),
+      )
+      .catch(undefined),
+    ...searchQueryShape,
+    ...dateRangeShape,
+    ...paginationShape,
+  }),
+);
+
+export const adminAiErrorsFiltersSchema = z.object({
+  provider: aiProviderFilterSchema,
+  model: aiTextFilterSchema,
+  taskType: aiTextFilterSchema,
   ...paginationShape,
 });
 
-export const adminBusinessesListFiltersSchema = z.object({
-  plan: z
+export const adminEmailsListFiltersSchema = z.preprocess(
+  normalizeSearchAlias,
+  z.object({
+    status: z
+      .preprocess(
+        (value) => emptyToUndefined(firstString(value)),
+        z.enum(emailOutboxStatuses).optional(),
+      )
+      .catch(undefined),
+    emailType: z
+      .preprocess(
+        (value) => emptyToUndefined(firstString(value)),
+        z.enum(emailTypes).optional(),
+      )
+      .catch(undefined),
+    provider: z
+      .preprocess(
+        (value) => emptyToUndefined(firstString(value)),
+        z.enum(emailProviders).optional(),
+      )
+      .catch(undefined),
+    ...searchQueryShape,
+    ...paginationShape,
+  }),
+);
+
+export const adminUsageFiltersSchema = z.object({
+  days: z
+    .preprocess((value) => {
+      const first = firstString(value);
+
+      if (first === "7" || first === "14" || first === "30") {
+        return Number(first);
+      }
+
+      return undefined;
+    }, z.number().optional())
+    .catch(undefined),
+  resource: z
     .preprocess(
       (value) => emptyToUndefined(firstString(value)),
-      businessPlanSchema.optional(),
+      z.enum(ADMIN_USAGE_BUSINESS_RESOURCES).optional(),
     )
     .catch(undefined),
-  ...searchQueryShape,
-  ...paginationShape,
 });
 
-export const adminSubscriptionsListFiltersSchema = z.object({
-  ...searchQueryShape,
-  status: z
-    .preprocess(
-      (value) => emptyToUndefined(firstString(value)),
-      subscriptionStatusSchema.optional(),
-    )
-    .catch(undefined),
-  provider: z
-    .preprocess(
-      (value) => emptyToUndefined(firstString(value)),
-      billingProviderSchema.optional(),
-    )
-    .catch(undefined),
-  ...paginationShape,
-});
-
-export const adminAuditLogListFiltersSchema = z.object({
-  adminUserId: z
+export const adminAuditLogListFiltersSchema = z.object({  adminUserId: z
     .preprocess(
       (value) => emptyToUndefined(firstString(value)),
       adminIdSchema.optional(),
@@ -388,6 +578,20 @@ export type AdminBusinessesListFilters = z.infer<
 export type AdminSubscriptionsListFilters = z.infer<
   typeof adminSubscriptionsListFiltersSchema
 >;
+export type AdminInquiriesListFilters = z.infer<
+  typeof adminInquiriesListFiltersSchema
+>;
+export type AdminQuotesListFilters = z.infer<typeof adminQuotesListFiltersSchema>;
+export type AdminAiRequestsListFilters = z.infer<
+  typeof adminAiRequestsFiltersSchema
+>;
+export type AdminAiErrorsListFilters = z.infer<
+  typeof adminAiErrorsFiltersSchema
+>;
+export type AdminEmailsListFilters = z.infer<
+  typeof adminEmailsListFiltersSchema
+>;
+export type AdminUsageFilters = z.infer<typeof adminUsageFiltersSchema>;
 export type AdminAuditLogListFilters = z.infer<
   typeof adminAuditLogListFiltersSchema
 >;

@@ -3,13 +3,17 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
-import { requireAdminUser } from "@/features/admin/access";
-import { wrapAdminRouteWithViewLog } from "@/features/admin/audit";
 import { AdminBusinessDetail } from "@/features/admin/components/admin-business-detail";
-import { getAdminBusinessDetail } from "@/features/admin/queries";
+import { withAdminViewLog } from "@/features/admin/page-shell";
+import {
+  getAdminBusinessBilling,
+  getAdminBusinessDetail,
+} from "@/features/admin/queries";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 import AdminLoading from "../../loading";
+
+export const instant = true;
 
 export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "Business - Requo admin",
@@ -24,16 +28,16 @@ type AdminBusinessDetailPageProps = {
  * Admin business detail (task 12.3 / Req 5.3, 5.4).
  *
  * Read-only: identity, owner summary, denormalized plan, member
- * roster, activity counts, and last-activity timestamps. No mutation
- * affordances are rendered per Req 5.4.
+ * roster, activity counts, last-activity timestamps, and the billing
+ * section (effective cached plan + owner's account subscription +
+ * business subscription, each labelled with its source). No mutation
+ * affordances are rendered per Req 5.4 — overrides live on the owner's
+ * user detail page.
  *
  * The top-level component stays sync and wraps the async body in
  * `<Suspense>` so `cacheComponents` can stream the dynamic detail
- * independently of the admin shell. When the business id does not
- * resolve we call `notFound()` before the view log is written so the
- * audit trail only records successful detail opens. Records a
- * `view.business` audit entry with `targetId = business.id` (Req 10.1)
- * via `wrapAdminRouteWithViewLog`.
+ * independently of the admin shell. Records a `view.business` audit
+ * entry with `targetId = businessId` (Req 10.1) via `withAdminViewLog`.
  */
 export default function AdminBusinessDetailPage({
   params,
@@ -48,30 +52,23 @@ export default function AdminBusinessDetailPage({
 async function AdminBusinessDetailPageContent({
   params,
 }: AdminBusinessDetailPageProps) {
-  const { session, user: admin } = await requireAdminUser();
   const { businessId } = await params;
 
-  const renderPage = wrapAdminRouteWithViewLog(
-    async () => renderDetail(businessId),
-    {
-      adminUserId: admin.id,
-      adminEmail: admin.email,
-      impersonatedUserId: session.session?.impersonatedBy
-        ? session.user.id
-        : null,
-    },
+  return withAdminViewLog(
     {
       action: "view.business",
       targetType: "business",
       targetId: businessId,
     },
+    () => renderDetail(businessId),
   );
-
-  return renderPage();
 }
 
 async function renderDetail(businessId: string) {
-  const detail = await getAdminBusinessDetail(businessId);
+  const [detail, billing] = await Promise.all([
+    getAdminBusinessDetail(businessId),
+    getAdminBusinessBilling(businessId),
+  ]);
 
   if (!detail) {
     notFound();
@@ -79,7 +76,7 @@ async function renderDetail(businessId: string) {
 
   return (
     <DashboardPage>
-      <AdminBusinessDetail detail={detail} />
+      <AdminBusinessDetail billing={billing} detail={detail} />
     </DashboardPage>
   );
 }

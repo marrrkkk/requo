@@ -7,6 +7,7 @@ import {
   type AuthSession,
   type AuthUser,
 } from "@/lib/auth/session";
+import { env } from "@/lib/env";
 
 /**
  * Context returned to admin pages, route handlers, and server actions
@@ -38,4 +39,38 @@ export async function requireAdminUser(): Promise<AdminContext> {
     session,
     user: session.user,
   };
+}
+
+/**
+ * Console-shell gate for `(console)/layout.tsx`.
+ *
+ * Same identity check as `requireAdminUser`, but anyone without an admin
+ * session — logged out or authenticated without the admin role — is sent
+ * back to the main app's base URL. The admin subdomain stays
+ * inaccessible to non-admins without a 404 and without an error page;
+ * the admin login form itself lives outside this gate in `(auth)/login`.
+ */
+export async function requireAdminConsoleUser(): Promise<AdminContext> {
+  const session = await getOptionalSession();
+
+  if (session?.user.role !== "admin") {
+    redirect(getMainAppUrl());
+  }
+
+  return {
+    session,
+    user: session.user,
+  };
+}
+
+/**
+ * Base origin of the main app (e.g. `http://localhost:3000` in dev,
+ * `https://requo.app` in production).
+ */
+export function getMainAppUrl(): string {
+  try {
+    return new URL(env.BETTER_AUTH_URL).origin;
+  } catch {
+    return env.BETTER_AUTH_URL;
+  }
 }

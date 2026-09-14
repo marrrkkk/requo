@@ -1,0 +1,100 @@
+"use client";
+
+import { useMemo } from "react";
+import { usePathname } from "next/navigation";
+
+import {
+  DashboardSidebar,
+  type DashboardNavGroup,
+} from "@/components/application/dashboard/dashboard-sidebar";
+import { BrandMark } from "@/components/shared/brand-mark";
+import {
+  ADMIN_ROOT_PATH,
+  adminNavigationGroups,
+  getAdminSidebarNavGroups,
+  isAdminNavigationItemActive,
+} from "@/features/admin/navigation";
+import {
+  AdminUserMenu,
+  type AdminShellUser,
+} from "@/features/admin/components/shell/admin-user-menu";
+
+export type AdminSidebarProps = {
+  user: AdminShellUser;
+  /** Rendered inside the mobile drawer: always expanded, close button instead of collapse. */
+  mobile?: boolean;
+  onClose?: () => void;
+  /** Expanded width fills its container instead of the fixed rail (fullscreen mobile nav). */
+  flat?: boolean;
+  /** When provided, Quick Search opens the global quick-actions dialog. */
+  onQuickSearch?: () => void;
+  className?: string;
+};
+
+/**
+ * Admin sidebar wired to the same BoardUI `DashboardSidebar` the business
+ * dashboard uses.
+ *
+ * Requo's product sidebar is not the shadcn `Sidebar` — it is `DashboardSidebar`
+ * (mounted via `BoarduiMainSidebar`), which owns the 260px/60px morph, the
+ * quick-search affordance, the theme toggle, and the selected-row pill. The
+ * admin mounts that component unchanged and only swaps the navigation data, so
+ * the console's rail is pixel-identical to the main app's.
+ */
+export function BoarduiAdminSidebar({
+  user,
+  mobile = false,
+  onClose,
+  flat = false,
+  onQuickSearch,
+  className,
+}: AdminSidebarProps) {
+  const pathname = usePathname();
+
+  const groups = useMemo<DashboardNavGroup[]>(
+    () => getAdminSidebarNavGroups(),
+    [],
+  );
+
+  const selected = useMemo(() => {
+    const active = adminNavigationGroups
+      .flatMap((group) => group.items)
+      // Longest href wins so `/ai/requests` beats `/ai`.
+      .sort((a, b) => b.href.length - a.href.length)
+      .find((item) => isAdminNavigationItemActive(pathname, item.href));
+
+    return active?.href ?? ADMIN_ROOT_PATH;
+  }, [pathname]);
+
+  const topSlot = (
+    // `BrandMark` collapses on the shadcn `data-collapsible=icon` attribute;
+    // the BoardUI rail uses `data-collapsed` instead, so the wordmark is hidden
+    // here through the sidebar group variant.
+    <div className="w-full min-w-0 overflow-hidden px-1">
+      <BrandMark
+        className="group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:[&>span:last-child]:hidden"
+        href={ADMIN_ROOT_PATH}
+        subtitle="Admin"
+      />
+    </div>
+  );
+
+  const bottomSlot = <AdminUserMenu user={user} />;
+
+  return (
+    <DashboardSidebar
+      groups={groups}
+      selected={selected}
+      topSlot={topSlot}
+      bottomSlot={bottomSlot}
+      onQuickSearch={onQuickSearch}
+      mobile={mobile}
+      onClose={onClose}
+      flat={flat}
+      // The grouped nav owns the Settings entry, so the demo secondary rows
+      // (Support / Settings) are hidden.
+      hideSecondaryNav
+      className={className}
+    />
+  );
+}

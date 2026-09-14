@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { ADMIN_SYSTEM_PATH } from "@/features/admin/navigation";
+import { ADMIN_SETTINGS_PATH } from "@/features/admin/navigation";
 import { getAdminHealthSummary } from "@/features/admin/queries";
 import type { AdminHealthCheckCategory } from "@/lib/admin/health-checks";
 import { cn } from "@/lib/utils";
@@ -111,7 +111,7 @@ export async function AdminSystemHealthBanner() {
         </div>
 
         <Button asChild size="sm" variant="outline" className="shrink-0 self-start lg:self-center">
-          <Link href={ADMIN_SYSTEM_PATH}>
+          <Link href={ADMIN_SETTINGS_PATH}>
             <Activity className="size-3.5" />
             System details
             <ArrowRight className="size-3.5" />

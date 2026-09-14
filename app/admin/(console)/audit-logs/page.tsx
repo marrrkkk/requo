@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { requireAdminUser } from "@/features/admin/access";
-import { wrapAdminRouteWithViewLog } from "@/features/admin/audit";
 import {
   AdminAuditListContentSection,
+  AdminAuditListControlsSection,
   AdminAuditListPageShell,
   AdminListContentFallback,
-} from "@/features/admin/components/admin-audit-list-sections";
+  AdminListControlsFallback,
+} from "@/features/admin/components/system/admin-audit-list-sections";
+import { withAdminViewLog } from "@/features/admin/page-shell";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const instant = true;
@@ -38,29 +39,21 @@ export default function AuditLogsPage({ searchParams }: AuditLogsPageProps) {
 }
 
 async function AuditLogsPageContent({ searchParams }: AuditLogsPageProps) {
-  const { session, user: admin } = await requireAdminUser();
   const rawParams = await searchParams;
 
-  const renderPage = wrapAdminRouteWithViewLog(
-    async () => (
+  return withAdminViewLog(
+    { action: "view.audit-logs", targetType: "audit-log" },
+    () => (
       <AdminAuditListPageShell>
-        <Suspense fallback={<AdminListContentFallback />}>
-          <AdminAuditListContentSection rawParams={rawParams} />
-        </Suspense>
+        <div className="dashboard-table-shell" data-list-card>
+          <Suspense fallback={<AdminListControlsFallback />}>
+            <AdminAuditListControlsSection rawParams={rawParams} />
+          </Suspense>
+          <Suspense fallback={<AdminListContentFallback />}>
+            <AdminAuditListContentSection rawParams={rawParams} />
+          </Suspense>
+        </div>
       </AdminAuditListPageShell>
     ),
-    {
-      adminUserId: admin.id,
-      adminEmail: admin.email,
-      impersonatedUserId: session.session?.impersonatedBy
-        ? session.user.id
-        : null,
-    },
-    {
-      action: "view.audit-logs",
-      targetType: "audit-log",
-    },
   );
-
-  return renderPage();
 }

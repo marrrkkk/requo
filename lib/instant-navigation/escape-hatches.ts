@@ -92,11 +92,23 @@ export const IN_SCOPE_ROUTES: ReadonlySet<string> = new Set([
 
   // Admin console routes
   "app/admin/(console)/page.tsx",
-  "app/admin/(console)/system/page.tsx",
   "app/admin/(console)/users/page.tsx",
-  "app/admin/(console)/subscriptions/page.tsx",
-  "app/admin/(console)/audit-logs/page.tsx",
+  "app/admin/(console)/users/[userId]/page.tsx",
   "app/admin/(console)/businesses/page.tsx",
+  "app/admin/(console)/businesses/[businessId]/page.tsx",
+  "app/admin/(console)/inquiries/page.tsx",
+  "app/admin/(console)/inquiries/[inquiryId]/page.tsx",
+  "app/admin/(console)/quotes/page.tsx",
+  "app/admin/(console)/quotes/[quoteId]/page.tsx",
+  "app/admin/(console)/ai/page.tsx",
+  "app/admin/(console)/ai/requests/page.tsx",
+  "app/admin/(console)/ai/providers/page.tsx",
+  "app/admin/(console)/ai/errors/page.tsx",
+  "app/admin/(console)/emails/page.tsx",
+  "app/admin/(console)/emails/[emailId]/page.tsx",
+  "app/admin/(console)/usage/page.tsx",
+  "app/admin/(console)/audit-logs/page.tsx",
+  "app/admin/(console)/settings/page.tsx",
 
   // Onboarding
   "app/onboarding/page.tsx",

@@ -3,14 +3,13 @@ import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
-import { requireAdminUser } from "@/features/admin/access";
-import { wrapAdminRouteWithViewLog } from "@/features/admin/audit";
 import {
   AdminBusinessesListContentSection,
   AdminBusinessesListControlsSection,
   AdminListContentFallback,
   AdminListControlsFallback,
 } from "@/features/admin/components/admin-businesses-list-sections";
+import { withAdminViewLog } from "@/features/admin/page-shell";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const instant = true;
@@ -53,11 +52,11 @@ export default function AdminBusinessesPage({
 async function AdminBusinessesPageContent({
   searchParams,
 }: AdminBusinessesPageProps) {
-  const { session, user: admin } = await requireAdminUser();
   const rawParams = await searchParams;
 
-  const renderPage = wrapAdminRouteWithViewLog(
-    async () => (
+  return withAdminViewLog(
+    { action: "view.businesses", targetType: "business" },
+    () => (
       <DashboardPage>
         <PageHeader
           description="Read-only review of customer business setups."
@@ -74,18 +73,5 @@ async function AdminBusinessesPageContent({
         </div>
       </DashboardPage>
     ),
-    {
-      adminUserId: admin.id,
-      adminEmail: admin.email,
-      impersonatedUserId: session.session?.impersonatedBy
-        ? session.user.id
-        : null,
-    },
-    {
-      action: "view.businesses",
-      targetType: "business",
-    },
   );
-
-  return renderPage();
 }

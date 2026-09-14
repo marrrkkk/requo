@@ -1,12 +1,6 @@
-import { Briefcase } from "lucide-react";
-
 import { DataListPagination } from "@/components/shared/data-list-pagination";
-import {
-  DashboardEmptyState,
-} from "@/components/shared/dashboard-layout";
 import { AdminBusinessesFilters } from "@/features/admin/components/admin-businesses-filters";
-import { AdminBusinessesListCards } from "@/features/admin/components/admin-businesses-list-cards";
-import { AdminBusinessesTableBody } from "@/features/admin/components/admin-businesses-table";
+import { AdminBusinessesTable } from "@/features/admin/components/admin-businesses-table";
 import { AdminListContentFallback } from "@/features/admin/components/list/admin-list-content-fallback";
 import { AdminListControlsFallback } from "@/features/admin/components/list/admin-list-controls-fallback";
 import { ADMIN_BUSINESSES_PATH } from "@/features/admin/navigation";
@@ -43,48 +37,23 @@ export async function AdminBusinessesListContentSection({
   const { items, total } = await listAdminBusinesses(filters);
   const totalPages = Math.max(1, Math.ceil(total / filters.pageSize));
   const currentPage = Math.min(Math.max(1, filters.page), totalPages);
-  const hasFilters = Boolean(filters.search?.trim() || filters.plan);
-
-  if (items.length === 0) {
-    return (
-      <div className="p-4">
-        <DashboardEmptyState
-          description={
-            hasFilters
-              ? "No businesses match these filters. Try clearing the search or plan filter."
-              : "No businesses have been created yet."
-          }
-          icon={Briefcase}
-          title={hasFilters ? "No matching businesses" : "No businesses yet"}
-          variant="list"
-        />
-      </div>
-    );
-  }
-
-  const firstItemIndex = (currentPage - 1) * filters.pageSize + 1;
-  const lastItemIndex = Math.min(currentPage * filters.pageSize, total);
+  const hasActiveFilters = Boolean(filters.search?.trim() || filters.plan);
 
   return (
-    <>
-      <AdminBusinessesListCards items={items} />
-      <div className="hidden overflow-x-auto no-scrollbar xl:block">
-        <AdminBusinessesTableBody
-          firstItemIndex={firstItemIndex}
-          items={items}
-          lastItemIndex={lastItemIndex}
+    <AdminBusinessesTable
+      hasActiveFilters={hasActiveFilters}
+      items={items}
+      pagination={
+        <DataListPagination
+          currentPage={currentPage}
+          pageSize={filters.pageSize}
+          pathname={ADMIN_BUSINESSES_PATH}
+          searchParams={rawParams}
           totalItems={total}
+          totalPages={totalPages}
         />
-      </div>
-      <DataListPagination
-        currentPage={currentPage}
-        pageSize={filters.pageSize}
-        pathname={ADMIN_BUSINESSES_PATH}
-        searchParams={rawParams}
-        totalItems={total}
-        totalPages={totalPages}
-      />
-    </>
+      }
+    />
   );
 }
 
