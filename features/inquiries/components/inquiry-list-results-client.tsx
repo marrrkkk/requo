@@ -1,7 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { toast } from "@/components/base/notification/notify";
+import {
+  getLocallyViewedInquiriesServerSnapshot,
+  getLocallyViewedInquiriesSnapshot,
+  subscribeLocallyViewedInquiries,
+} from "@/features/inquiries/components/inquiry-viewed-store";
 
 import { BulkActionBar } from "@/components/shared/bulk-action-bar";
 import { DataListPagination } from "@/components/shared/data-list-pagination";
@@ -58,7 +63,41 @@ export function InquiryListResultsClient({
     [displayPage, effectiveCachedPages],
   );
 
-  const { items: inquiries, getMotionState, removeItems } = useAnimatedList(inquiriesFromCache);
+  // Instant read state on back navigation: ids marked viewed by the detail
+  // tracker render as read immediately. useSyncExternalStore uses the empty
+  // server snapshot during hydration (no mismatch) and syncs to the client
+  // snapshot right after — no skeleton wait, no transition-rule violations.
+  const locallyViewedIds = useSyncExternalStore(
+    subscribeLocallyViewedInquiries,
+    getLocallyViewedInquiriesSnapshot,
+    getLocallyViewedInquiriesServerSnapshot,
+  );
+
+  const effectiveInquiriesFromCache = useMemo(() => {
+    if (locallyViewedIds.length === 0) {
+      return inquiriesFromCache;
+    }
+
+    const viewed = new Set(locallyViewedIds);
+    let changed = false;
+    const next = inquiriesFromCache.map((item) => {
+      if (item.isUnread && viewed.has(item.id)) {
+        changed = true;
+        return { ...item, isUnread: false };
+      }
+
+      return item;
+    });
+
+    return changed ? next : inquiriesFromCache;
+  }, [inquiriesFromCache, locallyViewedIds]);
+
+  const {
+    items: inquiries,
+    getMotionState,
+    removeItems,
+  } = useAnimatedList(effectiveInquiriesFromCache);
+
   const cachedPageNumbers = useMemo(
     () =>
       Object.keys(effectiveCachedPages)

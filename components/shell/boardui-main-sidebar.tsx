@@ -11,6 +11,8 @@ import {
   getDashboardNavigation,
   isDashboardNavigationItemActive,
 } from "@/components/shell/dashboard-navigation";
+import { useNavBadges } from "@/components/shell/nav-badge-context";
+import { getBusinessInquiriesPath } from "@/features/businesses/routes";
 import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
 import type { BusinessMemberRole } from "@/lib/business-members";
 
@@ -60,11 +62,14 @@ export function BoarduiMainSidebar({
   className,
 }: BoarduiMainSidebarProps) {
   const pathname = usePathname();
+  const { inquiryUnreadCount } = useNavBadges();
 
   const navigation = useMemo(
     () => getDashboardNavigation(businessSlug, role),
     [businessSlug, role],
   );
+
+  const inquiriesHref = getBusinessInquiriesPath(businessSlug);
 
   const items = useMemo<DashboardNavItem[]>(
     () =>
@@ -73,8 +78,17 @@ export function BoarduiMainSidebar({
         label: item.label,
         icon: item.icon,
         href: item.href,
+        // Shared unread badge: hidden while streaming (null) and at zero.
+        ...(item.href === inquiriesHref &&
+        inquiryUnreadCount !== null &&
+        inquiryUnreadCount > 0
+          ? {
+              badge: inquiryUnreadCount,
+              badgeLabel: `${inquiryUnreadCount} unread`,
+            }
+          : {}),
       })),
-    [navigation],
+    [navigation, inquiriesHref, inquiryUnreadCount],
   );
 
   const selected = useMemo(

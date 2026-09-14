@@ -53,6 +53,15 @@ export function InquiryListCards({
             motionState={getMotionState?.(inquiry.id)}
             title={
               <span className="flex items-center gap-1.5 min-w-0">
+                {inquiry.isUnread ? (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="size-2 shrink-0 rounded-full bg-primary"
+                    />
+                    <span className="sr-only">Unread: </span>
+                  </>
+                ) : null}
                 <span className="truncate">{inquiry.customerName}</span>
                 {inquiry.hasDuplicateFlag ? (
                   <Copy

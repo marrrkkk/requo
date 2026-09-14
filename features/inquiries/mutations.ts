@@ -719,6 +719,43 @@ type UpdateInquiryRecordStateForBusinessInput = {
   actorUserId: string;
 };
 
+/**
+ * Shared per-business read receipt: opening the inquiry detail marks it
+ * viewed for the whole business. Idempotent single UPDATE — only rows with
+ * `firstViewedAt IS NULL` change. No activity/audit row: views must not
+ * pollute the inquiry timeline. Returns whether this call marked the row.
+ */
+export async function markInquiryViewedForBusiness({
+  businessId,
+  inquiryId,
+  actorUserId,
+}: {
+  businessId: string;
+  inquiryId: string;
+  actorUserId: string | null;
+}): Promise<{ marked: boolean }> {
+  const now = new Date();
+
+  const updated = await db
+    .update(inquiries)
+    .set({
+      firstViewedAt: now,
+      firstViewedBy: actorUserId,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(inquiries.id, inquiryId),
+        eq(inquiries.businessId, businessId),
+        isNull(inquiries.firstViewedAt),
+        isNull(inquiries.deletedAt),
+      ),
+    )
+    .returning({ id: inquiries.id });
+
+  return { marked: updated.length > 0 };
+}
+
 export async function archiveInquiryForBusiness({
   businessId,
   inquiryId,

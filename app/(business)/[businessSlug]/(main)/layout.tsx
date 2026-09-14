@@ -24,6 +24,7 @@ import { ThemePreferenceSync } from "@/features/theme/components/theme-preferenc
 import { getUiScalePreferenceForUser } from "@/features/theme/ui-scale-queries";
 import { UiScaleSync } from "@/features/theme/components/ui-scale-sync";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
+import { InquiryUnreadBadgeSlot } from "@/features/inquiries/components/inquiry-unread-badge-slot";
 import { getBusinessNotificationBellView } from "@/features/notifications/queries";
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
 import { SidebarChecklistSection } from "@/features/onboarding/components/sidebar-checklist-section";
@@ -115,6 +116,11 @@ async function BusinessMainShell({
         bannerSlot={
           <Suspense fallback={null}>
             <BannerSlot businessSlug={businessSlug} />
+          </Suspense>
+        }
+        navBadgeSlot={
+          <Suspense fallback={null}>
+            <InquiryUnreadBadgeSlot businessSlug={businessSlug} />
           </Suspense>
         }
       >
