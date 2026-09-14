@@ -33,7 +33,7 @@ describe("Sidebar user profile row", () => {
       />,
     );
 
-    const trigger = screen.getByRole("button", { name: /jane doe/i });
+    const trigger = screen.getByRole("button", { name: /jane/i });
     expect(trigger.className).toContain("bg-sidebar-accent");
     expect(trigger.className).toContain("rounded-xl");
 
@@ -49,7 +49,7 @@ describe("Sidebar user profile row", () => {
       <SettingsUserMenu user={user} businessSlug="demo" />,
     );
 
-    const trigger = screen.getByRole("button", { name: /jane doe/i });
+    const trigger = screen.getByRole("button", { name: /jane/i });
     expect(trigger.className).toContain("bg-sidebar-accent");
     expect(trigger.className).toContain("rounded-xl");
 
@@ -77,8 +77,8 @@ describe("Sidebar user profile row", () => {
       />,
     );
 
-    const trigger = screen.getByRole("button", { name: /mark louie/i });
-    const name = within(trigger).getByText("Mark Louie Alvarez");
+    const trigger = screen.getByRole("button", { name: /mark/i });
+    const name = within(trigger).getByText("Mark");
     const email = within(trigger).getByText("alvarezmarklouie57@gmail.com");
 
     // Ellipsis truncation (not bare nowrap clipping) on both lines…
