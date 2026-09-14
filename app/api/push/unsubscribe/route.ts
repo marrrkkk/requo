@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { and, eq, isNull } from "drizzle-orm";
 
-import { requireUser } from "@/lib/auth/session";
+import { ApiUnauthorizedError, requireApiUser } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
 import { businessMembers, businesses } from "@/lib/db/schema";
 import { pushSubscriptions } from "@/lib/db/schema/push-subscriptions";
@@ -13,7 +13,16 @@ const unsubscribeSchema = z.object({
 });
 
 export async function DELETE(request: Request) {
-  const user = await requireUser();
+  let user: Awaited<ReturnType<typeof requireApiUser>>;
+
+  try {
+    user = await requireApiUser();
+  } catch (error) {
+    if (error instanceof ApiUnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+    throw error;
+  }
 
   let body: unknown;
 

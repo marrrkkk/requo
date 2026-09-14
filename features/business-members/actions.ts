@@ -13,7 +13,7 @@ import { db } from "@/lib/db/client";
 import { businessMemberInvites, businessMembers } from "@/lib/db/schema";
 import { getOwnerBusinessActionContext } from "@/lib/db/business-access";
 import { requireSession } from "@/lib/auth/session";
-import { activeBusinessSlugCookieName, getBusinessDashboardPath, getBusinessMemberInvitePath, getBusinessMembersPath } from "@/features/businesses/routes";
+import { activeBusinessSlugCookieName, getActiveBusinessCookieAttributes, getBusinessDashboardPath, getBusinessMemberInvitePath, getBusinessMembersPath } from "@/features/businesses/routes";
 import {
   businessMemberInviteIdSchema,
   businessMemberInviteSchema,
@@ -352,10 +352,11 @@ export async function acceptBusinessMemberInviteAction(inviteToken: string) {
 
   // Persist active business in the shell cookie.
   const cookieStore = await cookies();
-  cookieStore.set(activeBusinessSlugCookieName, result.businessSlug, {
-    path: "/",
-    sameSite: "lax",
-  });
+  cookieStore.set(
+    activeBusinessSlugCookieName,
+    result.businessSlug,
+    getActiveBusinessCookieAttributes(),
+  );
 
   redirect(getBusinessDashboardPath(result.businessSlug));
 }
@@ -374,10 +375,11 @@ export async function acceptBusinessInviteLinkAction(inviteToken: string) {
   updateCacheTags(getBusinessMembersCacheTags(result.businessId));
 
   const cookieStore = await cookies();
-  cookieStore.set(activeBusinessSlugCookieName, result.businessSlug, {
-    path: "/",
-    sameSite: "lax",
-  });
+  cookieStore.set(
+    activeBusinessSlugCookieName,
+    result.businessSlug,
+    getActiveBusinessCookieAttributes(),
+  );
 
   redirect(getBusinessDashboardPath(result.businessSlug));
 }
@@ -401,10 +403,11 @@ export async function acceptInviteFromHubAction(
 
   // Persist active business in the shell cookie.
   const cookieStore = await cookies();
-  cookieStore.set(activeBusinessSlugCookieName, result.businessSlug, {
-    path: "/",
-    sameSite: "lax",
-  });
+  cookieStore.set(
+    activeBusinessSlugCookieName,
+    result.businessSlug,
+    getActiveBusinessCookieAttributes(),
+  );
 
   revalidatePath("/home");
   redirect(getBusinessDashboardPath(result.businessSlug));

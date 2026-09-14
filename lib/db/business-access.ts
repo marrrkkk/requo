@@ -418,6 +418,8 @@ export const getBusinessContextForUser = cache(async (
   userId: string,
   businessSlug?: string | null,
 ) => {
+  const isExplicitSlugRequest =
+    businessSlug !== undefined && businessSlug !== null;
   const requestedBusinessSlug =
     businessSlug === undefined ? await getActiveBusinessSlug() : businessSlug;
 
@@ -430,6 +432,13 @@ export const getBusinessContextForUser = cache(async (
 
     if (scopedContext) {
       return scopedContext;
+    }
+
+    // Explicit slug requests must not silently fall back to another
+    // business. Cookie-derived lookups (businessSlug === undefined) keep
+    // the first-membership fallback for UX when no cookie is set.
+    if (isExplicitSlugRequest) {
+      return null;
     }
   }
 

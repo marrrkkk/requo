@@ -58,6 +58,19 @@ import type {
 const initialCreateState: CreateBusinessActionState = {};
 const initialBusinessRecordState: BusinessRecordActionState = {};
 
+function isMismatchedLifecycleTarget(
+  requestedBusinessId: string,
+  scopedBusinessId: string,
+): boolean {
+  return requestedBusinessId !== scopedBusinessId;
+}
+
+function mismatchedLifecycleResponse(): BusinessRecordActionState {
+  return {
+    error: "That business could not be found.",
+  };
+}
+
 function updateBusinessCacheTags(businessId: string) {
   for (const tag of uniqueCacheTags([
     ...getBusinessSettingsCacheTags(businessId),
@@ -162,6 +175,9 @@ export async function createBusinessAction(
     name: formData.get("name"),
     businessType: formData.get("businessType"),
     defaultCurrency: formData.get("defaultCurrency"),
+    // Accepted for backward compatibility with existing forms but never
+    // trusted: the primary key is always server-generated below to prevent
+    // ID squatting and collision probing.
     businessId: formData.get("businessId"),
   });
 
@@ -187,9 +203,7 @@ export async function createBusinessAction(
   try {
     const business = await createBusinessForUser({
       user,
-      businessId: validationResult.data.businessId.startsWith("biz_")
-        ? validationResult.data.businessId
-        : `biz_${validationResult.data.businessId.replace(/-/g, "")}`,
+      businessId: `biz_${crypto.randomUUID().replace(/-/g, "")}`,
       defaultCurrency: validationResult.data.defaultCurrency,
       name: validationResult.data.name,
       businessType: validationResult.data.businessType,
@@ -328,9 +342,18 @@ export async function unarchiveBusinessAction(
     };
   }
 
+  if (
+    isMismatchedLifecycleTarget(
+      businessId,
+      ownerAccess.businessContext.business.id,
+    )
+  ) {
+    return mismatchedLifecycleResponse();
+  }
+
   try {
     const result = await unarchiveBusiness({
-      businessId,
+      businessId: ownerAccess.businessContext.business.id,
       actorUserId: ownerAccess.user.id,
     });
 
@@ -390,6 +413,15 @@ export async function trashBusinessAction(
     };
   }
 
+  if (
+    isMismatchedLifecycleTarget(
+      businessId,
+      ownerAccess.businessContext.business.id,
+    )
+  ) {
+    return mismatchedLifecycleResponse();
+  }
+
   const confirmationValue = formData.get("confirmation");
   const confirmation =
     typeof confirmationValue === "string" && confirmationValue.trim().length > 0
@@ -398,7 +430,7 @@ export async function trashBusinessAction(
 
   try {
     const result = await trashBusiness({
-      businessId,
+      businessId: ownerAccess.businessContext.business.id,
       actorUserId: ownerAccess.user.id,
       confirmation,
     });
@@ -470,9 +502,18 @@ export async function restoreBusinessAction(
     };
   }
 
+  if (
+    isMismatchedLifecycleTarget(
+      businessId,
+      ownerAccess.businessContext.business.id,
+    )
+  ) {
+    return mismatchedLifecycleResponse();
+  }
+
   try {
     const result = await restoreBusiness({
-      businessId,
+      businessId: ownerAccess.businessContext.business.id,
       actorUserId: ownerAccess.user.id,
     });
 
@@ -524,6 +565,15 @@ export async function deleteBusinessPermanentlyAction(
     return { error: ownerAccess.error };
   }
 
+  if (
+    isMismatchedLifecycleTarget(
+      businessId,
+      ownerAccess.businessContext.business.id,
+    )
+  ) {
+    return mismatchedLifecycleResponse();
+  }
+
   const confirmation =
     typeof formData.get("confirmation") === "string"
       ? (formData.get("confirmation") as string)
@@ -538,7 +588,7 @@ export async function deleteBusinessPermanentlyAction(
 
   try {
     const result = await deleteBusinessPermanently({
-      businessId,
+      businessId: ownerAccess.businessContext.business.id,
       actorUserId: ownerAccess.user.id,
       confirmation,
     });
@@ -589,9 +639,18 @@ export async function unlockBusinessAction(
     };
   }
 
+  if (
+    isMismatchedLifecycleTarget(
+      businessId,
+      ownerAccess.businessContext.business.id,
+    )
+  ) {
+    return mismatchedLifecycleResponse();
+  }
+
   try {
     const result = await unlockBusinessIfAllowed({
-      businessId,
+      businessId: ownerAccess.businessContext.business.id,
       ownerUserId: ownerAccess.user.id,
       actorUserId: ownerAccess.user.id,
     });

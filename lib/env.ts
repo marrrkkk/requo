@@ -105,6 +105,12 @@ const envSchema = z.object({
    * is sent. Defaults to enabled when email is configured.
    */
   DISABLE_MAGIC_LINK: emptyToUndefined(z.enum(["0", "1", "true", "false"])),
+
+  AI_CANARY_SECRET: emptyToUndefined(z.string().min(16)),
+
+  UPSTASH_REDIS_REST_URL: emptyToUndefined(z.url()),
+  UPSTASH_REDIS_REST_TOKEN: emptyToUndefined(z.string().min(1)),
+  CRON_SECRET: emptyToUndefined(z.string().min(16)),
 });
 
 export const env = envSchema.parse(process.env);

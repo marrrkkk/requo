@@ -2002,20 +2002,33 @@ html[data-reload-loading="fade-out"] #app-root-content {
      buttons — note the `has-data-[icon]` padding variants carry `:has()`
      specificity above a plain class, so the pin uses `!important` to keep
      the icon perfectly centered. Desktop rendering is untouched. Pairs with
-     `mobileNavbarIconButtonClassName`. */
+     `mobileNavbarIconButtonClassName`.
+
+     Every box metric is pinned with `!important` on purpose. The desktop
+     sizing is asymmetric once the label hides (`has-data-[icon=inline-start]
+     :pl-2` keeps 8px on the left while `px-3` leaves 12px on the right), so
+     if any one of these declarations loses the cascade the button ends up
+     wider than 2rem with the icon sitting left of center — exactly the
+     "off-center icon" the pin exists to prevent. `min-width`/`max-width`
+     also stop the flex item's automatic minimum size from stretching the
+     box back out. */
   @media (max-width: 1023.98px) {
     .mobile-navbar-icon-button {
-      width: 2rem;
-      height: 2rem;
+      width: 2rem !important;
+      min-width: 2rem !important;
+      max-width: 2rem !important;
+      height: 2rem !important;
       padding: 0 !important;
       padding-inline: 0 !important;
-      gap: 0;
-      justify-content: center;
+      gap: 0 !important;
+      justify-content: center !important;
+      align-items: center;
     }
 
     .mobile-navbar-icon-button > svg:not([class*="size-"]) {
       width: 1rem;
       height: 1rem;
+      margin: 0 !important;
     }
   }
 
