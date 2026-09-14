@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import {
   createAgentSession,
@@ -138,6 +139,15 @@ type ApproveProposalResult =
   | { success: false; error: string };
 
 /**
+ * Hashes a full session token for rate-limit scoping. Uses the full 256-bit
+ * entropy instead of a truncated prefix so unrelated sessions never share a
+ * bucket due to prefix collision.
+ */
+function hashTokenScope(prefix: string, token: string): string {
+  return `${prefix}:${createHash("sha256").update(token).digest("hex").slice(0, 32)}`;
+}
+
+/**
  * Approve a staged Proposed Inquiry (visitor authorised by session token).
  *
  * The only path from proposal to Inquiry: a row-locked read-modify-write that
@@ -176,7 +186,7 @@ export async function approveAgentProposalAction({
 
   const allowed = await assertPublicActionRateLimit({
     action: "public-inquiry-submit",
-    scope: `ai-agent-approve:${sessionToken.slice(0, 16)}`,
+    scope: hashTokenScope("ai-agent-approve", sessionToken),
     limit: 20,
     windowMs: 60 * 60 * 1000,
   });
@@ -546,7 +556,7 @@ export async function discardAgentProposalAction({
 }): Promise<DiscardProposalResult> {
   const allowed = await assertPublicActionRateLimit({
     action: "public-inquiry-submit",
-    scope: `ai-agent-discard:${sessionToken.slice(0, 16)}`,
+    scope: hashTokenScope("ai-agent-discard", sessionToken),
     limit: 20,
     windowMs: 60 * 60 * 1000,
   });

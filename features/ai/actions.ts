@@ -166,6 +166,7 @@ export async function generateQuoteDraftAction(
   const result = await generateQuoteDraftForBusiness({
     businessId,
     userId,
+    plan,
     inquiryId: parsed.data.inquiryId ?? null,
     brief: parsed.data.brief ?? null,
     revisionComment: parsed.data.revisionComment ?? null,

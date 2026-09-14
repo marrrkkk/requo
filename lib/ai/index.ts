@@ -38,13 +38,22 @@ export type {
 export {
   PLAN_LIMITS,
   TASK_WEIGHTS,
+  CREDIT_TOKEN_DIVISOR,
+  OUTPUT_TOKEN_MULTIPLIER,
+  MIN_CREDITS_PER_INVOCATION,
+  computeCreditsForTokens,
+  computeUsageWeight,
   checkUsageLimit,
   recordUsage,
   startCooldown,
   resetCooldown,
   getMonthlyUsageSummary,
 } from "./usage-limiter";
-export type { UsageLimitCheck, UsageLimitResult } from "./usage-limiter";
+export type {
+  UsageLimitCheck,
+  UsageLimitResult,
+  InvocationTokenUsage,
+} from "./usage-limiter";
 export {
   classifyMessageComplexity,
   getHistoryLimitForComplexity,
