@@ -713,7 +713,6 @@ export function ChatInterface({
                     autoFocus
                     busy={isLoading}
                     disabled={minting}
-                    hint="Attach a PDF, DOCX, CSV, TXT, or Markdown file for context"
                     maxLength={2000}
                     onStop={stop}
                     onSubmit={(text) => void handleSend(text)}

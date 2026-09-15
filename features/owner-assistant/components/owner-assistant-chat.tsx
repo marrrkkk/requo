@@ -20,7 +20,6 @@ import {
   AttachmentPickerButton,
 } from "@/components/shared/chat/chat-attachment-picker";
 import {
-  CHAT_ATTACHMENT_HELP_TEXT,
   collapseAttachmentBlocksForDisplay,
   readFilesAsDataAttachments,
 } from "@/components/shared/chat/attachment-text";
@@ -574,7 +573,6 @@ export function OwnerAssistantChat({
                     ariaLabel="Message the assistant"
                     autoFocus
                     busy={isLoading}
-                    hint={`Attach a ${CHAT_ATTACHMENT_HELP_TEXT} file for context`}
                     maxLength={2000}
                     onStop={stop}
                     onSubmit={handleSend}
