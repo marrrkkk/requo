@@ -1,5 +1,6 @@
 import "server-only";
 
+import { extractRawText as mammothExtractRawText } from "mammoth";
 import { extractText as unpdfExtractText } from "unpdf";
 
 import { KNOWLEDGE_MAX_EXTRACTED_CHARS } from "@/features/memory/types";
@@ -9,7 +10,8 @@ import { KNOWLEDGE_MAX_EXTRACTED_CHARS } from "@/features/memory/types";
  *
  * Text formats (CSV/TXT/Markdown) are decoded with normalized UTF-8 handling.
  * PDFs use server-side text extraction with page boundaries preserved as
- * markers so retrieval can reference page-level context.
+ * markers so retrieval can reference page-level context. DOCX uses raw-text
+ * extraction (formatting dropped — chat and knowledge flows only need words).
  */
 
 export type ExtractedKnowledgeText = {
@@ -58,6 +60,10 @@ export async function extractKnowledgeText({
 
   const isPdf =
     lowerMime === "application/pdf" || lowerName.endsWith(".pdf");
+  const isDocx =
+    lowerMime ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    lowerName.endsWith(".docx");
   const isTextual =
     lowerMime === "text/csv" ||
     lowerMime === "application/csv" ||
@@ -72,6 +78,10 @@ export async function extractKnowledgeText({
     return extractPdfText(bytes);
   }
 
+  if (isDocx) {
+    return extractDocxText(bytes);
+  }
+
   if (isTextual) {
     const decoded = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
     const { text, truncated } = normalizeText(decoded);
@@ -83,7 +93,22 @@ export async function extractKnowledgeText({
     };
   }
 
-  throw new Error("Unsupported file type. Upload a PDF, CSV, TXT, or Markdown file.");
+  throw new Error("Unsupported file type. Upload a PDF, DOCX, CSV, TXT, or Markdown file.");
+}
+
+async function extractDocxText(
+  bytes: Buffer | Uint8Array,
+): Promise<ExtractedKnowledgeText> {
+  const { value } = await mammothExtractRawText({
+    buffer: Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes),
+  });
+  const { text, truncated } = normalizeText(value ?? "");
+
+  return {
+    text,
+    truncated,
+    extractedCharacterCount: text.length,
+  };
 }
 
 async function extractPdfText(
