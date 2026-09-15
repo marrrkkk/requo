@@ -1,3 +1,4 @@
+import { prefixedId } from "@/lib/ids";
 import type {
   FollowUpChannel,
   FollowUpDueBucket,
@@ -94,11 +95,11 @@ export const followUpOutcomeChoices = [
 ] as const satisfies readonly import("@/features/follow-ups/types").FollowUpOutcomeType[];
 
 export function createFollowUpId() {
-  return `fup_${crypto.randomUUID().replace(/-/g, "")}`;
+  return prefixedId("fup");
 }
 
 export function createActivityId() {
-  return `act_${crypto.randomUUID().replace(/-/g, "")}`;
+  return prefixedId("act");
 }
 
 export function getTodayUtcDateString(now = new Date()) {
@@ -312,7 +313,6 @@ export function buildFollowUpSuggestedMessage(input: {
 
   return `Hi ${customerName}, just following up on the quote we sent. Let us know if you have any questions.`;
 }
-
 
 export function getNextRecurrenceDueDate(
   currentDueAt: Date,

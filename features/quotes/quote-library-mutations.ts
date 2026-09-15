@@ -3,16 +3,13 @@ import "server-only";
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
+import { prefixedId as createId } from "@/lib/ids";
 import {
   activityLogs,
   quoteLibraryEntries,
   quoteLibraryEntryItems,
 } from "@/lib/db/schema";
 import type { QuoteLibraryEntryInput } from "@/features/quotes/quote-library-schemas";
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 async function insertQuoteLibraryActivity(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],

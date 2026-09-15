@@ -35,6 +35,7 @@ import type {
   BusinessInquiryPageSettingsView,
 } from "@/features/settings/types";
 import { isInquiryPageCustomizationLocked } from "@/features/inquiries/plan-rules";
+import { prefixedId } from "@/lib/ids";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 
@@ -417,7 +418,7 @@ export function BusinessInquiryPageForm({
     setCards((currentCards) => [
       ...currentCards,
       {
-        id: `card_${crypto.randomUUID().replace(/-/g, "")}`,
+        id: prefixedId("card"),
         title: "",
         description: "",
         icon: "details",

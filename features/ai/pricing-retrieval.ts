@@ -2,7 +2,7 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 
-import type { DashboardQuoteLibraryEntry } from "@/features/quotes/types";
+import { significantTerms } from "@/lib/ai/text-terms";
 import { db } from "@/lib/db/client";
 import { quoteLibraryEntries, quoteLibraryEntryItems } from "@/lib/db/schema";
 
@@ -46,7 +46,17 @@ export type PricingRetrievalResult = {
 
 export const PRICING_CANDIDATE_MAX = 12;
 
-const STOPWORDS = new Set([
+/**
+ * Pricing's own stopword set, passed to the shared extractor as a
+ * *replacement* rather than an extension.
+ *
+ * It adds domain words that are noise on this path (`quote`, `price`,
+ * `service`, …) on top of the function words. Because it replaces the shared
+ * default instead of extending it, pricing's term selection is byte-identical
+ * to what it was before the extractor was shared — which matters, because this
+ * path decides whether a price may be auto-verified.
+ */
+const PRICING_STOPWORDS = new Set([
   "please",
   "need",
   "want",
@@ -73,15 +83,6 @@ const STOPWORDS = new Set([
   "about",
 ]);
 
-export function significantTerms(query: string): string[] {
-  const terms = query
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((term) => term.length >= 4 && !STOPWORDS.has(term));
-
-  return Array.from(new Set(terms));
-}
-
 /**
  * Builds the candidate set for a business's inquiry text.
  * Returns empty candidates when the query has no significant terms.
@@ -98,7 +99,7 @@ export async function retrievePricingCandidates(input: {
     return { candidates: [], usedPricingLibrary: false };
   }
 
-  const terms = significantTerms(query);
+  const terms = significantTerms(query, PRICING_STOPWORDS);
 
   if (terms.length === 0) {
     return { candidates: [], usedPricingLibrary: false };

@@ -7,9 +7,9 @@ import { eventFunctions } from "@/lib/inngest/functions/events";
 
 describe("inngest wiring", () => {
   it("registers all cron and event functions", () => {
-    expect(cronFunctions).toHaveLength(11);
+    expect(cronFunctions).toHaveLength(12);
     expect(eventFunctions).toHaveLength(8);
-    expect(inngestFunctions).toHaveLength(20);
+    expect(inngestFunctions).toHaveLength(21);
   });
 
   it("uses stable requo event names", () => {

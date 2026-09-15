@@ -1,8 +1,13 @@
 import "server-only";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
-import { cosineSimilarity, generateEmbedding } from "@/lib/ai/embeddings";
+import {
+  cosineSimilarity,
+  EMBEDDING_MAX_ATTEMPTS_READ,
+  generateEmbedding,
+} from "@/lib/ai/embeddings";
+import { matchedTerms, significantTerms } from "@/lib/ai/text-terms";
 import { db } from "@/lib/db/client";
 import {
   businessKnowledgeChunks,
@@ -39,6 +44,18 @@ export const KNOWLEDGE_TOP_K = 6;
 export const KNOWLEDGE_TOKEN_BUDGET = 1_800;
 export const KNOWLEDGE_CHARS_PER_TOKEN = 4;
 
+/**
+ * Candidate caps applied in SQL before scoring.
+ *
+ * Scoring happens in application code, so without a cap a business with a
+ * large corpus loads every row into memory on every retrieval. These are set
+ * well above the per-business volumes this pipeline was designed for, so they
+ * only engage on outlier tenants — but they do truncate by recency, so a
+ * relevant-but-ancient chunk can be missed on a very large corpus.
+ */
+export const KNOWLEDGE_CANDIDATE_LIMIT_MEMORIES = 200;
+export const KNOWLEDGE_CANDIDATE_LIMIT_CHUNKS = 500;
+
 const COMBINED_SCORE_THRESHOLD = 0.26;
 const COSINE_FLOOR = 0.16;
 const LEXICAL_ONLY_MIN_TERMS = 2;
@@ -50,28 +67,6 @@ type ScoredCandidate = {
   cosineScore: number;
   lexicalScore: number;
 };
-
-function significantTerms(query: string): string[] {
-  const terms = query
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((term) => term.length >= 4);
-
-  return Array.from(new Set(terms));
-}
-
-function lexicalScore(content: string, terms: string[]): number {
-  if (terms.length === 0) {
-    return 0;
-  }
-
-  const normalizedContent = content.toLowerCase();
-  const matched = terms.filter((term) =>
-    normalizedContent.includes(term),
-  ).length;
-
-  return matched / terms.length;
-}
 
 function mapConfidence(score: number): KnowledgeEvidence["confidence"] {
   if (score >= 0.5) {
@@ -111,7 +106,8 @@ export async function retrieveBusinessKnowledge(input: {
   const tokenBudget = input.tokenBudget ?? KNOWLEDGE_TOKEN_BUDGET;
 
   // Load sources in parallel: manual memories (optionally category-filtered)
-  // and chunks from ready files only.
+  // and chunks from ready files only. Both are capped by recency so a large
+  // corpus cannot load unbounded rows into memory for in-process scoring.
   const [memories, fileChunks] = await Promise.all([
     db
       .select({
@@ -128,7 +124,9 @@ export async function retrieveBusinessKnowledge(input: {
             ? [inArray(businessMemories.category, input.categories)]
             : []),
         ),
-      ),
+      )
+      .orderBy(desc(businessMemories.updatedAt))
+      .limit(KNOWLEDGE_CANDIDATE_LIMIT_MEMORIES),
     db
       .select({
         chunkId: businessKnowledgeChunks.id,
@@ -147,7 +145,9 @@ export async function retrieveBusinessKnowledge(input: {
           eq(businessKnowledgeChunks.businessId, input.businessId),
           eq(businessKnowledgeFiles.status, "ready"),
         ),
-      ),
+      )
+      .orderBy(desc(businessKnowledgeChunks.updatedAt))
+      .limit(KNOWLEDGE_CANDIDATE_LIMIT_CHUNKS),
   ]);
 
   if (memories.length === 0 && fileChunks.length === 0) {
@@ -185,8 +185,13 @@ export async function retrieveBusinessKnowledge(input: {
     });
   }
 
-  // Query embedding is best-effort; lexical retrieval must always work.
-  const queryEmbedding = await generateEmbedding(query).catch(() => null);
+  // Query embedding is best-effort; lexical retrieval must always work. This
+  // sits on the user's critical path, so it gets a single attempt — a transient
+  // provider failure should fall back to lexical immediately rather than stall
+  // quote generation. Ingestion uses the retrying write-path budget instead.
+  const queryEmbedding = await generateEmbedding(query, {
+    maxAttempts: EMBEDDING_MAX_ATTEMPTS_READ,
+  }).catch(() => null);
 
   const terms = significantTerms(query);
   const scored: ScoredCandidate[] = [];
@@ -196,17 +201,15 @@ export async function retrieveBusinessKnowledge(input: {
       queryEmbedding && candidate.embedding
         ? cosineSimilarity(queryEmbedding, candidate.embedding)
         : 0;
-    const lexical = lexicalScore(candidate.content, terms);
+
+    // Whole-token matching: a term counts only when the content contains it as
+    // a word, not as a substring of a longer one.
+    const matched = matchedTerms(candidate.content, terms);
+    const lexical = terms.length === 0 ? 0 : matched.length / terms.length;
 
     // Lexical-only fallback: require several distinctive terms to match.
-    if (!queryEmbedding) {
-      const matchedTerms = terms.filter((term) =>
-        candidate.content.toLowerCase().includes(term),
-      ).length;
-
-      if (matchedTerms < LEXICAL_ONLY_MIN_TERMS) {
-        continue;
-      }
+    if (!queryEmbedding && matched.length < LEXICAL_ONLY_MIN_TERMS) {
+      continue;
     }
 
     const combined =

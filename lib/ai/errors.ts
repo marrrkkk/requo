@@ -341,6 +341,27 @@ export function isRetryableError(error: unknown): boolean {
 }
 
 /**
+ * Whether an error carries *positive evidence* of a transient condition, as
+ * opposed to `isRetryableError`'s deliberate fail-safe default.
+ *
+ * `isRetryableError` reports unclassifiable errors as retryable so the router
+ * advances to the next provider — a rotation is cheap and the alternative is
+ * giving up. A same-model backoff retry is different: retrying an error we
+ * cannot classify only adds latency, so it requires evidence. Network
+ * failures, rate-limit/capacity messages, an explicit `retry-after`, and
+ * known transient status codes all qualify.
+ */
+export function isTransientProviderError(error: unknown): boolean {
+  if (isNetworkError(error)) return true;
+  if (isRetryableMessage(error)) return true;
+  if (extractRetryAfterMs(error) !== null) return true;
+
+  const status = extractStatusCode(error);
+
+  return status !== null && RETRYABLE_STATUS_CODES.has(status);
+}
+
+/**
  * Wrap a raw SDK error into a structured `AiProviderError`.
  * The router uses this to carry provider context through the fallback chain.
  */

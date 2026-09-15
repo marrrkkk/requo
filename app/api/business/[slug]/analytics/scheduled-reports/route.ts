@@ -5,6 +5,7 @@ import { db } from "@/lib/db/client";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { analyticsScheduledReports } from "@/lib/db/schema";
 import { hasFeatureAccess } from "@/lib/plans";
+import { prefixedId as createId } from "@/lib/ids";
 
 const routeParamsSchema = z.object({
   slug: z.string().trim().min(1).max(120),
@@ -39,10 +40,6 @@ const updateBodySchema = z.object({
 const deleteBodySchema = z.object({
   id: z.string().trim().min(1),
 });
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 export async function GET(
   _request: Request,

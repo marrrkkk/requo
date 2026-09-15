@@ -12,6 +12,7 @@ import { db } from "@/lib/db/client";
 import { businessMembers, businesses, profiles } from "@/lib/db/schema";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
+import { prefixedId as createId } from "@/lib/ids";
 
 type CompleteOnboardingForUserInput = {
   user: {
@@ -36,10 +37,6 @@ type CompleteOnboardingForUserInput = {
   inquiryFormConfigOverride?: InquiryFormConfig;
   avatarUpload?: { storagePath: string; contentType: string } | null;
 };
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 export async function completeOnboardingForUser({
   user,

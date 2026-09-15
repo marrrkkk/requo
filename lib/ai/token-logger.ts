@@ -3,6 +3,7 @@ import "server-only";
 import { db } from "@/lib/db/client";
 import { aiTokenLogs } from "@/lib/db/schema";
 import { getDerivedCostTable } from "@/lib/ai/catalog";
+import { prefixedId as createId } from "@/lib/ids";
 
 // ---------------------------------------------------------------------------
 // Token Logger — records every AI invocation for cost monitoring and debugging
@@ -62,10 +63,6 @@ export type TokenLogEntry = {
   errorMessage: string | null;
   unpriced: boolean;
 };
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 /**
  * Computes estimated cost in cents for a given model/provider combination.

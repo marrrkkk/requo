@@ -7,6 +7,11 @@ import type { EmbeddingModelV3 } from "@ai-sdk/provider";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 
 import { cacheLayer } from "@/lib/ai/cache-layer";
+import {
+  AiProviderError,
+  isTransientProviderError,
+  wrapProviderError,
+} from "@/lib/ai/errors";
 import { env, isGeminiConfigured } from "@/lib/env";
 
 /**
@@ -16,13 +21,26 @@ import { env, isGeminiConfigured } from "@/lib/env";
  * SDK. Embeddings are cached by content hash for 24 hours to cut cost and
  * latency. Provider failure is non-fatal: callers receive `null` and must
  * fall back to lexical retrieval.
+ *
+ * Transient provider failures are retried with backoff before that fallback
+ * applies. The retry budget differs by caller: an ingestion failure persists a
+ * `null` embedding that only the backfill job can repair, whereas a retrieval
+ * failure sits on the user's critical path and is better served by falling
+ * back to lexical immediately.
  */
 
 export const EMBEDDING_MODEL = "gemini-embedding-001";
 export const EMBEDDING_DIMENSIONS = 768;
 export const EMBEDDING_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24 hours
+/** Ingestion: a `null` here is permanent data loss until the backfill runs. */
+export const EMBEDDING_MAX_ATTEMPTS_WRITE = 3;
+/** Retrieval: fail fast to lexical rather than stall quote generation. */
+export const EMBEDDING_MAX_ATTEMPTS_READ = 1;
+
 const EMBEDDING_CACHE_PREFIX = "embed:";
 const MAX_EMBEDDING_INPUT_LENGTH = 20_000;
+const INITIAL_BACKOFF_MS = 1_000;
+const MAX_BACKOFF_MS = 5_000;
 
 /**
  * Gemini embedding models are Matryoshka: they default to 3072 dimensions and
@@ -34,6 +52,14 @@ const MAX_EMBEDDING_INPUT_LENGTH = 20_000;
 const EMBEDDING_PROVIDER_OPTIONS = {
   google: { outputDimensionality: EMBEDDING_DIMENSIONS },
 } as const;
+
+export type EmbeddingOptions = {
+  /**
+   * Total provider attempts, including the first. Defaults to the ingestion
+   * budget; the retrieval path passes `EMBEDDING_MAX_ATTEMPTS_READ`.
+   */
+  maxAttempts?: number;
+};
 
 function contentHash(text: string): string {
   return createHash("sha256").update(text).digest("hex");
@@ -69,6 +95,59 @@ function getEmbeddingModel(): EmbeddingModelV3 | null {
   }
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Runs a provider call with backoff on transient failures.
+ *
+ * Only errors with positive evidence of being transient are retried (see
+ * `isTransientProviderError`) — an unclassifiable error would otherwise be
+ * retried blindly, adding latency without improving the odds. The delay
+ * honours the provider's `retry-after` when present, otherwise it doubles.
+ * Exhaustion rethrows the wrapped `AiProviderError` for the caller to log and
+ * convert into its `null` contract.
+ */
+async function withEmbeddingRetry<T>(
+  label: "embed" | "embedMany",
+  maxAttempts: number,
+  attempt: () => Promise<T>,
+): Promise<T> {
+  // Guard the bound itself: a non-finite budget would make the exhaustion
+  // comparison below always false and retry forever.
+  const attempts = Number.isFinite(maxAttempts)
+    ? Math.max(1, Math.floor(maxAttempts))
+    : EMBEDDING_MAX_ATTEMPTS_WRITE;
+
+  for (let attemptIndex = 1; ; attemptIndex++) {
+    try {
+      return await attempt();
+    } catch (error) {
+      const wrapped =
+        error instanceof AiProviderError
+          ? error
+          : wrapProviderError("gemini", error);
+
+      if (attemptIndex >= attempts || !isTransientProviderError(error)) {
+        throw wrapped;
+      }
+
+      const backoffMs = Math.min(
+        wrapped.retryAfterMs ?? INITIAL_BACKOFF_MS * 2 ** (attemptIndex - 1),
+        MAX_BACKOFF_MS,
+      );
+
+      console.warn(
+        `[embeddings] ${label} attempt ${attemptIndex}/${attempts} failed, retrying in ${backoffMs}ms:`,
+        wrapped.message,
+      );
+
+      await sleep(backoffMs);
+    }
+  }
+}
+
 /**
  * Generates an embedding for a single text. Returns `null` when the provider
  * is unavailable or fails; callers must treat that as a lexical-fallback
@@ -76,6 +155,7 @@ function getEmbeddingModel(): EmbeddingModelV3 | null {
  */
 export async function generateEmbedding(
   text: string,
+  options: EmbeddingOptions = {},
 ): Promise<number[] | null> {
   const normalized = normalizeInput(text);
 
@@ -100,11 +180,16 @@ export async function generateEmbedding(
   }
 
   try {
-    const { embedding } = await embed({
-      model,
-      value: normalized,
-      providerOptions: EMBEDDING_PROVIDER_OPTIONS,
-    });
+    const { embedding } = await withEmbeddingRetry(
+      "embed",
+      options.maxAttempts ?? EMBEDDING_MAX_ATTEMPTS_WRITE,
+      () =>
+        embed({
+          model,
+          value: normalized,
+          providerOptions: EMBEDDING_PROVIDER_OPTIONS,
+        }),
+    );
 
     if (!Array.isArray(embedding) || embedding.length !== EMBEDDING_DIMENSIONS) {
       console.warn(
@@ -139,6 +224,7 @@ export async function generateEmbedding(
  */
 export async function generateEmbeddings(
   texts: string[],
+  options: EmbeddingOptions = {},
 ): Promise<Array<number[] | null>> {
   if (texts.length === 0) {
     return [];
@@ -183,7 +269,10 @@ export async function generateEmbeddings(
 
   let generated: Array<number[] | null> = [];
   if (missingTexts.length > 0) {
-    generated = await generateEmbeddingBatch(missingTexts);
+    generated = await generateEmbeddingBatch(
+      missingTexts,
+      options.maxAttempts ?? EMBEDDING_MAX_ATTEMPTS_WRITE,
+    );
   }
 
   const results: Array<number[] | null> = [];
@@ -203,6 +292,7 @@ export async function generateEmbeddings(
 
 async function generateEmbeddingBatch(
   texts: string[],
+  maxAttempts: number,
 ): Promise<Array<number[] | null>> {
   const model = getEmbeddingModel();
 
@@ -218,12 +308,17 @@ async function generateEmbeddingBatch(
     const slice = texts.slice(offset, offset + BATCH_SIZE);
 
     try {
-      const { embeddings } = await embedMany({
-        model,
-        values: slice,
-        maxParallelCalls: 5,
-        providerOptions: EMBEDDING_PROVIDER_OPTIONS,
-      });
+      const { embeddings } = await withEmbeddingRetry(
+        "embedMany",
+        maxAttempts,
+        () =>
+          embedMany({
+            model,
+            values: slice,
+            maxParallelCalls: 5,
+            providerOptions: EMBEDDING_PROVIDER_OPTIONS,
+          }),
+      );
 
       for (let index = 0; index < slice.length; index++) {
         const embedding = embeddings[index];
@@ -249,10 +344,27 @@ async function generateEmbeddingBatch(
         results.push(embedding);
       }
     } catch (error) {
+      const wrapped =
+        error instanceof AiProviderError
+          ? error
+          : wrapProviderError("gemini", error);
+
+      // A whole slice landing here means those rows persist as `null` and stay
+      // lexical-only until the backfill job repairs them, so make it visible
+      // rather than only emitting a generic warning.
       console.warn(
-        "[embeddings] Batch embedding failed, marking entries null:",
-        error instanceof Error ? error.message : error,
+        JSON.stringify({
+          type: "embedding_batch_failed",
+          provider: wrapped.provider,
+          statusCode: wrapped.statusCode,
+          retryable: wrapped.retryable,
+          attempts: maxAttempts,
+          chunkCount: slice.length,
+          retryAfterMs: wrapped.retryAfterMs,
+          reason: wrapped.message,
+        }),
       );
+
       results.push(...slice.map(() => null));
     }
   }

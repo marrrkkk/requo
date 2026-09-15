@@ -115,6 +115,7 @@ import {
 } from "@/features/inquiries/plan-rules";
 import { LockedAction } from "@/features/paywall";
 import { cn } from "@/lib/utils";
+import { prefixedId } from "@/lib/ids";
 
 const MAX_CUSTOM_FIELD_OPTIONS = 12;
 const inquiryProjectFieldsDndContextId = "business-inquiry-project-fields-dnd";
@@ -422,8 +423,6 @@ export function BusinessInquiryFormForm({
       setPendingProjectFieldFocusId(null);
     });
   }, [pendingProjectFieldFocusId, projectFields]);
-
-
 
   function updateProjectField(
     fieldId: string,
@@ -1079,8 +1078,6 @@ function ContactFieldCard({
     </Field>
   );
 }
-
-
 
 function ProjectFieldCard({
   cardRef,
@@ -1892,8 +1889,6 @@ function scheduleProjectFieldTimeout(
   timeoutRef.current = [...timeoutRef.current, timeoutId];
 }
 
-
-
 function getFieldTypeLabel(field: InquiryFormFieldDefinition) {
   return field.kind === "system"
     ? getSystemFieldInputKindLabel(field)
@@ -1939,7 +1934,7 @@ function createCustomFieldDraft(
 
   return {
     kind: "custom",
-    id: `custom_${crypto.randomUUID().replace(/-/g, "")}`,
+    id: prefixedId("custom"),
     fieldType,
     label: overrides.label ?? "",
     placeholder: overrides.placeholder ?? "",
@@ -1952,7 +1947,7 @@ function createCustomFieldDraft(
 }
 
 function createFieldOptionDraft(): InquiryFieldOption {
-  const id = `option_${crypto.randomUUID().replace(/-/g, "")}`;
+  const id = prefixedId("option");
 
   return {
     id,

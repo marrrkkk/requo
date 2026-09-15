@@ -10,13 +10,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { aiAgentRuns } from "@/lib/db/schema";
 import type { AgentRun, RunStatus, RunMetadata } from "@/features/ai-agent/types";
-
-/**
- * Generate a prefixed ID.
- */
-function createId(prefix: string): string {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
+import { prefixedId as createId } from "@/lib/ids";
 
 /**
  * Start a new agent run.

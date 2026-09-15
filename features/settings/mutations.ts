@@ -45,6 +45,7 @@ import { appendRandomSlugSuffix } from "@/lib/slugs";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
+import { prefixedId as createId } from "@/lib/ids";
 
 type UpdateBusinessGeneralSettingsInput = {
   businessId: string;
@@ -158,10 +159,6 @@ type BusinessInquiryFormMutationResult =
         | "has-inquiries"
         | "live-form-limit";
     };
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 /**
  * Returns the number of live (non-archived, public-enabled) inquiry forms,

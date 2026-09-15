@@ -2,6 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db/client";
 import { writeAuditLog } from "@/features/audit/mutations";
+import { prefixedId as createId } from "@/lib/ids";
 import {
   resolveSafeContentType,
   sanitizeStorageFileName,
@@ -70,10 +71,6 @@ type PreparedAttachment = {
   fileSize: number;
   storagePath: string;
 };
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 function normalizeLegacyArchivedInquiryStatus(status: InquiryStatus) {
   return status === "archived" ? "waiting" : status;
@@ -899,7 +896,6 @@ export async function unarchiveInquiryForBusiness({
   });
 }
 
-
 export async function deleteInquiryForBusiness({
   businessId,
   inquiryId,
@@ -974,7 +970,6 @@ export async function deleteInquiryForBusiness({
     };
   });
 }
-
 
 // --- Bulk Mutations ---
 

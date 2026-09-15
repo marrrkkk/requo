@@ -12,6 +12,7 @@ import { cacheLife, cacheTag } from "next/cache";
 
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema/businesses";
+import { prefixedId as generateId } from "@/lib/ids";
 import {
   billingShellCacheLife,
   getBusinessBillingCacheTags,
@@ -152,10 +153,6 @@ export async function getAccountSubscription(
 }
 
 /* ── Write ─────────────────────────────────────────────────────────────────── */
-
-function generateId(prefix: string): string {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 type ActivateSubscriptionParams = {
   businessId: string;

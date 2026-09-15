@@ -9,6 +9,7 @@ import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
 import { createInquiryFormConfigDefaults } from "@/features/inquiries/form-config";
 import { createInquiryPageConfigDefaults } from "@/features/inquiries/page-config";
 import { db } from "@/lib/db/client";
+import { prefixedId as createId } from "@/lib/ids";
 import {
   activityLogs,
   profiles,
@@ -27,10 +28,6 @@ type BootstrapUser = {
 type DatabaseClient =
   | typeof db
   | Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 async function getAvailableSlug(
   client: DatabaseClient,

@@ -2,6 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db/client";
 import { inquiryDuplicates } from "@/lib/db/schema";
+import { prefixedId as createId } from "@/lib/ids";
 
 import {
   findEmailRecencyDuplicate,
@@ -13,10 +14,6 @@ import type {
   InquiryQualificationInput,
   QualificationOutput,
 } from "./types";
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 /**
  * Runs duplicate detection for an inquiry.

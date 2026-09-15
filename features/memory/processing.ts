@@ -1,20 +1,20 @@
 import "server-only";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { chunkKnowledgeText } from "@/features/memory/chunking";
 import { extractKnowledgeText } from "@/features/memory/extraction";
+import { invalidateKnowledgeCache } from "@/features/memory/knowledge-cache";
 import { KNOWLEDGE_FILE_MAX_BYTES } from "@/features/memory/types";
 import { generateEmbeddings } from "@/lib/ai/embeddings";
 import { sanitizeMemoryContent } from "@/lib/ai/input-sanitizer";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { db } from "@/lib/db/client";
+import { prefixedId as createId } from "@/lib/ids";
 import {
   businessKnowledgeChunks,
   businessKnowledgeFiles,
 } from "@/lib/db/schema";
-import { revalidateTag } from "next/cache";
-import { getBusinessMemoryCacheTags } from "@/lib/cache/business-tags";
 
 export const KNOWLEDGE_FILES_BUCKET = "knowledge-files";
 
@@ -26,16 +26,6 @@ export const knowledgeFileFailureReasons = {
   unsafe: "The file content could not be processed.",
   unsupported: "This file type is not supported. Use PDF, CSV, TXT, or Markdown.",
 } as const;
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
-
-function invalidateKnowledgeCache(businessId: string) {
-  for (const tag of getBusinessMemoryCacheTags(businessId)) {
-    revalidateTag(tag, "max");
-  }
-}
 
 async function downloadKnowledgeFile(storagePath: string): Promise<Buffer> {
   const supabase = createSupabaseAdminClient();

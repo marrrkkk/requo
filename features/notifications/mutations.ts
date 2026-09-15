@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 
 import type { BusinessNotificationType } from "@/features/notifications/types";
 import { db } from "@/lib/db/client";
+import { prefixedId as createId } from "@/lib/ids";
 import {
   businessNotificationReads,
   businessNotificationStates,
@@ -23,10 +24,6 @@ type InsertBusinessNotificationInput = {
   metadata?: Record<string, unknown>;
   now?: Date;
 };
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 export async function insertBusinessNotification(
   tx: DbTransaction,
@@ -112,7 +109,6 @@ export async function markBusinessNotificationsReadForUser({
 
   return throughCreatedAt;
 }
-
 
 /**
  * Record that a single notification was read by a user, without advancing the

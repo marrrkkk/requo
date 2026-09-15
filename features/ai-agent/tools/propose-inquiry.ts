@@ -16,6 +16,7 @@ import { z } from "zod";
 import { createInquiryParamsSchema } from "@/features/ai-agent/schemas";
 import type { AgentToolContext } from "@/features/ai-agent/tools/types";
 import type { ProposedInquiry } from "@/features/ai-agent/types";
+import { prefixedId } from "@/lib/ids";
 import {
   stageProposedInquiry,
   updateSessionState,
@@ -23,10 +24,6 @@ import {
 } from "@/features/ai-agent/session-service";
 
 type ProposeInquiryInput = z.infer<typeof createInquiryParamsSchema>;
-
-function createProposalId(): string {
-  return `prop_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 export const proposeInquiryTool = tool<
   ProposeInquiryInput,
@@ -41,7 +38,7 @@ export const proposeInquiryTool = tool<
     const { sessionId, state } = context;
 
     const proposal: ProposedInquiry = {
-      id: createProposalId(),
+      id: prefixedId("prop"),
       values: {
         customerName: params.customerName,
         customerEmail: params.customerEmail ?? null,

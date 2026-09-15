@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 
 import type { AccountProfileInput } from "@/features/account/schemas";
 import { splitFullName } from "@/features/account/name";
+import { prefixedId as createId } from "@/lib/ids";
 import {
   profileAvatarBucket,
   profileAvatarExtensionToMimeType,
@@ -20,10 +21,6 @@ type UpdateAccountProfileInput = {
   };
   values: AccountProfileInput;
 };
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 function chunkPaths(paths: string[], size = 100) {
   const chunks: string[][] = [];
