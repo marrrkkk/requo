@@ -7,6 +7,19 @@ vi.mock("@/lib/db/client", async () => {
   return { db: mockedDb };
 });
 
+// The route is invoked directly, so there is no Next request scope for the
+// rate limiter's `headers()` call to read. Mirror the visitor headers that
+// `analyticsRequest` sends; the limiter fingerprints on IP + user-agent.
+vi.mock("next/headers", () => ({
+  headers: vi.fn(
+    async () =>
+      new Headers({
+        "x-forwarded-for": "203.0.113.10",
+        "user-agent": "workflow-test-browser",
+      }),
+  ),
+}));
+
 import { POST } from "@/app/api/public/analytics/route";
 import { analyticsEvents, quotes } from "@/lib/db/schema";
 

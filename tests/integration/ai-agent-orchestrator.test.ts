@@ -24,6 +24,15 @@ const orchestratorEnv = vi.hoisted(() => ({
 // Getters, not captured values: model selection reads these per call, and
 // tests toggle providers off to assert the unavailable path.
 vi.mock("@/lib/env", () => ({
+  // The registry is stubbed, so provider keys are never read; `env` only needs
+  // to exist so `env.*` property access does not throw. Redis stays
+  // unconfigured so the cache layer falls back to memory.
+  env: {
+    NODE_ENV: "test",
+    AI_CANARY_SECRET: undefined,
+    UPSTASH_REDIS_REST_URL: undefined,
+    UPSTASH_REDIS_REST_TOKEN: undefined,
+  },
   get isGroqConfigured() {
     return orchestratorEnv.groq;
   },
