@@ -3,6 +3,10 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth/session";
 import { getBusinessActionContext } from "@/lib/db/business-access";
 import { assertBusinessActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
+import {
+  ChatAttachmentError,
+  decodeChatFilePart,
+} from "@/lib/ai/chat-attachments";
 import { runOwnerAssistant } from "@/features/owner-assistant/orchestrator";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 
@@ -18,11 +22,21 @@ const uiMessageSchema = z.object({
   parts: z.array(uiTextPartSchema).optional(),
 });
 
+// Ephemeral chat attachments ride along as data URLs in the JSON body (never
+// as chat message parts, so history never re-sends bytes). The orchestrator
+// parses them to text for this turn only and discards the bytes.
+const chatAttachmentSchema = z.object({
+  filename: z.string().trim().min(1).max(160),
+  mediaType: z.string().trim().max(160).default(""),
+  dataUrl: z.string().min(1).max(4_000_000),
+});
+
 const ownerAssistantChatRequestSchema = z.object({
   businessSlug: z.string().min(1),
   sessionId: z.string().optional(),
   // AI SDK UI messages (sent by useChat) — the latest user turn is the input.
   messages: z.array(uiMessageSchema).min(1),
+  attachments: z.array(chatAttachmentSchema).max(2).optional(),
   id: z.string().optional(),
   trigger: z.string().optional(),
   messageId: z.string().optional(),
@@ -72,7 +86,40 @@ export async function POST(request: Request) {
       );
     }
 
-    const { businessSlug, sessionId, messages } = parsed.data;
+    const { businessSlug, sessionId, messages, attachments } = parsed.data;
+
+    // Decode attachment data URLs to bytes (cheap). Validation, extraction,
+    // and the daily plan limit are enforced in the orchestrator before any
+    // model call, so a rejected file costs no tokens.
+    let rawAttachments: Array<{
+      fileName: string;
+      mimeType: string;
+      bytes: Buffer;
+    }> = [];
+    if (attachments && attachments.length > 0) {
+      try {
+        rawAttachments = attachments.map((attachment) =>
+          decodeChatFilePart({
+            mediaType: attachment.mediaType,
+            filename: attachment.filename,
+            url: attachment.dataUrl,
+          }),
+        );
+      } catch (error) {
+        if (error instanceof ChatAttachmentError) {
+          return NextResponse.json(
+            {
+              error:
+                error.code === "image"
+                  ? "Images aren't supported in chat yet. Paste the key details as text instead."
+                  : error.message,
+            },
+            { status: 400 },
+          );
+        }
+        throw error;
+      }
+    }
 
     // Validate business access (authoritative source of truth for identity)
     const result = await getBusinessActionContext({ businessSlug });
@@ -120,6 +167,7 @@ export async function POST(request: Request) {
         role: message.role as "user" | "assistant",
         content: extractText(message),
       })),
+      attachments: rawAttachments,
     });
 
     // Return streaming response with the canonical session id
@@ -168,6 +216,35 @@ export async function POST(request: Request) {
         return NextResponse.json(
           { error: message || "That message can't be processed." },
           { status: 400 },
+        );
+      }
+
+      if (error.message.startsWith("ATTACHMENT_REJECTED:")) {
+        const message = error.message
+          .slice("ATTACHMENT_REJECTED:".length)
+          .trim();
+        return NextResponse.json(
+          {
+            error:
+              message === "IMAGE_NOT_SUPPORTED"
+                ? "Images aren't supported in chat yet. Paste the key details as text instead."
+                : message || "That file can't be attached.",
+          },
+          { status: 400 },
+        );
+      }
+
+      if (error.message.startsWith("UPLOAD_LIMIT_EXCEEDED:")) {
+        const message = error.message
+          .slice("UPLOAD_LIMIT_EXCEEDED:".length)
+          .trim();
+        return NextResponse.json(
+          {
+            error:
+              message || "You've reached your daily file-upload limit.",
+            upgradeRequired: true,
+          },
+          { status: 429 },
         );
       }
 

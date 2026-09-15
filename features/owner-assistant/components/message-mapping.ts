@@ -2,6 +2,8 @@
 
 import type { UIMessage } from "ai";
 
+import { collapseAttachmentBlocksForDisplay } from "@/components/shared/chat/attachment-text";
+
 export type AssistantHistoryRow = {
   id: string;
   role: string;
@@ -50,10 +52,16 @@ export function historyToUIMessages(rows: AssistantHistoryRow[]): UIMessage[] {
         ],
       } as unknown as UIMessage);
     } else if (row.role === "user" || row.role === "assistant") {
+      // Persisted user turns may carry `[Attached file: …]` blocks — collapse
+      // them to a one-line summary so a reload never paints raw file text.
+      const display =
+        row.role === "user"
+          ? collapseAttachmentBlocksForDisplay(row.content)
+          : row.content;
       messages.push({
         id: row.id,
         role: row.role,
-        parts: [{ type: "text", text: row.content }],
+        parts: [{ type: "text", text: display }],
       } as UIMessage);
     }
   }

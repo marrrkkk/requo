@@ -15,6 +15,15 @@ import { MessageSquarePlus, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MobileHeaderSlot, mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { ChatComposer } from "@/components/shared/chat/chat-composer";
+import {
+  AttachmentChips,
+  AttachmentPickerButton,
+} from "@/components/shared/chat/chat-attachment-picker";
+import {
+  CHAT_ATTACHMENT_HELP_TEXT,
+  collapseAttachmentBlocksForDisplay,
+  readFilesAsDataAttachments,
+} from "@/components/shared/chat/attachment-text";
 import { ChatJumpToLatest } from "@/components/shared/chat/chat-jump-to-latest";
 import { ChatMarkdown } from "@/components/shared/chat/chat-markdown";
 import { ChatStatusLine } from "@/components/shared/chat/chat-status-line";
@@ -149,11 +158,13 @@ function toTurnBlocks(messages: UIMessage[]): TurnBlock[] {
     const parts = message.parts ?? [];
 
     if (message.role === "user") {
-      const text = parts
-        .filter((part) => part.type === "text")
-        .map((part) => (part.type === "text" ? part.text : ""))
-        .join("")
-        .trim();
+      const text = collapseAttachmentBlocksForDisplay(
+        parts
+          .filter((part) => part.type === "text")
+          .map((part) => (part.type === "text" ? part.text : ""))
+          .join("")
+          .trim(),
+      );
       if (text) blocks.push({ kind: "user", id: message.id, text });
       continue;
     }
@@ -246,6 +257,10 @@ export function OwnerAssistantChat({
   autoPrompt,
 }: OwnerAssistantChatProps) {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  // Selected files live in local state (File objects can't survive the
+  // module-level conversation store) and ride the next send only.
+  const [files, setFiles] = useState<File[]>([]);
+  const [attachError, setAttachError] = useState<string | null>(null);
   const assistantPath = getBusinessAssistantPath(businessSlug);
 
   /**
@@ -369,13 +384,32 @@ export function OwnerAssistantChat({
   const handleSend = useCallback(
     (text: string) => {
       if (isLoading) return;
+      const attached = files;
       setInput("");
+      setFiles([]);
+      setAttachError(null);
       setLimitMessage(null);
-      void sendMessage({ text }, { body: requestBody() });
+      if (attached.length === 0) {
+        void sendMessage({ text }, { body: requestBody() });
+      } else {
+        // Files travel as data URLs in the JSON body (never as message
+        // parts), so history never re-sends bytes. The server parses them
+        // for this turn only.
+        void (async () => {
+          try {
+            const attachments = await readFilesAsDataAttachments(attached);
+            void sendMessage({ text }, { body: { ...requestBody(), attachments } });
+          } catch {
+            setAttachError("Couldn't read those files. Try again.");
+            setInput(text);
+          }
+        })();
+      }
       // Deliberate, smooth — acknowledges the reader's own send.
       scrollToLatestSmooth();
     },
     [
+      files,
       isLoading,
       requestBody,
       scrollToLatestSmooth,
@@ -383,6 +417,31 @@ export function OwnerAssistantChat({
       setInput,
       setLimitMessage,
     ],
+  );
+
+  const composerActions = (
+    <AttachmentPickerButton
+      disabled={isLoading}
+      maxFiles={2}
+      onError={setAttachError}
+      onPick={(picked) => setFiles((current) => [...current, ...picked])}
+      selectedCount={files.length}
+    />
+  );
+  const composerChips = (
+    <>
+      <AttachmentChips
+        files={files}
+        onRemove={(index) =>
+          setFiles((current) => current.filter((_, i) => i !== index))
+        }
+      />
+      {attachError ? (
+        <p className="px-4 pt-1.5 text-xs text-destructive" role="alert">
+          {attachError}
+        </p>
+      ) : null}
+    </>
   );
 
   // Start over without a navigation: a fresh conversation, whose session the
@@ -509,10 +568,13 @@ export function OwnerAssistantChat({
                   How can I help with your business?
                 </p>
                 <div className="w-full">
+                  {composerChips}
                   <ChatComposer
+                    actions={composerActions}
                     ariaLabel="Message the assistant"
                     autoFocus
                     busy={isLoading}
+                    hint={`Attach a ${CHAT_ATTACHMENT_HELP_TEXT} file for context`}
                     maxLength={2000}
                     onStop={stop}
                     onSubmit={handleSend}
@@ -579,7 +641,9 @@ export function OwnerAssistantChat({
           <div className="chat-composer-footer z-10 px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] md:px-6">
             {detached ? <ChatJumpToLatest onJump={jumpToLatest} /> : null}
             <div className="mx-auto w-full max-w-3xl">
+              {composerChips}
               <ChatComposer
+                actions={composerActions}
                 ariaLabel="Message the assistant"
                 busy={isLoading}
                 maxLength={2000}
