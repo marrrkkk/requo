@@ -9,6 +9,10 @@ The deployed product is aimed at owner-led service businesses that need to captu
 inquiries, turn them into quotes, share or send quotes, follow up, and track quote
 views plus customer responses from one place.
 
+Only the `main` branch deploys. Preview deployments are disabled in
+`vercel.json` (`git.deploymentEnabled`: `main: true`, `"**": false`), so
+pushes to any other branch or PRs build nothing on Vercel.
+
 ## Environment Variables
 
 ### Core runtime
