@@ -18,9 +18,7 @@ type UpdateAccountProfileInput = {
     id: string;
     email: string;
   };
-  values: Omit<AccountProfileInput, "phone"> & {
-    phone: string | null;
-  };
+  values: AccountProfileInput;
 };
 
 function createId(prefix: string) {
@@ -121,6 +119,9 @@ export async function updateAccountProfile({
 
   const split = splitFullName(values.fullName);
 
+  // `jobTitle` and `phone` are onboarding/deferred profile fields with no
+  // input on the profile settings page — they are intentionally not written
+  // here so saving a name never clobbers them.
   try {
     await db
       .update(profiles)
@@ -128,8 +129,6 @@ export async function updateAccountProfile({
         fullName: values.fullName,
         firstName: split.firstName || null,
         lastName: split.lastName || null,
-        jobTitle: values.jobTitle,
-        phone: values.phone,
         avatarStoragePath: values.removeAvatar
           ? nextAvatarStoragePath
           : nextAvatarStoragePath ?? previousAvatarStoragePath ?? null,

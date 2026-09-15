@@ -67,8 +67,6 @@ export type AccountProfileActionState = {
   success?: string;
   fieldErrors?: {
     fullName?: string[] | undefined;
-    jobTitle?: string[] | undefined;
-    phone?: string[] | undefined;
     avatar?: string[] | undefined;
   };
 };

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { eq } from "drizzle-orm";
-import { cacheLife, cacheTag } from "next/cache";
+import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 import { cache } from "react";
 
 import type { ThemePreference } from "@/features/theme/types";
@@ -58,6 +58,19 @@ export const getThemePreferenceForUser = cache(
     return getCachedThemePreference(userId);
   },
 );
+
+/**
+ * `getThemePreferenceForUser` is a `"use cache"` read tagged with the user's
+ * theme tags and a 120s stale window (`userShellCacheLife`), and
+ * `updateThemePreferenceAction` writes `profiles.theme_preference` on a
+ * separate path — so it has to expire these tags or the shell keeps rendering
+ * the previous theme. Mirrors `revalidateUiScalePreferenceForUser`.
+ */
+export function revalidateThemePreferenceForUser(userId: string) {
+  for (const tag of getUserThemeCacheTags(userId)) {
+    revalidateTag(tag, "max");
+  }
+}
 
 function isMissingThemePreferenceColumnError(error: unknown) {
   return (
