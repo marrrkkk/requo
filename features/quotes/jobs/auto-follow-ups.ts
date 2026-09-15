@@ -8,13 +8,25 @@ import { activityLogs, businesses, quotes } from "@/lib/db/schema";
 import { env, isQuoteAutoFollowUpEmailEnabled } from "@/lib/env";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import type { BusinessPlan } from "@/lib/plans/plans";
+import {
+  getDailyAutoFollowUpSendCount,
+  getMonthlyAutoFollowUpSendCount,
+} from "@/lib/plans/usage";
+import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { sendQuoteAutoFollowUpEmail } from "@/lib/resend/client";
 import { prefixedId } from "@/lib/ids";
 
 export type AutoFollowUpsSummary = {
   processed: number;
   sent: number;
+  skipped: number;
   errors: number;
+};
+
+/** Remaining sending budget for one business in the current day/month. */
+type AutoFollowUpBudget = {
+  dailyRemaining: number;
+  monthlyRemaining: number;
 };
 
 export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary> {
@@ -22,13 +34,52 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
   // configuration instead of deleting the feature. Per-quote
   // autoFollowUpEnabled still controls non-low-email deployments.
   if (!isQuoteAutoFollowUpEmailEnabled) {
-    return { processed: 0, sent: 0, errors: 0 };
+    return { processed: 0, sent: 0, skipped: 0, errors: 0 };
   }
 
   const now = new Date();
   let sent = 0;
   let processed = 0;
+  let skipped = 0;
   let errors = 0;
+
+  // Load each business's remaining budget once per run, then decrement as we
+  // send so a single batch can never overshoot the plan allowance.
+  const budgetByBusiness = new Map<string, AutoFollowUpBudget>();
+
+  async function getRemainingBudget(
+    businessId: string,
+    plan: BusinessPlan,
+  ): Promise<AutoFollowUpBudget> {
+    const cached = budgetByBusiness.get(businessId);
+
+    if (cached) {
+      return cached;
+    }
+
+    const dailyLimit = getUsageLimit(plan, "autoFollowUpEmailsPerDay");
+    const monthlyLimit = getUsageLimit(plan, "autoFollowUpEmailsPerMonth");
+
+    const [dailyUsed, monthlyUsed] = await Promise.all([
+      getDailyAutoFollowUpSendCount(businessId),
+      getMonthlyAutoFollowUpSendCount(businessId),
+    ]);
+
+    const budget: AutoFollowUpBudget = {
+      dailyRemaining:
+        dailyLimit === null
+          ? Number.POSITIVE_INFINITY
+          : Math.max(0, dailyLimit - dailyUsed),
+      monthlyRemaining:
+        monthlyLimit === null
+          ? Number.POSITIVE_INFINITY
+          : Math.max(0, monthlyLimit - monthlyUsed),
+    };
+
+    budgetByBusiness.set(businessId, budget);
+
+    return budget;
+  }
 
   const eligibleQuotes = await db
     .select({
@@ -84,6 +135,25 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
       continue;
     }
 
+    const plan = row.businessPlan as BusinessPlan;
+
+    // A business that downgraded keeps `autoFollowUpEnabled` on the row but
+    // must stop sending. Re-check the entitlement at send time, not just at
+    // enable time, so a downgrade pauses the sequence instead of leaking sends.
+    if (!hasFeatureAccess(plan, "autoFollowUps")) {
+      skipped++;
+      continue;
+    }
+
+    const budget = await getRemainingBudget(row.businessId, plan);
+
+    if (budget.dailyRemaining <= 0 || budget.monthlyRemaining <= 0) {
+      // Budget exhausted: leave the sequence pending and do NOT advance
+      // attempts, so it resumes when the day/month window resets.
+      skipped++;
+      continue;
+    }
+
     const attemptNumber = row.autoFollowUpAttempts + 1;
 
     try {
@@ -102,10 +172,7 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
         publicQuoteUrl,
         attemptNumber,
         emailSignature: row.defaultEmailSignature,
-        templateOverrides: hasFeatureAccess(
-          row.businessPlan as BusinessPlan,
-          "emailTemplates",
-        )
+        templateOverrides: hasFeatureAccess(plan, "emailTemplates")
           ? (row.quoteFollowUpTemplate as Parameters<
               typeof sendQuoteAutoFollowUpEmail
             >[0]["templateOverrides"])
@@ -138,6 +205,8 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
         updatedAt: now,
       });
 
+      budget.dailyRemaining -= 1;
+      budget.monthlyRemaining -= 1;
       sent++;
     } catch (error) {
       console.error(
@@ -150,5 +219,5 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
     processed++;
   }
 
-  return { processed, sent, errors };
+  return { processed, sent, skipped, errors };
 }

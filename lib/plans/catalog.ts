@@ -170,6 +170,12 @@ export const pricingComparison: PricingComparisonCategory[] = [
       },
       { label: "Automatic follow-ups", free: false, pro: true, business: true },
       {
+        label: "Automatic follow-up emails per month",
+        free: limitCell("free", "autoFollowUpEmailsPerMonth"),
+        pro: limitCell("pro", "autoFollowUpEmailsPerMonth"),
+        business: limitCell("business", "autoFollowUpEmailsPerMonth"),
+      },
+      {
         label: "Product library entries",
         free: limitCell("free", "productEntriesPerBusiness"),
         pro: limitCell("pro", "productEntriesPerBusiness"),

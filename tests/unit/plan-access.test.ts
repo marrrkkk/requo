@@ -14,6 +14,10 @@ describe("business plan access", () => {
     expect(getUsageLimit("free", "aiWeightedCreditsPerMonth")).toBe(30);
     expect(getUsageLimit("free", "requoQuoteEmailsPerDay")).toBe(3);
     expect(getUsageLimit("free", "requoQuoteEmailsPerMonth")).toBe(15);
+    // Automatic follow-ups are a Pro+ feature, so Free gets a zero budget.
+    expect(getUsageLimit("free", "autoFollowUpEmailsPerDay")).toBe(0);
+    expect(getUsageLimit("free", "autoFollowUpEmailsPerMonth")).toBe(0);
+    expect(getUsageLimit("free", "activeAutoFollowUpsPerBusiness")).toBe(0);
     expect(getUsageLimit("free", "customFieldsPerForm")).toBe(3);
     expect(getUsageLimit("free", "productEntriesPerBusiness")).toBe(10);
     expect(getUsageLimit("free", "knowledgeSourcesPerBusiness")).toBe(5);
@@ -41,6 +45,9 @@ describe("business plan access", () => {
     expect(isUsageLimited("pro", "aiWeightedCreditsPerMonth")).toBe(true);
     expect(isUsageLimited("pro", "requoQuoteEmailsPerDay")).toBe(true);
     expect(getUsageLimit("pro", "requoQuoteEmailsPerDay")).toBe(20);
+    expect(getUsageLimit("pro", "autoFollowUpEmailsPerDay")).toBe(5);
+    expect(getUsageLimit("pro", "autoFollowUpEmailsPerMonth")).toBe(30);
+    expect(getUsageLimit("pro", "activeAutoFollowUpsPerBusiness")).toBe(10);
     expect(getUsageLimit("pro", "aiWeightedCreditsPerMonth")).toBe(150);
     expect(getUsageLimit("pro", "liveFormsPerBusiness")).toBe(5);
     expect(getUsageLimit("pro", "productEntriesPerBusiness")).toBe(50);
@@ -77,6 +84,9 @@ describe("business plan access", () => {
     expect(getUsageLimit("business", "liveFormsPerBusiness")).toBe(10);
     expect(getUsageLimit("business", "aiWeightedCreditsPerMonth")).toBe(500);
     expect(getUsageLimit("business", "requoQuoteEmailsPerMonth")).toBe(500);
+    expect(getUsageLimit("business", "autoFollowUpEmailsPerDay")).toBe(15);
+    expect(getUsageLimit("business", "autoFollowUpEmailsPerMonth")).toBe(100);
+    expect(getUsageLimit("business", "activeAutoFollowUpsPerBusiness")).toBe(25);
     expect(getUsageLimit("business", "customFieldsPerForm")).toBe(24);
     expect(getUsageLimit("business", "publicInquiryAttachmentMaxBytes")).toBe(
       50 * 1024 * 1024,
@@ -92,5 +102,22 @@ describe("business plan access", () => {
     expect(hasFeatureAccess("business", "exports")).toBe(true);
     expect(getUsageLimit("free", "membersPerBusiness")).toBe(1);
     expect(getUsageLimit("pro", "membersPerBusiness")).toBe(1);
+  });
+
+  it("keeps automatic follow-ups on their own, smaller sending budget", () => {
+    // Auto follow-ups are counted separately from explicit Requo quote sends,
+    // so they never consume the owner's quote-email allowance.
+    for (const plan of ["pro", "business"] as const) {
+      const autoMonthly = getUsageLimit(plan, "autoFollowUpEmailsPerMonth");
+      const quoteMonthly = getUsageLimit(plan, "requoQuoteEmailsPerMonth");
+      const autoDaily = getUsageLimit(plan, "autoFollowUpEmailsPerDay");
+
+      expect(autoMonthly).not.toBeNull();
+      expect(quoteMonthly).not.toBeNull();
+      expect(autoMonthly!).toBeLessThan(quoteMonthly!);
+      // The daily burst guard is finite and tighter than the monthly budget.
+      expect(autoDaily!).toBeGreaterThan(0);
+      expect(autoDaily!).toBeLessThan(autoMonthly!);
+    }
   });
 });

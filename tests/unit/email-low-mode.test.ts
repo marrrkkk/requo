@@ -85,6 +85,7 @@ describe("quote auto-follow-ups in low-email mode", () => {
     await expect(processQuoteAutoFollowUps()).resolves.toEqual({
       processed: 0,
       sent: 0,
+      skipped: 0,
       errors: 0,
     });
     expect(sendQuoteAutoFollowUpEmail).not.toHaveBeenCalled();

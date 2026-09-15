@@ -139,6 +139,79 @@ export async function getMonthlyRequoQuoteSendCount(
 }
 
 /**
+ * Counts automatic follow-up emails sent in a window for a business.
+ *
+ * Auto follow-ups log `quote.auto_follow_up_sent` (distinct from the
+ * explicit `quote.sent` entries counted by the Requo-email budget), so they
+ * get their own allowance instead of consuming the owner's send quota.
+ */
+async function getAutoFollowUpSendCount(
+  businessId: string,
+  { start, end }: { start: Date; end: Date },
+): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(activityLogs)
+    .where(
+      and(
+        eq(activityLogs.businessId, businessId),
+        eq(activityLogs.type, "quote.auto_follow_up_sent"),
+        gte(activityLogs.createdAt, start),
+        lt(activityLogs.createdAt, end),
+      ),
+    );
+
+  return Number(row?.value ?? 0);
+}
+
+/**
+ * Counts auto follow-up emails sent in the current UTC day for a business.
+ */
+export async function getDailyAutoFollowUpSendCount(
+  businessId: string,
+): Promise<number> {
+  return getAutoFollowUpSendCount(businessId, getCurrentDayBounds());
+}
+
+/**
+ * Counts auto follow-up emails sent in the current UTC month for a business.
+ */
+export async function getMonthlyAutoFollowUpSendCount(
+  businessId: string,
+): Promise<number> {
+  return getAutoFollowUpSendCount(businessId, getCurrentMonthBounds());
+}
+
+/**
+ * Counts quotes with an in-flight auto follow-up sequence for a business.
+ *
+ * The predicate mirrors the partial index `quotes_auto_follow_up_pending_idx`
+ * so the count stays index-backed. A sequence is "active" while it is enabled,
+ * not stopped, sent, unviewed, unanswered, and still has attempts left.
+ */
+export async function getActiveAutoFollowUpCount(
+  businessId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(quotes)
+    .where(
+      and(
+        eq(quotes.businessId, businessId),
+        eq(quotes.autoFollowUpEnabled, true),
+        isNull(quotes.autoFollowUpStoppedAt),
+        eq(quotes.status, "sent"),
+        isNull(quotes.publicViewedAt),
+        isNull(quotes.customerRespondedAt),
+        isNull(quotes.deletedAt),
+        sql`${quotes.autoFollowUpAttempts} < ${quotes.autoFollowUpMaxAttempts}`,
+      ),
+    );
+
+  return Number(row?.value ?? 0);
+}
+
+/**
  * Counts the number of businesses owned by a user.
  */
 export async function getUserBusinessCount(
@@ -221,6 +294,15 @@ export async function checkUsageAllowance(
       break;
     case "requoQuoteEmailsPerMonth":
       current = await getMonthlyRequoQuoteSendCount(businessId);
+      break;
+    case "autoFollowUpEmailsPerDay":
+      current = await getDailyAutoFollowUpSendCount(businessId);
+      break;
+    case "autoFollowUpEmailsPerMonth":
+      current = await getMonthlyAutoFollowUpSendCount(businessId);
+      break;
+    case "activeAutoFollowUpsPerBusiness":
+      current = await getActiveAutoFollowUpCount(businessId);
       break;
     case "membersPerBusiness":
       current = await getBusinessMemberCount(businessId);
