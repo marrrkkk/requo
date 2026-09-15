@@ -3,6 +3,10 @@ import { z } from "zod";
 import { agentChatRequestSchema } from "@/features/ai-agent/schemas";
 import { runAgent } from "@/features/ai-agent/orchestrator";
 import {
+  ChatAttachmentError,
+  decodeChatFilePart,
+} from "@/lib/ai/chat-attachments";
+import {
   assertPublicActionRateLimit,
   getPublicActionClientIpAddress,
 } from "@/lib/public-action-rate-limit";
@@ -45,7 +49,40 @@ export async function POST(request: Request) {
       );
     }
 
-    const { sessionToken, proposedInquiryValues } = parsed.data;
+    const { sessionToken, proposedInquiryValues, attachments } = parsed.data;
+
+    // Decode attachment data URLs to bytes (cheap). Validation, extraction,
+    // and the daily plan limit are enforced in the orchestrator before any
+    // model call, so a rejected file costs no tokens.
+    let rawAttachments: Array<{
+      fileName: string;
+      mimeType: string;
+      bytes: Buffer;
+    }> = [];
+    if (attachments && attachments.length > 0) {
+      try {
+        rawAttachments = attachments.map((attachment) =>
+          decodeChatFilePart({
+            mediaType: attachment.mediaType,
+            filename: attachment.filename,
+            url: attachment.dataUrl,
+          }),
+        );
+      } catch (error) {
+        if (error instanceof ChatAttachmentError) {
+          return NextResponse.json(
+            {
+              error:
+                error.code === "image"
+                  ? "Photos can't be read in chat yet. Describe what you need in words, or use the inquiry form."
+                  : error.message,
+            },
+            { status: 400 },
+          );
+        }
+        throw error;
+      }
+    }
     const uiMessages = Array.isArray(
       (body as { messages?: unknown }).messages,
     )
@@ -94,6 +131,7 @@ export async function POST(request: Request) {
     // Run the agent (handles all business logic, tool execution, streaming)
     const response = await runAgent({
       sessionToken,
+      attachments: rawAttachments,
       userMessage: content,
       uiMessages: uiMessages?.map((message) => ({
         role: message.role,
@@ -133,6 +171,35 @@ export async function POST(request: Request) {
       if (error.message.startsWith("INPUT_REJECTED:")) {
         const message = error.message.slice("INPUT_REJECTED:".length).trim();
         return NextResponse.json({ error: message }, { status: 400 });
+      }
+
+      if (error.message.startsWith("ATTACHMENT_REJECTED:")) {
+        const message = error.message
+          .slice("ATTACHMENT_REJECTED:".length)
+          .trim();
+        return NextResponse.json(
+          {
+            error:
+              message === "IMAGE_NOT_SUPPORTED"
+                ? "Photos can't be read in chat yet. Describe what you need in words, or use the inquiry form."
+                : message || "That file can't be attached.",
+          },
+          { status: 400 },
+        );
+      }
+
+      if (error.message.startsWith("UPLOAD_LIMIT_EXCEEDED:")) {
+        const message = error.message
+          .slice("UPLOAD_LIMIT_EXCEEDED:".length)
+          .trim();
+        return NextResponse.json(
+          {
+            error:
+              message ||
+              "This business has reached its daily file-upload limit. Please describe what you need in words, or use the inquiry form.",
+          },
+          { status: 429 },
+        );
       }
 
       if (

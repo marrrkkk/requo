@@ -22,6 +22,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { BusinessAvatar } from "@/components/shared/business-avatar";
 import { ChatComposer } from "@/components/shared/chat/chat-composer";
+import {
+  AttachmentChips,
+  AttachmentPickerButton,
+} from "@/components/shared/chat/chat-attachment-picker";
+import {
+  collapseAttachmentBlocksForDisplay,
+  readFilesAsDataAttachments,
+} from "@/components/shared/chat/attachment-text";
 import { ChatJumpToLatest } from "@/components/shared/chat/chat-jump-to-latest";
 import { ChatMarkdown } from "@/components/shared/chat/chat-markdown";
 import { ChatStatusLine } from "@/components/shared/chat/chat-status-line";
@@ -95,11 +103,13 @@ function toTurns(messages: UIMessage[]): Turn[] {
 
   for (const message of messages) {
     if (message.role !== "user" && message.role !== "assistant") continue;
-    const text = (message.parts ?? [])
-      .filter((part) => part.type === "text")
-      .map((part) => (part.type === "text" ? part.text : ""))
-      .join("")
-      .trim();
+    const text = collapseAttachmentBlocksForDisplay(
+      (message.parts ?? [])
+        .filter((part) => part.type === "text")
+        .map((part) => (part.type === "text" ? part.text : ""))
+        .join("")
+        .trim(),
+    );
 
     const last = turns[turns.length - 1];
     if (message.role === "assistant" && last?.kind === "assistant") {
@@ -259,6 +269,9 @@ export function ChatInterface({
   const [input, setInput] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [minting, setMinting] = useState(false);
+  // Selected files ride the next send only — never stored, never re-sent.
+  const [files, setFiles] = useState<File[]>([]);
+  const [attachError, setAttachError] = useState<string | null>(null);
   const tokenRef = useRef<string | null>(null);
   const [stagedProposal, setStagedProposal] =
     useState<ProposedInquiry | null>(null);
@@ -328,6 +341,8 @@ export function ChatInterface({
     setCardValues(null);
     setProposalError(null);
     setNotice(null);
+    setFiles([]);
+    setAttachError(null);
     clearError();
     setInput("");
   }, [businessSlug, clearError, setMessages, stop]);
@@ -365,7 +380,15 @@ export function ChatInterface({
             rows.map((row) => ({
               id: row.id,
               role: row.role,
-              parts: [{ type: "text", text: row.content }],
+              parts: [
+                {
+                  type: "text",
+                  text:
+                    row.role === "user"
+                      ? collapseAttachmentBlocksForDisplay(row.content)
+                      : row.content,
+                },
+              ],
             })) as UIMessage[],
           );
         }
@@ -445,7 +468,10 @@ export function ChatInterface({
   const handleSend = useCallback(
     async (text: string) => {
       if (isLoading || minting) return;
+      const attached = files;
       setInput("");
+      setFiles([]);
+      setAttachError(null);
       setNotice(null);
       clearError();
 
@@ -485,27 +511,63 @@ export function ChatInterface({
 
       // The token is read here rather than captured in the transport, so the
       // one minted just above is attached to this very first send.
-      void sendMessage(
-        { text },
-        {
-          body: {
-            sessionToken: tokenRef.current,
-            ...(ridingValues ? { proposedInquiryValues: ridingValues } : {}),
-          },
-        },
-      );
+      const baseBody = {
+        sessionToken: tokenRef.current,
+        ...(ridingValues ? { proposedInquiryValues: ridingValues } : {}),
+      };
+      if (attached.length === 0) {
+        void sendMessage({ text }, { body: baseBody });
+      } else {
+        // Files travel as data URLs in the JSON body (never as message
+        // parts), so history never re-sends bytes. The server parses them
+        // for this turn only.
+        try {
+          const attachments = await readFilesAsDataAttachments(attached);
+          void sendMessage({ text }, { body: { ...baseBody, attachments } });
+        } catch {
+          setNotice("Couldn't read those files. Please try again.");
+          setInput(text);
+          return;
+        }
+      }
       scrollToLatestSmooth();
     },
     [
       businessSlug,
       cardValues,
       clearError,
+      files,
       isLoading,
       minting,
       scrollToLatestSmooth,
       sendMessage,
       stagedProposal,
     ],
+  );
+
+  const composerActions = (
+    <AttachmentPickerButton
+      disabled={isLoading || minting}
+      maxFiles={1}
+      onError={setAttachError}
+      onPick={(picked) => setFiles((current) => [...current, ...picked])}
+      selectedCount={files.length}
+    />
+  );
+  const composerChips = (
+    <>
+      <AttachmentChips
+        files={files}
+        onRemove={(index) =>
+          setFiles((current) => current.filter((_, i) => i !== index))
+        }
+      />
+      {attachError ? (
+        <p className="px-4 pt-1.5 text-xs text-destructive" role="alert">
+          {attachError}
+        </p>
+      ) : null}
+    </>
   );
 
   const handleApprove = useCallback(async () => {
@@ -644,7 +706,9 @@ export function ChatInterface({
                   </p>
                 ) : null}
                 <div className="w-full">
+                  {composerChips}
                   <ChatComposer
+                    actions={composerActions}
                     ariaLabel={`Message ${businessName}`}
                     autoFocus
                     busy={isLoading}
@@ -749,7 +813,9 @@ export function ChatInterface({
           <div className="chat-composer-footer z-10 px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
             {detached ? <ChatJumpToLatest onJump={jumpToLatest} /> : null}
             <div className="mx-auto w-full max-w-3xl">
+              {composerChips}
               <ChatComposer
+                actions={composerActions}
                 ariaLabel={`Message ${businessName}`}
                 busy={isLoading}
                 disabled={minting}

@@ -18,7 +18,9 @@ import type { BusinessPlan } from "@/lib/plans/plans";
 export const usageLimitKeys = [
   "aiWeightedCreditsPerMonth",
   "assistantMessagesPerDay",
+  "assistantFileUploadsPerDay",
   "agentSessionsPerMonth",
+  "agentFileUploadsPerDay",
   "requoQuoteEmailsPerDay",
   "requoQuoteEmailsPerMonth",
   "autoFollowUpEmailsPerDay",
@@ -41,7 +43,9 @@ const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
   free: {
     aiWeightedCreditsPerMonth: 30,
     assistantMessagesPerDay: 25,
+    assistantFileUploadsPerDay: 5,
     agentSessionsPerMonth: 0,
+    agentFileUploadsPerDay: 5,
     requoQuoteEmailsPerDay: 3,
     requoQuoteEmailsPerMonth: 15,
     // Automatic follow-ups are a Pro+ feature, so Free never sends them.
@@ -59,7 +63,9 @@ const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
   pro: {
     aiWeightedCreditsPerMonth: 150,
     assistantMessagesPerDay: 250,
+    assistantFileUploadsPerDay: 20,
     agentSessionsPerMonth: 100,
+    agentFileUploadsPerDay: 20,
     requoQuoteEmailsPerDay: 20,
     requoQuoteEmailsPerMonth: 200,
     autoFollowUpEmailsPerDay: 5,
@@ -76,7 +82,9 @@ const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
   business: {
     aiWeightedCreditsPerMonth: 500,
     assistantMessagesPerDay: 1000,
+    assistantFileUploadsPerDay: 50,
     agentSessionsPerMonth: 500,
+    agentFileUploadsPerDay: 50,
     requoQuoteEmailsPerDay: 50,
     requoQuoteEmailsPerMonth: 500,
     autoFollowUpEmailsPerDay: 15,
@@ -116,7 +124,9 @@ export function isUsageLimited(
 export const usageLimitLabels: Record<UsageLimitKey, string> = {
   aiWeightedCreditsPerMonth: "Weighted AI credits per month",
   assistantMessagesPerDay: "Assistant messages per day",
+  assistantFileUploadsPerDay: "Assistant file uploads per day",
   agentSessionsPerMonth: "Agent sessions per month",
+  agentFileUploadsPerDay: "Agent file uploads per day",
   requoQuoteEmailsPerDay: "Requo quote sends per day",
   requoQuoteEmailsPerMonth: "Requo quote sends per month",
   autoFollowUpEmailsPerDay: "Auto follow-up emails per day",

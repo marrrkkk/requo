@@ -29,7 +29,18 @@ import {
   computeUsageWeight,
   recordUsage,
 } from "@/lib/ai/usage-limiter";
-import { checkAssistantMessageLimit } from "@/lib/ai/conversation-limits";
+import {
+  checkAssistantFileUploadLimit,
+  checkAssistantMessageLimit,
+} from "@/lib/ai/conversation-limits";
+import {
+  ASSISTANT_ATTACHMENT_MAX_CHARS_PER_TURN,
+  ASSISTANT_ATTACHMENT_MAX_FILES_PER_TURN,
+  ATTACHMENT_METADATA_KEY,
+  ChatAttachmentError,
+  processChatAttachments,
+  type RawChatAttachment,
+} from "@/lib/ai/chat-attachments";
 import { sanitizeAiInput } from "@/lib/ai/input-sanitizer";
 import { getAiCanaryToken } from "@/lib/ai/canary";
 import { filterAiOutput } from "@/lib/ai/output-filter";
@@ -62,6 +73,8 @@ type RunOwnerAssistantParams = {
   businessInstructions?: string;
   sessionId?: string;
   messages: AssistantChatMessage[];
+  /** Decoded attachment bytes for this turn only — parsed to text, never stored. */
+  attachments?: RawChatAttachment[];
 };
 
 /**
@@ -123,6 +136,7 @@ export async function runOwnerAssistant({
   businessInstructions,
   sessionId,
   messages: clientMessages,
+  attachments = [],
 }: RunOwnerAssistantParams): Promise<{ response: Response; sessionId: string }> {
   // Hard usage quota check — block requests that exceed the plan's monthly allowance
   const quotaResult = await checkUsageLimit({
@@ -140,6 +154,18 @@ export async function runOwnerAssistant({
   const bucketResult = await checkAssistantMessageLimit({ businessId, plan });
   if (!bucketResult.allowed) {
     throw new Error(`ASSISTANT_LIMIT_EXCEEDED: ${bucketResult.message}`);
+  }
+
+  // Daily file-upload bucket — checked before parsing so a capped business
+  // pays for neither extraction nor tokens. Text-only turns skip it.
+  if (attachments.length > 0) {
+    const uploadResult = await checkAssistantFileUploadLimit({
+      businessId,
+      plan,
+    });
+    if (!uploadResult.allowed) {
+      throw new Error(`UPLOAD_LIMIT_EXCEEDED: ${uploadResult.message}`);
+    }
   }
 
   // Load or create session (server owns the identifier).
@@ -174,11 +200,38 @@ export async function runOwnerAssistant({
   }
   const safeUserText = sanitized.output || userText;
 
+  // Ephemeral attachments: parse to text for this turn only. Failures throw
+  // ATTACHMENT_REJECTED (mapped to a 400) before anything is persisted.
+  let attachmentBlock = "";
+  let attachmentCount = 0;
+  if (attachments.length > 0) {
+    try {
+      const processed = await processChatAttachments({
+        files: attachments,
+        maxFiles: ASSISTANT_ATTACHMENT_MAX_FILES_PER_TURN,
+        maxCharsPerTurn: ASSISTANT_ATTACHMENT_MAX_CHARS_PER_TURN,
+      });
+      attachmentBlock = processed.block;
+      attachmentCount = processed.fileCount;
+    } catch (error) {
+      if (error instanceof ChatAttachmentError) {
+        throw new Error(`ATTACHMENT_REJECTED: ${error.message}`);
+      }
+      throw error;
+    }
+  }
+  const fullUserText = attachmentBlock
+    ? `${safeUserText}\n\n${attachmentBlock}`
+    : safeUserText;
+
   // Persist the user turn BEFORE building the prompt…
   await addMessage({
     sessionId: session.sessionId,
     role: "user",
-    content: safeUserText,
+    content: fullUserText,
+    ...(attachmentCount > 0
+      ? { metadata: { [ATTACHMENT_METADATA_KEY]: attachmentCount } }
+      : {}),
   });
 
   // …and build the prompt from the conversation AFTER the persist, so the
@@ -212,7 +265,7 @@ export async function runOwnerAssistant({
       });
     }
   }
-  historyParts.push({ role: "user", content: safeUserText });
+  historyParts.push({ role: "user", content: fullUserText });
 
   // Build system prompt first so overhead is measured, not guessed.
   // (Plan-aware, with the business-local date so the model fills dateRange
