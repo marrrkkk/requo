@@ -1,18 +1,20 @@
 "use server";
 
+import { updateTag } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getValidationActionState } from "@/lib/action-state";
 import { requireUser } from "@/lib/auth/session";
 import { auth } from "@/lib/auth/server";
+import { uniqueCacheTags } from "@/lib/cache/business-tags";
+import { getUserProfileCacheTags } from "@/lib/cache/shell-tags";
 import { writeAccountAuditLogsForUser } from "@/features/audit/mutations";
 import {
   accountChangePasswordSchema,
   accountDeleteSchema,
   accountProfileSchema,
   accountSetPasswordSchema,
-  normalizeOptionalTextValue,
 } from "@/features/account/schemas";
 import { updateAccountProfile } from "@/features/account/mutations";
 import type {
@@ -28,6 +30,20 @@ const initialProfileState: AccountProfileActionState = {};
 const initialPasswordState: AccountPasswordActionState = {};
 const initialSessionState: AccountSessionActionState = {};
 const initialDeleteState: AccountDeleteActionState = {};
+
+/**
+ * `getAccountProfileForUser` is a `"use cache"` read tagged with the user's
+ * profile tags and a 120s stale window (`userShellCacheLife`), so the profile
+ * page — and the dashboard shell that renders the same name/avatar — keeps
+ * serving the previous values until that window lapses. Expiring the tags here
+ * is what makes a save show up immediately; without it the action reports
+ * success while the field snaps back to the old value on the next refresh.
+ */
+function invalidateAccountProfileCache(userId: string) {
+  for (const tag of uniqueCacheTags(getUserProfileCacheTags(userId))) {
+    updateTag(tag);
+  }
+}
 
 function getAccountSecurityErrorMessage(error: unknown, fallback: string) {
   const message =
@@ -72,8 +88,6 @@ export async function updateAccountProfileAction(
   const user = await requireUser();
   const validationResult = accountProfileSchema.safeParse({
     fullName: formData.get("fullName"),
-    jobTitle: formData.get("jobTitle"),
-    phone: formData.get("phone"),
     avatar: formData.get("avatar"),
     removeAvatar: formData.get("removeAvatar"),
   });
@@ -98,11 +112,10 @@ export async function updateAccountProfileAction(
         id: user.id,
         email: user.email,
       },
-      values: {
-        ...validationResult.data,
-        phone: normalizeOptionalTextValue(validationResult.data.phone),
-      },
+      values: validationResult.data,
     });
+
+    invalidateAccountProfileCache(user.id);
 
     return {
       success: "Profile saved.",

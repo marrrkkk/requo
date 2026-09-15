@@ -6,6 +6,7 @@ import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
 import { profiles } from "@/lib/db/schema";
+import { revalidateThemePreferenceForUser } from "@/features/theme/queries";
 import {
   isThemePreference,
   type ThemePreference,
@@ -46,6 +47,8 @@ export async function updateThemePreferenceAction(
         updatedAt: new Date(),
       })
       .where(eq(profiles.userId, user.id));
+
+    revalidateThemePreferenceForUser(user.id);
 
     return {
       ok: true,

@@ -7,20 +7,6 @@ import {
   profileAvatarMaxSize,
 } from "@/features/account/utils";
 
-export const ownerProfileDetailsSchema = z.object({
-  fullName: z
-    .string()
-    .trim()
-    .min(2, "Enter your full name.")
-    .max(120, "Use 120 characters or fewer."),
-  jobTitle: z
-    .string()
-    .trim()
-    .min(2, "Enter your role or title.")
-    .max(80, "Use 80 characters or fewer."),
-  phone: z.string().trim().max(32, "Use 32 characters or fewer."),
-});
-
 function formBoolean() {
   return z.preprocess(
     (value) => value === true || value === "true" || value === "on",
@@ -57,7 +43,25 @@ const profileAvatarSchema = z.preprocess(
     .optional(),
 );
 
-export const accountProfileSchema = ownerProfileDetailsSchema.extend({
+/**
+ * Profile settings owns only the fields the page actually renders: the
+ * full name and the avatar.
+ *
+ * `jobTitle` and `phone` are onboarding/deferred profile fields with no
+ * input on this page. They used to be round-tripped through hidden inputs
+ * so `updateAccountProfile` could write a complete row, which meant a user
+ * whose `job_title` was NULL (the normal case for OAuth sign-ups and for
+ * anyone who skipped the optional onboarding field) could not save a name
+ * change at all — the blank passthrough failed `min(2)` with "Enter your
+ * role or title." Leaving them out of the schema keeps those columns
+ * untouched in the database instead.
+ */
+export const accountProfileSchema = z.object({
+  fullName: z
+    .string()
+    .trim()
+    .min(2, "Enter your full name.")
+    .max(120, "Use 120 characters or fewer."),
   avatar: profileAvatarSchema,
   removeAvatar: formBoolean().default(false),
 });
@@ -111,9 +115,3 @@ export const accountDeleteSchema = z.object({
     .min(1, "Type the confirmation text.")
     .max(120, "Use 120 characters or fewer."),
 });
-
-export function normalizeOptionalTextValue(value: string) {
-  const trimmedValue = value.trim();
-
-  return trimmedValue.length > 0 ? trimmedValue : null;
-}

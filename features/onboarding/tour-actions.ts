@@ -1,13 +1,31 @@
 "use server";
 
 import { and, eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
 import { requireUser } from "@/lib/auth/session";
+import {
+  getBusinessChecklistCacheTags,
+  uniqueCacheTags,
+} from "@/lib/cache/business-tags";
+import { getUserProfileCacheTags } from "@/lib/cache/shell-tags";
 import { db } from "@/lib/db/client";
 import { businessMembers, profiles } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+
+/**
+ * Tour-completion flags are read back through `"use cache"` queries
+ * (`getCachedDashboardTourCompleted` on the membership,
+ * `getAccountProfileForUser` for the form editor tour), so each write below has
+ * to expire the tags of the query it feeds — otherwise the tour re-appears
+ * until the cache life lapses.
+ */
+function updateCacheTags(tags: string[]) {
+  for (const tag of uniqueCacheTags(tags)) {
+    updateTag(tag);
+  }
+}
 
 async function getMembershipForUserAndBusiness({
   businessId,
@@ -50,6 +68,8 @@ export async function completeDashboardTourAction(businessId: string) {
       updatedAt: now,
     })
     .where(eq(businessMembers.id, membership.id));
+
+  updateCacheTags(getBusinessChecklistCacheTags(businessId));
 }
 
 export async function resetDashboardTourForDevAction({
@@ -79,6 +99,7 @@ export async function resetDashboardTourForDevAction({
     })
     .where(eq(businessMembers.id, membership.id));
 
+  updateCacheTags(getBusinessChecklistCacheTags(businessId));
   revalidatePath(getBusinessDashboardPath(businessSlug));
 }
 
@@ -92,4 +113,6 @@ export async function completeFormEditorTourAction() {
       updatedAt: new Date(),
     })
     .where(eq(profiles.userId, user.id));
+
+  updateCacheTags(getUserProfileCacheTags(user.id));
 }

@@ -173,8 +173,6 @@ export function ProfileSettingsForm({
     <div className="mx-auto flex w-full max-w-[36rem] min-w-0 flex-col gap-10">
       <form action={formAction} ref={formRef}>
         <input name="removeAvatar" type="hidden" value={String(removeAvatar)} />
-        <input name="jobTitle" type="hidden" value={profile.jobTitle ?? ""} />
-        <input name="phone" type="hidden" value={profile.phone ?? ""} />
         <input
           name="fullName"
           type="hidden"
