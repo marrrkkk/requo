@@ -7,15 +7,12 @@ import { effectiveInvoiceStatusSql } from "@/features/invoices/queries";
 import { db } from "@/lib/db/client";
 import { activityLogs, businesses, invoices } from "@/lib/db/schema";
 import { sendPushInvoiceOverdueEvent } from "@/lib/inngest/send";
+import { prefixedId as createId } from "@/lib/ids";
 
 export type InvoiceOverdueSummary = {
   processed: number;
   notified: number;
 };
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 /**
  * Notifies owners (in-app `invoice_overdue` + push) about invoices that are

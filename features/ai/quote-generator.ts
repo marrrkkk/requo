@@ -8,6 +8,7 @@ import { sanitizeAiInput } from "@/lib/ai/input-sanitizer";
 import { getAiCanaryToken } from "@/lib/ai/canary";
 import { filterAiOutput } from "@/lib/ai/output-filter";
 import { logAiSecurityEvent } from "@/lib/ai/security-events";
+import { prefixedId } from "@/lib/ids";
 import {
   aiQuoteDraftItemConfidenceLevels,
   aiQuoteDraftItemPricingSources,
@@ -81,10 +82,6 @@ const PRICED_REVIEW_STATUSES = new Set<AiQuoteDraftItemReviewStatus>([
 
 function contentHash(text: string): string {
   return createHash("sha256").update(text).digest("hex");
-}
-
-function createGenerationId() {
-  return `qgen_${crypto.randomUUID().replace(/-/g, "")}`;
 }
 
 function coerceMatchType(value: unknown): "exact" | "suggested" | "none" {
@@ -1063,7 +1060,7 @@ async function finalizeDraft(input: {
     provider: input.provider,
     itemsNeedingReview,
     readiness,
-    aiGenerationId: createGenerationId(),
+    aiGenerationId: prefixedId("qgen"),
     knowledgeCitations: citations,
   };
 

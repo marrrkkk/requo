@@ -4,6 +4,7 @@ import { and, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { emailProviders as defaultEmailProviders } from "@/lib/email/providers";
+import { prefixedId as createId } from "@/lib/ids";
 import {
   classifyEmailError,
   EmailProviderError,
@@ -34,10 +35,6 @@ type EmailOutboxRow = typeof emailOutbox.$inferSelect;
 type SendEmailOptions = {
   providers?: EmailProvider[];
 };
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 function getAddressList(value: string | string[] | undefined, label: string) {
   if (!value) {

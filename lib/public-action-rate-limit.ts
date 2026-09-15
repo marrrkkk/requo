@@ -6,6 +6,7 @@ import { and, count, eq, gte } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { publicActionEvents } from "@/lib/db/schema";
+import { prefixedId as createId } from "@/lib/ids";
 
 type AssertPublicActionRateLimitInput = {
   action:
@@ -22,10 +23,6 @@ type AssertPublicActionRateLimitInput = {
 type HeaderStore = Pick<Headers, "get">;
 
 const zeroedIpv6Address = "0000:0000:0000:0000:0000:0000:0000:0000";
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 export function isUsableClientIp(headerValue: string | null | undefined) {
   if (!headerValue) {

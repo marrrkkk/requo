@@ -6,6 +6,7 @@ import { writeAuditLog } from "@/features/audit/mutations";
 import { autoCloseFollowUpsForQuote } from "@/features/follow-ups/mutations";
 import { notifyOwnerQuoteViewed } from "@/features/quotes/defaults";
 import { db } from "@/lib/db/client";
+import { prefixedId as createId } from "@/lib/ids";
 import {
   activityLogs,
   followUps,
@@ -26,10 +27,6 @@ import {
   getQuotePublicTokenLookupCondition,
   tryResolveStoredQuotePublicToken,
 } from "@/features/quotes/token-storage";
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 function getNextQuoteNumberFromSequence(sequence: number | null | undefined) {
   const safeSequence =

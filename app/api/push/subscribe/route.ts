@@ -7,6 +7,7 @@ import { pushSubscriptions } from "@/lib/db/schema/push-subscriptions";
 import { businessMembers, businesses } from "@/lib/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { isPushConfigured } from "@/lib/env";
+import { prefixedId as createId } from "@/lib/ids";
 
 const subscribeSchema = z.object({
   businessId: z.string().min(1),
@@ -18,10 +19,6 @@ const subscribeSchema = z.object({
     }),
   }),
 });
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 export async function POST(request: Request) {
   if (!isPushConfigured) {

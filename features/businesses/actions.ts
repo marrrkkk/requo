@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import { getValidationActionState } from "@/lib/action-state";
 import { requireUser } from "@/lib/auth/session";
+import { prefixedId } from "@/lib/ids";
 import {
   getBusinessAnalyticsCacheTags,
   getBusinessInquiryFormsCacheTags,
@@ -203,7 +204,7 @@ export async function createBusinessAction(
   try {
     const business = await createBusinessForUser({
       user,
-      businessId: `biz_${crypto.randomUUID().replace(/-/g, "")}`,
+      businessId: prefixedId("biz"),
       defaultCurrency: validationResult.data.defaultCurrency,
       name: validationResult.data.name,
       businessType: validationResult.data.businessType,
@@ -243,7 +244,6 @@ export async function createBusinessAction(
     error: "We couldn't create that business right now.",
   };
 }
-
 
 export async function archiveBusinessAction(
   businessId: string,

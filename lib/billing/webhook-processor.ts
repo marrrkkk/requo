@@ -14,6 +14,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
+import { prefixedId as generateId } from "@/lib/ids";
 import {
   billingEvents,
   paymentAttempts,
@@ -23,10 +24,6 @@ import {
 import type { WebhookProcessResult } from "@/lib/billing/types";
 
 /* ── Event recording ──────────────────────────────────────────────────────── */
-
-function generateId(prefix: string): string {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 /**
  * Records a webhook event and returns whether it should be processed.

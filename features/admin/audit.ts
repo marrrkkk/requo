@@ -9,6 +9,7 @@ import {
 } from "@/features/admin/constants";
 import { db } from "@/lib/db/client";
 import { adminAuditLogs } from "@/lib/db/schema";
+import { prefixedId } from "@/lib/ids";
 
 /**
  * Admin audit logging helpers.
@@ -92,10 +93,6 @@ const ADMIN_IP_ADDRESS_HEADERS = [
 
 /** Header store interface we accept — satisfied by Next's `Headers` instance. */
 type HeaderStore = Pick<Headers, "get">;
-
-function createAdminAuditId() {
-  return `aal_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 function normalizeHeaderValue(value: string | null | undefined): string | null {
   if (typeof value !== "string") {
@@ -194,7 +191,7 @@ export async function writeAdminAuditLog(
   const writer: DbWriter = input.tx ?? db;
 
   await writer.insert(adminAuditLogs).values({
-    id: createAdminAuditId(),
+    id: prefixedId("aal"),
     adminUserId: input.context.adminUserId,
     adminEmail: input.context.adminEmail,
     action: input.action,

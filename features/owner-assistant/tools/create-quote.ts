@@ -13,6 +13,7 @@ import { and, eq } from "drizzle-orm";
 import { createQuoteSchema } from "../schemas";
 import { createQuoteForBusiness } from "@/features/quotes/mutations";
 import { quoteEditorSchema } from "@/features/quotes/schemas";
+import { prefixedId } from "@/lib/ids";
 import { requireToolRole, centsToDollars } from "../permissions";
 import type { ErrorResult, ToolExecutionContext } from "../types";
 
@@ -34,10 +35,6 @@ type CreateQuoteOutput =
       metadata?: Record<string, unknown>;
     }
   | ErrorResult;
-
-function createItemId() {
-  return `qi_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
-}
 
 export const createQuoteTool = tool<CreateQuoteInput, CreateQuoteOutput>({
   description:
@@ -141,7 +138,7 @@ export const createQuoteTool = tool<CreateQuoteInput, CreateQuoteOutput>({
         discountInCents: 0,
         taxInCents: 0,
         items: params.lineItems.map((item) => ({
-          id: createItemId(),
+          id: prefixedId("qi", 16),
           description: item.description,
           quantity: item.quantity,
           unitPriceInCents: Math.round(item.unitPrice * 100),

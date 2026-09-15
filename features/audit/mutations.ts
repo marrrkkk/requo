@@ -14,6 +14,7 @@ import {
   businessMembers,
   user,
 } from "@/lib/db/schema";
+import { prefixedId as createId } from "@/lib/ids";
 
 type DbClient = (typeof import("@/lib/db/client"))["db"];
 type AuditWriter = Pick<DbClient, "insert" | "select">;
@@ -36,10 +37,6 @@ type AuditTargetBusiness = {
   name: string;
   slug: string;
 };
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 function compactMetadata(metadata: AuditLogMetadata) {
   return Object.fromEntries(

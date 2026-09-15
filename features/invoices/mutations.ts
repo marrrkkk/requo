@@ -5,6 +5,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { writeAuditLog } from "@/features/audit/mutations";
 import { insertBusinessNotification } from "@/features/notifications/mutations";
 import { db } from "@/lib/db/client";
+import { prefixedId as createId } from "@/lib/ids";
 import {
   activityLogs,
   invoiceLineItems,
@@ -16,10 +17,6 @@ import {
 import type { PaymentMethod } from "@/lib/db/schema/invoices";
 import { getTodayUtcDateString } from "@/features/quotes/utils";
 import { calculateInvoicePaymentState } from "@/features/invoices/utils";
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 function nextInvoiceNumber(sequence: number | null | undefined) {
   const safe = typeof sequence === "number" && Number.isFinite(sequence) ? Math.max(0, Math.trunc(sequence)) : 0;

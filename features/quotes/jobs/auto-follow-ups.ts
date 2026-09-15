@@ -9,6 +9,7 @@ import { env, isQuoteAutoFollowUpEmailEnabled } from "@/lib/env";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { sendQuoteAutoFollowUpEmail } from "@/lib/resend/client";
+import { prefixedId } from "@/lib/ids";
 
 export type AutoFollowUpsSummary = {
   processed: number;
@@ -123,7 +124,7 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
         .where(eq(quotes.id, row.quoteId));
 
       await db.insert(activityLogs).values({
-        id: `act_${crypto.randomUUID().replace(/-/g, "")}`,
+        id: prefixedId("act"),
         businessId: row.businessId,
         quoteId: row.quoteId,
         type: "quote.auto_follow_up_sent",

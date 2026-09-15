@@ -3,6 +3,7 @@ import "server-only";
 import { and, desc, eq, gte, inArray, isNull } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
+import { prefixedId as createId } from "@/lib/ids";
 import {
   type AnalyticsEventMetadata,
   analyticsEvents,
@@ -28,10 +29,6 @@ type RecordAnalyticsEventInput = {
   occurredAt?: Date;
   metadata?: AnalyticsEventMetadata | null;
 };
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 export function createBusinessScopedVisitorHash(
   businessId: string,

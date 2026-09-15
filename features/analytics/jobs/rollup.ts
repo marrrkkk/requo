@@ -3,6 +3,7 @@ import "server-only";
 import { and, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
+import { prefixedId as createId } from "@/lib/ids";
 import {
   analyticsDailyRollups,
   analyticsEvents,
@@ -26,10 +27,6 @@ export type BatchConfig = {
 const DEFAULT_BATCH_SIZE = 10;
 const MIN_BATCH_SIZE = 5;
 const MAX_BATCH_SIZE = 25;
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 /**
  * Clamp batch size to valid range [5, 25].

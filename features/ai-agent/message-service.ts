@@ -10,13 +10,7 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { aiAgentMessages } from "@/lib/db/schema";
 import type { AgentMessage, MessageRole, MessageMetadata } from "@/features/ai-agent/types";
-
-/**
- * Generate a prefixed ID.
- */
-function createId(prefix: string): string {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
+import { prefixedId as createId } from "@/lib/ids";
 
 /**
  * Add a message to a session.

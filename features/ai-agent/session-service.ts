@@ -9,6 +9,7 @@ import "server-only";
 import { and, eq, isNull, lt } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { aiAgentSessions, businesses } from "@/lib/db/schema";
+import { prefixedId as createId } from "@/lib/ids";
 import type {
   SessionCreateResult,
   QualificationState,
@@ -25,13 +26,6 @@ function generateSessionToken(): string {
   return Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-}
-
-/**
- * Generate a prefixed ID.
- */
-function createId(prefix: string): string {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
 }
 
 /**

@@ -17,6 +17,7 @@ import type {
   QuoteReminderKind,
   QuoteStatus,
 } from "@/features/quotes/types";
+import { prefixedId } from "@/lib/ids";
 
 export const quoteStatusLabels: Record<QuoteStatus, string> = {
   draft: "Draft",
@@ -184,7 +185,7 @@ export function createQuoteEditorLineItemValue(
   }>,
 ): QuoteEditorLineItemValue {
   return {
-    id: value?.id ?? `draft_item_${crypto.randomUUID().replace(/-/g, "")}`,
+    id: value?.id ?? prefixedId("draft_item"),
     description: value?.description ?? "",
     quantity: value?.quantity ?? "1",
     unitPrice: value?.unitPrice ?? "",

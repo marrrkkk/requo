@@ -9,6 +9,7 @@ import type { BusinessPlan } from "@/lib/plans/plans";
 import { getUpgradePlan } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { cacheLayer } from "@/lib/ai/cache-layer";
+import { prefixedId } from "@/lib/ids";
 
 // ---------------------------------------------------------------------------
 // Usage Limiter — enforces monthly weighted usage limits and per-request cooldown
@@ -348,7 +349,7 @@ export async function recordUsage(
   weight: number,
   plan: BusinessPlan,
 ): Promise<void> {
-  const id = `aue_${crypto.randomUUID().replace(/-/g, "")}`;
+  const id = prefixedId("aue");
 
   await db.insert(aiUsageEvents).values({
     id,

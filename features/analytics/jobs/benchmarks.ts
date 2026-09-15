@@ -3,6 +3,7 @@ import "server-only";
 import { and, count, eq, gte, isNotNull, isNull, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
+import { prefixedId as createId } from "@/lib/ids";
 import {
   analyticsBenchmarks,
   businesses,
@@ -31,10 +32,6 @@ type BusinessMetrics = {
   quoteAcceptanceRate: number | null;
   avgResponseHours: number | null;
 };
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 function getSizeTier(avgMonthlyInquiries: number): SizeTier {
   if (avgMonthlyInquiries < 50) return "small";

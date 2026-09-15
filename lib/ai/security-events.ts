@@ -2,6 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db/client";
 import { aiSecurityEvents } from "@/lib/db/schema";
+import { prefixedId } from "@/lib/ids";
 
 // ---------------------------------------------------------------------------
 // AI Security Events Logger
@@ -26,10 +27,6 @@ export type LogAiSecurityEventParams = {
   rawInput: string;
 };
 
-function createId() {
-  return `ase_${crypto.randomUUID().replace(/-/g, "")}`;
-}
-
 /**
  * Computes SHA-256 hash of the raw input text.
  * Used to store a fingerprint without persisting raw user content.
@@ -52,7 +49,7 @@ export function logAiSecurityEvent(params: LogAiSecurityEventParams): void {
   // Fire-and-forget: start the async work but don't block the caller
   void (async () => {
     try {
-      const id = createId();
+      const id = prefixedId("ase");
       const inputHash = await hashInput(rawInput);
 
       await db.insert(aiSecurityEvents).values({

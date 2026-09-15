@@ -31,6 +31,7 @@ import { businessKnowledgeFiles } from "@/lib/db/schema";
 import { getBusinessMemoryCacheTags } from "@/lib/cache/business-tags";
 import { inngest } from "@/lib/inngest/client";
 import { inngestEvents } from "@/lib/inngest/events";
+import { prefixedId as createId } from "@/lib/ids";
 import { updateTag } from "next/cache";
 
 // ---------------------------------------------------------------------------
@@ -58,10 +59,6 @@ export type KnowledgeFileDeleteActionState = {
   error?: string;
   success?: boolean;
 };
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 function invalidateKnowledgeCache(businessId: string) {
   for (const tag of getBusinessMemoryCacheTags(businessId)) {

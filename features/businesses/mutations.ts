@@ -9,6 +9,7 @@ import { getStarterTemplateDefinition } from "@/features/businesses/starter-temp
 import { assertBusinessQuotaAvailableForUser } from "@/features/businesses/quota";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { createInquiryFormPreset, normalizeInquiryFormSlug } from "@/features/inquiries/inquiry-forms";
+import { prefixedId as createId } from "@/lib/ids";
 import {
   createInquiryFormConfigDefaults,
   type InquiryFormConfig,
@@ -56,10 +57,6 @@ type CreateBusinessForUserInput = {
 };
 
 type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
 
 async function getAvailableBusinessSlug(
   tx: DatabaseTransaction,
