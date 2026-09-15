@@ -135,9 +135,11 @@ Eight one-off scripts were removed (list above). No npm script was removed.
 
 ## Potentially dead but uncertain
 
-- `.tmp-cache-audit.mjs`, `.tmp-verify-profile.mjs`, `tests/e2e/tmp-profile-name-save.spec.ts`,
-  and the `features/account/*` + `features/theme/*` edits — in-flight local work
-  from the parallel profile/theme change; not touched.
+- The `features/account/*` + `features/theme/*` edits and their new tests —
+  in-flight local work from the parallel profile/theme change; not touched.
+- The throwaway `.tmp-cache-audit.mjs` / `.tmp-verify-profile.mjs` / 
+  `tests/e2e/tmp-profile-name-save.spec.ts` scripts are gone; `.tmp-cache-audit.mjs`
+  was the only thing keeping `npm run check` red (`no-require-imports`).
 - Remaining knip duplicate export: `getAccountBillingOverview` (canonical) vs
   deprecated `getBusinessBillingOverview` (14 call sites). Resolving it is a
   rename refactor, out of scope here.
@@ -159,15 +161,46 @@ Run on `cleanup/dead-code` after the final batch:
 | `npm run build` (production, Next 16.3.5) | ✅ all routes compiled |
 | `npx knip` | unused files 114 → 9 (all justified keeps); no unused or unlisted dependencies |
 
-Not run here because they need a local database and a running app:
-`npm run test:integration`, `npm run test:e2e:smoke`. Run them before merging.
+DB-backed verification followed on the configured database (remote Supabase):
+
+| Command | Result |
+| --- | --- |
+| `npm run db:migrate` | ✅ applied `0030`; `quote_post_acceptance_status` gone, migration count 28 → 29 |
+| `npm run test:integration` (`--no-file-parallelism`) | ✅ 37 files / 229 passed, 1 skipped |
+
+Run integration **sequentially**: the config parallelises files by default and the
+Supabase session-mode pooler caps at 15 clients, so a default run dies with
+`EMAXCONNSESSION`. `TEST_DATABASE_URL` (a local Postgres) is the intended target.
+
+Getting the suite green required fixing four pre-existing problems that the
+dead-code pass did not cause (no file in this list was touched by the cleanup):
+
+- `tests/integration/business-access.test.ts` passed a business **id** where
+  `getBusinessContextForUser` now expects a **slug** — stale after the security
+  hardening that removed the silent `memberships[0]` fallback.
+- `tests/integration/ai-agent-{chat-route,orchestrator}.test.ts` mocked
+  `@/lib/env` without an `env` export.
+- `tests/integration/public-analytics-route.test.ts` invoked `POST()` directly
+  without stubbing `next/headers`; the rate limiter's `headers()` call throws
+  outside a request scope, and because the DB fallback's fingerprint call sits
+  *outside* its `try/catch`, the route silently denied with `rateLimited: true`.
+- `app/api/account/billing/checkout/route.ts` passed a business **id** to
+  `requireBusinessContextForUser`, which now returns `null`, so
+  `requireBusinessContextForUser` threw and every checkout returned 500 instead
+  of the intended 401. Fixed by resolving the id through the user's memberships.
+
+`npm run test:e2e:smoke` was deliberately not run: its Playwright `webServer`
+command seeds demo data (`db:seed-demo`) into whatever `DATABASE_URL` points at.
+Run it against a local database before merging.
 
 ## Notes
 
 - The `quote_post_acceptance_status` enum was dropped in `0030` and
-  `docs/technical-debt.md` §2 is marked resolved; migration `0030` has not been
-  applied to any database yet — `npm run db:migrate` (or the deploy build) will
-  do it.
+  `docs/technical-debt.md` §2 is marked resolved. `0030` is now applied to the
+  configured database (verified: the type no longer exists).
+- The integration fixtures never clean `public_action_events`, so the rate-limit
+  ledger accumulates rows across runs. It is bounded by the 60s window, but the
+  table now holds ~100 stale rows from repeated runs.
 - Optional follow-ups: add `knip.json` (entries for `app/**`, `scripts/**`, test
   configs; ignore `.agents/**`) if the check should run in CI — knip is not
   installed as a dependency on purpose.

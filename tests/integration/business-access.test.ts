@@ -253,7 +253,7 @@ describe("business access control", () => {
     try {
       const [businessContext, secondaryBusinessContext] = await Promise.all([
         getBusinessContextForMembershipSlug(ids.ownerUserId, ids.businessSlug),
-        getBusinessContextForUser(ids.ownerUserId, ids.businessId),
+        getBusinessContextForUser(ids.ownerUserId, ids.businessSlug),
       ]);
 
       expect(businessContext?.business.plan).toBe("business");

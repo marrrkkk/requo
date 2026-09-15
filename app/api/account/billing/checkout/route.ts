@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/auth/session";
 import { getPolarProductId } from "@/lib/billing/polar-products";
 import { getBusinessSubscription } from "@/lib/billing/subscription-service";
 import { env, isPolarConfigured } from "@/lib/env";
-import { requireBusinessContextForUser } from "@/lib/db/business-access";
+import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 
 /**
  * Thin eligibility-check + redirect route in front of the canonical
@@ -187,8 +187,14 @@ export async function POST(request: Request): Promise<Response> {
 
   // Ensure the actor can manage billing for this business.
   // (Owner-only today; adjust to admin roles later if needed.)
-  const businessContext = await requireBusinessContextForUser(user.id, businessId);
-  if (businessContext.business.id !== businessId) {
+  // `businessId` is an explicit business id, so resolve it through the
+  // user's memberships rather than the slug-based context helper.
+  const memberships = await getBusinessMembershipsForUser(user.id, "active");
+  const businessContext = memberships.find(
+    (membership) => membership.business.id === businessId,
+  );
+
+  if (!businessContext) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
