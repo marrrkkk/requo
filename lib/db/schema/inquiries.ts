@@ -57,7 +57,7 @@ export const inquiries = pgTable(
       .notNull()
       .default("email"),
     customerContactHandle: text("customer_contact_handle").notNull().default(""),
-    serviceCategory: text("service_category").notNull(),
+    serviceCategory: text("service_category"),
     requestedDeadline: date("requested_deadline", { mode: "string" }),
     budgetText: text("budget_text"),
     details: text("details").notNull(),
@@ -69,6 +69,10 @@ export const inquiries = pgTable(
       .notNull()
       .defaultNow(),
     lastRespondedAt: timestamp("last_responded_at", { withTimezone: true }),
+    firstViewedAt: timestamp("first_viewed_at", { withTimezone: true }),
+    firstViewedBy: text("first_viewed_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     archivedBy: text("archived_by").references(() => user.id, {
       onDelete: "set null",
@@ -113,15 +117,17 @@ export const inquiries = pgTable(
       table.businessId,
       table.submittedAt,
     ),
+    index("inquiries_business_unviewed_idx")
+      .on(table.businessId)
+      .where(
+        sql`${table.firstViewedAt} is null and ${table.archivedAt} is null and ${table.deletedAt} is null`,
+      ),
     index("inquiries_open_deadline_idx")
       .on(table.businessId, table.requestedDeadline)
       .where(
         sql`${table.status} in ('new', 'waiting', 'quoted') and ${table.requestedDeadline} is not null and ${table.archivedAt} is null and ${table.deletedAt} is null`,
       ),
-    index("inquiries_business_service_category_idx").on(
-      table.businessId,
-      table.serviceCategory,
-    ),
+    index("inquiries_business_source_idx").on(table.businessId, table.source),
     index("inquiries_business_qualification_score_idx").on(
       table.businessId,
       table.qualificationScore,

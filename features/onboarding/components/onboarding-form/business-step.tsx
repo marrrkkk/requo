@@ -35,6 +35,7 @@ type BusinessStepProps = {
   fieldErrors: Partial<Record<OnboardingFieldName, string>>;
   isPending: boolean;
   isDraftHydrated: boolean;
+  lastNameOptional?: boolean;
   slugAvailability: "idle" | "checking" | "available" | "taken";
   slugManuallyEdited: boolean;
   businessAvatarPreviewUrl: string | null;
@@ -59,6 +60,7 @@ export function BusinessStep({
   fieldErrors,
   isPending,
   isDraftHydrated,
+  lastNameOptional = false,
   slugAvailability,
   slugManuallyEdited,
   businessAvatarPreviewUrl,
@@ -74,7 +76,8 @@ export function BusinessStep({
   checkSlugAvailability,
   slugifyPublicName,
 }: BusinessStepProps) {
-  const showNameFields = !draft.firstName || !draft.lastName;
+  const showNameFields =
+    !draft.firstName || (!draft.lastName && !lastNameOptional);
 
   return (
     <div className="mx-auto w-full max-w-md py-4">
@@ -173,7 +176,12 @@ export function BusinessStep({
                 }
               >
                 <FieldLabel htmlFor="onboarding-last-name">
-                  Last name
+                  Last name{" "}
+                  {lastNameOptional ? (
+                    <span className="font-normal text-muted-foreground">
+                      (optional)
+                    </span>
+                  ) : null}
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -184,15 +192,17 @@ export function BusinessStep({
                     disabled={isPending}
                     id="onboarding-last-name"
                     maxLength={60}
-                    minLength={1}
+                    minLength={lastNameOptional ? 0 : 1}
                     onChange={(event) =>
                       updateField(
                         "lastName",
                         event.currentTarget.value,
                       )
                     }
-                    placeholder="Cruz"
-                    required
+                    placeholder={
+                      lastNameOptional ? "Optional" : "Cruz"
+                    }
+                    required={!lastNameOptional}
                     value={draft.lastName}
                   />
                 </FieldContent>

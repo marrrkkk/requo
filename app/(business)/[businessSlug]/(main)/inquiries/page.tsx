@@ -61,6 +61,33 @@ function getCachedPageWindow(currentPage: number, totalPages: number) {
   return Array.from(pages).sort((left, right) => left - right);
 }
 
+/**
+ * Resolves list filters from the URL. `unread` is always forced off — the
+ * "Unread only" filter chip was removed, so a stale `?unread=1` param must
+ * not keep filtering the list. Unread tracking itself (nav badge, list
+ * dot/bold) is untouched.
+ */
+function resolveInquiryListFilters(
+  resolvedSearchParams: Record<string, string | string[] | undefined>,
+) {
+  const parsedFilters = inquiryListFiltersSchema.safeParse(resolvedSearchParams);
+  const filters = parsedFilters.success
+    ? parsedFilters.data
+    : {
+        q: undefined,
+        view: "active" as const,
+        status: "all" as const,
+        form: "all",
+        source: "all" as const,
+        sort: "newest" as const,
+        escalated: false,
+        unread: false,
+        page: 1,
+      };
+
+  return { ...filters, unread: false as const };
+}
+
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Inquiries",
   description: "List, filter, and manage inquiries for this business.",
@@ -83,6 +110,7 @@ export default function InquiriesPage({
     <DashboardPage>
       <PageHeader
         title="Inquiries"
+        className="[&_.dashboard-actions]:max-lg:hidden"
         actions={
           <Suspense fallback={<InquiryListHeaderActionsFallback />}>
             <InquiriesHeaderActionsRegion params={params} searchParams={searchParams} />
@@ -117,25 +145,16 @@ async function InquiriesHeaderActionsRegion({
   ]);
   const { businessContext } = await getAppShellContext(businessSlug);
 
-  const parsedFilters = inquiryListFiltersSchema.safeParse(resolvedSearchParams);
-  const filters = parsedFilters.success
-    ? parsedFilters.data
-    : {
-        q: undefined,
-        view: "active" as const,
-        status: "all" as const,
-        form: "all",
-        sort: "newest" as const,
-        escalated: false,
-        page: 1,
-      };
+  const filters = resolveInquiryListFilters(resolvedSearchParams);
   const baseFilters = {
     q: filters.q,
     view: filters.view,
     status: filters.status,
     form: filters.form,
+    source: filters.source,
     sort: filters.sort,
     escalated: filters.escalated ?? false,
+    unread: false,
   };
 
   const canExport = hasFeatureAccess(
@@ -152,7 +171,7 @@ async function InquiriesHeaderActionsRegion({
   );
   const archivedItemsPromise = getInquiryListPageForBusiness({
     businessId: businessContext.business.id,
-    filters: { view: "archived", status: "all", form: "all", sort: "newest", escalated: false },
+    filters: { view: "archived", status: "all", form: "all", source: "all", sort: "newest", escalated: false, unread: false },
     page: 1,
     pageSize: 50,
   });
@@ -185,25 +204,16 @@ async function InquiriesControlsRegion({
   ]);
   const { businessContext } = await getAppShellContext(businessSlug);
 
-  const parsedFilters = inquiryListFiltersSchema.safeParse(resolvedSearchParams);
-  const filters = parsedFilters.success
-    ? parsedFilters.data
-    : {
-        q: undefined,
-        view: "active" as const,
-        status: "all" as const,
-        form: "all",
-        sort: "newest" as const,
-        escalated: false,
-        page: 1,
-      };
+  const filters = resolveInquiryListFilters(resolvedSearchParams);
   const baseFilters = {
     q: filters.q,
     view: filters.view,
     status: filters.status,
     form: filters.form,
+    source: filters.source,
     sort: filters.sort,
     escalated: filters.escalated ?? false,
+    unread: false,
   };
 
   const canExport = hasFeatureAccess(
@@ -220,7 +230,7 @@ async function InquiriesControlsRegion({
   );
   const archivedItemsPromise = getInquiryListPageForBusiness({
     businessId: businessContext.business.id,
-    filters: { view: "archived", status: "all", form: "all", sort: "newest", escalated: false },
+    filters: { view: "archived", status: "all", form: "all", source: "all", sort: "newest", escalated: false, unread: false },
     page: 1,
     pageSize: 50,
   });
@@ -253,25 +263,16 @@ async function InquiriesListRegion({
   ]);
   const { businessContext } = await getAppShellContext(businessSlug);
 
-  const parsedFilters = inquiryListFiltersSchema.safeParse(resolvedSearchParams);
-  const filters = parsedFilters.success
-    ? parsedFilters.data
-    : {
-        q: undefined,
-        view: "active" as const,
-        status: "all" as const,
-        form: "all",
-        sort: "newest" as const,
-        escalated: false,
-        page: 1,
-      };
+  const filters = resolveInquiryListFilters(resolvedSearchParams);
   const baseFilters = {
     q: filters.q,
     view: filters.view,
     status: filters.status,
     form: filters.form,
+    source: filters.source,
     sort: filters.sort,
     escalated: filters.escalated ?? false,
+    unread: false,
   };
 
   const inquiryCountPromise = getInquiryListCountForBusiness({
@@ -310,6 +311,7 @@ async function InquiriesListRegion({
     baseFilters.q ||
       baseFilters.status !== "all" ||
       baseFilters.form !== "all" ||
+      baseFilters.source !== "all" ||
       baseFilters.sort !== "newest" ||
       baseFilters.escalated,
   );

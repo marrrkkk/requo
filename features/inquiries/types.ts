@@ -29,9 +29,60 @@ export const inquiryFilterableStatuses = [
 ] as const;
 export const inquiryRecordViews = ["active", "archived"] as const;
 export const inquirySources = {
-  publicInquiryPage: "public-inquiry-page",
-  manualDashboard: "manual-dashboard",
+  serviceForm: "service_form",
+  aiAssistant: "ai_assistant",
+  manual: "manual",
+  api: "api",
+  unknown: "unknown",
 } as const;
+
+export type InquirySourceValue =
+  (typeof inquirySources)[keyof typeof inquirySources];
+
+export const inquirySourceLabels: Record<InquirySourceValue, string> = {
+  service_form: "Service Form",
+  ai_assistant: "AI Assistant",
+  manual: "Manual",
+  api: "API",
+  unknown: "Unknown",
+};
+
+export const inquirySourceFilterValues = [
+  "all",
+  "service_form",
+  "ai_assistant",
+  "manual",
+  "api",
+] as const;
+
+export type InquirySourceFilterValue =
+  (typeof inquirySourceFilterValues)[number];
+
+/** Legacy source strings written before the Service/Source refactor. */
+export const legacyInquirySourceMap: Record<string, InquirySourceValue> = {
+  "public-inquiry-page": "service_form",
+  "manual-dashboard": "manual",
+  ai_agent: "ai_assistant",
+  ai_agent_handoff: "ai_assistant",
+  ai: "ai_assistant",
+};
+
+/** Normalize any stored source string to a canonical value. */
+export function normalizeInquirySource(
+  value: string | null | undefined,
+): InquirySourceValue {
+  if (!value) return "unknown";
+  if (
+    value === "service_form" ||
+    value === "ai_assistant" ||
+    value === "manual" ||
+    value === "api" ||
+    value === "unknown"
+  ) {
+    return value;
+  }
+  return legacyInquirySourceMap[value] ?? "unknown";
+}
 
 export type InquiryStatus = (typeof inquiryStatuses)[number];
 export type InquiryWorkflowStatus = (typeof inquiryWorkflowStatuses)[number];
@@ -53,7 +104,7 @@ export type DashboardInquiryListItem = {
   source: string | null;
   customerName: string;
   customerEmail: string | null;
-  serviceCategory: string;
+  serviceCategory: string | null;
   budgetText: string | null;
   status: InquiryStatus;
   recordState: InquiryRecordState;
@@ -63,6 +114,7 @@ export type DashboardInquiryListItem = {
   pendingFollowUpCount: number;
   nextFollowUpDueAt: Date | null;
   hasDuplicateFlag: boolean;
+  isUnread: boolean;
   submittedAt: Date;
   createdAt: Date;
 };
@@ -116,7 +168,7 @@ export type DashboardInquiryDetail = {
   customerEmail: string | null;
   customerContactMethod: string;
   customerContactHandle: string;
-  serviceCategory: string;
+  serviceCategory: string | null;
   requestedDeadline: string | null;
   budgetText: string | null;
   subject: string | null;
@@ -126,6 +178,7 @@ export type DashboardInquiryDetail = {
   recordState: InquiryRecordState;
   archivedAt: Date | null;
   escalated: boolean;
+  firstViewedAt: Date | null;
   submittedAt: Date;
   createdAt: Date;
   attachments: DashboardInquiryAttachment[];
@@ -140,8 +193,10 @@ export type InquiryListFilters = {
   view: InquiryRecordView;
   status: InquiryStatusFilterValue;
   form: string;
+  source: InquirySourceFilterValue;
   sort: "newest" | "oldest";
   escalated: boolean;
+  unread: boolean;
   page: number;
 };
 

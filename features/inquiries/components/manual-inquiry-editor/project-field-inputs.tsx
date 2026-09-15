@@ -85,7 +85,6 @@ export function renderProjectInput({
         disabled={isPending}
         id={inputId}
         maxLength={getProjectFieldMaxLength(field)}
-        minLength={field.key === "serviceCategory" ? 2 : undefined}
         name={inputName}
         onChange={(event) => onValueChange(event.currentTarget.value)}
         placeholder={field.placeholder}

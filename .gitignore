@@ -62,3 +62,7 @@ next-env.d.ts
 # Claude Code skills junction -> .agents/skills (avoid tracking a second copy)
 .claude/skills
 .claude/settings.local.json
+
+# Local agent state (Freebuff)
+.freebuff/
+.workbuddy-ai/

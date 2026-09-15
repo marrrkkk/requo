@@ -389,6 +389,25 @@ type BusinessLifecycleResult =
         | "last-active";
     };
 
+async function requireOwnerLifecycleMembership(
+  businessId: string,
+  actorUserId: string,
+): Promise<boolean> {
+  const [membership] = await db
+    .select({ id: businessMembers.id })
+    .from(businessMembers)
+    .where(
+      and(
+        eq(businessMembers.businessId, businessId),
+        eq(businessMembers.userId, actorUserId),
+        eq(businessMembers.role, "owner"),
+      ),
+    )
+    .limit(1);
+
+  return Boolean(membership);
+}
+
 async function getBusinessLifecycleTarget(businessId: string) {
   const [business] = await db
     .select({
@@ -407,15 +426,22 @@ async function getBusinessLifecycleTarget(businessId: string) {
   return business ?? null;
 }
 
-async function getActiveWorkspaceBusinessCount(businessId: string) {
+async function getActiveWorkspaceBusinessCountForOwner(ownerUserId: string) {
   const [row] = await db
     .select({
       value: count(),
     })
     .from(businesses)
+    .innerJoin(
+      businessMembers,
+      and(
+        eq(businessMembers.businessId, businesses.id),
+        eq(businessMembers.userId, ownerUserId),
+        eq(businessMembers.role, "owner"),
+      ),
+    )
     .where(
       and(
-        eq(businesses.id, businessId),
         isNull(businesses.archivedAt),
         isNull(businesses.deletedAt),
       ),
@@ -428,6 +454,13 @@ export async function archiveBusiness({
   businessId,
   actorUserId,
 }: BusinessLifecycleMutationInput): Promise<BusinessLifecycleResult> {
+  if (!(await requireOwnerLifecycleMembership(businessId, actorUserId))) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
   const business = await getBusinessLifecycleTarget(businessId);
 
   if (!business) {
@@ -501,6 +534,13 @@ export async function unarchiveBusiness({
   businessId,
   actorUserId,
 }: BusinessLifecycleMutationInput): Promise<BusinessLifecycleResult> {
+  if (!(await requireOwnerLifecycleMembership(businessId, actorUserId))) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
   const business = await getBusinessLifecycleTarget(businessId);
 
   if (!business) {
@@ -576,6 +616,13 @@ export async function trashBusiness({
   actorUserId,
   confirmation,
 }: TrashBusinessInput): Promise<BusinessLifecycleResult> {
+  if (!(await requireOwnerLifecycleMembership(businessId, actorUserId))) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
   const business = await getBusinessLifecycleTarget(businessId);
 
   if (!business) {
@@ -600,9 +647,8 @@ export async function trashBusiness({
   }
 
   if (!business.archivedAt) {
-    const activeBusinessCount = await getActiveWorkspaceBusinessCount(
-      business.businessId,
-    );
+    const activeBusinessCount =
+      await getActiveWorkspaceBusinessCountForOwner(actorUserId);
 
     if (activeBusinessCount <= 1) {
       return {
@@ -662,6 +708,13 @@ export async function restoreBusiness({
   businessId,
   actorUserId,
 }: BusinessLifecycleMutationInput): Promise<BusinessLifecycleResult> {
+  if (!(await requireOwnerLifecycleMembership(businessId, actorUserId))) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
   const business = await getBusinessLifecycleTarget(businessId);
 
   if (!business) {
@@ -739,7 +792,9 @@ export async function deleteBusinessPermanently({
   | { ok: true }
   | { ok: false; reason: "not-found" | "confirmation-mismatch" }
 > {
-  void actorUserId;
+  if (!(await requireOwnerLifecycleMembership(businessId, actorUserId))) {
+    return { ok: false, reason: "not-found" };
+  }
 
   const business = await getBusinessLifecycleTarget(businessId);
 

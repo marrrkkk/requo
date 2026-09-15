@@ -40,17 +40,15 @@ export const starterTemplateDefinitions: Record<
     businessType: "creative_marketing_services",
     label: "Agency / Studio",
     description:
-      "Captures project briefs and deliverables so you can scope and price creative work faster.",
+      "Captures a single project brief plus timing and references so you can scope and price creative work faster.",
     helperText:
-      "Starts with project brief fields and quote notes for scoped creative work.",
+      "Starts with one project brief field and quote notes for scoped creative work.",
     recommendedFields: [
-      "Project or service needed",
-      "Deliverables",
+      "Project brief",
       "Target date",
       "Where this will be used",
       "Budget",
-      "Project brief",
-      "Brief or reference files",
+      "Reference files",
     ],
     statusSummary: starterTemplateStatusSummary,
     defaultQuoteNotes: "",
@@ -68,13 +66,12 @@ export const starterTemplateDefinitions: Record<
     helperText:
       "Starts with discovery-focused fields and quote notes for advisory engagements.",
     recommendedFields: [
-      "Service needed",
-      "Goal",
+      "Challenge or goal",
       "Preferred format",
       "Participant count",
       "Desired start date",
       "Budget",
-      "Background",
+      "Reference files",
     ],
     statusSummary: starterTemplateStatusSummary,
     defaultQuoteNotes: "",
@@ -89,13 +86,12 @@ export const starterTemplateDefinitions: Record<
     helperText:
       "Starts with project and site fields and quote notes for on-site work.",
     recommendedFields: [
-      "Project or service needed",
+      "Project details",
       "Service location",
       "Location type",
       "Preferred visit or start date",
       "Access notes",
       "Target completion",
-      "Project details",
       "Photos or plans",
     ],
     statusSummary: starterTemplateStatusSummary,
@@ -117,12 +113,11 @@ export const starterTemplateDefinitions: Record<
     helperText:
       "Starts with event-focused fields for shoots, productions, and event services.",
     recommendedFields: [
-      "Service needed",
+      "Event details",
       "Event or shoot date",
       "Venue or location",
       "Duration",
       "Guest or attendee count",
-      "Event details",
       "Reference files",
     ],
     statusSummary: starterTemplateStatusSummary,
@@ -141,13 +136,12 @@ export const starterTemplateDefinitions: Record<
     helperText:
       "Starts with schedule and property fields for cleaning, maintenance, and recurring services.",
     recommendedFields: [
-      "Service needed",
+      "Service details",
       "Service location",
       "Property size",
       "Frequency",
       "Preferred start date",
       "Access notes",
-      "Additional details",
     ],
     statusSummary: starterTemplateStatusSummary,
     defaultQuoteNotes: "",
@@ -164,11 +158,10 @@ export const starterTemplateDefinitions: Record<
     description:
       "Flexible starting point for mixed inquiry types with a clear lead-to-quote workflow.",
     recommendedFields: [
-      "Service needed",
+      "Inquiry details",
       "Service location",
       "Preferred timing",
       "Budget range",
-      "Inquiry details",
       "Reference files",
     ],
     statusSummary: starterTemplateStatusSummary,

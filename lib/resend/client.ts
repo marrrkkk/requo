@@ -617,7 +617,7 @@ export async function sendInquiryAcknowledgmentEmail({
   businessName,
   customerEmail,
   customerName,
-  serviceCategory,
+  serviceCategory: serviceName,
   details,
   replyToEmail,
 }: {
@@ -651,7 +651,7 @@ export async function sendInquiryAcknowledgmentEmail({
   const template = renderInquiryAcknowledgmentEmail({
     businessName,
     customerName,
-    serviceCategory,
+    serviceCategory: serviceName,
     details,
   });
 
@@ -666,7 +666,7 @@ export async function sendInquiryAcknowledgmentEmail({
     metadata: {
       inquiryId,
       businessId,
-      serviceCategory,
+      serviceCategory: serviceName,
     },
     tags: {
       type: "inquiry",

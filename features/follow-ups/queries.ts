@@ -80,7 +80,7 @@ type FollowUpRow = {
   inquiryCustomerEmail: string | null;
   inquiryCustomerContactMethod: string | null;
   inquiryCustomerContactHandle: string | null;
-  inquiryServiceCategory: string | null;
+  inquirySubject: string | null;
   quoteCustomerName: string | null;
   quoteCustomerEmail: string | null;
   quoteCustomerContactMethod: string | null;
@@ -186,8 +186,8 @@ function mapFollowUpRow(row: FollowUpRow): FollowUpView {
       : {
           kind: "inquiry",
           id: row.inquiryId!,
-          label: row.inquiryServiceCategory
-            ? `Inquiry: ${row.inquiryServiceCategory}`
+          label: row.inquirySubject
+            ? `Inquiry: ${row.inquirySubject}`
             : "Inquiry",
         },
     quoteNumber: row.quoteNumber,
@@ -250,7 +250,7 @@ function getFollowUpSelection() {
     inquiryCustomerEmail: inquiries.customerEmail,
     inquiryCustomerContactMethod: inquiries.customerContactMethod,
     inquiryCustomerContactHandle: inquiries.customerContactHandle,
-    inquiryServiceCategory: inquiries.serviceCategory,
+    inquirySubject: inquiries.subject,
     quoteCustomerName: quotes.customerName,
     quoteCustomerEmail: quotes.customerEmail,
     quoteCustomerContactMethod: quotes.customerContactMethod,
@@ -325,7 +325,8 @@ function getFollowUpListConditions({
         ilike(followUps.reason, pattern),
         ilike(inquiries.customerName, pattern),
         ilike(inquiries.customerEmail, pattern),
-        ilike(inquiries.serviceCategory, pattern),
+        ilike(inquiries.subject, pattern),
+        ilike(inquiries.details, pattern),
         ilike(quotes.customerName, pattern),
         ilike(quotes.customerEmail, pattern),
         ilike(quotes.quoteNumber, pattern),
@@ -765,7 +766,7 @@ export async function getRecentRecordsForFollowUpCreate(
       .select({
         id: inquiries.id,
         customerName: inquiries.customerName,
-        serviceCategory: inquiries.serviceCategory,
+        subject: inquiries.subject,
         createdAt: inquiries.createdAt,
       })
       .from(inquiries)
@@ -790,8 +791,8 @@ export async function getRecentRecordsForFollowUpCreate(
 
   for (const inquiry of recentInquiries) {
     const label = inquiry.customerName
-      ? `Inquiry: ${inquiry.customerName}${inquiry.serviceCategory ? ` — ${inquiry.serviceCategory}` : ""}`
-      : `Inquiry${inquiry.serviceCategory ? `: ${inquiry.serviceCategory}` : ""}`;
+      ? `Inquiry: ${inquiry.customerName}${inquiry.subject ? ` — ${inquiry.subject}` : ""}`
+      : `Inquiry${inquiry.subject ? `: ${inquiry.subject}` : ""}`;
     results.push({ kind: "inquiry", id: inquiry.id, label, createdAt: inquiry.createdAt });
   }
 

@@ -143,7 +143,7 @@ describe("features/audit/queries", () => {
         action: "request.archived",
         metadata: {
           customerName: "Alice",
-          serviceCategory: "Renovation",
+          serviceCategory: null,
         },
         source: "app",
         createdAt: hoursAgo(4),

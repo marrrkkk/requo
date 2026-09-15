@@ -23,6 +23,12 @@ export type OnboardingFormProps = {
     lastName: string;
     avatarUrl: string | null;
   };
+  /**
+   * True when the user qualifies for the last-name auto-skip (single-name
+   * Google account with no stored last name). Last name stays required for
+   * everyone else.
+   */
+  lastNameOptional?: boolean;
 };
 
 export type OnboardingStepId = "business" | "workflow" | "services";
@@ -85,6 +91,7 @@ export const onboardingComboboxButtonClassName =
 export function getFieldValidationError(
   field: OnboardingFieldName,
   draft: OnboardingDraft,
+  options?: { lastNameOptional?: boolean },
 ) {
   switch (field) {
     case "firstName": {
@@ -94,6 +101,11 @@ export function getFieldValidationError(
       return result.success ? undefined : result.error.issues[0]?.message;
     }
     case "lastName": {
+      if (!draft.lastName.trim()) {
+        return options?.lastNameOptional
+          ? undefined
+          : "Enter your last name.";
+      }
       const result = onboardingBusinessBasicsSchema.shape.lastName.safeParse(
         draft.lastName,
       );

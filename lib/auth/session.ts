@@ -51,5 +51,27 @@ export async function requireUser(redirectTo = "/login") {
   return (await requireSession(redirectTo)).user;
 }
 
+/**
+ * API variant of `requireUser` for Route Handlers. Throws a plain
+ * `ApiUnauthorizedError` (caught as JSON 401) instead of `redirect()`,
+ * which must never surface from `app/api/*` (SEC-019).
+ */
+export class ApiUnauthorizedError extends Error {
+  constructor() {
+    super("Unauthorized.");
+    this.name = "ApiUnauthorizedError";
+  }
+}
+
+export async function requireApiUser() {
+  const session = await getOptionalSession();
+
+  if (!session?.user) {
+    throw new ApiUnauthorizedError();
+  }
+
+  return session.user;
+}
+
 export type AuthSession = NonNullable<Awaited<ReturnType<typeof getSession>>>;
 export type AuthUser = AuthSession["user"];

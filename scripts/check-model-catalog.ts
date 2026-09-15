@@ -1,12 +1,17 @@
 /**
  * Catalog drift check — lists each configured provider's live models from its
- * `models` endpoint and diffs them against the unified catalog.
+ * `models` endpoint and diffs them against the unified catalog, plus the
+ * off-catalog identifiers the app calls directly (see OFF_CATALOG_MODEL_IDS).
  *
  * - Listing-only mode (default): runs as part of `npm run check`. Fails on
  *   any identifier Requo names but the provider no longer serves.
  * - `--probe`: opt-in, makes one minimal tool-calling request per candidate
  *   to confirm tool capability (settles the NVIDIA/Cloudflare question).
  *   Kept OUT of the automatic check — it spends real free-tier quota.
+ *
+ * Note the limit of a name-only diff: a provider can keep listing an
+ * identifier it refuses to serve (a retired Gemini model, or NVIDIA's
+ * inference-only 404s). Only `--probe` sees that class of breakage.
  *
  * Fails loudly when a provider's credentials are absent: a green check means
  * the catalog was really compared, not skipped.
@@ -18,8 +23,18 @@
 
 import { getModelCatalog } from "../lib/ai/catalog";
 import { diffCatalogAgainstLive } from "../lib/ai/catalog-drift";
+import { EMBEDDING_MODEL } from "../lib/ai/embeddings";
 
 const PROBE = process.argv.includes("--probe");
+
+/**
+ * Identifiers the app calls that are not routing candidates, so they are not
+ * catalog entries. They still have to be compared against the provider's
+ * listing: the embedding module returns `null` on any provider failure and
+ * callers fall back to lexical retrieval, so a model retired upstream disables
+ * semantic search silently. Nothing else in this repo would notice.
+ */
+const OFF_CATALOG_MODEL_IDS: string[] = [`google:${EMBEDDING_MODEL}`];
 
 type ProviderSpec = {
   name: string;
@@ -127,11 +142,36 @@ function providers(): ProviderSpec[] {
       listModels: async () => {
         const account = mustGetEnv("CLOUDFLARE_ACCOUNT_ID");
         const token = mustGetEnv("CLOUDFLARE_API_TOKEN");
-        const json = await fetchJson(
-          `https://api.cloudflare.com/client/v4/accounts/${account}/ai/models`,
-          { Authorization: `Bearer ${token}` },
-        );
-        return extractIds(json);
+        const headers = { Authorization: `Bearer ${token}` };
+
+        // Workers AI moved to the paginated `/ai/models/search` endpoint; the
+        // old `/ai/models` listing 404s. Its rows carry the `@cf/...` model
+        // name in `name` (with `id` holding an opaque UUID), so the generic
+        // `extractIds` — which prefers `id` — cannot be used here.
+        const perPage = 100;
+        const names: string[] = [];
+
+        for (let page = 1; page <= 50; page += 1) {
+          const json = (await fetchJson(
+            `https://api.cloudflare.com/client/v4/accounts/${account}/ai/models/search?per_page=${perPage}&page=${page}`,
+            headers,
+          )) as { result?: unknown };
+
+          const rows = Array.isArray(json.result) ? json.result : [];
+          const pageNames = rows
+            .map((row) =>
+              typeof (row as { name?: unknown })?.name === "string"
+                ? String((row as { name: string }).name)
+                : null,
+            )
+            .filter((name): name is string => Boolean(name));
+
+          names.push(...pageNames);
+
+          if (rows.length < perPage) break;
+        }
+
+        return names;
       },
     },
     {
@@ -162,6 +202,9 @@ function providers(): ProviderSpec[] {
 async function main() {
   const catalog = getModelCatalog();
   const catalogIds = catalog.map((e) => e.modelId);
+  // Compared against the listing, but never probed: a generateText call on an
+  // embedding model fails for reasons that say nothing about availability.
+  const listingIds = [...catalogIds, ...OFF_CATALOG_MODEL_IDS];
   let failures = 0;
 
   for (const provider of providers()) {
@@ -185,7 +228,7 @@ async function main() {
       failures += 1;
       continue;
     }
-    const expected = catalogIds.filter((id) => {
+    const expected = listingIds.filter((id) => {
       const prefix = id.split(":")[0];
       const pname = prefix === "google" ? "gemini" : prefix;
       return pname === provider.name;

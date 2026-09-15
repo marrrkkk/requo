@@ -97,7 +97,7 @@ At the end of every integration run, `tests/integration/zzz-residue.test.ts` sca
 | `GEMINI_API_KEY` | empty string |
 | `OPENROUTER_API_KEY` | empty string |
 
-Unit, component, integration, and local smoke runs all complete successfully with every third-party credential set to an empty string or a placeholder — network calls to Resend, Groq, Gemini, OpenRouter, and Supabase storage are mocked through `tests/support/third-party-mocks.ts` and blocked at the global `fetch` level by `tests/support/fetch-guard.ts`.
+Unit, component, integration, and local smoke runs all complete successfully with every third-party credential set to an empty string or a placeholder — network calls to Resend, Groq, Gemini, OpenRouter, and Supabase storage are mocked per test and blocked at the global `fetch` level by `tests/support/fetch-guard.ts`.
 
 ### Required only for local integration and e2e against a live database
 

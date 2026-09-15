@@ -1,13 +1,18 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import {
   createAgentSession,
   loadSessionByToken,
 } from "@/features/ai-agent/session-service";
 import { db } from "@/lib/db/client";
-import { aiAgentSessions, businesses } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import {
+  aiAgentSessions,
+  businesses,
+  businessInquiryForms,
+} from "@/lib/db/schema";
+import { and, eq, isNull } from "drizzle-orm";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { checkAgentSessionLimit } from "@/lib/ai/conversation-limits";
 import {
@@ -134,6 +139,15 @@ type ApproveProposalResult =
   | { success: false; error: string };
 
 /**
+ * Hashes a full session token for rate-limit scoping. Uses the full 256-bit
+ * entropy instead of a truncated prefix so unrelated sessions never share a
+ * bucket due to prefix collision.
+ */
+function hashTokenScope(prefix: string, token: string): string {
+  return `${prefix}:${createHash("sha256").update(token).digest("hex").slice(0, 32)}`;
+}
+
+/**
  * Approve a staged Proposed Inquiry (visitor authorised by session token).
  *
  * The only path from proposal to Inquiry: a row-locked read-modify-write that
@@ -172,7 +186,7 @@ export async function approveAgentProposalAction({
 
   const allowed = await assertPublicActionRateLimit({
     action: "public-inquiry-submit",
-    scope: `ai-agent-approve:${sessionToken.slice(0, 16)}`,
+    scope: hashTokenScope("ai-agent-approve", sessionToken),
     limit: 20,
     windowMs: 60 * 60 * 1000,
   });
@@ -262,7 +276,7 @@ export async function approveAgentProposalAction({
           customerEmail: parsedValues.data.customerEmail ?? null,
           customerContactMethod: parsedValues.data.customerContactMethod,
           customerContactHandle: parsedValues.data.customerContactHandle,
-          serviceCategory: parsedValues.data.serviceCategory,
+          serviceSlug: parsedValues.data.serviceSlug,
           details: parsedValues.data.details,
           budgetText: parsedValues.data.budgetText,
           requestedDeadline: parsedValues.data.requestedDeadline,
@@ -355,14 +369,74 @@ export async function approveAgentProposalAction({
     const { createAgentInquirySubmission } = await import(
       "@/features/inquiries/mutations"
     );
+    // Every inquiry must belong to a live Service form. Resolve the
+    // visitor-approved slug, falling back to the default form.
+    const [selectedForm] = await db
+      .select({
+        id: businessInquiryForms.id,
+        name: businessInquiryForms.name,
+        slug: businessInquiryForms.slug,
+        businessType: businessInquiryForms.businessType,
+        isDefault: businessInquiryForms.isDefault,
+        publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
+      })
+      .from(businessInquiryForms)
+      .where(
+        and(
+          eq(businessInquiryForms.businessId, business.id),
+          eq(
+            businessInquiryForms.slug,
+            consume.proposal.values.serviceSlug,
+          ),
+          isNull(businessInquiryForms.archivedAt),
+        ),
+      )
+      .limit(1);
+    const [defaultForm] = selectedForm
+      ? [selectedForm]
+      : await db
+          .select({
+            id: businessInquiryForms.id,
+            name: businessInquiryForms.name,
+            slug: businessInquiryForms.slug,
+            businessType: businessInquiryForms.businessType,
+            isDefault: businessInquiryForms.isDefault,
+            publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
+          })
+          .from(businessInquiryForms)
+          .where(
+            and(
+              eq(businessInquiryForms.businessId, business.id),
+              eq(businessInquiryForms.isDefault, true),
+              isNull(businessInquiryForms.archivedAt),
+            ),
+          )
+          .limit(1);
+    if (!defaultForm) {
+      return {
+        success: false,
+        error: "No active service is available right now.",
+      };
+    }
     const result = await createAgentInquirySubmission({
-      business: { id: business.id, name: business.name, slug: business.slug },
+      business: {
+        id: business.id,
+        name: business.name,
+        slug: business.slug,
+        form: {
+          id: defaultForm.id,
+          name: defaultForm.name,
+          slug: defaultForm.slug,
+          businessType: defaultForm.businessType as never,
+          isDefault: defaultForm.isDefault,
+          publicInquiryEnabled: defaultForm.publicInquiryEnabled,
+        },
+      },
       submission: {
         customerName: consume.proposal.values.customerName,
         customerEmail: consume.proposal.values.customerEmail ?? null,
         customerContactMethod: consume.proposal.values.customerContactMethod,
         customerContactHandle: consume.proposal.values.customerContactHandle,
-        serviceCategory: consume.proposal.values.serviceCategory,
         requestedDeadline: consume.proposal.values.requestedDeadline,
         budgetText: consume.proposal.values.budgetText,
         details: consume.proposal.values.details,
@@ -482,7 +556,7 @@ export async function discardAgentProposalAction({
 }): Promise<DiscardProposalResult> {
   const allowed = await assertPublicActionRateLimit({
     action: "public-inquiry-submit",
-    scope: `ai-agent-discard:${sessionToken.slice(0, 16)}`,
+    scope: hashTokenScope("ai-agent-discard", sessionToken),
     limit: 20,
     windowMs: 60 * 60 * 1000,
   });

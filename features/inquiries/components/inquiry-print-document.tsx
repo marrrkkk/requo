@@ -101,8 +101,8 @@ export function InquiryPrintDocument({
                 value={inquiry.inquiryFormName ?? getInquirySourceLabel(inquiry.source)}
               />
               <InfoTile
-                label="Category"
-                value={inquiry.serviceCategory}
+                label="Source"
+                value={getInquirySourceLabel(inquiry.source)}
               />
               <InfoTile
                 label={systemFieldDefaultLabels.budgetText}
@@ -113,7 +113,7 @@ export function InquiryPrintDocument({
                 value={inquiry.requestedDeadline ?? "Not provided"}
               />
               {inquiry.subject &&
-              inquiry.subject !== inquiry.serviceCategory ? (
+              inquiry.subject !== (inquiry.inquiryFormName ?? "") ? (
                 <InfoTile
                   className="sm:col-span-2"
                   label="Subject"

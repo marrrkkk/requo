@@ -4,6 +4,7 @@ import { ChevronDown, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
+import { mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -75,13 +76,17 @@ export function QuoteExportCsvDropdown({
   if (!canExport) {
     return (
       <ProFeatureNoticeButton
+        aria-label="Export CSV"
+        title="Export CSV"
+        size="sm"
+        className={mobileNavbarIconButtonClassName}
         noticeDescription="Upgrade to Pro to export quote records for reporting, handoff, and backup workflows."
         noticeTitle="CSV export is a Pro feature."
         variant="outline"
       >
         <Download data-icon="inline-start" />
-        Export CSV
-        <ChevronDown className="opacity-60" data-icon="inline-end" />
+        <span className="hidden lg:inline">Export CSV</span>
+        <ChevronDown className="opacity-60 max-lg:hidden" data-icon="inline-end" />
       </ProFeatureNoticeButton>
     );
   }
@@ -89,10 +94,17 @@ export function QuoteExportCsvDropdown({
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button disabled={resultCount === 0} variant="outline">
+        <Button
+          aria-label="Export CSV"
+          title="Export CSV"
+          size="sm"
+          className={mobileNavbarIconButtonClassName}
+          disabled={resultCount === 0}
+          variant="outline"
+        >
           <Download data-icon="inline-start" />
-          Export CSV
-          <ChevronDown className="opacity-60" data-icon="inline-end" />
+          <span className="hidden lg:inline">Export CSV</span>
+          <ChevronDown className="opacity-60 max-lg:hidden" data-icon="inline-end" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent

@@ -194,7 +194,7 @@ describe("features/analytics/queries", () => {
         subject: "Accepted renovation quote",
         customerName: "Alice Prospect",
         customerEmail: "alice@example.com",
-        serviceCategory: "Renovation",
+        serviceCategory: null,
         details: "Need a full estimate.",
         submittedFieldSnapshot: {
           version: 1,
@@ -213,7 +213,7 @@ describe("features/analytics/queries", () => {
         subject: "Pending kitchen quote",
         customerName: "Ben Prospect",
         customerEmail: "ben@example.com",
-        serviceCategory: "Kitchen remodel",
+        serviceCategory: null,
         details: "Looking for a quote next week.",
         submittedFieldSnapshot: {
           version: 1,
@@ -232,7 +232,7 @@ describe("features/analytics/queries", () => {
         subject: "Unanswered exterior project",
         customerName: "Cara Prospect",
         customerEmail: "cara@example.com",
-        serviceCategory: "Exterior work",
+        serviceCategory: null,
         details: "Need a rough estimate.",
         submittedFieldSnapshot: {
           version: 1,
@@ -251,7 +251,7 @@ describe("features/analytics/queries", () => {
         subject: "Rejected office fit-out",
         customerName: "Dana Prospect",
         customerEmail: "dana@example.com",
-        serviceCategory: "Office fit-out",
+        serviceCategory: null,
         details: "Need a fit-out proposal.",
         submittedFieldSnapshot: {
           version: 1,
@@ -660,7 +660,7 @@ describe("features/analytics/queries", () => {
       subject: "Deleted spam inquiry",
       customerName: "Deleted Prospect",
       customerEmail: "deleted@example.com",
-      serviceCategory: "Spam",
+      serviceCategory: null,
       details: "Should stay out of analytics.",
       submittedFieldSnapshot: {
         version: 1,

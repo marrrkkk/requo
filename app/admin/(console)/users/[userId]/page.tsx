@@ -10,17 +10,22 @@ import {
   DashboardPage,
 } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import { requireAdminUser } from "@/features/admin/access";
-import { wrapAdminRouteWithViewLog } from "@/features/admin/audit";
 import { AdminUserActions } from "@/features/admin/components/admin-user-actions";
 import { AdminUserDetail } from "@/features/admin/components/admin-user-detail";
-import { AdminUserPlanOverride } from "@/features/admin/components/admin-user-plan-override";
+import { AdminBillingPanel } from "@/features/admin/components/billing/admin-billing-panel";
+import { AdminSubscriptionOverrideForm } from "@/features/admin/components/billing/admin-subscription-override-form";
 import { ADMIN_USERS_PATH } from "@/features/admin/navigation";
-import { getAdminUserDetail } from "@/features/admin/queries";
+import { withAdminViewLog } from "@/features/admin/page-shell";
+import {
+  getAdminUserBillingActivity,
+  getAdminUserDetail,
+} from "@/features/admin/queries";
 import { timed } from "@/lib/dev/server-timing";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 import AdminLoading from "../../loading";
+
+export const instant = true;
 
 export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "User - Requo admin",
@@ -34,17 +39,17 @@ type AdminUserDetailPageProps = {
 /**
  * Admin user detail page (task 12.2 / Req 3.3, 4.x, 8.1, 9.1).
  *
- * Renders `AdminUserDetail` (profile summary + subscription + owned
- * businesses + recent audit) alongside `AdminUserActions` (verify,
- * revoke, suspend/unsuspend, delete, impersonate) — each action
- * flowing through `ConfirmPasswordDialog` client-side.
+ * Renders `AdminUserDetail` (profile summary + owned businesses + recent
+ * audit) alongside `AdminUserActions` (verify, revoke, suspend/unsuspend,
+ * delete, impersonate) — each action flowing through
+ * `ConfirmPasswordDialog` client-side. Billing (`AdminBillingPanel` +
+ * `AdminSubscriptionOverrideForm`) sits below the identity sections.
  *
  * The top-level component stays sync + wraps the async body in
  * `<Suspense>` so `cacheComponents` can stream the dynamic detail
  * independently of the admin shell. Writes a `view.user` audit row on
- * every render via `wrapAdminRouteWithViewLog` (Req 10.1). The target
- * user id is captured in the audit row so the audit feed can be
- * filtered by target.
+ * every render via `withAdminViewLog` (Req 10.1). The target user id is
+ * captured in the audit row so the audit feed can be filtered by target.
  */
 export default function AdminUserDetailPage({
   params,
@@ -59,36 +64,26 @@ export default function AdminUserDetailPage({
 async function AdminUserDetailPageContent({
   params,
 }: AdminUserDetailPageProps) {
-  // Admin auth + param resolution are independent — run them in parallel.
-  const [{ session, user: admin }, { userId }] = await Promise.all([
-    requireAdminUser(),
-    params,
-  ]);
+  const { userId } = await params;
 
-  const renderPage = wrapAdminRouteWithViewLog(
-    async () => renderDetail(userId, admin.id),
-    {
-      adminUserId: admin.id,
-      adminEmail: admin.email,
-      impersonatedUserId: session.session?.impersonatedBy
-        ? session.user.id
-        : null,
-    },
+  return withAdminViewLog(
     {
       action: "view.user",
       targetType: "user",
       targetId: userId,
     },
+    (context) => renderDetail(userId, context.user.id),
   );
-
-  return renderPage();
 }
 
 async function renderDetail(userId: string, adminUserId: string) {
-  const user = await timed(
-    "adminUserDetail.getAdminUserDetail",
-    getAdminUserDetail(userId),
-  );
+  const [user, billing] = await Promise.all([
+    timed("adminUserDetail.getAdminUserDetail", getAdminUserDetail(userId)),
+    timed(
+      "adminUserDetail.getAdminUserBillingActivity",
+      getAdminUserBillingActivity(userId),
+    ),
+  ]);
 
   if (!user) {
     notFound();
@@ -125,10 +120,14 @@ async function renderDetail(userId: string, adminUserId: string) {
 
       <AdminUserDetail user={user} />
 
-      <AdminUserPlanOverride
-        targetUserId={user.id}
-        targetEmail={user.email}
+      <AdminBillingPanel subscription={billing.subscription} />
+
+      <AdminSubscriptionOverrideForm
         currentPlan={user.subscription?.plan ?? "free"}
+        currentStatus={billing.subscription?.status ?? "free"}
+        ownerEmail={user.email}
+        subscriptionId={billing.subscription?.id ?? null}
+        userId={user.id}
       />
 
       <div className="flex justify-start">

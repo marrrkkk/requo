@@ -179,7 +179,46 @@ const seedAccounts = mergeSeedAccounts([
         countryCode: "PH",
         contactEmail: "hello@marklouie.dev",
         inquiryCount: 20,
-        quoteRatio: 0.5,
+        quoteRatio: 0.55,
+      },
+      {
+        name: "Mark Louie Builds",
+        slug: "mark-louie-builds",
+        businessType: "contractor_home_improvement",
+        shortDescription:
+          "Renovation and home improvement contractor for scoped remodels and fit-outs.",
+        customerContactChannel: "Phone, referrals, and public project request form",
+        defaultCurrency: "USD",
+        countryCode: "PH",
+        contactEmail: "builds@marklouie.dev",
+        inquiryCount: 18,
+        quoteRatio: 0.55,
+      },
+      {
+        name: "Mark Louie Clean Co.",
+        slug: "mark-louie-clean",
+        businessType: "cleaning_services",
+        shortDescription:
+          "Residential and commercial cleaning team for recurring and deep-clean jobs.",
+        customerContactChannel: "Public inquiry page and repeat bookings",
+        defaultCurrency: "USD",
+        countryCode: "PH",
+        contactEmail: "clean@marklouie.dev",
+        inquiryCount: 18,
+        quoteRatio: 0.55,
+      },
+      {
+        name: "Mark Louie Outdoors",
+        slug: "mark-louie-outdoors",
+        businessType: "landscaping_outdoor_services",
+        shortDescription:
+          "Landscaping and outdoor upgrades, from cleanups to monthly maintenance.",
+        customerContactChannel: "Public inquiry page and neighborhood referrals",
+        defaultCurrency: "USD",
+        countryCode: "PH",
+        contactEmail: "outdoors@marklouie.dev",
+        inquiryCount: 16,
+        quoteRatio: 0.55,
       },
     ],
   },
@@ -1120,6 +1159,10 @@ async function seedQuoteLibrary(input: {
   currency: string;
 }) {
   const templates = quoteItemTemplates[input.businessType] ?? quoteItemTemplates.general_project_services;
+  const categories =
+    businessTypeCategories[input.businessType] ??
+    businessTypeCategories.general_project_services;
+  const midpoint = (min: number, max: number) => Math.round((min + max) / 2);
   const entryRows: Array<typeof quoteLibraryEntries.$inferInsert> = [
     {
       id: id("qle"),
@@ -1134,6 +1177,26 @@ async function seedQuoteLibrary(input: {
     {
       id: id("qle"),
       businessId: input.businessId,
+      kind: "package",
+      currency: input.currency,
+      name: "Standard package",
+      description: "Most-booked scope covering the full standard service.",
+      createdAt: daysAgo(82),
+      updatedAt: daysAgo(82),
+    },
+    {
+      id: id("qle"),
+      businessId: input.businessId,
+      kind: "package",
+      currency: input.currency,
+      name: "Premium package",
+      description: "Expanded scope with premium finishes and extended support.",
+      createdAt: daysAgo(82),
+      updatedAt: daysAgo(82),
+    },
+    {
+      id: id("qle"),
+      businessId: input.businessId,
       kind: "block",
       currency: input.currency,
       name: "Rush handling",
@@ -1141,34 +1204,107 @@ async function seedQuoteLibrary(input: {
       createdAt: daysAgo(81),
       updatedAt: daysAgo(81),
     },
+    {
+      id: id("qle"),
+      businessId: input.businessId,
+      kind: "block",
+      currency: input.currency,
+      name: "Popular add-ons",
+      description: `Optional extras for ${categories[0] ?? "custom requests"} and follow-on work.`,
+      createdAt: daysAgo(81),
+      updatedAt: daysAgo(81),
+    },
   ];
   const itemRows: Array<typeof quoteLibraryEntryItems.$inferInsert> = [];
 
-  templates.slice(0, 3).forEach((item, position) => {
+  templates.slice(0, 2).forEach((item, position) => {
     itemRows.push({
       id: id("qli"),
       businessId: input.businessId,
       entryId: entryRows[0].id,
       description: item.desc,
       quantity: 1,
-      unitPriceInCents: Math.round((item.min + item.max) / 2),
+      unitPriceInCents: midpoint(item.min, item.max),
       position,
       createdAt: daysAgo(82),
       updatedAt: daysAgo(82),
     });
   });
 
-  itemRows.push({
-    id: id("qli"),
-    businessId: input.businessId,
-    entryId: entryRows[1].id,
-    description: "Priority scheduling and coordination",
-    quantity: 1,
-    unitPriceInCents: 35000,
-    position: 0,
-    createdAt: daysAgo(81),
-    updatedAt: daysAgo(81),
+  templates.slice(0, 3).forEach((item, position) => {
+    itemRows.push({
+      id: id("qli"),
+      businessId: input.businessId,
+      entryId: entryRows[1].id,
+      description: item.desc,
+      quantity: 1,
+      unitPriceInCents: midpoint(item.min, item.max),
+      position,
+      createdAt: daysAgo(82),
+      updatedAt: daysAgo(82),
+    });
   });
+
+  templates.forEach((item, position) => {
+    itemRows.push({
+      id: id("qli"),
+      businessId: input.businessId,
+      entryId: entryRows[2].id,
+      description: item.desc,
+      quantity: 1,
+      unitPriceInCents: Math.round(midpoint(item.min, item.max) * 1.15),
+      position,
+      createdAt: daysAgo(82),
+      updatedAt: daysAgo(82),
+    });
+  });
+
+  itemRows.push(
+    {
+      id: id("qli"),
+      businessId: input.businessId,
+      entryId: entryRows[3].id,
+      description: "Priority scheduling and coordination",
+      quantity: 1,
+      unitPriceInCents: 35000,
+      position: 0,
+      createdAt: daysAgo(81),
+      updatedAt: daysAgo(81),
+    },
+    {
+      id: id("qli"),
+      businessId: input.businessId,
+      entryId: entryRows[3].id,
+      description: "Expedited review and handover",
+      quantity: 1,
+      unitPriceInCents: 22000,
+      position: 1,
+      createdAt: daysAgo(81),
+      updatedAt: daysAgo(81),
+    },
+    {
+      id: id("qli"),
+      businessId: input.businessId,
+      entryId: entryRows[4].id,
+      description: `${categories[1] ?? "Extended service"} add-on`,
+      quantity: 1,
+      unitPriceInCents: midpoint(templates[0].min, templates[0].max),
+      position: 0,
+      createdAt: daysAgo(81),
+      updatedAt: daysAgo(81),
+    },
+    {
+      id: id("qli"),
+      businessId: input.businessId,
+      entryId: entryRows[4].id,
+      description: "Follow-up visit and adjustments",
+      quantity: 1,
+      unitPriceInCents: 18000,
+      position: 1,
+      createdAt: daysAgo(81),
+      updatedAt: daysAgo(81),
+    },
+  );
 
   await db.insert(quoteLibraryEntries).values(entryRows);
   await db.insert(quoteLibraryEntryItems).values(itemRows);

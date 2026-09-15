@@ -190,6 +190,34 @@
       "when": 1789300000000,
       "tag": "0026_remove_account_issuer",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1789300000001,
+      "tag": "0027_inquiry_source_service_refactor",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1789337586434,
+      "tag": "0028_inquiry_first_viewed",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1789375826504,
+      "tag": "0029_ai_usage_plan_attribution",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1789425628380,
+      "tag": "0030_omniscient_cassandra_nova",
+      "breakpoints": true
     }
   ]
 }

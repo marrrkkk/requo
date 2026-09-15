@@ -4,6 +4,7 @@ import { admin, magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
+import { extractFirstName } from "@/features/account/name";
 import { getAdminHost } from "@/lib/admin/subdomain-config";
 import { db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
@@ -23,8 +24,13 @@ function toOrigin(value: string) {
  *
  * - Production (https://requo.app): domain = ".requo.app" so both
  *   app.requo.app and admin.requo.app share the session cookie.
- * - Development (http://localhost:3000): domain = "localhost" so both
- *   localhost:3000 and admin.localhost:3000 share the cookie.
+ * - Development (http://localhost:3000): "" (no Domain attribute).
+ *   Browsers silently drop `Set-Cookie` responses carrying
+ *   `Domain=localhost`, which surfaces as a login that succeeds
+ *   server-side (fresh session row per attempt) but bounces straight
+ *   back to `/login`. Host-only cookies work fine — the tradeoff is
+ *   that localhost:3000 and admin.localhost:3000 keep separate
+ *   sessions in dev, so you sign in on each host once.
  */
 function getCookieDomain(): string {
   const baseUrl = process.env.BETTER_AUTH_URL;
@@ -32,7 +38,7 @@ function getCookieDomain(): string {
   try {
     const hostname = new URL(baseUrl).hostname;
     if (hostname === "localhost" || hostname === "127.0.0.1") {
-      return "localhost";
+      return "";
     }
     return `.${hostname}`;
   } catch {
@@ -42,6 +48,24 @@ function getCookieDomain(): string {
 
 function getTrustedVercelOrigin(value: string) {
   return toOrigin(value.startsWith("http") ? value : `https://${value}`);
+}
+
+/**
+ * Protocol of the configured base URL.
+ *
+ * Keyed off `BETTER_AUTH_URL`, not `NODE_ENV`, so a production build run
+ * locally (`next start` with an http base URL) still trusts http origins
+ * and skips secure cookies. Real deployments use an https base URL, so
+ * their behavior is unchanged.
+ */
+function getBaseUrlProtocol(): "http" | "https" {
+  try {
+    return new URL(env.BETTER_AUTH_URL).protocol === "https:"
+      ? "https"
+      : "http";
+  } catch {
+    return env.NODE_ENV === "production" ? "https" : "http";
+  }
 }
 
 function buildTrustedOrigins() {
@@ -63,25 +87,27 @@ function buildTrustedOrigins() {
     origins.add(getTrustedVercelOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL));
   }
 
-  if (env.NODE_ENV !== "production") {
-    for (const origin of Array.from(origins)) {
-      const url = new URL(origin);
+  // Localhost aliases apply whenever a localhost-family origin is
+  // present — including production builds run locally — so the mirror
+  // is keyed off hostnames, not NODE_ENV. In real deployments no origin
+  // matches and the loop is a no-op.
+  for (const origin of Array.from(origins)) {
+    const url = new URL(origin);
 
-      if (url.hostname === "localhost") {
-        url.hostname = "127.0.0.1";
-        origins.add(url.origin);
-      }
+    if (url.hostname === "localhost") {
+      url.hostname = "127.0.0.1";
+      origins.add(url.origin);
+    }
 
-      if (url.hostname === "127.0.0.1") {
-        url.hostname = "localhost";
-        origins.add(url.origin);
-      }
+    if (url.hostname === "127.0.0.1") {
+      url.hostname = "localhost";
+      origins.add(url.origin);
     }
   }
 
   // Add admin subdomain to trusted origins
   const adminHost = getAdminHost();
-  const adminProtocol = env.NODE_ENV === "production" ? "https" : "http";
+  const adminProtocol = getBaseUrlProtocol();
   origins.add(`${adminProtocol}://${adminHost}`);
 
   return Array.from(origins);
@@ -94,6 +120,10 @@ const shouldSkipMagicLinkEmail =
   shouldSkipTransactionalAuthEmails ||
   process.env.DISABLE_MAGIC_LINK === "1" ||
   process.env.DISABLE_MAGIC_LINK === "true";
+
+// Empty in local dev (see getCookieDomain) — the cross-subdomain option
+// below is omitted entirely in that case.
+const cookieDomain = getCookieDomain();
 
 export const auth = betterAuth({
   appName: "Requo",
@@ -118,7 +148,7 @@ export const auth = betterAuth({
       await sendPasswordResetEmail({
         userId: user.id,
         email: user.email,
-        name: user.name,
+        name: extractFirstName(user.name) || user.name,
         url,
         token,
       });
@@ -136,7 +166,7 @@ export const auth = betterAuth({
       await sendVerificationEmail({
         userId: user.id,
         email: user.email,
-        name: user.name,
+        name: extractFirstName(user.name) || user.name,
         token,
         url,
       });
@@ -208,12 +238,22 @@ export const auth = betterAuth({
     },
   },
   advanced: {
-    useSecureCookies: env.NODE_ENV === "production",
-    // Share session cookies between app and admin subdomains.
-    crossSubDomainCookies: {
-      enabled: true,
-      domain: getCookieDomain(),
-    },
+    // Secure cookies follow the base URL protocol, not NODE_ENV, so a
+    // production build served over plain http (local `next start`) does
+    // not set `Secure` cookies the browser would silently drop.
+    useSecureCookies: getBaseUrlProtocol() === "https",
+    // Share session cookies between app and admin subdomains. Omitted
+    // when there is no cookie domain (local dev) — an empty Domain
+    // attribute would break cookie storage, so dev falls back to
+    // host-only cookies (separate session per host).
+    ...(cookieDomain
+      ? {
+          crossSubDomainCookies: {
+            enabled: true,
+            domain: cookieDomain,
+          },
+        }
+      : {}),
     // Prefer concrete proxy headers before x-forwarded-for so "::" is not used as a stable client key when a better header exists.
     ipAddress: {
       ipAddressHeaders: ["cf-connecting-ip", "x-real-ip", "x-forwarded-for"],

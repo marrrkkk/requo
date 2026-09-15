@@ -108,7 +108,7 @@ async function getCachedCustomerHistoryForBusiness(input: {
           customerEmail: inquiries.customerEmail,
           customerContactMethod: inquiries.customerContactMethod,
           customerContactHandle: inquiries.customerContactHandle,
-          serviceCategory: inquiries.serviceCategory,
+          subject: inquiries.subject,
           status: getEffectiveInquiryStatus,
           submittedAt: inquiries.submittedAt,
         })

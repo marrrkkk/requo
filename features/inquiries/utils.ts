@@ -10,7 +10,12 @@ import {
 
 import type {
   InquiryRecordState,
+  InquirySourceValue,
   InquiryStatus,
+} from "@/features/inquiries/types";
+import {
+  inquirySourceLabels,
+  normalizeInquirySource,
 } from "@/features/inquiries/types";
 
 export const inquiryStatusLabels: Record<InquiryStatus, string> = {
@@ -108,16 +113,21 @@ export function formatFileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export const AI_AGENT_SOURCES = new Set(["ai", "ai_agent", "ai_agent_handoff"]);
+/** @deprecated Use normalizeInquirySource + inquirySourceLabels instead. */
+export const AI_AGENT_SOURCES = new Set([
+  "ai",
+  "ai_agent",
+  "ai_agent_handoff",
+  "ai_assistant",
+]);
 
 /**
  * Returns a human-readable channel label for a dashboard inquiry source.
- * Falls back to "Manual" when the source is unknown. Agent-collected
- * inquiries (ai_agent / ai_agent_handoff) are labeled "AI agent".
+ * Canonical values: Service Form / AI Assistant / Manual / API.
+ * Legacy values (public-inquiry-page, manual-dashboard, ai_agent, …) are
+ * mapped forward; null/unknown renders as "Unknown".
  */
 export function getInquirySourceLabel(source: string | null | undefined): string {
-  if (source && AI_AGENT_SOURCES.has(source)) {
-    return "AI agent";
-  }
-  return "Manual";
+  const normalized: InquirySourceValue = normalizeInquirySource(source ?? null);
+  return inquirySourceLabels[normalized];
 }

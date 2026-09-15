@@ -22,6 +22,7 @@ import {
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import {
   inquiryRecordViews,
+  inquirySourceFilterValues,
   inquiryStatusFilterValues,
   inquiryWorkflowStatuses,
 } from "@/features/inquiries/types";
@@ -170,7 +171,6 @@ export type PublicInquirySubmissionInput = {
   customerEmail?: string | null;
   customerContactMethod: string;
   customerContactHandle: string;
-  serviceCategory: string;
   requestedDeadline?: string;
   budgetText?: string;
   details: string;
@@ -419,7 +419,6 @@ function createCustomFieldSchema(field: InquiryFormCustomFieldDefinition) {
 type PublicInquiryValidationOptions = {
   maxAttachmentSizeBytes?: number;
   plan?: plan;
-  defaultServiceCategory?: string;
 };
 
 function resolveAttachmentMaxSizeBytes(
@@ -475,15 +474,6 @@ function createPublicInquirySubmissionSchema(
     }
 
     switch (field.key) {
-      case "serviceCategory":
-        shape[inputName] = options?.defaultServiceCategory
-          ? createOptionalTextSchema(field.label, 120)
-          : createRequiredTextSchema({
-              label: field.label,
-              minLength: 2,
-              maxLength: 120,
-            });
-        break;
       case "requestedDeadline":
         shape[inputName] = createDateSchema(field.label, field.required);
         break;
@@ -675,9 +665,6 @@ export function validatePublicInquirySubmission(
       customerEmail,
       customerContactMethod,
       customerContactHandle,
-      serviceCategory: String(
-        parsedValues.serviceCategory || options?.defaultServiceCategory || "",
-      ),
       requestedDeadline:
         typeof parsedValues.requestedDeadline === "string"
           ? parsedValues.requestedDeadline
@@ -697,7 +684,6 @@ export function validatePublicInquirySubmission(
 }
 
 const manualQuickInquiryFieldKeys = new Set([
-  "serviceCategory",
   "requestedDeadline",
   "budgetText",
   "details",
@@ -714,7 +700,7 @@ export function createManualQuickInquiryFormConfig(
     .map((field) => ({
       ...field,
       enabled: true,
-      required: field.key === "serviceCategory" || field.key === "details",
+      required: field.key === "details",
     }));
 
   return {
@@ -789,6 +775,12 @@ export const inquiryListFiltersSchema = z.object({
       z.string().trim().max(120),
     )
     .catch("all"),
+  source: z
+    .preprocess(
+      (value) => firstString(value) ?? "all",
+      z.enum(inquirySourceFilterValues),
+    )
+    .catch("all"),
   sort: z
     .preprocess(
       (value) => firstString(value) ?? "newest",
@@ -796,6 +788,12 @@ export const inquiryListFiltersSchema = z.object({
     )
     .catch("newest"),
   escalated: z
+    .preprocess((value) => {
+      const first = firstString(value);
+      return first === "1" || first === "true";
+    }, z.boolean())
+    .catch(false),
+  unread: z
     .preprocess((value) => {
       const first = firstString(value);
       return first === "1" || first === "true";

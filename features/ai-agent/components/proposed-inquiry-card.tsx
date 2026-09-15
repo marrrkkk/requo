@@ -23,7 +23,7 @@ export type ProposalValues = {
   customerEmail?: string | null;
   customerContactMethod: string;
   customerContactHandle: string;
-  serviceCategory: string;
+  serviceSlug: string;
   details: string;
   budgetText?: string;
   requestedDeadline?: string;
@@ -35,7 +35,10 @@ function toEditableValues(proposal: ProposedInquiry): ProposalValues {
     customerEmail: proposal.values.customerEmail ?? "",
     customerContactMethod: proposal.values.customerContactMethod ?? "email",
     customerContactHandle: proposal.values.customerContactHandle ?? "",
-    serviceCategory: proposal.values.serviceCategory ?? "",
+    serviceSlug:
+      proposal.values.serviceSlug ??
+      (proposal.values as { serviceCategory?: string }).serviceCategory ??
+      "",
     details: proposal.values.details ?? "",
     budgetText: proposal.values.budgetText ?? "",
     requestedDeadline: proposal.values.requestedDeadline ?? "",
@@ -86,7 +89,7 @@ export function ProposedInquiryCard({
           : undefined,
       customerContactMethod: values.customerContactMethod,
       customerContactHandle: values.customerContactHandle,
-      serviceCategory: values.serviceCategory,
+      serviceSlug: values.serviceSlug,
       details: values.details,
       budgetText:
         values.budgetText && values.budgetText.trim()
@@ -151,7 +154,7 @@ export function ProposedInquiryCard({
             ) : null}
             <div>
               <dt className="meta-label">Service</dt>
-              <dd className="mt-0.5 text-foreground">{values.serviceCategory}</dd>
+              <dd className="mt-0.5 text-foreground">{values.serviceSlug}</dd>
             </div>
             <div>
               <dt className="meta-label">Details</dt>
@@ -283,19 +286,19 @@ export function ProposedInquiryCard({
             </Field>
           </div>
 
-          <Field data-invalid={Boolean(showErrors && fieldError(validation.errors, "serviceCategory"))}>
-            <FieldLabel htmlFor="proposal-serviceCategory">Service needed</FieldLabel>
+          <Field data-invalid={Boolean(showErrors && fieldError(validation.errors, "serviceSlug"))}>
+            <FieldLabel htmlFor="proposal-serviceSlug">Service</FieldLabel>
             <FieldContent>
               <Input
-                aria-invalid={Boolean(showErrors && fieldError(validation.errors, "serviceCategory"))}
+                aria-invalid={Boolean(showErrors && fieldError(validation.errors, "serviceSlug"))}
                 disabled={busy}
-                id="proposal-serviceCategory"
-                onChange={(event) => set({ serviceCategory: event.target.value })}
-                value={values.serviceCategory}
+                id="proposal-serviceSlug"
+                onChange={(event) => set({ serviceSlug: event.target.value })}
+                value={values.serviceSlug}
               />
             </FieldContent>
-            {showErrors && fieldError(validation.errors, "serviceCategory") ? (
-              <p className="text-sm text-destructive">{fieldError(validation.errors, "serviceCategory")}</p>
+            {showErrors && fieldError(validation.errors, "serviceSlug") ? (
+              <p className="text-sm text-destructive">{fieldError(validation.errors, "serviceSlug")}</p>
             ) : null}
           </Field>
 

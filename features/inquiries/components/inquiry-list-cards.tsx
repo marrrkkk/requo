@@ -1,10 +1,8 @@
 import { Copy, PenLine, PencilRuler } from "lucide-react";
-import { RequoIcon } from "@/components/shared/requo-icon";
 import type { MotionState } from "@/hooks/use-animated-list";
 import { MobileRecordRow } from "@/components/shared/mobile-record-row";
 import type { DashboardInquiryListItem } from "@/features/inquiries/types";
 import {
-  AI_AGENT_SOURCES,
   formatInquiryDate,
   getInquirySourceLabel,
 } from "@/features/inquiries/utils";
@@ -16,10 +14,7 @@ function getInquiryChannelDisplay(inquiry: DashboardInquiryListItem) {
   if (inquiry.inquiryFormName) {
     return { label: inquiry.inquiryFormName, icon: PencilRuler };
   }
-  if (inquiry.source && AI_AGENT_SOURCES.has(inquiry.source)) {
-    return { label: getInquirySourceLabel(inquiry.source), icon: RequoIcon };
-  }
-  return { label: "Manual", icon: PenLine };
+  return { label: getInquirySourceLabel(inquiry.source), icon: PenLine };
 }
 
 type InquiryListCardsProps = {
@@ -58,6 +53,15 @@ export function InquiryListCards({
             motionState={getMotionState?.(inquiry.id)}
             title={
               <span className="flex items-center gap-1.5 min-w-0">
+                {inquiry.isUnread ? (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="size-2 shrink-0 rounded-full bg-primary"
+                    />
+                    <span className="sr-only">Unread: </span>
+                  </>
+                ) : null}
                 <span className="truncate">{inquiry.customerName}</span>
                 {inquiry.hasDuplicateFlag ? (
                   <Copy
@@ -84,12 +88,8 @@ export function InquiryListCards({
                   <ChannelIcon className="size-3 shrink-0 text-muted-foreground" />
                   <span className="truncate max-w-[120px]">{channel.label}</span>
                 </span>
-                {inquiry.serviceCategory ? (
-                  <>
-                    <span aria-hidden="true" className="text-muted-foreground/40">·</span>
-                    <span className="truncate max-w-[130px]">{inquiry.serviceCategory}</span>
-                  </>
-                ) : null}
+                <span aria-hidden="true" className="text-muted-foreground/40">·</span>
+                <span className="truncate max-w-[130px]">{getInquirySourceLabel(inquiry.source)}</span>
                 <span aria-hidden="true" className="text-muted-foreground/40">·</span>
                 <span>{formatInquiryDate(inquiry.submittedAt)}</span>
               </>

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { cosineSimilarity, generateEmbedding } from "@/lib/ai/embeddings";
 import { db } from "@/lib/db/client";
@@ -125,7 +125,7 @@ export async function retrieveBusinessKnowledge(input: {
         and(
           eq(businessMemories.businessId, input.businessId),
           ...(input.categories?.length
-            ? [eq(businessMemories.category, input.categories[0])]
+            ? [inArray(businessMemories.category, input.categories)]
             : []),
         ),
       ),

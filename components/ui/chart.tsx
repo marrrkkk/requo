@@ -78,19 +78,41 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null
   }
 
+  // Sanitize values interpolated into raw CSS: keys/ids to identifier chars,
+  // colors to a safe CSS color subset. Blocks CSS injection via crafted
+  // chart config labels or theme values.
+  const sanitizeCssIdentifier = (value: string) =>
+    value.replace(/[^a-zA-Z0-9-_]/g, "").slice(0, 64);
+  const sanitizeCssColor = (value: string) => {
+    const trimmed = value.trim().slice(0, 64);
+    if (
+      /^#[0-9a-fA-F]{3,8}$/.test(trimmed) ||
+      /^rgba?\([^)]*\)$/.test(trimmed) ||
+      /^hsla?\([^)]*\)$/.test(trimmed) ||
+      /^var\(--[a-zA-Z0-9-_]+\)$/.test(trimmed) ||
+      /^[a-zA-Z]+$/.test(trimmed)
+    ) {
+      return trimmed;
+    }
+    return null;
+  };
+  const safeId = sanitizeCssIdentifier(id);
+
   return (
     <style
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart=${safeId}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
-    const color =
+    const rawColor =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
       itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
+    const color = rawColor ? sanitizeCssColor(rawColor) : null
+    const safeKey = sanitizeCssIdentifier(key)
+    return color && safeKey ? `  --color-${safeKey}: ${color};` : null
   })
   .join("\n")}
 }`

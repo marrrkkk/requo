@@ -9,8 +9,6 @@ import {
   UserMenuSkeleton,
   MobileBusinessSwitcher,
   MobileBusinessSwitcherSkeleton,
-  MobileUserMenu,
-  MobileUserMenuSkeleton,
 } from "@/components/shell/dashboard-shell-slots";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
@@ -26,6 +24,7 @@ import { ThemePreferenceSync } from "@/features/theme/components/theme-preferenc
 import { getUiScalePreferenceForUser } from "@/features/theme/ui-scale-queries";
 import { UiScaleSync } from "@/features/theme/components/ui-scale-sync";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
+import { InquiryUnreadBadgeSlot } from "@/features/inquiries/components/inquiry-unread-badge-slot";
 import { getBusinessNotificationBellView } from "@/features/notifications/queries";
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
 import { SidebarChecklistSection } from "@/features/onboarding/components/sidebar-checklist-section";
@@ -94,11 +93,6 @@ async function BusinessMainShell({
             <UserMenuSlot businessSlug={businessSlug} />
           </Suspense>
         }
-        mobileUserMenuSlot={
-          <Suspense fallback={<MobileUserMenuSkeleton />}>
-            <MobileUserMenuSlot businessSlug={businessSlug} />
-          </Suspense>
-        }
         notificationSlot={
           <Suspense fallback={<Skeleton className="size-9 rounded-lg" />}>
             <NotificationBellSlot businessSlug={businessSlug} />
@@ -122,6 +116,11 @@ async function BusinessMainShell({
         bannerSlot={
           <Suspense fallback={null}>
             <BannerSlot businessSlug={businessSlug} />
+          </Suspense>
+        }
+        navBadgeSlot={
+          <Suspense fallback={null}>
+            <InquiryUnreadBadgeSlot businessSlug={businessSlug} />
           </Suspense>
         }
       >
@@ -193,32 +192,6 @@ async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
 
   return (
     <DashboardUserMenu
-      user={{
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        avatarSrc,
-      }}
-      businessRole={businessContext.role}
-      businessSlug={businessContext.business.slug}
-      businessId={businessContext.business.id}
-      plan={businessContext.business.plan}
-    />
-  );
-}
-
-async function MobileUserMenuSlot({ businessSlug }: { businessSlug: string }) {
-  const { user, businessContext } = await getAppShellContext(businessSlug);
-  const profile = await getAccountProfileForUser(user.id);
-
-  const avatarSrc = resolveUserAvatarSrc({
-    avatarStoragePath: profile?.avatarStoragePath,
-    profileUpdatedAt: profile?.updatedAt,
-    oauthImage: user.image ?? null,
-  });
-
-  return (
-    <MobileUserMenu
       user={{
         id: user.id,
         email: user.email,

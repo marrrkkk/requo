@@ -144,10 +144,14 @@ describe("features/admin/mutations role management", () => {
       },
       {
         id: outsiderAdminId,
-        name: "Second Admin",
+        name: "Outsider User",
         email: `${prefix}.admin2@example.com`,
         emailVerified: true,
-        role: "admin",
+        // Deliberately a NON-admin. The last-admin guard test excludes this
+        // user from `getForeignAdminCount()` and then asserts that demoting
+        // it is blocked while `adminId` is the only remaining admin. Seeding
+        // it as an admin made the global count 2, so the guard never fired.
+        role: "user",
         createdAt: now,
         updatedAt: now,
       },

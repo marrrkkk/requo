@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/session";
 import { getBusinessActionContext } from "@/lib/db/business-access";
+import { assertBusinessActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 import { runOwnerAssistant } from "@/features/owner-assistant/orchestrator";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 
@@ -81,6 +82,23 @@ export async function POST(request: Request) {
     }
 
     const { business, role } = result.businessContext;
+
+    // Burst backstop for this expensive AI endpoint (daily/monthly quotas are
+    // enforced in the orchestrator; this per-minute bucket stops scripted
+    // bursts from a compromised account).
+    const burstAllowed = await assertBusinessActionRateLimit({
+      action: "ai-file-import",
+      scope: `owner-assistant:${business.id}:${session.user.id}`,
+      limit: 20,
+      windowMs: 60_000,
+    });
+
+    if (!burstAllowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Slow down and try again shortly." },
+        { status: 429 },
+      );
+    }
 
     // Business Instructions are owner-authored context shared with both AI
     // surfaces; they live on the business settings cache, not the membership

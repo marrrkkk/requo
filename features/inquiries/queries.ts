@@ -73,6 +73,7 @@ import type {
   InquiryListQueryFilters,
   PublicInquiryBusiness,
 } from "@/features/inquiries/types";
+import { normalizeInquirySource } from "@/features/inquiries/types";
 
 export async function getPublicInquiryBusinessBySlug(
   slug: string,
@@ -437,6 +438,25 @@ function getInquiryListConditions({
     );
   }
 
+  if (filters.source && filters.source !== "all") {
+    const canonicalSource = normalizeInquirySource(filters.source);
+    const legacyEquivalents = Object.entries({
+      "public-inquiry-page": "service_form",
+      "manual-dashboard": "manual",
+      ai_agent: "ai_assistant",
+      ai_agent_handoff: "ai_assistant",
+      ai: "ai_assistant",
+    } as const)
+      .filter(([, canonical]) => canonical === canonicalSource)
+      .map(([legacy]) => legacy);
+    conditions.push(
+      or(
+        eq(inquiries.source, canonicalSource),
+        ...legacyEquivalents.map((legacy) => eq(inquiries.source, legacy)),
+      )!,
+    );
+  }
+
   if (filters.q) {
     const pattern = `%${filters.q}%`;
 
@@ -444,7 +464,7 @@ function getInquiryListConditions({
       or(
         ilike(inquiries.customerName, pattern),
         ilike(inquiries.customerEmail, pattern),
-        ilike(inquiries.serviceCategory, pattern),
+        ilike(inquiries.details, pattern),
         ilike(inquiries.subject, pattern),
       )!,
     );
@@ -456,6 +476,10 @@ function getInquiryListConditions({
 
   if (filters.escalated) {
     conditions.push(eq(inquiries.escalated, true));
+  }
+
+  if (filters.unread) {
+    conditions.push(isNull(inquiries.firstViewedAt));
   }
 
   return conditions;
@@ -488,6 +512,41 @@ export async function getInquiryListCountForBusiness({
           eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
         )
         .where(and(...conditions)),
+  );
+
+  return Number(rows[0]?.count ?? 0);
+}
+
+/**
+ * Shared per-business unread count for the Inquiries nav badge and the
+ * "Unread only" filter chip. Unread = never opened (`firstViewedAt IS NULL`)
+ * and still active (excludes archived/deleted). Tagged with the inquiry list
+ * tags so every existing inquiry mutation invalidates it automatically.
+ */
+export async function getUnreadInquiryCountForBusiness({
+  businessId,
+}: {
+  businessId: string;
+}): Promise<number> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessInquiryListCacheTags(businessId));
+
+  const rows = await withCircuitBreaker(
+    `dashboard:inquiries-unread-count:${businessId}`,
+    () =>
+      db
+        .select({ count: count() })
+        .from(inquiries)
+        .where(
+          and(
+            eq(inquiries.businessId, businessId),
+            isNull(inquiries.firstViewedAt),
+            isNull(inquiries.archivedAt),
+            isNull(inquiries.deletedAt),
+          ),
+        ),
   );
 
   return Number(rows[0]?.count ?? 0);
@@ -559,6 +618,7 @@ export async function getInquiryListPageForBusiness({
             where inquiry_duplicates.inquiry_id = ${inquiries.id}
               and inquiry_duplicates.dismissed_at is null
           )`,
+          isUnread: sql<boolean>`${inquiries.firstViewedAt} is null`,
           submittedAt: inquiries.submittedAt,
           createdAt: inquiries.createdAt,
         })
@@ -577,11 +637,12 @@ export async function getInquiryListPageForBusiness({
 type InquiryExportRow = {
   id: string;
   inquiryFormName: string | null;
+  inquiryFormSlug: string | null;
+  source: string | null;
   customerName: string;
   customerEmail: string | null;
   customerContactMethod: string;
   customerContactHandle: string;
-  serviceCategory: string;
   requestedDeadline: string | null;
   budgetText: string | null;
   subject: string | null;
@@ -618,11 +679,12 @@ export async function getInquiryExportRowsForBusiness({
     .select({
       id: inquiries.id,
       inquiryFormName: businessInquiryForms.name,
+      inquiryFormSlug: businessInquiryForms.slug,
+      source: inquiries.source,
       customerName: inquiries.customerName,
       customerEmail: inquiries.customerEmail,
       customerContactMethod: inquiries.customerContactMethod,
       customerContactHandle: inquiries.customerContactHandle,
-      serviceCategory: inquiries.serviceCategory,
       requestedDeadline: inquiries.requestedDeadline,
       budgetText: inquiries.budgetText,
       subject: inquiries.subject,
@@ -677,6 +739,7 @@ export async function getInquiryDetailForBusiness({
       recordState: getInquiryRecordState,
       archivedAt: inquiries.archivedAt,
       escalated: inquiries.escalated,
+      firstViewedAt: inquiries.firstViewedAt,
       submittedAt: inquiries.submittedAt,
       createdAt: inquiries.createdAt,
       submittedFieldSnapshot: inquiries.submittedFieldSnapshot,

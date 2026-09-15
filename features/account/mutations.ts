@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import type { AccountProfileInput } from "@/features/account/schemas";
+import { splitFullName } from "@/features/account/name";
 import {
   profileAvatarBucket,
   profileAvatarExtensionToMimeType,
@@ -17,9 +18,7 @@ type UpdateAccountProfileInput = {
     id: string;
     email: string;
   };
-  values: Omit<AccountProfileInput, "phone"> & {
-    phone: string | null;
-  };
+  values: AccountProfileInput;
 };
 
 function createId(prefix: string) {
@@ -118,13 +117,18 @@ export async function updateAccountProfile({
     }
   }
 
+  const split = splitFullName(values.fullName);
+
+  // `jobTitle` and `phone` are onboarding/deferred profile fields with no
+  // input on the profile settings page — they are intentionally not written
+  // here so saving a name never clobbers them.
   try {
     await db
       .update(profiles)
       .set({
         fullName: values.fullName,
-        jobTitle: values.jobTitle,
-        phone: values.phone,
+        firstName: split.firstName || null,
+        lastName: split.lastName || null,
         avatarStoragePath: values.removeAvatar
           ? nextAvatarStoragePath
           : nextAvatarStoragePath ?? previousAvatarStoragePath ?? null,

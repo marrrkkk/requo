@@ -23,7 +23,11 @@ import {
   ADMIN_BUSINESSES_PATH,
   getAdminUserDetailPath,
 } from "@/features/admin/navigation";
-import type { AdminBusinessDetail } from "@/features/admin/types";
+import { AdminBusinessBillingSection } from "@/features/admin/components/billing/admin-business-billing-section";
+import type {
+  AdminBusinessBilling,
+  AdminBusinessDetail,
+} from "@/features/admin/types";
 import { businessMemberRoleMeta } from "@/lib/business-members";
 import { planMeta, type BusinessPlan } from "@/lib/plans";
 
@@ -37,8 +41,15 @@ import { planMeta, type BusinessPlan } from "@/lib/plans";
  */
 export function AdminBusinessDetail({
   detail,
+  billing,
 }: {
   detail: AdminBusinessDetail;
+  /**
+   * Every plan signal for this business, or null when the billing lookup
+   * failed to resolve. The section is skipped (not errored) so a billing
+   * hiccup never takes down the identity view.
+   */
+  billing: AdminBusinessBilling | null;
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -215,6 +226,8 @@ export function AdminBusinessDetail({
           </DashboardSection>
         </DashboardSidebarStack>
       </DashboardDetailLayout>
+
+      {billing ? <AdminBusinessBillingSection billing={billing} /> : null}
     </div>
   );
 }

@@ -2,9 +2,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-const { assignMock, pushMock, toastErrorMock } = vi.hoisted(() => ({
+const { assignMock, pushMock } = vi.hoisted(() => ({
   assignMock: vi.fn(),
-  toastErrorMock: vi.fn(),
   pushMock: vi.fn(),
 }));
 
@@ -12,12 +11,6 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: pushMock,
   }),
-}));
-
-vi.mock("sonner", () => ({
-  toast: {
-    error: toastErrorMock,
-  },
 }));
 
 import { SendQuoteDialog } from "@/features/quotes/components/send-quote-dialog";
@@ -73,7 +66,6 @@ describe("paywalled export actions", () => {
 
   beforeEach(() => {
     assignMock.mockReset();
-    toastErrorMock.mockReset();
   });
 
   it("shows a Pro notice instead of a PDF link in the send quote dialog", async () => {

@@ -68,10 +68,10 @@ import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry
 import { InquiryExportPopover } from "@/features/inquiries/components/inquiry-export-popover";
 import { InquiryManageDropdown } from "@/features/inquiries/components/inquiry-manage-dropdown";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
+import { InquiryViewedTracker } from "@/features/inquiries/components/inquiry-viewed-tracker";
 import { getInquiryDetailForBusiness, getInquiryDuplicateForBusiness } from "@/features/inquiries/queries";
 import { inquiryRouteParamsSchema } from "@/features/inquiries/schemas";
 import {
-  AI_AGENT_SOURCES,
   formatFileSize,
   formatInquiryBudget,
   formatInquiryDate,
@@ -143,7 +143,7 @@ async function InquiryDetailRegion({
   params,
 }: InquiryDetailPageProps) {
   const resolvedParams = await params;
-  const { user, businessContext } = await getAppShellContext(resolvedParams.businessSlug);
+  const { businessContext } = await getAppShellContext(resolvedParams.businessSlug);
 
   const parsedParams = inquiryRouteParamsSchema.safeParse(resolvedParams);
 
@@ -168,6 +168,12 @@ async function InquiryDetailRegion({
   if (!inquiry) {
     notFound();
   }
+
+  // Shared per-business read receipt runs client-side via
+  // `<InquiryViewedTracker>` (Server Action + `updateTag`). Doing the DB
+  // write + `updateTag` here during render throws
+  // "used updateTag during render which is unsupported".
+  const isUnreadInitially = !inquiry.firstViewedAt;
 
   const duplicateRecord = await duplicatePromise;
 
@@ -208,6 +214,10 @@ async function InquiryDetailRegion({
 
   return (
     <DashboardPage className="pb-24">
+      <InquiryViewedTracker
+        inquiryId={inquiry.id}
+        isUnreadInitially={isUnreadInitially}
+      />
       {duplicateRecord && !duplicateRecord.dismissedAt ? (
         <InquiryDuplicateBanner
           duplicate={{
@@ -330,17 +340,13 @@ async function InquiryDetailRegion({
               />
               <InfoTile
                 icon={Tag}
-                label={
-                  inquiry.submittedFieldSnapshot?.fields?.find(
-                    (f) => f.id === "serviceCategory",
-                  )?.label ?? "Category"
-                }
-                value={inquiry.serviceCategory}
+                label="Source"
+                value={getInquirySourceLabel(inquiry.source)}
               />
             </div>
 
             {inquiry.subject &&
-            inquiry.subject !== inquiry.serviceCategory ? (
+            inquiry.subject !== (inquiry.inquiryFormName ?? "") ? (
               <div className="soft-panel shadow-none">
                 <p className="meta-label">Subject</p>
                 <p className="mt-2 text-sm leading-6 text-foreground">

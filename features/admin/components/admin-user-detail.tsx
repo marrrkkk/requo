@@ -7,34 +7,9 @@ import {
 } from "@/components/shared/dashboard-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { AdminAction } from "@/features/admin/constants";
+import { getAdminActionLabel } from "@/features/admin/labels";
 import { getAdminBusinessDetailPath } from "@/features/admin/navigation";
 import type { AdminUserDetail as AdminUserDetailPayload } from "@/features/admin/types";
-
-const adminActionLabels: Record<AdminAction, string> = {
-  "view.dashboard": "Viewed dashboard",
-  "view.users": "Viewed users",
-  "view.user": "Viewed user detail",
-  "view.businesses": "Viewed businesses",
-  "view.business": "Viewed business detail",
-  "view.subscriptions": "Viewed subscriptions",
-  "view.subscription": "Viewed subscription detail",
-  "view.audit-logs": "Viewed audit logs",
-  "view.system": "Viewed system",
-  "user.force_verify_email": "Force-verified email",
-  "user.revoke_all_sessions": "Revoked all sessions",
-  "user.suspend": "Suspended user",
-  "user.unsuspend": "Reinstated user",
-  "user.delete": "Deleted user",
-  "user.promote_admin": "Promoted to admin",
-  "user.demote_admin": "Removed admin access",
-  "admin.bootstrap": "Admin bootstrap",
-  "subscription.manual_plan_override": "Overrode subscription plan",
-  "subscription.force_cancel": "Force-canceled subscription",
-  "impersonation.start": "Started impersonation",
-  "impersonation.stop": "Stopped impersonation",
-  "confirmation.failed": "Password re-confirmation failed",
-};
 
 type AdminUserDetailProps = {
   user: AdminUserDetailPayload;
@@ -60,13 +35,6 @@ function formatPlanLabel(plan: string): string {
   return plan.charAt(0).toUpperCase() + plan.slice(1);
 }
 
-function formatStatusLabel(status: string): string {
-  return status
-    .split("_")
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-    .join(" ");
-}
-
 /**
  * User detail summary rendered on `/admin/users/[userId]` (task 12.2 /
  * Req 3.3).
@@ -75,11 +43,12 @@ function formatStatusLabel(status: string): string {
  * `getAdminUserDetail` and surfaces:
  *
  * - Profile summary (email, name, email-verified badge, suspended badge)
- * - Current account subscription (plan, status, renews-at)
  * - Owned businesses (name, slug, plan)
  * - Active session count
  * - Recent admin audit log entries targeting this user
  *
+ * Billing lives in the separate `AdminBillingPanel` (mounted by the page
+ * alongside the override form) so this file stays a pure identity surface.
  * Action buttons live in the separate `AdminUserActions` client
  * component so this file stays a pure read surface. No mutation
  * affordances here.
@@ -167,38 +136,6 @@ export function AdminUserDetail({ user }: AdminUserDetailProps) {
       </DashboardSection>
 
       <DashboardSection
-        description="Account subscription shared across every business this user owns."
-        title="Subscription"
-      >
-        {user.subscription ? (
-          <dl className="grid gap-5 sm:grid-cols-3">
-            <div className="min-w-0">
-              <dt className="meta-label">Plan</dt>
-              <dd className="mt-1 text-sm font-medium text-foreground">
-                {formatPlanLabel(user.subscription.plan)}
-              </dd>
-            </div>
-            <div className="min-w-0">
-              <dt className="meta-label">Status</dt>
-              <dd className="mt-1 text-sm text-foreground">
-                {formatStatusLabel(user.subscription.status)}
-              </dd>
-            </div>
-            <div className="min-w-0">
-              <dt className="meta-label">Current period ends</dt>
-              <dd className="mt-1 text-sm text-muted-foreground">
-                {formatDetailDate(user.subscription.currentPeriodEnd)}
-              </dd>
-            </div>
-          </dl>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No account subscription. The user is on the free plan.
-          </p>
-        )}
-      </DashboardSection>
-
-      <DashboardSection
         description="Businesses where this user is the owner. Plan column mirrors the denormalized read cache."
         title="Owned businesses"
       >
@@ -257,7 +194,7 @@ export function AdminUserDetail({ user }: AdminUserDetailProps) {
                     <span>{formatDetailDate(entry.createdAt)}</span>
                   </>
                 }
-                title={adminActionLabels[entry.action] ?? entry.action}
+                title={getAdminActionLabel(entry.action)}
               />
             ))}
           </DashboardDetailFeed>

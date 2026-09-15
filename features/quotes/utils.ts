@@ -100,8 +100,26 @@ export function getQuoteReminderLabel(kind: QuoteReminderKind) {
   return quoteReminderLabels[kind];
 }
 
+export const QUOTE_PUBLIC_TOKEN_LENGTH = 20;
+
+const QUOTE_PUBLIC_TOKEN_ALPHABET =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
+
 export function createQuotePublicToken() {
-  return crypto.randomUUID().replace(/-/g, "");
+  // 20 URL-safe chars (~120-bit entropy from a CSPRNG): unguessable in
+  // practice, yet compact in the public /quote/[token] URL. Deliberately
+  // opaque so it never resembles the sequential quoteNumber beside it.
+  // 256 % 64 === 0, so the modulo mapping below is unbiased.
+  const bytes = crypto.getRandomValues(
+    new Uint8Array(QUOTE_PUBLIC_TOKEN_LENGTH),
+  );
+  let token = "";
+
+  for (let i = 0; i < bytes.length; i++) {
+    token += QUOTE_PUBLIC_TOKEN_ALPHABET[bytes[i] % 64];
+  }
+
+  return token;
 }
 
 export function getPublicQuoteUrl(token: string) {
@@ -281,7 +299,7 @@ export function getDefaultQuoteValidityDate(validityDays = 14) {
 }
 
 export function buildQuoteTitleFromInquiry(inquiry: QuoteInquiryPrefill) {
-  return `${inquiry.serviceCategory} quote`;
+  return `${inquiry.subject ?? inquiry.customerName} quote`;
 }
 
 export function getQuoteEditorInitialValuesFromInquiry(

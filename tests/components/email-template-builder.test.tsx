@@ -39,10 +39,6 @@ vi.mock("@dnd-kit/utilities", () => ({
   CSS: { Transform: { toString: () => undefined } },
 }));
 
-vi.mock("sonner", () => ({
-  toast: { error: vi.fn(), success: vi.fn() },
-}));
-
 const refreshMock = vi.fn();
 
 vi.mock("@/hooks/use-deferred-refresh", () => ({

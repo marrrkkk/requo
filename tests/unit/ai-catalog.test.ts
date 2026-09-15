@@ -167,6 +167,19 @@ describe("drift diff", () => {
     expect(missing).toEqual([]);
   });
 
+  it("keeps colons that belong to the provider's own model name", () => {
+    // OpenRouter `:free` variants carry a colon of their own; only the
+    // registry prefix may be stripped, or these read as retired forever.
+    const { missing } = diffCatalogAgainstLive(
+      [
+        "openrouter:nvidia/nemotron-3-super-120b-a12b:free",
+        "openrouter:openai/gpt-oss-120b:free",
+      ],
+      ["nvidia/nemotron-3-super-120b-a12b:free"],
+    );
+    expect(missing).toEqual(["openrouter:openai/gpt-oss-120b:free"]);
+  });
+
   it("groups catalog IDs by provider", () => {
     const grouped = groupCatalogByProvider([
       "groq:openai/gpt-oss-120b",

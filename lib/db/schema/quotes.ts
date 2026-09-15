@@ -27,19 +27,6 @@ export const quoteStatusEnum = pgEnum("quote_status", [
   "voided",
 ]);
 
-export const quotePostAcceptanceStatusEnum = pgEnum(
-  "quote_post_acceptance_status",
-  [
-    "none",
-    "booked",
-    "scheduled",
-    "in_progress",
-    "no_job_tracking",
-    "completed",
-    "canceled",
-  ],
-);
-
 export const aiQuoteReadinessEnum = pgEnum("ai_quote_readiness", [
   "ready",
   "needs_confirmation",

@@ -7,7 +7,7 @@
 
 import { db } from "@/lib/db/client";
 import { eq, and, gte, lte, desc, asc, sql, isNotNull, inArray } from "drizzle-orm";
-import { inquiries, quotes } from "@/lib/db/schema";
+import { businessInquiryForms, inquiries, quotes } from "@/lib/db/schema";
 import type {
   SearchInquiriesInput,
   SearchQuotesInput,
@@ -72,8 +72,8 @@ export async function searchInquiriesQuery(
     conditions.push(eq(inquiries.aiAssisted, params.aiAssisted));
   }
 
-  if (params.serviceCategory) {
-    conditions.push(eq(inquiries.serviceCategory, params.serviceCategory));
+  if (params.serviceSlug) {
+    conditions.push(eq(businessInquiryForms.slug, params.serviceSlug));
   }
 
   const orderBy =
@@ -87,13 +87,18 @@ export async function searchInquiriesQuery(
       customerName: inquiries.customerName,
       customerEmail: inquiries.customerEmail,
       status: inquiries.status,
-      serviceCategory: inquiries.serviceCategory,
+      serviceName: businessInquiryForms.name,
+      serviceSlug: businessInquiryForms.slug,
       source: inquiries.source,
       aiAssisted: inquiries.aiAssisted,
       createdAt: inquiries.createdAt,
       updatedAt: inquiries.updatedAt,
     })
     .from(inquiries)
+    .leftJoin(
+      businessInquiryForms,
+      eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
+    )
     .where(and(...conditions))
     .orderBy(orderBy)
     .limit(params.limit)

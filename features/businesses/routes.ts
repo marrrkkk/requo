@@ -1,5 +1,31 @@
 export const activeBusinessSlugCookieName = "requo-active-business";
 
+const ACTIVE_BUSINESS_SLUG_PATTERN = /^[a-z0-9-]{1,120}$/;
+
+export function isValidActiveBusinessSlug(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    ACTIVE_BUSINESS_SLUG_PATTERN.test(value) &&
+    value !== "-" &&
+    !value.startsWith("-") &&
+    !value.endsWith("-")
+  );
+}
+
+export function getActiveBusinessCookieAttributes(): {
+  httpOnly: true;
+  path: "/";
+  sameSite: "lax";
+  secure: boolean;
+} {
+  return {
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  };
+}
+
 export const dashboardPath = "/home";
 export const newBusinessPath = "/new";
 

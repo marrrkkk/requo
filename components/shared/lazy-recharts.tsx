@@ -53,6 +53,24 @@ const InternalAnalyticsTrendChart = dynamic(
   { ssr: false, loading: () => <ChartSkeleton /> }
 );
 
+// ssr: false — Recharts relies on browser DOM APIs (SVG measurement, ResizeObserver) for chart rendering
+const InternalAnalyticsOutcomesDonut = dynamic(
+  () =>
+    import("@/features/analytics/components/analytics-outcomes-donut").then(
+      (mod) => mod.AnalyticsOutcomesDonut
+    ),
+  { ssr: false, loading: () => <ChartSkeleton /> }
+);
+
+// ssr: false — Recharts relies on browser DOM APIs (SVG measurement, ResizeObserver) for chart rendering
+const InternalAnalyticsPipelineAreaChart = dynamic(
+  () =>
+    import("@/features/analytics/components/analytics-pipeline-area-chart").then(
+      (mod) => mod.AnalyticsPipelineAreaChart
+    ),
+  { ssr: false, loading: () => <ChartSkeleton /> }
+);
+
 /**
  * Lazy-loaded BasicTrendChart — only downloads Recharts when rendered.
  * Wrapped in an error boundary that catches chunk download failures and
@@ -79,6 +97,36 @@ export function LazyAnalyticsTrendChart(
   return (
     <LazyErrorBoundary>
       <InternalAnalyticsTrendChart {...props} />
+    </LazyErrorBoundary>
+  );
+}
+
+/**
+ * Lazy-loaded AnalyticsOutcomesDonut — only downloads Recharts when rendered.
+ * Wrapped in an error boundary that catches chunk download failures and
+ * offers a retry button to re-attempt the import.
+ */
+export function LazyAnalyticsOutcomesDonut(
+  props: ComponentProps<typeof InternalAnalyticsOutcomesDonut>
+) {
+  return (
+    <LazyErrorBoundary>
+      <InternalAnalyticsOutcomesDonut {...props} />
+    </LazyErrorBoundary>
+  );
+}
+
+/**
+ * Lazy-loaded AnalyticsPipelineAreaChart — only downloads Recharts when rendered.
+ * Wrapped in an error boundary that catches chunk download failures and
+ * offers a retry button to re-attempt the import.
+ */
+export function LazyAnalyticsPipelineAreaChart(
+  props: ComponentProps<typeof InternalAnalyticsPipelineAreaChart>
+) {
+  return (
+    <LazyErrorBoundary>
+      <InternalAnalyticsPipelineAreaChart {...props} />
     </LazyErrorBoundary>
   );
 }

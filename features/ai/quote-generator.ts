@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { getInquiryAssistantContextForBusiness } from "@/features/ai/queries";
 import { sanitizeAiInput } from "@/lib/ai/input-sanitizer";
+import { getAiCanaryToken } from "@/lib/ai/canary";
 import { filterAiOutput } from "@/lib/ai/output-filter";
 import { logAiSecurityEvent } from "@/lib/ai/security-events";
 import {
@@ -46,7 +47,7 @@ import {
   logAiInvocation,
   recordUsage,
   startCooldown,
-  TASK_WEIGHTS,
+  computeUsageWeight,
   setCachedOutput,
   getCachedOutput,
 } from "@/lib/ai";
@@ -57,6 +58,7 @@ import type {
   CacheKeyComponents,
   CachedAiOutput,
 } from "@/lib/ai";
+import type { BusinessPlan } from "@/lib/plans/plans";
 import { buildQuoteDraftPrompt } from "@/features/ai/prompts/quote-draft";
 import { buildQuoteImprovementPrompt } from "@/features/ai/prompts/quote-improvement";
 import { eq } from "drizzle-orm";
@@ -228,7 +230,7 @@ function formatInquiryContextLines(
     `Customer: ${context.inquiry.customerName}`,
   ];
   if (context.inquiry.customerEmail) headerFields.push(`email: ${context.inquiry.customerEmail}`);
-  if (context.inquiry.serviceCategory) headerFields.push(`category: ${context.inquiry.serviceCategory}`);
+  if (context.inquiry.inquiryFormName) headerFields.push(`service: ${context.inquiry.inquiryFormName}`);
   if (context.inquiry.subject) headerFields.push(`subject: ${context.inquiry.subject}`);
   if (context.inquiry.requestedDeadline) headerFields.push(`deadline: ${context.inquiry.requestedDeadline}`);
   if (context.inquiry.budgetText) headerFields.push(`budget: ${context.inquiry.budgetText}`);
@@ -953,6 +955,8 @@ function mergeRevisionWithCurrentItems(
 async function finalizeDraft(input: {
   businessId: string;
   userId: string;
+  /** Plan in effect for this invocation — scopes the recorded credit weight. */
+  plan: BusinessPlan;
   taskType: "quote_draft" | "quote_improvement";
   title: string;
   notes: string | null;
@@ -1081,8 +1085,19 @@ async function finalizeDraft(input: {
     return draft;
   }
 
-  const weight = TASK_WEIGHTS[input.taskType];
-  await recordUsage(input.userId, input.businessId, input.taskType, weight);
+  // Weight the credit against the tokens this draft actually spent. Falls back
+  // to the fixed per-task weight only when the provider reported no usage.
+  const weight = computeUsageWeight(input.taskType, {
+    inputTokens: input.responseUsage?.promptTokens,
+    outputTokens: input.responseUsage?.outputTokens,
+  });
+  await recordUsage(
+    input.userId,
+    input.businessId,
+    input.taskType,
+    weight,
+    input.plan,
+  );
   await startCooldown(input.userId, input.taskType);
 
   await logAiInvocation({
@@ -1140,6 +1155,8 @@ async function parseModelDraftResponse(
 type GenerateQuoteDraftInput = {
   businessId: string;
   userId: string;
+  /** Effective plan for the business — scopes the recorded credit weight. */
+  plan: BusinessPlan;
   inquiryId?: string | null;
   brief?: string | null;
   revisionComment?: string | null;
@@ -1246,7 +1263,7 @@ export async function generateQuoteDraftForBusiness(
     ? [
         inquiryContext.inquiry.subject ?? "",
         inquiryContext.inquiry.details ?? "",
-        inquiryContext.inquiry.serviceCategory ?? "",
+        inquiryContext.inquiry.inquiryFormName ?? "",
       ]
         .filter(Boolean)
         .join(" ")
@@ -1346,6 +1363,7 @@ export async function generateQuoteDraftForBusiness(
           const cachedDraft = await finalizeDraft({
             businessId: input.businessId,
             userId: input.userId,
+            plan: input.plan,
             taskType,
             title: cachedValidation.data.title,
             notes: cachedValidation.data.notes,
@@ -1403,12 +1421,16 @@ export async function generateQuoteDraftForBusiness(
     const response = await generateWithFallback(completionRequest);
 
     // --- AI Output Filtering ---
-    const outputFilterResult = filterAiOutput(response.text, [
-      "quote draft",
-      "pricing candidates",
-      "matchType",
-      "unitPriceInCents",
-    ]);
+    const outputFilterResult = filterAiOutput(
+      response.text,
+      [
+        "quote draft",
+        "pricing candidates",
+        "matchType",
+        "unitPriceInCents",
+      ],
+      { canaryToken: getAiCanaryToken() },
+    );
     if (outputFilterResult.status === "redacted") {
       logAiSecurityEvent({
         eventType: "output_redacted",
@@ -1432,6 +1454,7 @@ export async function generateQuoteDraftForBusiness(
     const draft = await finalizeDraft({
       businessId: input.businessId,
       userId: input.userId,
+      plan: input.plan,
       taskType,
       title: parsed.title,
       notes: parsed.notes,
@@ -1499,6 +1522,8 @@ export async function generateQuoteDraftForBusiness(
 type GenerateQuoteImprovementInput = {
   businessId: string;
   userId: string;
+  /** Effective plan for the business — scopes the recorded credit weight. */
+  plan: BusinessPlan;
   inquiryId: string;
   existingQuoteDraft: string;
 };
@@ -1579,7 +1604,7 @@ export async function generateQuoteImprovementForBusiness(
   const inquiryText = [
     inquiryContext.inquiry.subject ?? "",
     inquiryContext.inquiry.details ?? "",
-    inquiryContext.inquiry.serviceCategory ?? "",
+    inquiryContext.inquiry.inquiryFormName ?? "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -1664,6 +1689,7 @@ export async function generateQuoteImprovementForBusiness(
           const cachedDraft = await finalizeDraft({
             businessId: input.businessId,
             userId: input.userId,
+            plan: input.plan,
             taskType,
             title: cachedValidation.data.title,
             notes: cachedValidation.data.notes,
@@ -1719,12 +1745,16 @@ export async function generateQuoteImprovementForBusiness(
   try {
     const response = await generateWithFallback(completionRequest);
 
-    const outputFilterResult = filterAiOutput(response.text, [
-      "quote improvement",
-      "pricing candidates",
-      "matchType",
-      "unitPriceInCents",
-    ]);
+    const outputFilterResult = filterAiOutput(
+      response.text,
+      [
+        "quote improvement",
+        "pricing candidates",
+        "matchType",
+        "unitPriceInCents",
+      ],
+      { canaryToken: getAiCanaryToken() },
+    );
     if (outputFilterResult.status === "redacted") {
       logAiSecurityEvent({
         eventType: "output_redacted",
@@ -1748,6 +1778,7 @@ export async function generateQuoteImprovementForBusiness(
     const draft = await finalizeDraft({
       businessId: input.businessId,
       userId: input.userId,
+      plan: input.plan,
       taskType,
       title: parsed.title,
       notes: parsed.notes,

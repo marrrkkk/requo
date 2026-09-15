@@ -44,6 +44,11 @@ type DataListToolbarProps = {
   secondaryFilterValue?: string;
   onSecondaryFilterChange?: (value: string) => void;
   secondaryFilterOptions?: DataListToolbarOption[];
+  tertiaryFilterId?: string;
+  tertiaryFilterLabel?: string;
+  tertiaryFilterValue?: string;
+  onTertiaryFilterChange?: (value: string) => void;
+  tertiaryFilterOptions?: DataListToolbarOption[];
   sortId?: string;
   sortLabel?: string;
   sortValue?: string;
@@ -72,6 +77,11 @@ export function DataListToolbar({
   secondaryFilterValue,
   onSecondaryFilterChange,
   secondaryFilterOptions,
+  tertiaryFilterId,
+  tertiaryFilterLabel,
+  tertiaryFilterValue,
+  onTertiaryFilterChange,
+  tertiaryFilterOptions,
   sortId,
   sortLabel,
   sortValue,
@@ -90,6 +100,13 @@ export function DataListToolbar({
       onSecondaryFilterChange &&
       secondaryFilterOptions?.length,
   );
+  const shouldShowTertiaryFilter = Boolean(
+    tertiaryFilterId &&
+      tertiaryFilterLabel &&
+      tertiaryFilterValue !== undefined &&
+      onTertiaryFilterChange &&
+      tertiaryFilterOptions?.length,
+  );
   const shouldShowSortFilter = Boolean(
     sortId &&
       sortLabel &&
@@ -103,8 +120,7 @@ export function DataListToolbar({
     () => (
       <>
         <Field className="min-w-0 w-full">
-          <FieldLabel htmlFor={filterId}>{filterLabel}</FieldLabel>
-          <FieldContent>
+          <FieldLabel htmlFor={filterId}>{filterLabel}</FieldLabel>          <FieldContent>
             <Combobox
               id={filterId}
               value={filterValue}
@@ -138,6 +154,26 @@ export function DataListToolbar({
           </Field>
         ) : null}
 
+        {shouldShowTertiaryFilter ? (
+          <Field className="min-w-0 w-full">
+            <FieldLabel htmlFor={tertiaryFilterId}>
+              {tertiaryFilterLabel}
+            </FieldLabel>
+            <FieldContent>
+              <Combobox
+                id={tertiaryFilterId!}
+                value={tertiaryFilterValue!}
+                onValueChange={(value) => {
+                  onTertiaryFilterChange!(value);
+                }}
+                options={tertiaryFilterOptions!}
+                placeholder={tertiaryFilterLabel!}
+                searchPlaceholder={`Search ${tertiaryFilterLabel!.toLowerCase()}`}
+              />
+            </FieldContent>
+          </Field>
+        ) : null}
+
         {shouldShowSortFilter ? (
           <Field className="min-w-0 w-full">
             <FieldLabel htmlFor={sortId}>{sortLabel}</FieldLabel>
@@ -165,16 +201,22 @@ export function DataListToolbar({
       onFilterChange,
       onSecondaryFilterChange,
       onSortChange,
+      onTertiaryFilterChange,
       secondaryFilterId,
       secondaryFilterLabel,
       secondaryFilterOptions,
       secondaryFilterValue,
       shouldShowSecondaryFilter,
       shouldShowSortFilter,
+      shouldShowTertiaryFilter,
       sortId,
       sortLabel,
       sortOptions,
       sortValue,
+      tertiaryFilterId,
+      tertiaryFilterLabel,
+      tertiaryFilterOptions,
+      tertiaryFilterValue,
     ],
   );
 
@@ -215,7 +257,7 @@ export function DataListToolbar({
                 <SheetHeader>
                   <SheetTitle>Filters</SheetTitle>
                   <SheetDescription>
-                    Narrow list results with status, service, and sort options.
+                    Narrow list results with status, service, source, and sort options.
                   </SheetDescription>
                 </SheetHeader>
                 <SheetBody className="gap-4">{filterFields}</SheetBody>
@@ -258,6 +300,26 @@ export function DataListToolbar({
                   options={secondaryFilterOptions!}
                   placeholder={secondaryFilterLabel!}
                   searchPlaceholder={`Search ${secondaryFilterLabel!.toLowerCase()}`}
+                />
+              </FieldContent>
+            </Field>
+          ) : null}
+
+          {shouldShowTertiaryFilter ? (
+            <Field className="min-w-0 flex-1 sm:max-w-44">
+              <FieldLabel className="sr-only" htmlFor={tertiaryFilterId}>
+                {tertiaryFilterLabel}
+              </FieldLabel>
+              <FieldContent>
+                <Combobox
+                  id={tertiaryFilterId!}
+                  value={tertiaryFilterValue!}
+                  onValueChange={(value) => {
+                    onTertiaryFilterChange!(value);
+                  }}
+                  options={tertiaryFilterOptions!}
+                  placeholder={tertiaryFilterLabel!}
+                  searchPlaceholder={`Search ${tertiaryFilterLabel!.toLowerCase()}`}
                 />
               </FieldContent>
             </Field>

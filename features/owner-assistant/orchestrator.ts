@@ -26,12 +26,14 @@ import {
 import { truncateToolOutput } from "@/lib/ai/tool-truncator";
 import {
   checkUsageLimit,
+  computeUsageWeight,
   recordUsage,
-  TASK_WEIGHTS,
 } from "@/lib/ai/usage-limiter";
 import { checkAssistantMessageLimit } from "@/lib/ai/conversation-limits";
 import { sanitizeAiInput } from "@/lib/ai/input-sanitizer";
+import { getAiCanaryToken } from "@/lib/ai/canary";
 import { filterAiOutput } from "@/lib/ai/output-filter";
+import { logAiSecurityEvent } from "@/lib/ai/security-events";
 import { logAiInvocation } from "@/lib/ai/token-logger";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { ownerAssistantTools } from "@/features/owner-assistant/tools";
@@ -315,10 +317,13 @@ export async function runOwnerAssistant({
       temperature: 0.2,
       maxOutputTokens: CHAT_TOKEN_BUDGETS.assistant.output,
       providerOptions: {
-        // gemini-2.5-flash thinks by default with no cap: reasoning tokens
-        // can eat the whole per-step budget and emit no candidate text.
+        // Gemini thinks by default with no cap: reasoning tokens can eat the
+        // whole per-step budget and emit no candidate text. The budget cannot
+        // be 0 — the 3.x generation rejects that outright with "Request
+        // contains an invalid argument" — so 1 is the lowest value every
+        // Gemini catalog entry accepts (3.5 Flash-Lite, 2.5 Flash, 2.5 Pro).
         // Keys for other providers are ignored, so this is safe shared.
-        google: { thinkingConfig: { thinkingBudget: 0, includeThoughts: false } },
+        google: { thinkingConfig: { thinkingBudget: 1, includeThoughts: false } },
       },
       experimental_context: toolContext,
       onStepFinish: async (step) => {
@@ -394,7 +399,19 @@ export async function runOwnerAssistant({
         }
 
         // Filter model output before it is stored.
-        const filtered = filterAiOutput(text, PROMPT_LEAK_FRAGMENTS);
+        const filtered = filterAiOutput(text, PROMPT_LEAK_FRAGMENTS, {
+          canaryToken: getAiCanaryToken(),
+        });
+
+        if (filtered.status === "redacted") {
+          logAiSecurityEvent({
+            eventType: "output_redacted",
+            patternMatched: filtered.redactedPatterns.join(",") || "redacted",
+            userId,
+            businessId,
+            rawInput: `owner-assistant session:${session.sessionId} patterns:${filtered.redactedPatterns.join(",")}`,
+          });
+        }
         const isEmpty = !filtered.output.trim();
 
         // A zero-text turn is a failure, not a success: persisting an empty
@@ -405,7 +422,11 @@ export async function runOwnerAssistant({
             userId,
             businessId,
             "assistant_message",
-            TASK_WEIGHTS["assistant_message"],
+            computeUsageWeight("assistant_message", {
+              inputTokens,
+              outputTokens,
+            }),
+            plan,
           ).catch((err) => {
             console.warn("[owner-assistant] Failed to record usage:", err);
           });
@@ -438,12 +459,17 @@ export async function runOwnerAssistant({
           console.error("[owner-assistant] Failed to persist message:", err);
         });
 
-        // Record usage against the business plan (non-blocking)
+        // Record usage against the business plan (non-blocking), weighted by
+        // the tokens this turn actually spent.
         recordUsage(
           userId,
           businessId,
           "assistant_message",
-          TASK_WEIGHTS["assistant_message"],
+          computeUsageWeight("assistant_message", {
+            inputTokens,
+            outputTokens,
+          }),
+          plan,
         ).catch((err) => {
           console.warn("[owner-assistant] Failed to record usage:", err);
         });

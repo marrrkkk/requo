@@ -20,7 +20,19 @@ export const ADMIN_ACTIONS = [
   "view.business",
   "view.subscriptions",
   "view.subscription",
+  "view.inquiries",
+  "view.inquiry",
+  "view.quotes",
+  "view.quote",
+  "view.ai",
+  "view.ai-requests",
+  "view.ai-providers",
+  "view.ai-errors",
+  "view.emails",
+  "view.email",
+  "view.usage",
   "view.audit-logs",
+  "view.settings",
   "view.system",
   // User mutations
   "user.force_verify_email",
@@ -52,6 +64,13 @@ export const ADMIN_TARGET_TYPES = [
   "user",
   "business",
   "subscription",
+  "inquiry",
+  "quote",
+  "ai-request",
+  "ai-provider",
+  "email",
+  "usage",
+  "settings",
   "audit-log",
   "dashboard",
 ] as const;
@@ -72,6 +91,58 @@ export const ADMIN_AUDIT_PAGE_SIZE = 50;
 
 /** Upper bound used when coercing user-supplied page size values. */
 export const ADMIN_MAX_PAGE_SIZE = 100;
+
+/**
+ * Default number of rows in the Overview activity feed.
+ *
+ * The feed merges four sources, so this is also the per-source `LIMIT` — each
+ * query pulls at most this many rows and the merged list is truncated back
+ * down after sorting.
+ */
+export const ADMIN_RECENT_ACTIVITY_LIMIT = 12;
+
+/**
+ * Hard ceiling for the activity feed's `limit`. The value is clamped rather
+ * than rejected so a malformed link still renders something useful.
+ */
+export const ADMIN_MAX_RECENT_ACTIVITY_LIMIT = 50;
+
+/**
+ * How many of the newest `ai_security_events` rows the AI errors page
+ * shows. The table has no usable index, so this stays a small fixed
+ * window rather than a paginated list.
+ */
+export const ADMIN_AI_SECURITY_EVENTS_LIMIT = 20;
+
+/**
+ * Provider ids the admin AI surface knows about.
+ *
+ * Mirrors the registry in `lib/ai/registry.ts` exactly: groq, cerebras,
+ * google (Gemini), openrouter, mistral, cloudflare, nvidia. Whether each
+ * one is actually configured is env-driven and resolved per request.
+ */
+export const ADMIN_AI_PROVIDERS = [
+  "groq",
+  "cerebras",
+  "google",
+  "openrouter",
+  "mistral",
+  "cloudflare",
+  "nvidia",
+] as const;
+
+export type AdminAiProviderId = (typeof ADMIN_AI_PROVIDERS)[number];
+
+/** Display labels matching `getConfiguredAiProviderLabels`. */
+export const ADMIN_AI_PROVIDER_LABELS: Record<AdminAiProviderId, string> = {
+  groq: "Groq",
+  cerebras: "Cerebras",
+  google: "Gemini",
+  openrouter: "OpenRouter",
+  mistral: "Mistral",
+  cloudflare: "Cloudflare",
+  nvidia: "NVIDIA NIM",
+};
 
 /**
  * Password re-confirmation TTL. Tokens expire this many seconds after

@@ -22,14 +22,14 @@ export async function maybeSendInquiryAckEmail({
   inquiryId,
   customerEmail,
   customerName,
-  serviceCategory,
+  serviceName,
   details,
 }: {
   businessId: string;
   inquiryId: string;
   customerEmail: string | null | undefined;
   customerName: string;
-  serviceCategory: string;
+  serviceName: string;
   details?: string;
 }): Promise<void> {
   if (!customerEmail) {
@@ -60,7 +60,7 @@ export async function maybeSendInquiryAckEmail({
     businessName: business.name,
     customerEmail,
     customerName,
-    serviceCategory,
+    serviceCategory: serviceName,
     details,
     replyToEmail: business.contactEmail ?? undefined,
   });

@@ -52,7 +52,7 @@ test("owner can sign in, reach the dashboard overview, and sign out @smoke", asy
   await openDemoBusiness(page);
 
   await page
-    .getByRole("button", { name: `Morgan Lee ${demoOwnerEmail}` })
+    .getByRole("button", { name: `Morgan ${demoOwnerEmail}` })
     .click();
   await page.getByRole("menuitem", { name: "Sign out" }).click();
 

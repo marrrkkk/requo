@@ -70,7 +70,7 @@ cacheComponents: true,
 partialPrefetching: true, // each <Link> prefetches its route's App Shell
 experimental: {
   staleTimes: {
-    dynamic: 30,   // seconds — dynamic RSC payloads reuse for back/forward
+    dynamic: 60,   // seconds — dynamic RSC payloads reuse for back/forward
     static: 180,   // seconds — static shell segments reuse
   },
 }
@@ -82,7 +82,9 @@ experimental: {
 
 ### Cache Invalidation
 
-Mutations continue to call `updateTag` (via `updateCacheTags`) on every affected tag after a successful persist. The framework's prefetch-invalidation silently refreshes associated prefetches, so the next navigation serves the mutated data.
+Mutations continue to invalidate via cache tags after a successful persist:
+per-feature `updateCacheTags` helpers (wrapping `updateTag` from `next/cache`)
+alongside `revalidateTag`, using the tag helpers in `lib/cache/`. The framework's prefetch-invalidation silently refreshes associated prefetches, so the next navigation serves the mutated data.
 
 No new invalidation primitives were introduced.
 
@@ -99,11 +101,13 @@ component.
 
 ### Dev-time
 
-The instant DevTools (enabled via `experimental.instantNavigationDevToolsToggle: true`) show which routes pass or fail validation during development.
+With `experimental.instantInsights.validationLevel: "manual-warning"`
+(`next.config.ts`), only segments that export `instant` are validated, and the
+dev overlay surfaces which routes pass or fail during development.
 
 ### CI
 
-`npm run check` (lint + typecheck + SEO audits) and `npm run build` both pass with zero errors. The coverage check script (`scripts/instant-navigation/check-coverage.ts`) verifies every in-scope route either has validation enabled or has a valid escape-hatch entry.
+`npm run check` (lint + typecheck + SEO audits) and `npm run build` both pass with zero errors. The audit script (`scripts/audit-instant-navigation.ts`, wired as `audit:instant-navigation` in `package.json`) verifies every in-scope route either has validation enabled or has a valid escape-hatch entry; `scripts/instant-navigation/check-coverage.ts` is the registry consumer used by the migration-coverage check.
 
 ## Error Handling
 
@@ -131,15 +135,19 @@ When no cached content exists yet, regions render skeleton placeholders until co
 
 ## Escape Hatches
 
-Some routes genuinely cannot pass validation (e.g. admin pages with cookie-based auth that always redirects during build). These get a tracked exemption:
+Some routes genuinely cannot pass validation (e.g. layouts with
+cookie-based redirects that always fire during build). These get a tracked
+exemption:
 
 - **Registry:** `lib/instant-navigation/escape-hatch-registry.ts`
-- **Human-readable log:** `.kiro/specs/instant-navigation-rollout/escape-hatches.md`
 - **Validator:** `lib/instant-navigation/escape-hatches.ts`
 
-Each entry carries `route`, `reason`, `targetReviewDate`, and `active`. The coverage check script rejects any page that lacks both validation and a valid registry entry.
+Each entry carries `route`, `reason`, `targetReviewDate`, and `active`. The coverage check rejects any page that lacks both validation and a valid registry entry.
 
-Current escape hatches: 6 admin console pages (cookie-based JWT auth incompatible with build-time validation).
+Current state: the registry is empty — the six admin console pages that
+previously needed exemptions now ship `instant` config blocks after the
+Better Auth migration (see the registry file comment), so no route currently
+requires an exemption.
 
 ## File Map
 
@@ -178,8 +186,7 @@ escape-hatch registry (`lib/instant-navigation/escape-hatch-registry.ts`).
 
 1. Add an entry to `lib/instant-navigation/escape-hatch-registry.ts` with `route`, `reason`, `targetReviewDate`, `active: true`.
 2. Verify it passes `validateEscapeHatch`.
-3. Update `.kiro/specs/instant-navigation-rollout/escape-hatches.md`.
-4. Set `export const instant = false` on the page file.
+3. Set `export const instant = false` on the exempted segment (page-level `instant = false` is not used; the sole `instant = false` in the tree is the admin console layout).
 
 ### Checking migration coverage
 
@@ -196,4 +203,4 @@ Reports which in-scope routes have validation enabled, which have valid escape h
   - `01-app/03-api-reference/03-file-conventions/02-route-segment-config/instant.md`
   - `01-app/02-guides/prefetching.md`
   - `01-app/03-api-reference/05-config/01-next-config-js/staleTimes.md`
-- Spec: `.kiro/specs/instant-navigation-rollout/` (requirements, design, tasks)
+- Decision record: `docs/architecture/adr-007-instant-navigation-progressive-loading.md`

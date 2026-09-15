@@ -55,10 +55,14 @@ import {
 } from "@/lib/billing/subscription-service";
 import type { BillingCurrency, BillingProvider } from "@/lib/billing/types";
 import {
+  adminAiTag,
   adminAuditTag,
   adminBusinessesTag,
   adminDashboardTag,
+  adminEmailsTag,
   adminSubscriptionsTag,
+  adminSystemTag,
+  adminUsageTag,
   adminUsersTag,
 } from "@/lib/cache/admin-tags";
 import { db } from "@/lib/db/client";
@@ -224,20 +228,34 @@ async function processConfirmToken(
 }
 
 /**
- * Revalidate the standard set of tags touched by a user-management
- * mutation. Delete additionally invalidates business + subscription
- * surfaces since the target's owned businesses and subscription are
- * removed.
+ * Revalidate every admin-console cache tag.
+ *
+ * Broad-cascade mutations (user delete, subscription overrides) touch
+ * counts, lists, details, and aggregates across the whole console, so
+ * they bust everything rather than enumerating affected surfaces.
+ * Narrow mutations keep their targeted sets below.
  */
-function revalidateUserManagementTags(options: { cascadeBusinesses?: boolean } = {}) {
+function revalidateAdminDomainTags() {
+  revalidateTag(adminDashboardTag(), "max");
+  revalidateTag(adminUsersTag(), "max");
+  revalidateTag(adminBusinessesTag(), "max");
+  revalidateTag(adminSubscriptionsTag(), "max");
+  revalidateTag(adminAuditTag(), "max");
+  revalidateTag(adminSystemTag(), "max");
+  revalidateTag(adminAiTag(), "max");
+  revalidateTag(adminEmailsTag(), "max");
+  revalidateTag(adminUsageTag(), "max");
+}
+
+/**
+ * Revalidate the standard set of tags touched by a narrow user-management
+ * mutation (verify, revoke, suspend, promote, …). Delete and subscription
+ * overrides cascade further and use `revalidateAdminDomainTags` instead.
+ */
+function revalidateUserManagementTags() {
   revalidateTag(adminUsersTag(), "max");
   revalidateTag(adminAuditTag(), "max");
   revalidateTag(adminDashboardTag(), "max");
-
-  if (options.cascadeBusinesses) {
-    revalidateTag(adminBusinessesTag(), "max");
-    revalidateTag(adminSubscriptionsTag(), "max");
-  }
 }
 
 /**
@@ -795,7 +813,7 @@ export async function deleteUserAction(
     );
   }
 
-  revalidateUserManagementTags({ cascadeBusinesses: true });
+  revalidateAdminDomainTags();
 
   return {
     ok: true,
@@ -1048,14 +1066,11 @@ const DEFAULT_OVERRIDE_CURRENCY: BillingCurrency = "USD";
  * Revalidate the admin-scoped cache tags touched by a subscription
  * override. The subscription service already invalidates the user +
  * business billing tags so plan badges on owned businesses refresh;
- * we only need to cover the admin console's own views here.
+ * we bust the whole admin domain here because plan changes ripple into
+ * counts, lists, details, and the usage aggregates.
  */
 function revalidateSubscriptionAdminTags() {
-  revalidateTag(adminSubscriptionsTag(), "max");
-  revalidateTag(adminUsersTag(), "max");
-  revalidateTag(adminAuditTag(), "max");
-  revalidateTag(adminDashboardTag(), "max");
-  revalidateTag(adminBusinessesTag(), "max");
+  revalidateAdminDomainTags();
 }
 
 /**

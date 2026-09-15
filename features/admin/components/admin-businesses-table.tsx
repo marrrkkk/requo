@@ -1,113 +1,16 @@
-import Link from "next/link";
+"use client";
+
+import { Briefcase } from "lucide-react";
 
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  AdminDataTable,
+  type AdminDataTableColumn,
+} from "@/features/admin/components/primitives/admin-data-table";
 import { getAdminBusinessDetailPath } from "@/features/admin/navigation";
 import type { AdminBusinessRow } from "@/features/admin/types";
 import { planMeta, type BusinessPlan } from "@/lib/plans";
-
-type AdminBusinessesTableBodyProps = {
-  items: AdminBusinessRow[];
-  totalItems: number;
-  firstItemIndex: number;
-  lastItemIndex: number;
-};
-
-export function AdminBusinessesTableBody({
-  items,
-  totalItems,
-  firstItemIndex,
-  lastItemIndex,
-}: AdminBusinessesTableBodyProps) {
-  return (
-    <Table className="min-w-[72rem] table-fixed">
-      <TableCaption className="sr-only">
-        {totalItems
-          ? `Showing businesses ${firstItemIndex}-${lastItemIndex} of ${totalItems}, newest first.`
-          : "No businesses to display."}
-      </TableCaption>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-[18rem]">Business</TableHead>
-          <TableHead className="w-[16rem]">Owner</TableHead>
-          <TableHead className="w-[8rem]">Plan</TableHead>
-          <TableHead className="w-[8rem] text-right">Members</TableHead>
-          <TableHead className="w-[10rem]">Created</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {items.map((item) => {
-          const href = getAdminBusinessDetailPath(item.id);
-
-          return (
-            <TableRow className="group/row" key={item.id}>
-              <TableCell className="w-[18rem]">
-                <div className="table-meta-stack max-w-full">
-                  <TruncatedTextWithTooltip
-                    className="table-link"
-                    href={href}
-                    prefetch={true}
-                    text={item.name}
-                  />
-                  <TruncatedTextWithTooltip
-                    className="table-supporting-text"
-                    href={href}
-                    prefetch={true}
-                    text={item.slug}
-                  />
-                </div>
-              </TableCell>
-              <TableCell className="w-[16rem]">
-                <TruncatedTextWithTooltip
-                  className="table-emphasis"
-                  href={href}
-                  prefetch={true}
-                  text={item.ownerEmail}
-                />
-              </TableCell>
-              <TableCell className="w-[8rem]">
-                <Link
-                  className="inline-flex max-w-full"
-                  href={href}
-                  prefetch={true}
-                >
-                  <AdminBusinessPlanBadge plan={item.plan} />
-                </Link>
-              </TableCell>
-              <TableCell className="w-[8rem] text-right tabular-nums">
-                <Link
-                  className="block text-sm text-muted-foreground transition-colors hover:text-primary group-hover/row:text-primary"
-                  href={href}
-                  prefetch={true}
-                >
-                  {item.memberCount.toLocaleString()}
-                </Link>
-              </TableCell>
-              <TableCell className="w-[10rem]">
-                <Link
-                  className="block text-sm text-muted-foreground transition-colors hover:text-primary group-hover/row:text-primary"
-                  href={href}
-                  prefetch={true}
-                >
-                  {formatAdminDate(item.createdAt)}
-                </Link>
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
-  );
-}
 
 function AdminBusinessPlanBadge({ plan }: { plan: BusinessPlan }) {
   return (
@@ -123,4 +26,123 @@ function formatAdminDate(value: Date) {
     month: "short",
     day: "numeric",
   });
+}
+
+const adminBusinessColumns: AdminDataTableColumn<AdminBusinessRow>[] = [
+  {
+    id: "business",
+    header: "Business",
+    width: "w-[18rem]",
+    cell: (item) => {
+      const href = getAdminBusinessDetailPath(item.id);
+
+      return (
+        <div className="table-meta-stack max-w-full">
+          <TruncatedTextWithTooltip
+            className="table-link"
+            href={href}
+            prefetch={true}
+            text={item.name}
+          />
+          <TruncatedTextWithTooltip
+            className="table-supporting-text"
+            href={href}
+            prefetch={true}
+            text={item.slug}
+          />
+        </div>
+      );
+    },
+  },
+  {
+    id: "owner",
+    header: "Owner",
+    width: "w-[16rem]",
+    cell: (item) => (
+      <TruncatedTextWithTooltip
+        className="table-emphasis"
+        href={getAdminBusinessDetailPath(item.id)}
+        prefetch={true}
+        text={item.ownerEmail}
+      />
+    ),
+  },
+  {
+    id: "plan",
+    header: "Plan",
+    width: "w-[8rem]",
+    cell: (item) => <AdminBusinessPlanBadge plan={item.plan} />,
+  },
+  {
+    id: "members",
+    header: "Members",
+    width: "w-[8rem]",
+    align: "right",
+    cell: (item) => (
+      <span className="text-sm tabular-nums text-muted-foreground">
+        {item.memberCount.toLocaleString()}
+      </span>
+    ),
+  },
+  {
+    id: "created",
+    header: "Created",
+    width: "w-[10rem]",
+    cell: (item) => (
+      <span className="text-sm text-muted-foreground">
+        {formatAdminDate(item.createdAt)}
+      </span>
+    ),
+  },
+];
+
+type AdminBusinessesTableProps = {
+  items: AdminBusinessRow[];
+  hasActiveFilters: boolean;
+  toolbar?: React.ReactNode;
+  pagination?: React.ReactNode;
+};
+
+/**
+ * Admin businesses list on the shared `AdminDataTable`.
+ *
+ * Fixed `createdAt DESC` ordering (the list query owns it) — no sortable
+ * columns. Below `xl` each row becomes a `MobileRecordRow` card.
+ */
+export function AdminBusinessesTable({
+  items,
+  hasActiveFilters,
+  toolbar,
+  pagination,
+}: AdminBusinessesTableProps) {
+  return (
+    <AdminDataTable
+      columns={adminBusinessColumns}
+      empty={{
+        title: hasActiveFilters ? "No matching businesses" : "No businesses yet",
+        description: hasActiveFilters
+          ? "No businesses match these filters. Try clearing the search or plan filter."
+          : "No businesses have been created yet.",
+        icon: Briefcase,
+      }}
+      getRowHref={(item) => getAdminBusinessDetailPath(item.id)}
+      getRowId={(item) => item.id}
+      minWidthClass="min-w-[72rem]"
+      mobileCard={(item) => ({
+        title: item.name,
+        subtitle: `${item.slug} · ${item.ownerEmail}`,
+        statusBadge: <AdminBusinessPlanBadge plan={item.plan} />,
+        metadata: (
+          <span>
+            {item.memberCount.toLocaleString()}{" "}
+            {item.memberCount === 1 ? "member" : "members"} · Created{" "}
+            {formatAdminDate(item.createdAt)}
+          </span>
+        ),
+      })}
+      pagination={pagination}
+      rows={items}
+      toolbar={toolbar}
+    />
+  );
 }

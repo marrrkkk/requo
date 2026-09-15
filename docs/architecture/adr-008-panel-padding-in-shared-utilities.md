@@ -3,7 +3,10 @@
 **Status**: Accepted
 **Date**: 2026-09-06
 **Deciders**: Implementation team
-**Context**: `docs/specs/dashboard-density-and-scale.md`
+**Context**: Dashboard density scale — panel padding, `data-padding="none"`
+opt-out, and the density audit (`scripts/audit-density.ts`, `DESIGN.md`
+Spacing). (The original `docs/specs/dashboard-density-and-scale.md` spec was
+removed during the documentation reset; this ADR is the surviving record.)
 
 ---
 

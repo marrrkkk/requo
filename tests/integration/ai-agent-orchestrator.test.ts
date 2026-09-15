@@ -21,23 +21,66 @@ const orchestratorEnv = vi.hoisted(() => ({
   nvidia: true,
 }));
 
+// Getters, not captured values: model selection reads these per call, and
+// tests toggle providers off to assert the unavailable path.
 vi.mock("@/lib/env", () => ({
-  isGroqConfigured: orchestratorEnv.groq,
-  isCerebrasConfigured: orchestratorEnv.cerebras,
-  isGeminiConfigured: orchestratorEnv.gemini,
-  isOpenRouterConfigured: orchestratorEnv.openrouter,
-  isMistralConfigured: orchestratorEnv.mistral,
-  isCloudflareAiConfigured: orchestratorEnv.cloudflare,
-  isNvidiaNimConfigured: orchestratorEnv.nvidia,
+  // The registry is stubbed, so provider keys are never read; `env` only needs
+  // to exist so `env.*` property access does not throw. Redis stays
+  // unconfigured so the cache layer falls back to memory.
+  env: {
+    NODE_ENV: "test",
+    AI_CANARY_SECRET: undefined,
+    UPSTASH_REDIS_REST_URL: undefined,
+    UPSTASH_REDIS_REST_TOKEN: undefined,
+  },
+  get isGroqConfigured() {
+    return orchestratorEnv.groq;
+  },
+  get isCerebrasConfigured() {
+    return orchestratorEnv.cerebras;
+  },
+  get isGeminiConfigured() {
+    return orchestratorEnv.gemini;
+  },
+  get isOpenRouterConfigured() {
+    return orchestratorEnv.openrouter;
+  },
+  get isMistralConfigured() {
+    return orchestratorEnv.mistral;
+  },
+  get isCloudflareAiConfigured() {
+    return orchestratorEnv.cloudflare;
+  },
+  get isNvidiaNimConfigured() {
+    return orchestratorEnv.nvidia;
+  },
 }));
 
 const orchestratorCache = vi.hoisted(() => ({ map: new Map<string, unknown>() }));
 
-vi.mock("@/lib/ai/usage-limiter", () => ({
-  checkUsageLimit: vi.fn(async () => ({ allowed: true })),
-  recordUsage: vi.fn(async () => {}),
-  TASK_WEIGHTS: { agent_conversation: 1, assistant_message: 1 },
-}));
+vi.mock("@/lib/ai/usage-limiter", () => {
+  const weights: Record<string, number> = {
+    agent_conversation: 1,
+    assistant_message: 1,
+  };
+
+  return {
+    checkUsageLimit: vi.fn(async () => ({ allowed: true })),
+    recordUsage: vi.fn(async () => {}),
+    TASK_WEIGHTS: weights,
+    // Mirrors the real token→credit formula so call-site wiring is exercised:
+    // max(1, ceil((inputTokens + 4 × outputTokens) / 5000)).
+    computeUsageWeight: (
+      taskType: string,
+      usage?: { inputTokens?: number | null; outputTokens?: number | null } | null,
+    ) => {
+      if (usage === null || usage === undefined) return weights[taskType] ?? 1;
+      const weighted =
+        (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0) * 4;
+      return Math.max(1, Math.ceil(weighted / 5000));
+    },
+  };
+});
 
 vi.mock("@/lib/ai/cache-layer", () => ({
   cacheLayer: {
@@ -252,12 +295,14 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
     expect(checkUsageLimit).toHaveBeenCalledWith(
       expect.objectContaining({ businessId: ids.businessId }),
     );
-    expect(recordUsage).toHaveBeenCalledWith(
-      "system:ai-agent",
-      ids.businessId,
-      "agent_conversation",
-      1,
-    );
+
+    // Usage is metered from the turn's token spend and scoped to the plan.
+    const usageCall = vi.mocked(recordUsage).mock.calls.at(-1);
+    expect(usageCall?.[0]).toBe("system:ai-agent");
+    expect(usageCall?.[1]).toBe(ids.businessId);
+    expect(usageCall?.[2]).toBe("agent_conversation");
+    expect(usageCall?.[3]).toBeGreaterThanOrEqual(1);
+    expect(["free", "pro", "business"]).toContain(usageCall?.[4]);
 
     const latestRun = await testDb.query.aiAgentRuns.findFirst({
       where: (runs, { eq: rawEq }) => rawEq(runs.sessionId, session.sessionId),
@@ -405,7 +450,7 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
         customerContactMethod: "email",
         customerContactHandle: "sam@example.com",
         customerEmail: "sam@example.com",
-        serviceCategory: "Banners",
+        serviceSlug: "banners",
         details: "Two vinyl banners for a weekend sale.",
       }),
       textTurn("Review what I'll send below."),
@@ -449,7 +494,7 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
       status: "pending",
       values: expect.objectContaining({
         customerName: "Sam Rivera",
-        serviceCategory: "Banners",
+        serviceSlug: "banners",
       }),
     });
   });
@@ -461,7 +506,7 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
         customerName: "Sam Rivera",
         customerContactMethod: "email",
         customerContactHandle: "sam@example.com",
-        serviceCategory: "Banners",
+        serviceSlug: "banners",
         details: "Two vinyl banners.",
       }),
       textTurn("First draft."),
@@ -479,7 +524,7 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
         customerName: "Sam Rivera",
         customerContactMethod: "email",
         customerContactHandle: "sam@example.com",
-        serviceCategory: "Banners",
+        serviceSlug: "banners",
         details: "Three vinyl banners.",
       }),
       textTurn("Revised."),
@@ -509,7 +554,7 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
         customerName: "Sam Rivera",
         customerContactMethod: "email",
         customerContactHandle: "sam@example.com",
-        serviceCategory: "Banners",
+        serviceSlug: "banners",
         details: "Two vinyl banners.",
       }),
       textTurn("Draft ready."),
@@ -556,9 +601,15 @@ describe("ai-agent orchestrator runAgent (provider seam)", () => {
     };
     vi.mocked(registry.languageModel).mockReturnValue(model as never);
 
-    await expect(
-      runAgent({ sessionToken: session.publicToken, userMessage: "Hi" }),
-    ).rejects.toThrow("Provider unavailable");
+    // The failure surfaces after the stream has been handed back, so the
+    // surface answers with its own copy instead of throwing at the caller.
+    const response = await runAgent({
+      sessionToken: session.publicToken,
+      userMessage: "Hi",
+    });
+    expect(response.status).toBe(200);
+    // The provider's message must never reach the customer.
+    expect(await readStreamText(response)).not.toContain("Provider unavailable");
 
     const latestRun = await testDb.query.aiAgentRuns.findFirst({
       where: (runs, { eq: rawEq }) => rawEq(runs.sessionId, session.sessionId),

@@ -10,6 +10,7 @@ import {
   assertPublicActionRateLimit as dbAssertPublicActionRateLimit,
   getPublicActionClientIpAddress,
 } from "@/lib/public-action-rate-limit";
+import { env } from "@/lib/env";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,8 +51,9 @@ type FallbackReason =
   | "redis_error";
 
 function createRateLimitRedisClient(): Redis | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  // Validated centrally in lib/env.ts; empty in dev falls back to DB ledger.
+  const url = env.UPSTASH_REDIS_REST_URL;
+  const token = env.UPSTASH_REDIS_REST_TOKEN;
 
   if (!url || !token) {
     logFallbackWarning("missing_env_vars", "Redis rate limiter using DB fallback");

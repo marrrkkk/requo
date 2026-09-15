@@ -42,22 +42,55 @@ vi.mock("@/lib/env", () => ({
   // tools, and `lib/email/providers/resend.ts` reads `env` at module scope.
   env: {},
   isResendConfigured: false,
-  isGroqConfigured: assistantEnv.groq,
-  isCerebrasConfigured: assistantEnv.cerebras,
-  isGeminiConfigured: assistantEnv.gemini,
-  isOpenRouterConfigured: assistantEnv.openrouter,
-  isMistralConfigured: assistantEnv.mistral,
-  isCloudflareAiConfigured: assistantEnv.cloudflare,
-  isNvidiaNimConfigured: assistantEnv.nvidia,
+  // Getters, not captured values: model selection reads these per call.
+  get isGroqConfigured() {
+    return assistantEnv.groq;
+  },
+  get isCerebrasConfigured() {
+    return assistantEnv.cerebras;
+  },
+  get isGeminiConfigured() {
+    return assistantEnv.gemini;
+  },
+  get isOpenRouterConfigured() {
+    return assistantEnv.openrouter;
+  },
+  get isMistralConfigured() {
+    return assistantEnv.mistral;
+  },
+  get isCloudflareAiConfigured() {
+    return assistantEnv.cloudflare;
+  },
+  get isNvidiaNimConfigured() {
+    return assistantEnv.nvidia;
+  },
 }));
 
 const assistantCache = vi.hoisted(() => ({ map: new Map<string, unknown>() }));
 
-vi.mock("@/lib/ai/usage-limiter", () => ({
-  checkUsageLimit: vi.fn(async () => ({ allowed: true })),
-  recordUsage: vi.fn(async () => {}),
-  TASK_WEIGHTS: { agent_conversation: 1, assistant_message: 1 },
-}));
+vi.mock("@/lib/ai/usage-limiter", () => {
+  const weights: Record<string, number> = {
+    agent_conversation: 1,
+    assistant_message: 1,
+  };
+
+  return {
+    checkUsageLimit: vi.fn(async () => ({ allowed: true })),
+    recordUsage: vi.fn(async () => {}),
+    TASK_WEIGHTS: weights,
+    // Mirrors the real token→credit formula so call-site wiring is exercised:
+    // max(1, ceil((inputTokens + 4 × outputTokens) / 5000)).
+    computeUsageWeight: (
+      taskType: string,
+      usage?: { inputTokens?: number | null; outputTokens?: number | null } | null,
+    ) => {
+      if (usage === null || usage === undefined) return weights[taskType] ?? 1;
+      const weighted =
+        (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0) * 4;
+      return Math.max(1, Math.ceil(weighted / 5000));
+    },
+  };
+});
 
 vi.mock("@/lib/ai/cache-layer", () => ({
   cacheLayer: {
@@ -164,7 +197,7 @@ describe("owner-assistant chat API route (provider seam)", () => {
   it("recovers past a dead head identifier without losing the turn", async () => {
     const healthy = mockModelForTurns([textTurn("Still here.")]);
     vi.mocked(registry.languageModel).mockImplementation(((modelId: string) => {
-      if (modelId === "google:gemini-2.5-flash-lite") {
+      if (modelId === "google:gemini-3.5-flash-lite") {
         return {
           provider: "mock",
           modelId,
@@ -216,7 +249,7 @@ describe("owner-assistant chat API route (provider seam)", () => {
       role: "assistant",
       content: "You have 3 open inquiries.",
       provider: "google",
-      model: "gemini-2.5-flash-lite",
+      model: "gemini-3.5-flash-lite",
     });
   });
 
@@ -301,7 +334,7 @@ describe("owner-assistant chat API route (provider seam)", () => {
       toolCallTurn("create_inquiry", "call_1", {
         customerName: "Casey Morgan",
         customerEmail: "casey+assistant@example.com",
-        serviceCategory: "Consulting",
+        serviceSlug: "consulting",
         details: "Two-hour discovery call.",
       }),
       textTurn("Done — inquiry created."),
@@ -434,20 +467,29 @@ describe("owner-assistant chat API route (provider seam)", () => {
       })),
     );
 
-    const model = mockModelForTurns([textTurn("unreachable")]);
-    vi.mocked(registry.languageModel).mockReturnValue(model as never);
+    try {
+      const model = mockModelForTurns([textTurn("unreachable")]);
+      vi.mocked(registry.languageModel).mockReturnValue(model as never);
 
-    const response = await POST(
-      chatRequest({
-        businessSlug: ids.otherBusinessSlug,
-        sessionId,
-        messages: uiMessages("One more question?"),
-      }),
-    );
+      const response = await POST(
+        chatRequest({
+          businessSlug: ids.otherBusinessSlug,
+          sessionId,
+          messages: uiMessages("One more question?"),
+        }),
+      );
 
-    expect(response.status).toBe(429);
-    expect(await response.json()).toMatchObject({ upgradeRequired: true });
-    expect(model.doStreamCalls).toHaveLength(0);
+      expect(response.status).toBe(429);
+      expect(await response.json()).toMatchObject({ upgradeRequired: true });
+      expect(model.doStreamCalls).toHaveLength(0);
+    } finally {
+      // This test deliberately exhausts the shared free-plan business's daily
+      // bucket. Drain it again so later tests that use the same business are
+      // not born rate-limited.
+      await testDb
+        .delete(ownerAssistantMessages)
+        .where(eq(ownerAssistantMessages.sessionId, sessionId));
+    }
   });
 
   it("never resolves a session that belongs to another business", async () => {
@@ -470,6 +512,10 @@ describe("owner-assistant chat API route (provider seam)", () => {
       }),
     );
 
+    // A 429 here means the shared free-plan business is still rate-limited
+    // from the daily-bucket test above; assert the status so that regression
+    // fails loudly instead of showing up as an empty prompt.
+    expect(response.status).toBe(200);
     const canonical = response.headers.get("X-Session-Id");
     expect(canonical).not.toBe(sessionId);
     await response.text();

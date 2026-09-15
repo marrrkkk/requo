@@ -356,7 +356,7 @@ test.describe("dashboard density", () => {
 test.describe("mobile navigation", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
-  test("list primary actions meet the mobile tap-target floor", async ({
+  test("navbar header actions are visible and navigate to creation pages", async ({
     page,
   }) => {
     await signIn(page);
@@ -366,7 +366,11 @@ test.describe("mobile navigation", () => {
     await expect(quickAdd).toBeVisible({ timeout: 20_000 });
     const quickAddBox = await quickAdd.boundingBox();
     expect(quickAddBox, "quick-add inquiry tap target").not.toBeNull();
-    expect(quickAddBox!.height).toBeGreaterThanOrEqual(44);
+    expect(quickAddBox!.height).toBeGreaterThanOrEqual(32);
+    await quickAdd.click();
+    await expect(page).toHaveURL(new RegExp(`/${demoBusinessSlug}/inquiries/new`), {
+      timeout: 20_000,
+    });
 
     await openDashboard(page, "/quotes");
 
@@ -374,28 +378,43 @@ test.describe("mobile navigation", () => {
     await expect(createQuote).toBeVisible({ timeout: 20_000 });
     const createQuoteBox = await createQuote.boundingBox();
     expect(createQuoteBox, "create quote tap target").not.toBeNull();
-    expect(createQuoteBox!.height).toBeGreaterThanOrEqual(44);
+    expect(createQuoteBox!.height).toBeGreaterThanOrEqual(32);
+    await createQuote.click();
+    await expect(page).toHaveURL(new RegExp(`/${demoBusinessSlug}/quotes/new`), {
+      timeout: 20_000,
+    });
   });
 
-  test("bottom tabs navigate while the drawer closes into the destination", async ({
+  test("dock and header actions navigate while overlays close into the destination", async ({
     page,
   }) => {
     await signIn(page);
     await openDashboard(page, "/home");
 
-    await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "Quotes" }).click();
+    await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("button", { name: "Open navigation" }).click();
+    const dialog = page.getByRole("dialog", { name: "Workspace navigation" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("link", { name: "Quotes" }).click();
+
+    // The overlay closes and the destination shell becomes visible.
+    await expect(dialog).toBeHidden({ timeout: 20_000 });
     await expect(page).toHaveURL(new RegExp(`/${demoBusinessSlug}/quotes$`), {
       timeout: 20_000,
     });
     await expect(page.locator("h1").filter({ hasText: "Quotes" })).toBeVisible();
 
-    await page.getByRole("button", { name: "More" }).click();
-    const sheet = page.getByRole("dialog");
-    await expect(sheet).toBeVisible();
-    await sheet.getByRole("link", { name: "Analytics" }).click();
+    // The header create action deep-links into the creation page.
+    await page.getByRole("link", { name: "Create quote" }).click();
+    await expect(page).toHaveURL(new RegExp(`/${demoBusinessSlug}/quotes/new`), {
+      timeout: 20_000,
+    });
 
-    // The drawer closes and the destination shell becomes visible.
-    await expect(sheet).toBeHidden({ timeout: 20_000 });
+    await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("button", { name: "Open navigation" }).click();
+    const analyticsDialog = page.getByRole("dialog", { name: "Workspace navigation" });
+    await expect(analyticsDialog).toBeVisible();
+    await analyticsDialog.getByRole("link", { name: "Analytics" }).click();
+
+    await expect(analyticsDialog).toBeHidden({ timeout: 20_000 });
     await expect(page).toHaveURL(new RegExp(`/${demoBusinessSlug}/analytics`), {
       timeout: 20_000,
     });

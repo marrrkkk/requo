@@ -4,6 +4,7 @@ import { ChevronDown, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
+import { mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -17,12 +18,18 @@ import { Input } from "@/components/ui/input";
 import { getBusinessInquiriesExportPath } from "@/features/businesses/routes";
 import type {
   InquiryListFilters,
+  InquirySourceFilterValue,
   InquiryStatusFilterValue,
 } from "@/features/inquiries/types";
-import { inquiryStatusFilterValues } from "@/features/inquiries/types";
+import {
+  inquirySourceFilterValues,
+  inquirySourceLabels,
+  inquiryStatusFilterValues,
+} from "@/features/inquiries/types";
 import { getInquiryStatusLabel } from "@/features/inquiries/utils";
 
 const statusOptions: InquiryStatusFilterValue[] = [...inquiryStatusFilterValues];
+const sourceOptions: InquirySourceFilterValue[] = [...inquirySourceFilterValues];
 
 type InquiryExportCsvDropdownProps = {
   businessSlug: string;
@@ -46,6 +53,7 @@ export function InquiryExportCsvDropdown({
   const view = filters.view;
   const [status, setStatus] = useState<InquiryStatusFilterValue>(filters.status);
   const [form, setForm] = useState(filters.form);
+  const [source, setSource] = useState<InquirySourceFilterValue>(filters.source);
   const [sort, setSort] = useState<"newest" | "oldest">(filters.sort);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -66,6 +74,9 @@ export function InquiryExportCsvDropdown({
     if (form !== "all") {
       params.set("form", form);
     }
+    if (source !== "all") {
+      params.set("source", source);
+    }
     if (sort !== "newest") {
       params.set("sort", sort);
     }
@@ -79,18 +90,22 @@ export function InquiryExportCsvDropdown({
     return `${getBusinessInquiriesExportPath(businessSlug)}${
       params.size ? `?${params.toString()}` : ""
     }`;
-  }, [businessSlug, form, from, query, sort, status, to, view]);
+  }, [businessSlug, form, from, query, sort, source, status, to, view]);
 
   if (!canExport) {
     return (
       <ProFeatureNoticeButton
+        aria-label="Export CSV"
+        title="Export CSV"
+        size="sm"
+        className={mobileNavbarIconButtonClassName}
         noticeDescription="Upgrade to Pro to export inquiry records for reporting, handoff, and backup workflows."
         noticeTitle="CSV export is a Pro feature."
         variant="outline"
       >
         <Download data-icon="inline-start" />
-        Export CSV
-        <ChevronDown className="opacity-60" data-icon="inline-end" />
+        <span className="hidden lg:inline">Export CSV</span>
+        <ChevronDown className="opacity-60 max-lg:hidden" data-icon="inline-end" />
       </ProFeatureNoticeButton>
     );
   }
@@ -98,10 +113,17 @@ export function InquiryExportCsvDropdown({
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button disabled={resultCount === 0} variant="outline">
+        <Button
+          aria-label="Export CSV"
+          title="Export CSV"
+          size="sm"
+          className={mobileNavbarIconButtonClassName}
+          disabled={resultCount === 0}
+          variant="outline"
+        >
           <Download data-icon="inline-start" />
-          Export CSV
-          <ChevronDown className="opacity-60" data-icon="inline-end" />
+          <span className="hidden lg:inline">Export CSV</span>
+          <ChevronDown className="opacity-60 max-lg:hidden" data-icon="inline-end" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -123,7 +145,7 @@ export function InquiryExportCsvDropdown({
                 id="inquiry-export-q"
                 value={query}
                 onChange={(event) => setQuery(event.currentTarget.value)}
-                placeholder="Customer, email, category, subject"
+                placeholder="Customer, email, subject"
               />
             </FieldContent>
           </Field>
@@ -156,6 +178,24 @@ export function InquiryExportCsvDropdown({
                 options={formOptions}
                 placeholder="Filter by service"
                 searchPlaceholder="Search service"
+              />
+            </FieldContent>
+          </Field>
+
+          <Field className="gap-1.5">
+            <FieldLabel htmlFor="inquiry-export-source">Source</FieldLabel>
+            <FieldContent>
+              <Combobox
+                id="inquiry-export-source"
+                value={source}
+                onValueChange={(value) => setSource(value as InquirySourceFilterValue)}
+                options={sourceOptions.map((option) => ({
+                  value: option,
+                  label:
+                    option === "all" ? "All sources" : inquirySourceLabels[option],
+                }))}
+                placeholder="Filter by source"
+                searchPlaceholder="Search source"
               />
             </FieldContent>
           </Field>

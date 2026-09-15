@@ -6,17 +6,22 @@ import { loadRecentMessages } from "@/features/ai-agent/message-service";
  * Agent transcript rehydration (customer-owned).
  *
  * GET /api/ai/agent/session?token=<publicToken>
- * Returns the business name plus the customer's own user/assistant transcript
- * so a reload restores the conversation. Authorized by possession of the
- * token, which only the customer holds — the business gains no visibility
- * from this route.
+ * Prefer `Authorization: Bearer <token>` (keeps tokens out of URLs/logs);
+ * `?token=` remains for backward compatibility. Returns the business name
+ * plus the customer's own user/assistant transcript so a reload restores the
+ * conversation. Authorized by possession of the token, which only the
+ * customer holds — the business gains no visibility from this route.
  */
 export async function GET(request: Request) {
   await connection();
 
   try {
     const url = new URL(request.url);
-    const token = url.searchParams.get("token") ?? "";
+    const authHeader = request.headers.get("authorization") ?? "";
+    const bearer = authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length).trim()
+      : "";
+    const token = bearer || (url.searchParams.get("token") ?? "");
 
     if (!/^[a-f0-9]{64}$/.test(token)) {
       return NextResponse.json(
@@ -54,19 +59,26 @@ export async function GET(request: Request) {
         ? staged
         : null;
 
-    return NextResponse.json({
-      businessName: sessionData.business.name,
-      status: sessionData.status,
-      messages: rows
-        .filter((row) => row.role === "user" || row.role === "assistant")
-        .map((row) => ({
-          id: row.id,
-          role: row.role,
-          content: row.content,
-          createdAt: row.createdAt.toISOString(),
-        })),
-      proposedInquiry,
-    });
+    return NextResponse.json(
+      {
+        businessName: sessionData.business.name,
+        status: sessionData.status,
+        messages: rows
+          .filter((row) => row.role === "user" || row.role === "assistant")
+          .map((row) => ({
+            id: row.id,
+            role: row.role,
+            content: row.content,
+            createdAt: row.createdAt.toISOString(),
+          })),
+        proposedInquiry,
+      },
+      {
+        headers: {
+          "cache-control": "private, no-store, max-age=0",
+        },
+      },
+    );
   } catch (error) {
     console.error("Agent session load error:", error);
     return NextResponse.json(

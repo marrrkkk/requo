@@ -25,6 +25,7 @@ import {
   FollowUpListControlsFallback,
 } from "@/features/follow-ups/components/follow-up-list-page-sections";
 import { CreateFollowUpButton } from "@/features/follow-ups/components/create-follow-up-button";
+import { MobileHeaderSlot, mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { LockedAction } from "@/features/paywall";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { FirstVisitTip } from "@/features/onboarding/components/first-visit-tip";
@@ -136,17 +137,24 @@ async function StreamedFollowUpBoard({ businessSlug }: { businessSlug: string })
         businessSlug={businessSlug}
         autoSequences={autoSequences}
         createButton={
-          <div className="flex items-center gap-2">
-            <Button asChild variant="outline" size="sm">
+          <MobileHeaderSlot desktopClassName="flex items-center gap-2">
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              aria-label={historyLabel}
+              title={historyLabel}
+              className={mobileNavbarIconButtonClassName}
+            >
               <Link href={historyHref} prefetch={true}>
                 <History data-icon="inline-start" />
-                {historyLabel}
+                <span className="hidden lg:inline">{historyLabel}</span>
               </Link>
             </Button>
             <LockedAction feature="followUps" plan={businessContext.business.plan}>
               <CreateFollowUpButton businessSlug={businessSlug} records={recentRecords} />
             </LockedAction>
-          </div>
+          </MobileHeaderSlot>
         }
       />
     </div>

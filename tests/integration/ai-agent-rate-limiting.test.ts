@@ -46,6 +46,8 @@ import { like } from "drizzle-orm";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
 import {
   checkUsageLimit,
+  computeCreditsForTokens,
+  computeUsageWeight,
   recordUsage,
   PLAN_LIMITS,
   TASK_WEIGHTS,
@@ -234,6 +236,7 @@ describe("ai-agent rate limiting and usage quotas", () => {
           businessId: testBusinessId,
           taskType: "agent_conversation",
           weight,
+          plan: "free",
         });
       }
 
@@ -252,7 +255,7 @@ describe("ai-agent rate limiting and usage quotas", () => {
       expect((result as { message: string }).message).toContain("allowance");
     });
 
-    it("recordUsage inserts a row with the correct weight and task type", async () => {
+    it("recordUsage inserts a row with the correct weight, task type, and plan", async () => {
       const businessId = ids.businessId;
       const userId = `${prefix}_owner`;
 
@@ -262,7 +265,13 @@ describe("ai-agent rate limiting and usage quotas", () => {
         .from(aiUsageEvents)
         .where(like(aiUsageEvents.businessId, businessId));
 
-      await recordUsage(userId, businessId, "agent_conversation", TASK_WEIGHTS.agent_conversation);
+      await recordUsage(
+        userId,
+        businessId,
+        "agent_conversation",
+        TASK_WEIGHTS.agent_conversation,
+        "pro",
+      );
 
       const after = await testDb
         .select()
@@ -277,7 +286,97 @@ describe("ai-agent rate limiting and usage quotas", () => {
         businessId,
         taskType: "agent_conversation",
         weight: TASK_WEIGHTS.agent_conversation,
+        plan: "pro",
       });
+    });
+
+    it("does not carry usage from one plan into another (reset on plan change)", async () => {
+      const businessId = `${prefix}_plan_scope_business`;
+      const userId = `${prefix}_plan_scope_user`;
+
+      // Exhaust the Free allowance for this business.
+      await testDb.insert(aiUsageEvents).values({
+        id: `aue_${prefix}_plan_scope_free`,
+        userId,
+        businessId,
+        taskType: "quote_draft",
+        weight: PLAN_LIMITS.free,
+        plan: "free",
+      });
+
+      // Free is now exhausted…
+      const onFree = await checkUsageLimit({
+        userId,
+        businessId,
+        taskType: "quote_draft",
+        plan: "free",
+      });
+      expect(onFree.allowed).toBe(false);
+
+      // …but the upgrade starts a fresh Pro allowance mid-month.
+      const onPro = await checkUsageLimit({
+        userId,
+        businessId,
+        taskType: "quote_draft",
+        plan: "pro",
+      });
+      expect(onPro.allowed).toBe(true);
+    });
+
+    it("counts legacy rows that have no plan attributed", async () => {
+      const businessId = `${prefix}_legacy_plan_business`;
+      const userId = `${prefix}_legacy_plan_user`;
+
+      // Rows written before plan attribution carry a NULL plan and must keep
+      // counting toward whichever plan is current.
+      await testDb.insert(aiUsageEvents).values({
+        id: `aue_${prefix}_legacy_plan`,
+        userId,
+        businessId,
+        taskType: "quote_draft",
+        weight: PLAN_LIMITS.free,
+        plan: null,
+      });
+
+      const result = await checkUsageLimit({
+        userId,
+        businessId,
+        taskType: "quote_draft",
+        plan: "free",
+      });
+
+      expect(result.allowed).toBe(false);
+    });
+
+    it("meters credits from token usage rather than a fixed task weight", async () => {
+      const businessId = `${prefix}_token_weight_business`;
+      const userId = `${prefix}_token_weight_user`;
+
+      // A heavy draft: 40,000 input + 8,000 output → 72,000 weighted → 15 credits.
+      const heavyWeight = computeUsageWeight("quote_draft", {
+        inputTokens: 40_000,
+        outputTokens: 8_000,
+      });
+      expect(heavyWeight).toBe(computeCreditsForTokens(40_000, 8_000));
+      expect(heavyWeight).toBe(15);
+
+      await recordUsage(userId, businessId, "quote_draft", heavyWeight, "pro");
+
+      const [row] = await testDb
+        .select()
+        .from(aiUsageEvents)
+        .where(like(aiUsageEvents.businessId, businessId));
+
+      expect(row).toMatchObject({ weight: 15, plan: "pro" });
+
+      // The recorded weight is what the quota check now sees.
+      const summary = await checkUsageLimit({
+        userId,
+        businessId,
+        taskType: "quote_draft",
+        plan: "pro",
+      });
+      expect(summary.allowed).toBe(true);
     });
   });
 });

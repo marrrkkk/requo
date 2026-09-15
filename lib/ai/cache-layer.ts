@@ -2,6 +2,8 @@ import "server-only";
 
 import { Redis } from "@upstash/redis";
 
+import { env } from "@/lib/env";
+
 // ---------------------------------------------------------------------------
 // Distributed Cache Layer — Upstash Redis with in-memory fallback
 //
@@ -48,8 +50,8 @@ const OPERATION_TIMEOUT_MS = 2_000;
 const CONNECTION_TIMEOUT_MS = 5_000;
 
 function createRedisClient(): Redis | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const url = env.UPSTASH_REDIS_REST_URL;
+  const token = env.UPSTASH_REDIS_REST_TOKEN;
 
   if (!url || !token) {
     console.warn(

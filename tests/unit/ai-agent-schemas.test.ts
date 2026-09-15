@@ -60,7 +60,7 @@ describe("ai-agent candidate state schemas", () => {
     const parsed = qualificationStateSchema.safeParse({
       collected: { customerName: true, details: true },
       values: { customerName: "Taylor Nguyen", details: "Two door decals" },
-      missing: ["serviceCategory"],
+      missing: ["serviceSlug"],
     });
 
     expect(parsed.success).toBe(true);
@@ -267,7 +267,7 @@ describe("ai-agent tool parameter schemas", () => {
       customerName: "Taylor Nguyen",
       customerContactMethod: "email",
       customerContactHandle: "taylor@example.com",
-      serviceCategory: "Window graphics",
+      serviceSlug: "storefront-signage",
       details: "Two storefront panels",
     };
 
@@ -297,7 +297,7 @@ describe("ai-agent tool parameter schemas", () => {
       customerName: "Taylor Nguyen",
       customerContactMethod: "email",
       customerContactHandle: "taylor@example.com",
-      serviceCategory: "Window graphics",
+      serviceSlug: "storefront-signage",
       details: "Two storefront panels",
       customerEmail: "taylor@example.com",
       budgetText: "$500 - $1,000",

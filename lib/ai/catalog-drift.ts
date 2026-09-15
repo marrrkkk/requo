@@ -11,9 +11,29 @@ export type DriftDiff = {
   unlisted: string[];
 };
 
+/**
+ * Registry prefixes the catalog may put in front of a provider model name.
+ * Only these are stripped: provider model names can legitimately contain
+ * colons (OpenRouter's `:free` variants, for example), and stripping those
+ * would corrupt the comparison — `nvidia/nemotron-3-super-120b-a12b:free`
+ * would collapse to `nemotron-3-super-120b-a12b:free` and look retired.
+ */
+const REGISTRY_PREFIXES = new Set([
+  "google",
+  "groq",
+  "cerebras",
+  "mistral",
+  "cloudflare",
+  "nvidia",
+  "openrouter",
+]);
+
 function bareId(modelId: string): string {
   const idx = modelId.indexOf(":");
-  return idx >= 0 ? modelId.slice(idx + 1) : modelId;
+  if (idx < 0) return modelId;
+
+  const prefix = modelId.slice(0, idx);
+  return REGISTRY_PREFIXES.has(prefix) ? modelId.slice(idx + 1) : modelId;
 }
 
 function providerOf(modelId: string): string {

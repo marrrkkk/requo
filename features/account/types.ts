@@ -1,5 +1,7 @@
 export type AccountProfileRecord = {
   fullName: string;
+  firstName: string | null;
+  lastName: string | null;
   jobTitle: string | null;
   phone: string | null;
   avatarStoragePath: string | null;
@@ -65,8 +67,6 @@ export type AccountProfileActionState = {
   success?: string;
   fieldErrors?: {
     fullName?: string[] | undefined;
-    jobTitle?: string[] | undefined;
-    phone?: string[] | undefined;
     avatar?: string[] | undefined;
   };
 };

@@ -14,8 +14,6 @@ import {
   BusinessSwitcherSkeleton,
   MobileBusinessSwitcher,
   MobileBusinessSwitcherSkeleton,
-  MobileUserMenu,
-  MobileUserMenuSkeleton,
 } from "@/components/shell/dashboard-shell-slots";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { BusinessCheckoutProvider } from "@/features/billing/components/business-checkout-provider";
@@ -82,11 +80,6 @@ async function SettingsShell({
         mobileBusinessSwitcherSlot={
           <Suspense fallback={<MobileBusinessSwitcherSkeleton />}>
             <MobileBusinessSwitcherSlot businessSlug={businessSlug} />
-          </Suspense>
-        }
-        mobileUserMenuSlot={
-          <Suspense fallback={<MobileUserMenuSkeleton />}>
-            <MobileUserMenuSlot businessSlug={businessSlug} />
           </Suspense>
         }
       >
@@ -222,32 +215,6 @@ async function MobileBusinessSwitcherSlot({ businessSlug }: { businessSlug: stri
       currentBusiness={businessContext}
       memberships={memberships}
       businessQuota={businessQuota}
-    />
-  );
-}
-
-async function MobileUserMenuSlot({ businessSlug }: { businessSlug: string }) {
-  const { user, businessContext } = await getAppShellContext(businessSlug);
-  const profile = await getAccountProfileForUser(user.id);
-
-  const avatarSrc = resolveUserAvatarSrc({
-    avatarStoragePath: profile?.avatarStoragePath,
-    profileUpdatedAt: profile?.updatedAt,
-    oauthImage: user.image ?? null,
-  });
-
-  return (
-    <MobileUserMenu
-      user={{
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        avatarSrc,
-      }}
-      businessRole={businessContext.role}
-      businessSlug={businessContext.business.slug}
-      businessId={businessContext.business.id}
-      plan={businessContext.business.plan}
     />
   );
 }

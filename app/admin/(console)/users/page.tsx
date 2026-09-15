@@ -3,14 +3,13 @@ import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
-import { requireAdminUser } from "@/features/admin/access";
-import { wrapAdminRouteWithViewLog } from "@/features/admin/audit";
 import {
   AdminListContentFallback,
   AdminListControlsFallback,
   AdminUsersListContentSection,
   AdminUsersListControlsSection,
 } from "@/features/admin/components/admin-users-list-sections";
+import { withAdminViewLog } from "@/features/admin/page-shell";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const instant = true;
@@ -51,11 +50,11 @@ function AdminListPageFallback() {
 }
 
 async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
-  const { session, user: admin } = await requireAdminUser();
   const rawParams = await searchParams;
 
-  const renderPage = wrapAdminRouteWithViewLog(
-    async () => (
+  return withAdminViewLog(
+    { action: "view.users", targetType: "user" },
+    () => (
       <DashboardPage>
         <PageHeader
           description="Search, inspect, and support Requo users."
@@ -72,18 +71,5 @@ async function AdminUsersPageContent({ searchParams }: AdminUsersPageProps) {
         </div>
       </DashboardPage>
     ),
-    {
-      adminUserId: admin.id,
-      adminEmail: admin.email,
-      impersonatedUserId: session.session?.impersonatedBy
-        ? session.user.id
-        : null,
-    },
-    {
-      action: "view.users",
-      targetType: "user",
-    },
   );
-
-  return renderPage();
 }

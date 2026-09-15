@@ -84,6 +84,7 @@ export default function QuotesPage({
     <DashboardPage>
       <PageHeader
         title="Quotes"
+        className="[&_.dashboard-actions]:max-lg:hidden"
         actions={
           <Suspense fallback={<QuoteListHeaderActionsFallback />}>
             <QuotesHeaderActionsRegion params={params} searchParams={searchParams} />

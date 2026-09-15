@@ -112,14 +112,18 @@ const nextConfig: NextConfig = {
     // Router cache freshness-vs-reuse (ref: bundled staleTimes.md, prefetching.md).
     // dynamic: RSC payloads gated on per-request data (session, business context)
     //   reuse for a short window so back/forward feels instant without serving
-    //   meaningfully stale business data. 30s keeps sibling navs snappy while
-    //   ensuring mutations surface within half a minute at worst.
+    //   meaningfully stale business data. 60s (validator max) keeps sibling
+    //   navs and browser-back snappy — e.g. reading an inquiry then going back
+    //   shows the list instantly with no skeleton. Real mutations invalidate
+    //   explicitly via cache tags, so they still surface immediately regardless
+    //   of this window; it only bounds un-invalidated staleness (at worst a
+    //   minute), which read receipts already cover with optimistic client state.
     // static: Segments with no per-request variance (prefetched static shells)
     //   tolerate a longer reuse window since their content changes infrequently
     //   and cache-tag invalidations flush them on mutation anyway. 180s balances
     //   network savings against reasonable freshness for non-mutated reads.
     staleTimes: {
-      dynamic: 30,
+      dynamic: 60,
       static: 180,
     },
     // Inlining critical CSS pays off for production first paint, but in dev it

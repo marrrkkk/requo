@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/env", () => ({
+  // Redis is unconfigured in tests: the cache layer must fall back to memory.
+  env: {
+    UPSTASH_REDIS_REST_URL: undefined,
+    UPSTASH_REDIS_REST_TOKEN: undefined,
+  },
   isGroqConfigured: true,
   isCerebrasConfigured: true,
   isGeminiConfigured: true,
@@ -28,7 +33,7 @@ describe("capacity selector profiles", () => {
 
     expect(models.length).toBeGreaterThan(0);
     // Gemini Flash-Lite leads the assistant chain; Groq sits late.
-    expect(models[0]).toBe("google:gemini-2.5-flash-lite");
+    expect(models[0]).toBe("google:gemini-3.5-flash-lite");
     const groqIndex = models.findIndex((m) => m.startsWith("groq:"));
     expect(groqIndex).toBeGreaterThan(0);
     // Reserve stays last.
@@ -74,7 +79,7 @@ describe("capacity selector profiles", () => {
     });
 
     const reserveIndex = models.indexOf("google:gemini-2.5-pro");
-    const firstIndex = models.indexOf("google:gemini-2.5-flash-lite");
+    const firstIndex = models.indexOf("google:gemini-3.5-flash-lite");
     expect(reserveIndex).toBeGreaterThan(firstIndex);
   });
 
@@ -86,9 +91,9 @@ describe("capacity selector profiles", () => {
     });
 
     expect(models).toContain("groq:openai/gpt-oss-120b");
-    expect(models).toContain("google:gemini-2.5-flash-lite");
+    expect(models).toContain("google:gemini-3.5-flash-lite");
     // High-TPM head still leads; stressed Groq remains as fallback.
-    expect(models[0]).toBe("google:gemini-2.5-flash-lite");
+    expect(models[0]).toBe("google:gemini-3.5-flash-lite");
   });
 
   it("filters out providers that are not configured", async () => {

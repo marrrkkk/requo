@@ -7,9 +7,14 @@ import { DataListToolbar } from "@/components/shared/data-list-toolbar";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import type {
   InquiryListFilters,
+  InquirySourceFilterValue,
   InquiryStatusFilterValue,
 } from "@/features/inquiries/types";
-import { inquiryStatusFilterValues } from "@/features/inquiries/types";
+import {
+  inquirySourceFilterValues,
+  inquirySourceLabels,
+  inquiryStatusFilterValues,
+} from "@/features/inquiries/types";
 import { getInquiryStatusLabel } from "@/features/inquiries/utils";
 
 type InquiryListFiltersProps = {
@@ -22,6 +27,7 @@ type InquiryListFiltersProps = {
 };
 
 const statusOptions: InquiryStatusFilterValue[] = [...inquiryStatusFilterValues];
+const sourceOptions: InquirySourceFilterValue[] = [...inquirySourceFilterValues];
 
 export function InquiryListFilters({
   filters,
@@ -35,6 +41,7 @@ export function InquiryListFilters({
   const [query, setQuery] = useState(filters.q ?? "");
   const [status, setStatus] = useState<InquiryStatusFilterValue>(filters.status);
   const [form, setForm] = useState(filters.form);
+  const [source, setSource] = useState<InquirySourceFilterValue>(filters.source);
   const [sort, setSort] = useState(filters.sort);
   const view = filters.view;
 
@@ -45,6 +52,7 @@ export function InquiryListFilters({
     nextQuery: string,
     nextStatus: InquiryStatusFilterValue,
     nextForm: string,
+    nextSource: InquirySourceFilterValue,
     nextSort: "newest" | "oldest",
     nextView: InquiryListFilters["view"],
   ) => {
@@ -65,6 +73,10 @@ export function InquiryListFilters({
 
     if (nextForm !== "all") {
       params.set("form", nextForm);
+    }
+
+    if (nextSource !== "all") {
+      params.set("source", nextSource);
     }
 
     if (nextSort !== "newest") {
@@ -93,18 +105,19 @@ export function InquiryListFilters({
     }
 
     const timer = setTimeout(() => {
-      navigate(query, status, form, sort, view);
+      navigate(query, status, form, source, sort, view);
     }, 400);
     return () => clearTimeout(timer);
-  }, [form, navigate, query, sort, status, view]);
+  }, [form, navigate, query, sort, source, status, view]);
 
   return (
+    <div className="flex flex-col gap-2">
     <DataListToolbar
-      description="Search by customer, email, or service category."
+      description="Search by customer, email, or subject."
       resultLabel={`${resultCount} ${resultCount === 1 ? "inquiry" : "inquiries"}`}
       searchId="inquiry-search"
       searchLabel="Search inquiries"
-      searchPlaceholder="Search customer, email, category, or subject"
+      searchPlaceholder="Search customer, email, or subject"
       searchValue={query}
       onSearchChange={setQuery}
       filterId="inquiry-status-filter"
@@ -113,7 +126,7 @@ export function InquiryListFilters({
       onFilterChange={(value) => {
         const nextStatus = value as InquiryStatusFilterValue;
         setStatus(nextStatus);
-        navigate(query, nextStatus, form, sort, view);
+        navigate(query, nextStatus, form, source, sort, view);
       }}
       filterOptions={statusOptions.map((option) => ({
         value: option,
@@ -125,16 +138,29 @@ export function InquiryListFilters({
       secondaryFilterValue={form}
       onSecondaryFilterChange={(value) => {
         setForm(value);
-        navigate(query, status, value, sort, view);
+        navigate(query, status, value, source, sort, view);
       }}
       secondaryFilterOptions={formOptions}
+      tertiaryFilterId="inquiry-source-filter"
+      tertiaryFilterLabel="Source"
+      tertiaryFilterValue={source}
+      onTertiaryFilterChange={(value) => {
+        const nextSource = value as InquirySourceFilterValue;
+        setSource(nextSource);
+        navigate(query, status, form, nextSource, sort, view);
+      }}
+      tertiaryFilterOptions={sourceOptions.map((option) => ({
+        value: option,
+        label:
+          option === "all" ? "All sources" : inquirySourceLabels[option],
+      }))}
       sortId="inquiry-sort"
       sortLabel="Sort by"
       sortValue={sort}
       onSortChange={(value) => {
         const nextSort = value as "newest" | "oldest";
         setSort(nextSort);
-        navigate(query, status, form, nextSort, view);
+        navigate(query, status, form, source, nextSort, view);
       }}
       sortOptions={[
         { label: "Newest first", value: "newest" },
@@ -145,12 +171,14 @@ export function InquiryListFilters({
         setQuery("");
         setStatus("all");
         setForm("all");
+        setSource("all");
         setSort("newest");
-        navigate("", "all", "all", "newest", view);
+        navigate("", "all", "all", "all", "newest", view);
       }}
       canClear={Boolean(
-        query.trim() || status !== "all" || form !== "all" || sort !== "newest",
+        query.trim() || status !== "all" || form !== "all" || source !== "all" || sort !== "newest",
       )}
     />
+    </div>
   );
 }

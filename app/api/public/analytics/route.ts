@@ -12,6 +12,7 @@ import {
 import { normalizeReferrer } from "@/features/analytics/utils/normalize-referrer";
 import { recordQuotePublicViewAt } from "@/features/quotes/mutations";
 import { getOptionalSession } from "@/lib/auth/session";
+import { assertPublicActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 import { db } from "@/lib/db/client";
 import { env } from "@/lib/env";
 import { businessMembers } from "@/lib/db/schema";
@@ -78,6 +79,21 @@ export async function POST(request: Request) {
         },
         status: 400,
       },
+    );
+  }
+
+  // Abuse backstop: analytics writes are cheap to spam and poison dashboards.
+  const analyticsAllowed = await assertPublicActionRateLimit({
+    action: "public-inquiry-submit",
+    scope: `public-analytics:${parsedBody.data.businessId}`,
+    limit: 120,
+    windowMs: 60_000,
+  });
+
+  if (!analyticsAllowed) {
+    return NextResponse.json(
+      { ok: true, tracked: false, rateLimited: true },
+      { headers: { "Cache-Control": "no-store" } },
     );
   }
 

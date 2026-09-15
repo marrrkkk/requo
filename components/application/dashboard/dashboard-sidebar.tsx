@@ -78,6 +78,7 @@ function NavItem({
   icon: Icon,
   label,
   badge,
+  badgeLabel,
   isSelected = false,
   collapsed = false,
   href = "#",
@@ -86,12 +87,14 @@ function NavItem({
   icon: IconComponent;
   label: string;
   badge?: ReactNode;
+  badgeLabel?: string;
   isSelected?: boolean;
   collapsed?: boolean;
   href?: string;
   /** Action rows (e.g. Settings → modal) intercept the navigation. */
   onClick?: () => void;
 }) {
+  const accessibleLabel = badgeLabel ? `${label}, ${badgeLabel}` : label;
   const content = (
     <>
       {/* Collapsed: drop the gap too — it still offsets the icon next to the
@@ -135,7 +138,7 @@ function NavItem({
           onClick();
         }}
         aria-current={isSelected ? "page" : undefined}
-        aria-label={label}
+        aria-label={accessibleLabel}
         title={collapsed ? label : undefined}
         className={className}
       >
@@ -153,7 +156,7 @@ function NavItem({
         href={href}
         prefetch
         aria-current={isSelected ? "page" : undefined}
-        aria-label={label}
+        aria-label={accessibleLabel}
         title={collapsed ? label : undefined}
         className={className}
       >
@@ -166,7 +169,7 @@ function NavItem({
     <a
       href={href}
       aria-current={isSelected ? "page" : undefined}
-      aria-label={label}
+      aria-label={accessibleLabel}
       title={collapsed ? label : undefined}
       className={className}
     >
@@ -182,6 +185,12 @@ export interface DashboardNavItem {
   icon: IconComponent;
   href?: string;
   badge?: string | number;
+  /**
+   * Screen-reader suffix for the badge (e.g. "4 unread"). The visible badge
+   * is otherwise hidden from assistive tech because the row sets an explicit
+   * `aria-label` from `label` alone.
+   */
+  badgeLabel?: string;
 }
 
 /** A labeled section of navigation rows (e.g. User / Workspace / Other). */
@@ -244,6 +253,7 @@ function NavRows({
               <Badge color="neutral">{item.badge}</Badge>
             ) : undefined
           }
+          badgeLabel={item.badgeLabel}
         />
       );
     });
@@ -296,6 +306,7 @@ function GroupedNavRows({
                 <Badge color="neutral">{item.badge}</Badge>
               ) : undefined
             }
+            badgeLabel={item.badgeLabel}
           />
         );
       })}

@@ -52,7 +52,7 @@ export async function createAgentSession({
   const initialState: QualificationState = {
     collected: {},
     values: {},
-    missing: ["customerName", "customerContactMethod", "customerContactHandle", "serviceCategory", "details"],
+    missing: ["customerName", "customerContactMethod", "customerContactHandle", "serviceSlug", "details"],
   };
 
   await db.insert(aiAgentSessions).values({
@@ -309,7 +309,7 @@ export const REQUIRED_QUALIFICATION_FIELDS = [
   "customerName",
   "customerContactMethod",
   "customerContactHandle",
-  "serviceCategory",
+  "serviceSlug",
   "details",
 ] as const;
 

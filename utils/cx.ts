@@ -1,7 +1,7 @@
 import { extendTailwindMerge } from "tailwind-merge";
 
 /**
- * Text-style classes from styles/typography.css.
+ * Text-style classes from the BoardUI typography scale.
  *
  * IMPORTANT: every text-* utility we define via @theme (e.g. `text-body-medium`,
  * `text-title-1-semibold`) must be listed here. Otherwise tailwind-merge — which

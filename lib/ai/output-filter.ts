@@ -15,6 +15,9 @@ export interface OutputFilterResult {
 
 const REDACTION_PLACEHOLDER = "[REDACTED]";
 
+/** Upper bound for regex inspection to avoid catastrophic backtracking on huge outputs. */
+const MAX_FILTER_INSPECTION_CHARS = 50_000;
+
 /**
  * Patterns that indicate internal instruction leakage in AI output.
  * These detect when the AI model is revealing its system prompt or configuration.
@@ -107,11 +110,22 @@ export function filterAiOutput(
       return { status: "clean", output: output || "", redactedPatterns: [] };
     }
 
+    // Cap inspection input for performance; the full output is still
+    // returned when clean. Over-long outputs are inspected on their head —
+    // a leak in the head is still caught, and the cap prevents ReDoS.
+    const inspectionTarget =
+      output.length > MAX_FILTER_INSPECTION_CHARS
+        ? output.slice(0, MAX_FILTER_INSPECTION_CHARS)
+        : output;
+
     let filteredOutput = output;
     const redactedPatterns: string[] = [];
 
     // 0. Check for canary token — if present, the entire response is compromised
-    if (options?.canaryToken && filteredOutput.includes(options.canaryToken)) {
+    if (options?.canaryToken && inspectionTarget.includes(options.canaryToken)) {
+      console.warn(
+        "[output-filter] Canary token detected in model output; redacting entire response.",
+      );
       redactedPatterns.push("canary_leak_detected");
       filteredOutput = "[REDACTED — system prompt leak detected]";
       return {
@@ -133,7 +147,7 @@ export function filterAiOutput(
       const words = normalizedFragment.split(" ").map(escapeRegExp);
       const flexiblePattern = new RegExp(words.join("\\s+"), "gi");
 
-      if (flexiblePattern.test(filteredOutput)) {
+      if (flexiblePattern.test(inspectionTarget)) {
         redactedPatterns.push("system_prompt_fragment");
         // Reset lastIndex and replace
         flexiblePattern.lastIndex = 0;
@@ -147,7 +161,7 @@ export function filterAiOutput(
     // 2. Check for leakage patterns
     for (const { pattern, name } of LEAKAGE_PATTERNS) {
       pattern.lastIndex = 0;
-      if (pattern.test(filteredOutput)) {
+      if (pattern.test(inspectionTarget)) {
         redactedPatterns.push(name);
         pattern.lastIndex = 0;
         filteredOutput = filteredOutput.replace(pattern, REDACTION_PLACEHOLDER);
@@ -163,8 +177,18 @@ export function filterAiOutput(
     }
 
     return { status: "clean", output, redactedPatterns: [] };
-  } catch {
-    // Fail-open: return original output unchanged on any error
-    return { status: "clean", output: output || "", redactedPatterns: [] };
+  } catch (error) {
+    // Fail-closed for safety: callers persist `output`, so returning the raw
+    // text uninspected would store a potential leak. Return a redaction
+    // placeholder and warn loudly; callers should also emit a security event.
+    console.warn(
+      "[output-filter] Filtering failed, redacting output as a precaution:",
+      error instanceof Error ? error.message : error,
+    );
+    return {
+      status: "redacted",
+      output: "[REDACTED — output inspection failed]",
+      redactedPatterns: ["filter_error"],
+    };
   }
 }

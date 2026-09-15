@@ -114,7 +114,8 @@ interface InquiryRow {
   customerName: string;
   customerEmail: string;
   status: string;
-  serviceCategory?: string | null;
+  serviceName?: string | null;
+  serviceSlug?: string | null;
   source?: string | null;
   aiAssisted?: boolean | null;
   createdAt: string | Date;
@@ -189,9 +190,9 @@ export function InquiryListCard({ result, businessSlug }: InquiryListCardProps) 
                     <span className="text-xs text-muted-foreground truncate">
                       {inquiry.customerEmail}
                     </span>
-                    {inquiry.serviceCategory && (
+                    {inquiry.serviceName && (
                       <span className="text-xs text-muted-foreground">
-                        {inquiry.serviceCategory}
+                        {inquiry.serviceName}
                       </span>
                     )}
                     <span className="text-xs text-muted-foreground">

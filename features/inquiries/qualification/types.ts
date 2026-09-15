@@ -22,7 +22,6 @@ export type RecentInquiryInput = {
 export type InquiryQualificationInput = {
   customerName: string | null;
   customerEmail: string | null;
-  serviceCategory: string;
   requestedDeadline: string | null;
   budgetText: string | null;
   details: string;

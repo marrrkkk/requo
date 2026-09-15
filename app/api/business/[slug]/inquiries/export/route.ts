@@ -4,6 +4,8 @@ import {
   getInquiryExportRowsForBusiness,
 } from "@/features/inquiries/queries";
 import { inquiryListFiltersSchema } from "@/features/inquiries/schemas";
+import { normalizeInquirySource } from "@/features/inquiries/types";
+import { getInquirySourceLabel } from "@/features/inquiries/utils";
 import { buildCsv, formatDateForExportFileName } from "@/lib/csv";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { buildContentDisposition } from "@/lib/files";
@@ -58,8 +60,10 @@ export async function GET(
         view: "active" as const,
         status: "all" as const,
         form: "all",
+        source: "all" as const,
         sort: "newest" as const,
         escalated: false,
+        unread: false,
         page: 1,
       };
 
@@ -78,8 +82,10 @@ export async function GET(
       view: filters.view,
       status: filters.status,
       form: filters.form,
+      source: filters.source,
       sort: filters.sort,
       escalated: filters.escalated ?? false,
+      unread: filters.unread ?? false,
     },
     from,
     to,
@@ -116,8 +122,20 @@ export async function GET(
         render: (row) => row.customerContactHandle,
       },
       {
-        header: "service_category",
-        render: (row) => row.serviceCategory,
+        header: "service",
+        render: (row) => row.inquiryFormName,
+      },
+      {
+        header: "service_slug",
+        render: (row) => row.inquiryFormSlug,
+      },
+      {
+        header: "source",
+        render: (row) => normalizeInquirySource(row.source),
+      },
+      {
+        header: "source_label",
+        render: (row) => getInquirySourceLabel(row.source),
       },
       {
         header: "subject",
