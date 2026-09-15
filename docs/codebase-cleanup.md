@@ -81,10 +81,12 @@ drizzle snapshot plus these two new docs.
   `verify-index-usage` (+ `.sql`), and — after explicit sign-off — the
   destructive local rescue tools `db-nuke`, `wipe-db`, `billing-reset`.
 - **Sign-off removals**: `components/base/kbd/kbd.tsx`,
-  `features/businesses/components/business-status-badge.tsx`,
   `features/admin/components/primitives/admin-error-state.tsx`, and
   `tests/support/third-party-mocks.ts` (its `fetch-guard.ts` message and
   `tests/README.md` note were reworded to stop pointing at it).
+  (`features/businesses/components/business-status-badge.tsx` was in the
+  sign-off batch but has since been restored — it is the shared badge for the
+  business lifecycle states, wiring to follow.)
 - **Unreferenced assets**: `public/{next,vercel,globe,file,window}.svg`,
   `public/{calendar,mastercard,qrph}.svg`.
 
