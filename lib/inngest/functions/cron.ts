@@ -27,12 +27,19 @@ export const followUpRemindersCron = inngest.createFunction(
     ),
 );
 
+/**
+ * `concurrency: { limit: 1 }` keeps hourly runs from overlapping. The job
+ * enforces per-plan auto follow-up send budgets with a read-then-decrement
+ * counter, so two concurrent runs could otherwise both read the same remaining
+ * budget and overshoot the allowance.
+ */
 export const autoFollowUpsCron = inngest.createFunction(
   {
     id: "cron-auto-follow-ups",
     name: "Send quote auto follow-ups",
     triggers: [{ cron: "0 * * * *" }],
     retries: 2,
+    concurrency: { limit: 1 },
   },
   async ({ step }) =>
     step.run("process-auto-follow-ups", async () => processQuoteAutoFollowUps()),

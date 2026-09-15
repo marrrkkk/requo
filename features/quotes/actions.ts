@@ -620,6 +620,8 @@ export async function sendQuoteAction(
     }
 
     // Enable auto follow-up if requested and sent via Requo email
+    let autoFollowUpLimitReached = false;
+
     if (
       deliveryMethod === "requo" &&
       formData.get("autoFollowUp") === "on" &&
@@ -628,13 +630,25 @@ export async function sendQuoteAction(
       const delayDays = Math.max(1, Math.min(14, Number(formData.get("autoFollowUpDelay")) || 3));
       const maxAttempts = Math.max(1, Math.min(5, Number(formData.get("autoFollowUpMax")) || 2));
 
-      void sendEnableQuoteAutoFollowUpEvent({
-        quoteId,
-        delayDays,
-        maxAttempts,
-      }).catch((error) => {
-        console.error("Failed to queue auto follow-up for quote.", error);
-      });
+      // Cap how many sequences may be in flight at once. The send itself still
+      // succeeds; only the automatic follow-up is withheld.
+      const activeAllowance = await checkUsageAllowance(
+        businessContext.business.id,
+        businessContext.business.plan,
+        "activeAutoFollowUpsPerBusiness",
+      );
+
+      if (activeAllowance.allowed) {
+        void sendEnableQuoteAutoFollowUpEvent({
+          quoteId,
+          delayDays,
+          maxAttempts,
+        }).catch((error) => {
+          console.error("Failed to queue auto follow-up for quote.", error);
+        });
+      } else {
+        autoFollowUpLimitReached = true;
+      }
     }
 
     if (businessSettings.notifyPushOnQuoteSent) {
@@ -661,7 +675,9 @@ export async function sendQuoteAction(
       success:
         deliveryMethod === "manual"
           ? `Quote ${result.quoteNumber} marked as sent after manual delivery.`
-          : `Quote ${result.quoteNumber} sent to ${quote.customerEmail}.`,
+          : autoFollowUpLimitReached
+            ? `Quote ${result.quoteNumber} sent to ${quote.customerEmail}. Auto follow-up wasn't enabled because you've reached your plan's limit for active auto follow-ups.`
+            : `Quote ${result.quoteNumber} sent to ${quote.customerEmail}.`,
     };
   } catch (error) {
     console.error("Failed to send quote email.", error);

@@ -13,6 +13,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
+  BellRing,
   CalendarDays,
   ChartColumn,
   CircleAlert,
@@ -51,6 +52,8 @@ export type BillingPlanUsage = {
   aiCredits: { used: number; limit: number };
   /** Requo quote emails sent in the current month. */
   emailsSent: number;
+  /** Automatic follow-up emails sent in the current month. */
+  autoFollowUpEmailsSent: number;
 };
 
 type BillingStatusCardProps = {
@@ -82,6 +85,10 @@ export function BillingStatusCard({
     ? "Free"
     : getPlanPriceLabel(currentPlan as PaidPlan, currency, "monthly");
   const emailsLimit = getUsageLimit(currentPlan, "requoQuoteEmailsPerMonth");
+  const autoFollowUpEmailsLimit = getUsageLimit(
+    currentPlan,
+    "autoFollowUpEmailsPerMonth",
+  );
   const portalHref = `/api/billing/polar/customer-portal?businessId=${encodeURIComponent(
     businessId,
   )}&businessSlug=${encodeURIComponent(businessSlug)}`;
@@ -314,6 +321,40 @@ export function BillingStatusCard({
                 unit="emails"
                 note={`Included in ${planMeta[currentPlan].label}`}
               />
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-border pt-4">
+              <p className="flex items-center gap-2 text-sm text-foreground">
+                <BellRing
+                  className="size-4 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <span>
+                  <span className="font-semibold">
+                    {autoFollowUpEmailsLimit === null
+                      ? "Unlimited auto follow-ups"
+                      : autoFollowUpEmailsLimit === 0
+                        ? "No auto follow-ups"
+                        : `${autoFollowUpEmailsLimit.toLocaleString()} auto follow-ups`}
+                  </span>{" "}
+                  {autoFollowUpEmailsLimit ? (
+                    <span className="text-muted-foreground">/month</span>
+                  ) : null}
+                </span>
+              </p>
+              {autoFollowUpEmailsLimit ? (
+                <UsageBar
+                  ariaLabel="Auto follow-up emails remaining this month"
+                  used={planUsage.autoFollowUpEmailsSent}
+                  limit={autoFollowUpEmailsLimit}
+                  unit="emails"
+                  note={`Included in ${planMeta[currentPlan].label}`}
+                />
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Automatic follow-ups are available on Pro and Business.
+                </p>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-2">

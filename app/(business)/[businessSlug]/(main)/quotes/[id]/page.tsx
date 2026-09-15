@@ -60,6 +60,8 @@ import { QuoteExportPopover } from "@/features/quotes/components/quote-export-po
 import { QuoteManageDropdown } from "@/features/quotes/components/quote-manage-dropdown";
 import { QuotePreviewButton } from "@/features/quotes/components/quote-preview-button";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
+import { getActiveAutoFollowUpCount } from "@/lib/plans/usage";
+import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { saveQuoteAsTemplateAction } from "@/features/quotes/quote-library-actions";
 import { QuotePreview } from "@/features/quotes/components/quote-preview";
 import { QuoteRecordStateBadge } from "@/features/quotes/components/quote-record-state-badge";
@@ -188,6 +190,27 @@ async function QuoteDetailContent({
     businessContext.business.plan,
     "quoteLibrary",
   );
+  // Auto follow-up is plan-gated and additionally capped by how many
+  // sequences may be in flight at once for the business.
+  const canAutoFollowUpByPlan = hasFeatureAccess(
+    businessContext.business.plan,
+    "autoFollowUps",
+  );
+  const activeAutoFollowUpLimit = getUsageLimit(
+    businessContext.business.plan,
+    "activeAutoFollowUpsPerBusiness",
+  );
+  const activeAutoFollowUpCount = canAutoFollowUpByPlan
+    ? await getActiveAutoFollowUpCount(businessContext.business.id)
+    : 0;
+  const canAutoFollowUp =
+    canAutoFollowUpByPlan &&
+    (activeAutoFollowUpLimit === null ||
+      activeAutoFollowUpCount < activeAutoFollowUpLimit);
+  const autoFollowUpUnavailableNote =
+    canAutoFollowUpByPlan && !canAutoFollowUp
+      ? "You've reached your plan's limit for active auto follow-ups. Stop or complete one to start another."
+      : undefined;
   const customerQuotePath = quote.publicToken
     ? getPublicQuoteUrl(quote.publicToken)
     : null;
@@ -441,7 +464,8 @@ async function QuoteDetailContent({
                     : undefined
                 }
                 pdfExportLocked={!canExportData}
-                canAutoFollowUp={hasFeatureAccess(businessContext.business.plan, "autoFollowUps")}
+                canAutoFollowUp={canAutoFollowUp}
+                autoFollowUpUnavailableNote={autoFollowUpUnavailableNote}
                 unpricedItemCount={unpricedItemCount}
                 needsAiConfirmation={needsAiConfirmation}
                 acknowledgeAction={acknowledgeAction}
@@ -550,7 +574,8 @@ async function QuoteDetailContent({
                         : undefined
                     }
                     pdfExportLocked={!canExportData}
-                    canAutoFollowUp={hasFeatureAccess(businessContext.business.plan, "autoFollowUps")}
+                    canAutoFollowUp={canAutoFollowUp}
+                autoFollowUpUnavailableNote={autoFollowUpUnavailableNote}
                     unpricedItemCount={unpricedItemCount}
                     needsAiConfirmation={needsAiConfirmation}
                     acknowledgeAction={acknowledgeAction}
@@ -589,6 +614,8 @@ async function QuoteDetailContent({
                     delayDays={quote.autoFollowUpDelayDays}
                     lastSentAt={quote.autoFollowUpLastSentAt}
                     stoppedAt={quote.autoFollowUpStoppedAt}
+                    activeCount={activeAutoFollowUpCount}
+                    activeLimit={activeAutoFollowUpLimit}
                     stopAction={stopAutoFollowUp}
                   />
                 ) : null}

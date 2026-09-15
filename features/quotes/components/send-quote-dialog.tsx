@@ -103,10 +103,15 @@ type SendQuoteDialogProps = {
   pdfExportLocked?: boolean;
   disabled?: boolean;
   /**
-   * Whether auto follow-up is available (plan-gated).
-   * When false, the auto follow-up toggle is hidden.
+   * Whether auto follow-up is available (plan-gated and under the plan's
+   * active-sequence cap). When false, the auto follow-up toggle is hidden.
    */
   canAutoFollowUp?: boolean;
+  /**
+   * Optional explanation shown in place of the auto follow-up toggle when it
+   * is unavailable for a reason the owner can act on (e.g. cap reached).
+   */
+  autoFollowUpUnavailableNote?: string;
   /**
    * Number of line items that still need a price (unit price <= 0).
    * When > 0 the dialog shows a warning and blocks the send buttons.
@@ -174,6 +179,7 @@ export function SendQuoteDialog({
   pdfExportLocked = false,
   disabled = false,
   canAutoFollowUp = false,
+  autoFollowUpUnavailableNote,
   unpricedItemCount = 0,
   needsAiConfirmation = false,
   acknowledgeAction,
@@ -659,6 +665,10 @@ export function SendQuoteDialog({
                     </p>
                   ) : null}
                 </div>
+              ) : showRequoOption && autoFollowUpUnavailableNote ? (
+                <p className="text-xs text-muted-foreground">
+                  {autoFollowUpUnavailableNote}
+                </p>
               ) : null}
             </ResponsiveOverlayBody>
 

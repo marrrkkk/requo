@@ -15,6 +15,9 @@ type AutoFollowUpStatusProps = {
   delayDays: number;
   lastSentAt: Date | null;
   stoppedAt: Date | null;
+  /** Business-wide active auto follow-up sequences and the plan cap. */
+  activeCount?: number;
+  activeLimit?: number | null;
   stopAction: () => Promise<{ error?: string; success?: string }>;
 };
 
@@ -25,6 +28,8 @@ export function AutoFollowUpStatus({
   delayDays,
   lastSentAt,
   stoppedAt,
+  activeCount,
+  activeLimit,
   stopAction,
 }: AutoFollowUpStatusProps) {
   const [isPending, startTransition] = useTransition();
@@ -78,6 +83,12 @@ export function AutoFollowUpStatus({
                 ? `All ${maxAttempts} follow-up${maxAttempts !== 1 ? "s" : ""} sent.`
                 : `${attempts} of ${maxAttempts} sent · every ${delayDays} day${delayDays !== 1 ? "s" : ""}`}
           </p>
+          {typeof activeLimit === "number" && activeLimit > 0 ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {activeCount ?? 0} of {activeLimit} active auto follow-up
+              {activeLimit !== 1 ? "s" : ""} used on your plan.
+            </p>
+          ) : null}
         </div>
       </div>
 

@@ -90,6 +90,7 @@ function makeSubscription(overrides: Partial<Subscription> = {}): Subscription {
 const defaultUsage = {
   aiCredits: { used: 10, limit: 30 },
   emailsSent: 3,
+  autoFollowUpEmailsSent: 2,
 };
 
 describe("BillingStatusCard", () => {
@@ -132,6 +133,15 @@ describe("BillingStatusCard", () => {
     });
     expect(emailsBar).toHaveAttribute("aria-valuenow", "80");
     expect(screen.getByText(/3 emails used · 80 % left/)).toBeInTheDocument();
+
+    // Free plan has no automatic follow-ups: the row states that instead of
+    // rendering a usage bar.
+    expect(screen.getByText("No auto follow-ups")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("progressbar", {
+        name: "Auto follow-up emails remaining this month",
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders an active subscription with portal deep links", () => {
@@ -153,6 +163,14 @@ describe("BillingStatusCard", () => {
     expect(screen.getByText("Visa")).toBeInTheDocument();
     expect(screen.getByText("200 /month")).toBeInTheDocument();
     expect(screen.getAllByText("$9.00/mo").length).toBeGreaterThan(0);
+
+    // Pro includes an automatic follow-up budget with its own usage bar.
+    expect(screen.getByText("30 auto follow-ups")).toBeInTheDocument();
+    const autoFollowUpBar = screen.getByRole("progressbar", {
+      name: "Auto follow-up emails remaining this month",
+    });
+    expect(autoFollowUpBar).toHaveAttribute("aria-valuenow", "93");
+    expect(screen.getByText(/2 emails used · 93 % left/)).toBeInTheDocument();
 
     // The payment row renders exactly one icon (brand or card fallback),
     // never a brand icon stacked on top of a generic one.
@@ -217,7 +235,11 @@ describe("BillingStatusCard", () => {
           currentPlan: "business",
           subscription: makeSubscription({ plan: "business" }),
         })}
-        planUsage={{ aiCredits: { used: 0, limit: 500 }, emailsSent: 0 }}
+        planUsage={{
+          aiCredits: { used: 0, limit: 500 },
+          emailsSent: 0,
+          autoFollowUpEmailsSent: 0,
+        }}
       />,
     );
 

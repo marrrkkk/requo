@@ -6,7 +6,10 @@
  *
  * Usage is counted at the business scope. Core records (inquiries, quotes,
  * customers, accepted quotes) and manual follow-ups are intentionally not
- * capped. The only account-scoped limit is `freeBusinessesPerOwner`, which
+ * capped. Automatic (unattended) follow-up emails are capped — see
+ * `autoFollowUpEmailsPerDay` / `autoFollowUpEmailsPerMonth` (sending budget)
+ * and `activeAutoFollowUpsPerBusiness` (how many sequences may be in flight).
+ * The only account-scoped limit is `freeBusinessesPerOwner`, which
  * is enforced by `features/businesses/quota.ts`.
  */
 
@@ -18,6 +21,9 @@ export const usageLimitKeys = [
   "agentSessionsPerMonth",
   "requoQuoteEmailsPerDay",
   "requoQuoteEmailsPerMonth",
+  "autoFollowUpEmailsPerDay",
+  "autoFollowUpEmailsPerMonth",
+  "activeAutoFollowUpsPerBusiness",
   "freeBusinessesPerOwner",
   "membersPerBusiness",
   "liveFormsPerBusiness",
@@ -38,6 +44,10 @@ const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
     agentSessionsPerMonth: 0,
     requoQuoteEmailsPerDay: 3,
     requoQuoteEmailsPerMonth: 15,
+    // Automatic follow-ups are a Pro+ feature, so Free never sends them.
+    autoFollowUpEmailsPerDay: 0,
+    autoFollowUpEmailsPerMonth: 0,
+    activeAutoFollowUpsPerBusiness: 0,
     freeBusinessesPerOwner: 1,
     membersPerBusiness: 1,
     liveFormsPerBusiness: 1,
@@ -52,6 +62,9 @@ const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
     agentSessionsPerMonth: 100,
     requoQuoteEmailsPerDay: 20,
     requoQuoteEmailsPerMonth: 200,
+    autoFollowUpEmailsPerDay: 5,
+    autoFollowUpEmailsPerMonth: 30,
+    activeAutoFollowUpsPerBusiness: 10,
     freeBusinessesPerOwner: null,
     membersPerBusiness: 1,
     liveFormsPerBusiness: 5,
@@ -66,6 +79,9 @@ const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
     agentSessionsPerMonth: 500,
     requoQuoteEmailsPerDay: 50,
     requoQuoteEmailsPerMonth: 500,
+    autoFollowUpEmailsPerDay: 15,
+    autoFollowUpEmailsPerMonth: 100,
+    activeAutoFollowUpsPerBusiness: 25,
     freeBusinessesPerOwner: null,
     membersPerBusiness: 5,
     liveFormsPerBusiness: 10,
@@ -103,6 +119,9 @@ export const usageLimitLabels: Record<UsageLimitKey, string> = {
   agentSessionsPerMonth: "Agent sessions per month",
   requoQuoteEmailsPerDay: "Requo quote sends per day",
   requoQuoteEmailsPerMonth: "Requo quote sends per month",
+  autoFollowUpEmailsPerDay: "Auto follow-up emails per day",
+  autoFollowUpEmailsPerMonth: "Auto follow-up emails per month",
+  activeAutoFollowUpsPerBusiness: "Active auto follow-ups per business",
   freeBusinessesPerOwner: "Free businesses per owner",
   membersPerBusiness: "Members per business",
   liveFormsPerBusiness: "Live inquiry forms",
