@@ -4,6 +4,8 @@ import { and, count, eq } from "drizzle-orm";
 import { updateTag } from "next/cache";
 
 import { getBusinessMemoryCacheTags } from "@/lib/cache/business-tags";
+import { memoryEmbeddingText } from "@/features/memory/embedding-text";
+import { prefixedId as createId } from "@/lib/ids";
 import type {
   MemoryEntryInput,
   MemoryEntryUpdate,
@@ -14,14 +16,6 @@ import {
   generateEmbedding,
   invalidateEmbeddingCache,
 } from "@/lib/ai/embeddings";
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
-
-function memoryEmbeddingText(title: string, content: string) {
-  return `${title}\n${content}`;
-}
 
 function invalidateKnowledgeCache(businessId: string) {
   for (const tag of getBusinessMemoryCacheTags(businessId)) {

@@ -7,6 +7,7 @@ import { sendAnalyticsScheduledReports } from "@/features/analytics/jobs/schedul
 import { processFollowUpReminders } from "@/features/follow-ups/jobs/reminders";
 import { processAutoArchiveStaleInquiries } from "@/features/inquiries/jobs/auto-archive";
 import { processInvoiceOverdue } from "@/features/invoices/jobs/overdue";
+import { backfillMissingEmbeddings } from "@/features/memory/jobs/embedding-backfill";
 import { processQuoteAutoFollowUps } from "@/features/quotes/jobs/auto-follow-ups";
 import { processQuoteExpiringSoon } from "@/features/quotes/jobs/expiring-soon";
 import { processQuoteViewedFollowUps } from "@/features/quotes/jobs/viewed-follow-ups";
@@ -182,6 +183,28 @@ export const expireAgentSessionsCron = inngest.createFunction(
     ),
 );
 
+/**
+ * Repairs knowledge rows whose embedding is `null`.
+ *
+ * Inngest rather than Vercel Cron: this makes outbound provider calls, is
+ * rate-limit prone, and needs both per-step retries and a concurrency guard —
+ * unlike the simple UPDATE-only crons that were migrated to `/api/cron/*`.
+ * `concurrency: { limit: 1 }` stops an hourly run from overlapping a slow one.
+ */
+export const embeddingBackfillCron = inngest.createFunction(
+  {
+    id: "cron-embedding-backfill",
+    name: "Backfill missing embeddings",
+    triggers: [{ cron: "0 * * * *" }],
+    retries: 2,
+    concurrency: { limit: 1 },
+  },
+  async ({ step }) =>
+    step.run("backfill-missing-embeddings", async () =>
+      backfillMissingEmbeddings(),
+    ),
+);
+
 export const cronFunctions = [
   followUpRemindersCron,
   autoFollowUpsCron,
@@ -190,6 +213,7 @@ export const cronFunctions = [
   autoArchiveStaleInquiriesCron,
   invoiceOverdueCron,
   expireAgentSessionsCron,
+  embeddingBackfillCron,
   // expireQuotesCron — migrated to Vercel Cron (/api/cron/expire-quotes)
   // expireSubscriptionsCron — migrated to Vercel Cron (/api/cron/expire-subscriptions)
   analyticsRollupCron,
