@@ -33,3 +33,22 @@ Requo reserves 20% headroom from each configured value, compacts long chat
 context, and tracks estimated tokens for one-minute routing decisions. This is
 protection against avoidable bursts, not a replacement for provider-side quota
 handling.
+
+## Embeddings share the Gemini budget
+
+These `AI_TPM_*` budgets cover chat traffic only — there is no separate
+embedding budget. Embeddings are a **second consumer of the same Gemini
+free-tier quota** (`gemini-embedding-001`; roughly 100 RPM / 1,000 RPD, with
+batch enqueued tokens capped at 500,000 on the free tier). Three callers draw
+on it:
+
+- Knowledge file indexing, in batches of 20 texts with `maxParallelCalls: 5`.
+- Manual memory writes, one call each.
+- `cron-embedding-backfill`, hourly, bounded at 100 rows per table per run —
+  so at most ~20 provider calls per run, ~480/day at worst.
+
+Two levers reduce the draw: configuring Upstash Redis makes the 24h
+content-hash embedding cache actually shared (`docs/setup/redis.md`), and the
+ingestion retry budget (`EMBEDDING_MAX_ATTEMPTS_WRITE = 3`) is only spent on
+errors with positive evidence of being transient, so an unclassifiable failure
+does not burn three attempts.

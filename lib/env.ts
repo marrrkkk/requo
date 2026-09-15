@@ -162,6 +162,25 @@ export const isCloudflareAiConfigured = Boolean(
   env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_API_TOKEN,
 );
 export const isNvidiaNimConfigured = Boolean(env.NVIDIA_NIM_API_KEY);
+
+/**
+ * Whether the Upstash Redis cache layer is usable.
+ *
+ * Deliberately not a hard requirement — every consumer (`lib/ai/cache-layer.ts`,
+ * `ai-cache.ts`, `request-dedup.ts`, `usage-limiter.ts`, `circuit-breaker.ts`,
+ * `capacity-selector.ts`, `input-sanitizer.ts`, and
+ * `lib/rate-limit/redis-rate-limiter.ts`) degrades to an in-process fallback
+ * when this is false.
+ *
+ * The consequence is worth naming: caches become per-instance rather than
+ * shared, which on serverless means a near-zero hit rate. The 24h content-hash
+ * embedding cache in `lib/ai/embeddings.ts` is the clearest example — identical
+ * text re-embeds on every cold start, which is paid for in latency and in
+ * rate-limit headroom against the free-tier Gemini quota.
+ */
+export const isRedisConfigured = Boolean(
+  env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN,
+);
 export const isPushConfigured = Boolean(
   env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY,
 );

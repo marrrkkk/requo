@@ -33,13 +33,13 @@ Every external integration actually used: purpose, package, where, auth, env, fa
 ## Inngest (background jobs)
 
 - Package: `inngest`. Client/events/send/batch: `lib/inngest/*`; functions: `lib/inngest/functions/{cron,events,knowledge,index}.ts`; feature jobs: `features/*/jobs/*`; webhook: `app/api/inngest/route.ts`. Dev: `npm run dev:inngest` + `INNGEST_DEV=1`.
-- Events (`lib/inngest/events.ts`): `requo/inquiry.qualified` → AI draft; `requo/knowledge.file-uploaded` → chunk+embed (concurrency 5/business, 2 retries); push events (inquiry-received, quote-sent, quote-response, invoice-*); `requo/quotes.enable-auto-follow-up`. Cron: follow-up reminders, auto-follow-ups, quote-viewed/expiring, auto-archive, expire quotes/subscriptions, analytics rollup/digest/reports/benchmarks, session expiry, token-log cleanup.
+- Events (`lib/inngest/events.ts`): `requo/inquiry.qualified` → AI draft; `requo/knowledge.file-uploaded` → chunk+embed (concurrency 5/business, 2 retries); push events (inquiry-received, quote-sent, quote-response, invoice-*); `requo/quotes.enable-auto-follow-up`. Cron: follow-up reminders, auto-follow-ups, quote-viewed/expiring, auto-archive, expire quotes/subscriptions, analytics rollup/digest/reports/benchmarks, session expiry, token-log cleanup, embedding backfill (`cron-embedding-backfill`, hourly, `concurrency: limit 1` — repairs `embedding IS NULL` rows).
 - Env: `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `INNGEST_DEV`. Vercel cron (`vercel.json` + `CRON_SECRET`): `expire-quotes`, `expire-subscriptions`, `token-log-cleanup` only.
 
-## Upstash Redis (rate limits + AI cache only)
+## Upstash Redis (rate limits + AI cache)
 
-- Package: `@upstash/redis`. Use: sliding-window rate limits (`lib/rate-limit/redis-rate-limiter.ts`, 2s timeout, DB fallback to `public_action_events`), AI cache/capacity/cooldown/dedup (`lib/ai/cache-layer.ts`, dual-write Redis + in-memory Map). Not a general cache.
-- Env: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`. Missing in dev → in-memory fallback (single-instance semantics).
+- Package: `@upstash/redis`. Use: sliding-window rate limits (`lib/rate-limit/redis-rate-limiter.ts`, 2s timeout, DB fallback to `public_action_events`), AI cache/capacity/cooldown/dedup (`lib/ai/cache-layer.ts`, dual-write Redis + in-memory Map), and the 24h content-hash embedding cache (`lib/ai/embeddings.ts`). Not a general cache.
+- Env: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`. Missing in dev → in-memory fallback (single-instance semantics). `isRedisConfigured` (`lib/env.ts`) is the single source of truth; the admin health check probes `<url>/ping` for real. Because the fallback is silent, the consequence worth knowing is that without Redis the embedding cache never hits across cold starts and identical text re-embeds every time. Setup + verification: `docs/setup/redis.md`.
 
 ## Web Push (VAPID)
 

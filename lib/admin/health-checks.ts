@@ -484,12 +484,26 @@ async function checkRedis(): Promise<AdminHealthCheckResult> {
   const url = getEnv("UPSTASH_REDIS_REST_URL");
   const token = getEnv("UPSTASH_REDIS_REST_TOKEN");
 
-  if (!url || !token) {
+  // `isRedisConfigured` is the single source of truth for this, but it is
+  // imported dynamically rather than statically: `scripts/dev-health-check.ts`
+  // loads `.env.local` *after* its imports, and a static `@/lib/env` import
+  // would evaluate the env schema (and throw on a missing DATABASE_URL) before
+  // dotenv has run. The direct read is the fallback for exactly that case.
+  let redisConfigured = Boolean(url && token);
+
+  try {
+    const { isRedisConfigured } = await import("@/lib/env");
+    redisConfigured = isRedisConfigured;
+  } catch {
+    // Env module not loadable in this context — keep the direct read.
+  }
+
+  if (!redisConfigured || !url || !token) {
     return {
       name: "Redis (Upstash)",
       status: "warn",
       message: "Not configured — in-memory fallback",
-      hint: "Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.",
+      hint: "Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN. Caches fall back to per-instance memory, so on serverless the 24h embedding cache never hits and identical text re-embeds on every cold start.",
       category: "cache",
     };
   }
@@ -746,7 +760,7 @@ export function getAdminConfigMatrix(): AdminConfigMatrixRow[] {
       configured: Boolean(
         getEnv("UPSTASH_REDIS_REST_URL") && getEnv("UPSTASH_REDIS_REST_TOKEN"),
       ),
-      notes: "Upstash REST · AI cache layer",
+      notes: "Upstash REST · AI cache layer · embedding cache",
     },
     {
       integration: "Billing (Polar)",
