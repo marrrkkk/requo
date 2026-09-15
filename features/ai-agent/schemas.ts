@@ -99,12 +99,22 @@ export const runMetadataSchema = z.object({
 // the current card values to the staged proposal before the model runs, which
 // is what makes chat revision and manual editing compose instead of
 // clobbering each other.
+// Ephemeral file attachments ride along the same way, as data URLs (never as
+// message parts, so history never re-sends bytes). One file per message on
+// this anonymous surface.
+const agentChatAttachmentSchema = z.object({
+  filename: z.string().trim().min(1).max(160),
+  mediaType: z.string().trim().max(160).default(""),
+  dataUrl: z.string().min(1).max(4_000_000),
+});
+
 export const agentChatRequestSchema = z
   .object({
     sessionToken: z.string().min(1, "Session token is required"),
     content: z.string().min(1, "Message content is required").max(2000, "Message too long").optional(),
     messages: z.array(z.unknown()).min(1).optional(),
     proposedInquiryValues: createInquiryParamsSchema.partial().optional(),
+    attachments: z.array(agentChatAttachmentSchema).max(1).optional(),
   })
   .refine((value) => value.content ?? value.messages, {
     message: "Message content is required",
