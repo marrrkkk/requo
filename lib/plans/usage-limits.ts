@@ -15,7 +15,9 @@ import type { BusinessPlan } from "@/lib/plans/plans";
 export const usageLimitKeys = [
   "aiWeightedCreditsPerMonth",
   "assistantMessagesPerDay",
+  "assistantFileUploadsPerDay",
   "agentSessionsPerMonth",
+  "agentFileUploadsPerDay",
   "requoQuoteEmailsPerDay",
   "requoQuoteEmailsPerMonth",
   "freeBusinessesPerOwner",
@@ -35,7 +37,9 @@ const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
   free: {
     aiWeightedCreditsPerMonth: 30,
     assistantMessagesPerDay: 25,
+    assistantFileUploadsPerDay: 5,
     agentSessionsPerMonth: 0,
+    agentFileUploadsPerDay: 5,
     requoQuoteEmailsPerDay: 3,
     requoQuoteEmailsPerMonth: 15,
     freeBusinessesPerOwner: 1,
@@ -49,7 +53,9 @@ const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
   pro: {
     aiWeightedCreditsPerMonth: 150,
     assistantMessagesPerDay: 250,
+    assistantFileUploadsPerDay: 20,
     agentSessionsPerMonth: 100,
+    agentFileUploadsPerDay: 20,
     requoQuoteEmailsPerDay: 20,
     requoQuoteEmailsPerMonth: 200,
     freeBusinessesPerOwner: null,
@@ -63,7 +69,9 @@ const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
   business: {
     aiWeightedCreditsPerMonth: 500,
     assistantMessagesPerDay: 1000,
+    assistantFileUploadsPerDay: 50,
     agentSessionsPerMonth: 500,
+    agentFileUploadsPerDay: 50,
     requoQuoteEmailsPerDay: 50,
     requoQuoteEmailsPerMonth: 500,
     freeBusinessesPerOwner: null,
@@ -100,7 +108,9 @@ export function isUsageLimited(
 export const usageLimitLabels: Record<UsageLimitKey, string> = {
   aiWeightedCreditsPerMonth: "Weighted AI credits per month",
   assistantMessagesPerDay: "Assistant messages per day",
+  assistantFileUploadsPerDay: "Assistant file uploads per day",
   agentSessionsPerMonth: "Agent sessions per month",
+  agentFileUploadsPerDay: "Agent file uploads per day",
   requoQuoteEmailsPerDay: "Requo quote sends per day",
   requoQuoteEmailsPerMonth: "Requo quote sends per month",
   freeBusinessesPerOwner: "Free businesses per owner",
