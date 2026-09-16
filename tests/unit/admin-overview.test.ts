@@ -131,7 +131,7 @@ describe("buildAdminOverviewStats", () => {
     // The quotes delta counts *sent* quotes only, while the value counts
     // every non-deleted quote — the "sent" qualifier keeps that honest.
     expect(stats[3]?.delta).toContain("sent");
-    expect(stats.every((stat) => stat.deltaColor === "lime")).toBe(true);
+    expect(stats.every((stat) => stat.variant === "default")).toBe(true);
   });
 
   it("falls back to neutral deltas when every window is empty", () => {
@@ -151,8 +151,7 @@ describe("buildAdminOverviewStats", () => {
       "0 in 7d",
       "0 sent in 7d",
     ]);
-    expect(stats.every((stat) => stat.deltaColor === "neutral")).toBe(true);
-    expect(stats.every((stat) => stat.deltaDirection === "flat")).toBe(true);
+    expect(stats.every((stat) => stat.variant === "secondary")).toBe(true);
   });
 });
 
