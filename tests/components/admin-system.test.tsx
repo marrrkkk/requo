@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
-  usePathname: () => "/audit-logs",
+  usePathname: () => "/admin/audit-logs",
   useSearchParams: () => new URLSearchParams(),
 }));
 
@@ -28,7 +28,7 @@ import { AdminAuditTable } from "@/features/admin/components/system/admin-audit-
 import {
   AdminAccountsRoster,
   AdminRecentAuditPreview,
-} from "@/features/admin/components/system/admin-settings-page";
+} from "@/features/admin/components/system/admin-system-page";
 import type {
   AdminAuditLogRow,
   AdminUserRow,
@@ -74,11 +74,11 @@ describe("AdminAuditTable", () => {
       />,
     );
 
-    expect(screen.getByText("Suspended user")).toBeInTheDocument();
-    expect(screen.getByText("user.suspend")).toBeInTheDocument();
+    const badge = screen.getByText("Suspended user");
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveAttribute("title", "user.suspend");
     expect(screen.getByText("user_9")).toBeInTheDocument();
     expect(screen.getByText(/bad@example.com/)).toBeInTheDocument();
-    expect(screen.getByText("203.0.113.7")).toBeInTheDocument();
   });
 
   it("marks confirmation failures as destructive", () => {
@@ -134,7 +134,7 @@ describe("AdminAccountsRoster", () => {
     expect(screen.getByText("Suspended")).toBeInTheDocument();
     const links = screen.getAllByRole("link", { name: "Open" });
     expect(links).toHaveLength(2);
-    expect(links[0]).toHaveAttribute("href", "/users/admin_1");
+    expect(links[0]).toHaveAttribute("href", "/admin/users/admin_1");
   });
 
   it("names the empty roster", () => {

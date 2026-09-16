@@ -1,6 +1,7 @@
 import type { AdminHealthReport } from "@/lib/admin/health-checks";
 import { cn } from "@/lib/utils";
 
+import { Card, CardContent } from "@/components/ui/card";
 import {
   checkStatusDotClass,
   getSystemOverallStatus,
@@ -36,12 +37,8 @@ export function AdminSystemStatusBanner({ report }: AdminSystemStatusBannerProps
   ) as Record<AdminHealthCheckCategory, string>;
 
   return (
-    <div
-      className={cn(
- "section-panel flex flex-col gap-5 border-l-4",
-        config.borderClass,
-      )}
-    >
+    <Card className={cn("gap-0 border-l-4", config.borderClass)}>
+      <CardContent className="flex flex-col gap-5 pt-4 sm:pt-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 gap-4">
           <div
@@ -111,7 +108,8 @@ export function AdminSystemStatusBanner({ report }: AdminSystemStatusBannerProps
           );
         })}
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -3,9 +3,9 @@ import Link from "next/link";
 import {
   DashboardDetailFeed,
   DashboardDetailFeedItem,
+  DashboardSection,
 } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import { FormActions, FormSection } from "@/components/shared/form-layout";
 import { AdminConfigMatrix } from "@/features/admin/components/system/admin-config-matrix";
 import { AdminHealthCheckGrid } from "@/features/admin/components/system/admin-health-check-grid";
 import { AdminHealthRefresh } from "@/features/admin/components/system/admin-health-refresh";
@@ -52,13 +52,14 @@ function formatDateTime(value: Date | null): string {
 }
 
 /**
- * Admin settings page composition.
+ * Admin system page composition.
  *
- * Small by design: system health (banner + checks + config matrix, moved
- * from the deleted System page), the admin roster, and a recent-audit
- * preview. No feature flags, no giant settings surface.
+ * Card-based like the rest of the console (Overview, Usage): a status
+ * banner, integration checks, configuration matrix, then admin access
+ * beside recent activity. Header actions (refresh + audit log) live on
+ * the route `PageHeader`.
  */
-export async function AdminSettingsPage() {
+export async function AdminSystemPage() {
   const [report, configRows, accounts, recentAudit] = await Promise.all([
     getAdminHealthReport(),
     getAdminSystemConfigMatrix(),
@@ -70,47 +71,52 @@ export async function AdminSettingsPage() {
     <div className="flex min-w-0 flex-col gap-6">
       <AdminSystemStatusBanner report={report} />
 
-      <section className="section-panel">
-        <div className="flex flex-col gap-6">
-          <FormSection
-            action={<AdminHealthRefresh />}
-            description="Connectivity and configuration probes grouped by service area."
-            title="Integration checks"
-          >
-            <AdminHealthCheckGrid results={report.results} />
-          </FormSection>
+      <DashboardSection
+        description="Connectivity and configuration probes grouped by service area."
+        title="Integration checks"
+        action={<AdminHealthRefresh />}
+      >
+        <AdminHealthCheckGrid results={report.results} />
+      </DashboardSection>
 
-          <AdminConfigMatrix rows={configRows} />
+      <DashboardSection
+        description="Which integrations have credentials set. Secret values are never shown."
+        title="Configuration"
+      >
+        <AdminConfigMatrix rows={configRows} />
+      </DashboardSection>
 
-          <FormSection
-            description="Everyone who can open this console. Roles change on the user detail page."
-            title={`Admin access (${accounts.length})`}
-          >
-            <AdminAccountsRoster accounts={accounts} />
-            <FormActions align="start">
-              <Button asChild size="sm" variant="outline">
-                <Link href={ADMIN_USERS_PATH} prefetch={true}>
-                  Manage users
-                </Link>
-              </Button>
-            </FormActions>
-          </FormSection>
+      <div className="grid items-start gap-6 xl:grid-cols-3">
+        <DashboardSection
+          className="min-w-0 xl:col-span-2"
+          description="Everyone who can open this console. Roles change on the user detail page."
+          title={`Admin access (${accounts.length})`}
+          footer={
+            <Button asChild size="sm" variant="outline">
+              <Link href={ADMIN_USERS_PATH} prefetch={true}>
+                Manage users
+              </Link>
+            </Button>
+          }
+        >
+          <AdminAccountsRoster accounts={accounts} />
+        </DashboardSection>
 
-          <FormSection
-            action={
-              <Button asChild size="sm" variant="outline">
-                <Link href={ADMIN_AUDIT_LOGS_PATH} prefetch={true}>
-                  View audit log
-                </Link>
-              </Button>
-            }
-            description="The newest admin views and actions."
-            title="Recent admin activity"
-          >
-            <AdminRecentAuditPreview items={recentAudit.items} />
-          </FormSection>
-        </div>
-      </section>
+        <DashboardSection
+          className="min-w-0"
+          description="The newest admin views and actions."
+          title="Recent admin activity"
+          action={
+            <Button asChild size="sm" variant="outline">
+              <Link href={ADMIN_AUDIT_LOGS_PATH} prefetch={true}>
+                View audit log
+              </Link>
+            </Button>
+          }
+        >
+          <AdminRecentAuditPreview items={recentAudit.items} />
+        </DashboardSection>
+      </div>
     </div>
   );
 }

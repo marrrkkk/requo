@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import { Clock } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import type {
   AdminHealthCheckCategory,
   AdminHealthCheckResult,
@@ -41,12 +42,11 @@ export function AdminHealthCheckCard({
   const Icon: LucideIcon = systemCategoryIcons[category];
 
   return (
-    <article
-      className={cn(
- "soft-panel flex flex-col gap-3 border-l-4",
-        checkStatusBorderClass(check.status),
-      )}
+    <Card
+      size="sm"
+      className={cn("gap-3 border-l-4", checkStatusBorderClass(check.status))}
     >
+      <CardContent className="flex flex-col gap-3 pt-3.5 sm:pt-4">
       <div className="flex items-start justify-between gap-3">
         <div
           className={cn(
@@ -87,6 +87,7 @@ export function AdminHealthCheckCard({
           <p className="text-xs leading-5 text-muted-foreground">{check.hint}</p>
         ) : null}
       </div>
-    </article>
+      </CardContent>
+    </Card>
   );
 }
