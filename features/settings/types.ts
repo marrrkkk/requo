@@ -258,6 +258,28 @@ export type BusinessInquiryFormEditorView = BusinessInquiryFormSettingsView & {
   submittedInquiryCount: number;
 };
 
+/**
+ * Identity slice of the service editor: enough to paint the page header and
+ * derive page-level links. The normalized form/page configs and the form and
+ * inquiry counts stay behind the streamed editor region.
+ */
+export type BusinessInquiryFormHeaderView = Pick<
+  BusinessInquiryFormSettingsView,
+  | "id"
+  | "name"
+  | "slug"
+  | "plan"
+  | "formId"
+  | "formName"
+  | "formSlug"
+  | "businessType"
+  | "publicInquiryEnabled"
+  | "isDefault"
+  | "updatedAt"
+> & {
+  logoStoragePath: string | null;
+};
+
 export type BusinessInquiryFormPreviewDraft = {
   businessType: BusinessType;
   formName: string;

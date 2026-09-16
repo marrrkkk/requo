@@ -79,6 +79,14 @@ export type InvoiceDetail = InvoiceListItem & {
   payments: PaymentView[];
 };
 
+/**
+ * Cheap core of the invoice detail: the invoice row with paid/balance
+ * totals derived from a scalar payments sum. Paints the page header and
+ * the status/amounts section while line items and recorded payments
+ * stream separately.
+ */
+export type InvoiceDetailCore = Omit<InvoiceDetail, "items" | "payments">;
+
 export type InvoiceActionState = {
   error?: string;
   success?: string;

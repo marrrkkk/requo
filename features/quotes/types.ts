@@ -211,6 +211,16 @@ export type DashboardQuoteDetail = {
   aiAcknowledgedAt: Date | null;
 };
 
+/**
+ * Cheap core of the quote detail: the quote row, its linked inquiry, and the
+ * derived reminders. Paints the header, workflow steps, and sidebars while
+ * line items and the activity log stream separately.
+ */
+export type DashboardQuoteDetailCore = Omit<
+  DashboardQuoteDetail,
+  "items" | "activities"
+>;
+
 export type QuoteSendPayload = {
   id: string;
   inquiryId: string | null;
