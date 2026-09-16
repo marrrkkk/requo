@@ -7,8 +7,10 @@ import {
   XCircle,
 } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ADMIN_SETTINGS_PATH } from "@/features/admin/navigation";
+import { Card, CardContent } from "@/components/ui/card";
+import { ADMIN_SYSTEM_PATH } from "@/features/admin/navigation";
 import { getAdminHealthSummary } from "@/features/admin/queries";
 import type { AdminHealthCheckCategory } from "@/lib/admin/health-checks";
 import { cn } from "@/lib/utils";
@@ -38,44 +40,46 @@ const statusConfig: Record<
   OverallStatus,
   {
     label: string;
+    badgeVariant: "default" | "secondary" | "destructive";
     icon: typeof CheckCircle2;
-    accentClass: string;
-    iconBgClass: string;
+    iconTileClass: string;
   }
 > = {
   healthy: {
     label: "All systems operational",
+    badgeVariant: "default",
     icon: CheckCircle2,
-    accentClass: "border-l-primary",
-    iconBgClass: "bg-primary/10 text-primary",
+    iconTileClass: "bg-primary/10 text-primary",
   },
   attention: {
     label: "Needs attention",
+    badgeVariant: "secondary",
     icon: AlertTriangle,
-    accentClass: "border-l-amber-500",
-    iconBgClass: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    iconTileClass: "bg-muted text-muted-foreground",
   },
   critical: {
     label: "Critical issues detected",
+    badgeVariant: "destructive",
     icon: XCircle,
-    accentClass: "border-l-destructive",
-    iconBgClass: "bg-destructive/10 text-destructive",
+    iconTileClass: "bg-destructive/10 text-destructive",
   },
 };
 
-function categoryStatusClass(status: string): string {
-  if (status === "fail") return "border-destructive/60 text-destructive";
-  if (status === "warn" || status === "mixed") return "border-amber-500/60 text-amber-600 dark:text-amber-400";
-  if (status === "pass") return "border-primary/60 text-primary";
-  return "border-border text-muted-foreground";
+function categoryBadgeVariant(
+  status: string,
+): "default" | "secondary" | "destructive" | "outline" | "ghost" {
+  if (status === "fail") return "destructive";
+  if (status === "pass") return "default";
+  if (status === "warn" || status === "mixed") return "secondary";
+  return "ghost";
 }
 
 /**
- * System health banner for the admin dashboard.
+ * System health strip for the admin Overview.
  *
- * Uses a left-accent `section-panel` with a colored border to
- * communicate status at a glance. Category chips show per-service
- * health. Links to the full system page.
+ * Compact `Card` row: status icon, headline, category badges, and a link to
+ * the full system page. Status reads through `Badge` variants and semantic
+ * tokens only — no raw palette utilities.
  */
 export async function AdminSystemHealthBanner() {
   const summary = await getAdminHealthSummary();
@@ -84,67 +88,60 @@ export async function AdminSystemHealthBanner() {
   const StatusIcon = config.icon;
 
   return (
-    <div
-      className={cn(
- "section-panel border-l-4",
-        config.accentClass,
-      )}
-    >
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-4">
-          <div
-            className={cn(
-              "flex size-11 shrink-0 items-center justify-center rounded-xl",
-              config.iconBgClass,
-            )}
-          >
-            <StatusIcon className="size-5" />
-          </div>
-          <div className="min-w-0">
-            <h2 className="font-heading text-base font-semibold tracking-tight text-foreground">
-              {config.label}
-            </h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {summary.critical} critical · {summary.warnings} warnings · {summary.healthy} healthy
-            </p>
-          </div>
-        </div>
-
-        <Button asChild size="sm" variant="outline" className="shrink-0 self-start lg:self-center">
-          <Link href={ADMIN_SETTINGS_PATH}>
-            <Activity className="size-3.5" />
-            System details
-            <ArrowRight className="size-3.5" />
-          </Link>
-        </Button>
-      </div>
-
-      {/* Per-category chips */}
-      <div className="mt-5 flex flex-wrap gap-2">
-        {(
-          Object.entries(summary.byCategory) as [AdminHealthCheckCategory, string][]
-        ).map(([category, status]) => (
-          <span
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium",
-              categoryStatusClass(status),
-            )}
-            key={category}
-          >
+    <Card>
+      <CardContent className="pt-4 sm:pt-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-center gap-3.5">
             <span
-              aria-hidden
               className={cn(
-                "size-1.5 rounded-full",
-                status === "fail" && "bg-destructive",
-                status === "warn" || status === "mixed" ? "bg-amber-500" : "",
-                status === "pass" && "bg-primary",
-                status !== "fail" && status !== "warn" && status !== "mixed" && status !== "pass" && "bg-muted-foreground/40",
+                "flex size-11 shrink-0 items-center justify-center rounded-xl",
+                config.iconTileClass,
               )}
-            />
-            {categoryLabels[category]}
-          </span>
-        ))}
-      </div>
-    </div>
+            >
+              <StatusIcon aria-hidden="true" className="size-5" />
+            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-heading text-base font-semibold tracking-tight text-foreground">
+                  {config.label}
+                </h2>
+                <Badge variant={config.badgeVariant}>
+                  {summary.critical} critical · {summary.warnings} warnings ·{" "}
+                  {summary.healthy} healthy
+                </Badge>
+              </div>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {(
+                  Object.entries(summary.byCategory) as [
+                    AdminHealthCheckCategory,
+                    string,
+                  ][]
+                ).map(([category, status]) => (
+                  <Badge
+                    key={category}
+                    variant={categoryBadgeVariant(status)}
+                  >
+                    {categoryLabels[category]}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="shrink-0 self-start lg:self-center"
+          >
+            <Link href={ADMIN_SYSTEM_PATH} prefetch={true}>
+              <Activity data-icon="inline-start" />
+              System details
+              <ArrowRight data-icon="inline-end" />
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

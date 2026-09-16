@@ -62,8 +62,12 @@ export function AdminUsageChart({ points }: { points: UsageChartPoint[] }) {
   }
 
   return (
+    // Explicit height: ResponsiveContainer resolves its "100%" size against
+    // the parent's definite height, and `min-h` alone does not establish
+    // one — with only `h-full min-h-[280px]` the chart mounted at zero
+    // size and rendered blank. 280px matches the ChartSkeleton reserve.
     <ChartContainer
-      className="h-full min-h-[280px] w-full flex-1"
+      className="h-[280px] w-full"
       config={usageChartConfig}
     >
       <AreaChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>

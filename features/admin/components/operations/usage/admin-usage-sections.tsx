@@ -18,6 +18,12 @@ import type {
 import { getAdminBusinessDetailPath } from "@/features/admin/navigation";
 import { LazyAdminUsageChart } from "@/features/admin/components/operations/usage/admin-usage-chart-lazy";
 import type { UsageChartPoint } from "@/features/admin/components/operations/usage/admin-usage-chart";
+import { formatCompactCount } from "@/features/admin/components/ai/admin-ai-format";
+import {
+  formatAdminCostCents,
+  formatAdminCount,
+  formatAdminPercent,
+} from "@/features/admin/components/overview/admin-overview-stats";
 
 const DAY_OPTIONS = [7, 14, 30] as const;
 
@@ -28,12 +34,20 @@ const RESOURCE_OPTIONS: Array<{ value: AdminUsageBusinessResource; label: string
   { value: "aiCalls", label: "AI calls" },
 ];
 
+/** Platform total each top-business resource is a share of. */
+const RESOURCE_TOTALS: Record<AdminUsageBusinessResource, (report: AdminUsageReport) => number> = {
+  inquiries: (report) => report.totals.inquiries,
+  quotes: (report) => report.totals.quotes,
+  emails: (report) => report.totals.emails,
+  aiCalls: (report) => report.totals.aiCalls,
+};
+
 const shortDateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
 });
 
-function toChartPoints(report: AdminUsageReport): UsageChartPoint[] {
+export function toChartPoints(report: AdminUsageReport): UsageChartPoint[] {
   return report.series.map((day) => ({
     ...day,
     label: shortDateFormatter.format(new Date(`${day.date}T00:00:00Z`)),
@@ -63,6 +77,10 @@ export async function AdminUsageSections({
     getAdminUsageTopBusinesses(days, resource),
   ]);
 
+  const resourceTotal = RESOURCE_TOTALS[resource](report);
+  const resourceLabel =
+    RESOURCE_OPTIONS.find((o) => o.value === resource)?.label.toLowerCase() ?? "events";
+
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <DashboardSection
@@ -70,13 +88,26 @@ export async function AdminUsageSections({
         title="Totals"
       >
         <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
-          <UsageTotal label="Sign-ups" value={report.totals.signups} />
-          <UsageTotal label="Businesses created" value={report.totals.businesses} />
-          <UsageTotal label="Inquiries" value={report.totals.inquiries} />
-          <UsageTotal label="Quotes sent" value={report.totals.quotes} />
-          <UsageTotal label="Emails sent" value={report.totals.emails} />
-          <UsageTotal label="AI calls" value={report.totals.aiCalls} />
+          <UsageTotal label="Sign-ups" value={formatAdminCount(report.totals.signups)} />
+          <UsageTotal label="Businesses created" value={formatAdminCount(report.totals.businesses)} />
+          <UsageTotal label="Inquiries" value={formatAdminCount(report.totals.inquiries)} />
+          <UsageTotal label="Quotes sent" value={formatAdminCount(report.totals.quotes)} />
+          <UsageTotal
+            label="Quote conversion"
+            value={formatAdminPercent(report.totals.quotes, report.totals.inquiries) ?? "—"}
+          />
+          <UsageTotal label="Emails sent" value={formatAdminCount(report.totals.emails)} />
+          <UsageTotal label="AI calls" value={formatAdminCount(report.totals.aiCalls)} />
+          <UsageTotal label="AI tokens" value={formatCompactCount(report.aiTokens)} />
+          <UsageTotal label="Est. AI cost" value={formatAdminCostCents(report.aiCostCents)} />
         </dl>
+        {report.aiUnpricedCalls > 0 ? (
+          <p className="mt-3 text-xs leading-5 text-muted-foreground">
+            Cost is a floor: {formatAdminCount(report.aiUnpricedCalls)}{" "}
+            calls in range used models with no catalog price, so actual
+            spend is higher.
+          </p>
+        ) : null}
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <span className="meta-label">Range:</span>
           {DAY_OPTIONS.map((option) => (
@@ -131,28 +162,37 @@ export async function AdminUsageSections({
           </p>
         ) : (
           <DashboardDetailFeed>
-            {topBusinesses.map((row) => (
-              <DashboardDetailFeedItem
-                action={
-                  <Button asChild size="sm" variant="outline">
-                    <Link
-                      href={getAdminBusinessDetailPath(row.businessId)}
-                      prefetch={true}
-                    >
-                      Open
-                    </Link>
-                  </Button>
-                }
-                key={row.businessId}
-                meta={
-                  <span>
-                    {row.count.toLocaleString("en-US")}{" "}
-                    {RESOURCE_OPTIONS.find((o) => o.value === resource)?.label.toLowerCase() ?? "events"}
-                  </span>
-                }
-                title={row.businessName}
-              />
-            ))}
+            {topBusinesses.map((row) => {
+              const share = formatAdminPercent(row.count, resourceTotal);
+
+              return (
+                <DashboardDetailFeedItem
+                  action={
+                    <Button asChild size="sm" variant="outline">
+                      <Link
+                        href={getAdminBusinessDetailPath(row.businessId)}
+                        prefetch={true}
+                      >
+                        Open
+                      </Link>
+                    </Button>
+                  }
+                  key={row.businessId}
+                  meta={
+                    <span>
+                      {row.count.toLocaleString("en-US")} {resourceLabel}
+                      {share ? (
+                        <>
+                          <span aria-hidden="true"> · </span>
+                          <span>{share} of total</span>
+                        </>
+                      ) : null}
+                    </span>
+                  }
+                  title={row.businessName}
+                />
+              );
+            })}
           </DashboardDetailFeed>
         )}
       </DashboardSection>
@@ -160,12 +200,12 @@ export async function AdminUsageSections({
   );
 }
 
-function UsageTotal({ label, value }: { label: string; value: number }) {
+function UsageTotal({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
       <dt className="meta-label">{label}</dt>
       <dd className="mt-1 text-sm font-medium tabular-nums text-foreground">
-        {value.toLocaleString("en-US")}
+        {value}
       </dd>
     </div>
   );

@@ -87,8 +87,10 @@ type AdminEmailsTableProps = {
  * Admin emails list on the shared `AdminDataTable`.
  *
  * Fixed `createdAt DESC` ordering — no sortable columns. Delivery status
- * renders through `AdminEmailStatusBadge`. Below `xl` each row becomes a
- * `MobileRecordRow` card.
+ * renders through `AdminEmailStatusBadge`. `flush` renders the table edge
+ * to edge inside the page's list card (one frame, like the inquiries
+ * list) instead of nesting a second bordered container. Below `xl` each
+ * row becomes a `MobileRecordRow` card.
  */
 export function AdminEmailsTable({
   items,
@@ -110,6 +112,7 @@ export function AdminEmailsTable({
       }}
       getRowHref={(row) => getAdminEmailDetailPath(row.id)}
       getRowId={(row) => row.id}
+      flush
       minWidthClass="min-w-[64rem]"
       mobileCard={(row) => ({
         title: row.subject,
