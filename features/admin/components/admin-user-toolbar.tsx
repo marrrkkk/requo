@@ -15,7 +15,24 @@ import { useCallback, useRef, useState, useTransition } from "react";
 import { toast } from "@/components/base/notification/notify";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
   TooltipContent,
@@ -40,16 +57,11 @@ import type { AdminActionResult } from "@/features/admin/types";
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 
-type AdminUserActionsProps = {
-  /** Target user id (the user whose detail page this is). */
+type AdminUserToolbarProps = {
   targetUserId: string;
-  /** Target user email, used in success toasts. */
   targetEmail: string;
-  /** Whether the target user is currently suspended. */
   targetIsSuspended: boolean;
-  /** Whether the target user's email is already verified. */
   targetEmailVerified: boolean;
-  /** Whether the target user already has admin role. */
   targetIsAdmin: boolean;
   /**
    * Whether demoting the target is allowed (false when the target is
@@ -57,50 +69,41 @@ type AdminUserActionsProps = {
    * check so the button can be disabled preemptively.
    */
   canDemoteTarget: boolean;
-  /** Admin user id — the acting admin's id from the session. */
+  /** Acting admin's id, for the self-target guard. */
   adminUserId: string;
 };
 
-/**
- * Which action the admin picked while the confirm-password dialog is
- * open. Stored alongside the opener so we know which server action to
- * call once the token is issued.
- */
-type QueuedActionId =
-  | "verify"
-  | "revoke"
-  | "suspend"
-  | "unsuspend"
-  | "delete"
-  | "impersonate"
-  | "promote"
-  | "demote";
+type InputModal = "suspend" | null;
 
-type QueuedAction = {
-  id: QueuedActionId;
+type PendingConfirm = {
+  kind:
+    | "verify"
+    | "revoke"
+    | "suspend"
+    | "unsuspend"
+    | "promote"
+    | "demote"
+    | "impersonate"
+    | "delete";
   label: string;
   description?: string;
   confirmLabel: string;
+  reason?: string;
 };
 
 /**
- * Action cluster rendered on `/admin/users/[userId]` (task 12.2).
+ * Action toolbar for `/admin/users/[userId]`, rendered in the header.
  *
- * Every button flows through `ConfirmPasswordDialog` to obtain a fresh
- * password re-confirmation token, then calls the matching server
- * action with the target user id + token. Self-target buttons are
- * disabled with a tooltip explaining why instead of being hidden
- * (Req 4.6, 8.5 — visible but inoperative keeps the surface
- * discoverable).
+ * Account lifecycle (verify, revoke, suspend, promote, impersonate,
+ * delete) plus the subscription overrides (plan change, force cancel).
+ * Suspend / plan / cancel collect input in a modal first; everything
+ * flows through the password re-confirmation dialog before calling
+ * its server action — the same shape as the business toolbar.
  *
- * Impersonation uses a form POST to
- * `/admin/users/[userId]/impersonate` so the redirect to
- * `/businesses` happens on the server (Req 8.1). The other actions
- * call server actions directly, toast the result, and `router.refresh()`
- * on success so the detail page shows the new state (Verified /
- * Suspended badges, active session count, audit entries).
+ * Self-target buttons render disabled with an explanatory tooltip
+ * instead of being hidden, so the surface stays discoverable.
  */
-export function AdminUserActions({
+export function AdminUserToolbar({
   targetUserId,
   targetEmail,
   targetIsSuspended,
@@ -108,19 +111,19 @@ export function AdminUserActions({
   targetIsAdmin,
   canDemoteTarget,
   adminUserId,
-}: AdminUserActionsProps) {
+}: AdminUserToolbarProps) {
   const router = useProgressRouter();
   const { scheduleRefresh } = useDeferredRefresh();
   const [isPending, startTransition] = useTransition();
-  const [queuedAction, setQueuedAction] = useState<QueuedAction | null>(null);
+  const [inputModal, setInputModal] = useState<InputModal>(null);
+  const [pendingConfirm, setPendingConfirm] =
+    useState<PendingConfirm | null>(null);
   const impersonateFormRef = useRef<HTMLFormElement | null>(null);
   const impersonateTokenInputRef = useRef<HTMLInputElement | null>(null);
 
-  const isSelf = targetUserId === adminUserId;
+  const [suspendReason, setSuspendReason] = useState("");
 
-  const openConfirm = useCallback((action: QueuedAction) => {
-    setQueuedAction(action);
-  }, []);
+  const isSelf = targetUserId === adminUserId;
 
   const handleResult = useCallback(
     (result: AdminActionResult, fallbackSuccess: string) => {
@@ -134,16 +137,16 @@ export function AdminUserActions({
     [scheduleRefresh],
   );
 
-  const handleConfirmed = useCallback(
+  const runConfirmed = useCallback(
     (token: string) => {
-      const queued = queuedAction;
+      const queued = pendingConfirm;
       if (!queued) {
         return;
       }
 
-      setQueuedAction(null);
+      setPendingConfirm(null);
 
-      if (queued.id === "impersonate") {
+      if (queued.kind === "impersonate") {
         // Route impersonation through the existing POST handler so
         // the session swap + redirect happens server-side.
         if (impersonateTokenInputRef.current && impersonateFormRef.current) {
@@ -154,7 +157,7 @@ export function AdminUserActions({
       }
 
       startTransition(async () => {
-        switch (queued.id) {
+        switch (queued.kind) {
           case "verify": {
             const result = await forceVerifyEmailAction({
               targetUserId,
@@ -174,6 +177,7 @@ export function AdminUserActions({
           case "suspend": {
             const result = await suspendUserAction({
               targetUserId,
+              reason: queued.reason || undefined,
               confirmToken: token,
             });
             handleResult(result, `Suspended ${targetEmail}.`);
@@ -185,17 +189,6 @@ export function AdminUserActions({
               confirmToken: token,
             });
             handleResult(result, `Reinstated ${targetEmail}.`);
-            return;
-          }
-          case "delete": {
-            const result = await deleteUserAction({
-              targetUserId,
-              confirmToken: token,
-            });
-            handleResult(result, `Deleted ${targetEmail}.`);
-            if (result.ok) {
-              router.replace(ADMIN_USERS_PATH);
-            }
             return;
           }
           case "promote": {
@@ -214,16 +207,32 @@ export function AdminUserActions({
             handleResult(result, `Removed admin access from ${targetEmail}.`);
             return;
           }
+          case "delete": {
+            const result = await deleteUserAction({
+              targetUserId,
+              confirmToken: token,
+            });
+            handleResult(result, `Deleted ${targetEmail}.`);
+            if (result.ok) {
+              router.replace(ADMIN_USERS_PATH);
+            }
+            return;
+          }
         }
       });
     },
-    [handleResult, queuedAction, router, targetEmail, targetUserId],
+    [handleResult, pendingConfirm, router, targetEmail, targetUserId],
   );
+
+  const askConfirm = useCallback((next: PendingConfirm) => {
+    setInputModal(null);
+    setPendingConfirm(next);
+  }, []);
 
   return (
     <TooltipProvider delayDuration={150}>
       <div className="flex flex-wrap items-center gap-2">
-        <ActionButton
+        <ToolbarButton
           disabled={isPending || targetEmailVerified}
           disabledReason={
             targetEmailVerified ? "Email is already verified." : undefined
@@ -232,8 +241,8 @@ export function AdminUserActions({
           isPending={isPending}
           label="Verify email"
           onClick={() =>
-            openConfirm({
-              id: "verify",
+            askConfirm({
+              kind: "verify",
               label: "Verify email",
               description: `Mark ${targetEmail} as verified.`,
               confirmLabel: "Verify email",
@@ -243,14 +252,14 @@ export function AdminUserActions({
           variant="outline"
         />
 
-        <ActionButton
+        <ToolbarButton
           disabled={isPending}
           icon={LogOut}
           isPending={isPending}
           label="Revoke sessions"
           onClick={() =>
-            openConfirm({
-              id: "revoke",
+            askConfirm({
+              kind: "revoke",
               label: "Revoke all sessions",
               description: `Sign ${targetEmail} out of every active session.`,
               confirmLabel: "Revoke sessions",
@@ -261,14 +270,14 @@ export function AdminUserActions({
         />
 
         {targetIsSuspended ? (
-          <ActionButton
+          <ToolbarButton
             disabled={isPending}
             icon={UserRoundCheck}
             isPending={isPending}
             label="Reinstate"
             onClick={() =>
-              openConfirm({
-                id: "unsuspend",
+              askConfirm({
+                kind: "unsuspend",
                 label: "Reinstate user",
                 description: `Restore sign-in for ${targetEmail}.`,
                 confirmLabel: "Reinstate",
@@ -278,26 +287,19 @@ export function AdminUserActions({
             variant="outline"
           />
         ) : (
-          <ActionButton
+          <ToolbarButton
             disabled={isPending}
             icon={OctagonMinus}
             isPending={isPending}
             label="Suspend"
-            onClick={() =>
-              openConfirm({
-                id: "suspend",
-                label: "Suspend user",
-                description: `Block ${targetEmail} from signing in.`,
-                confirmLabel: "Suspend",
-              })
-            }
+            onClick={() => setInputModal("suspend")}
             selfBlocked={isSelf}
             variant="outline"
           />
         )}
 
         {targetIsAdmin ? (
-          <ActionButton
+          <ToolbarButton
             disabled={isPending || !canDemoteTarget}
             disabledReason={
               canDemoteTarget ? undefined : "This is the last remaining admin."
@@ -306,8 +308,8 @@ export function AdminUserActions({
             isPending={isPending}
             label="Remove admin"
             onClick={() =>
-              openConfirm({
-                id: "demote",
+              askConfirm({
+                kind: "demote",
                 label: "Remove admin access",
                 description: `Revoke admin console access for ${targetEmail}. They keep their normal Requo account.`,
                 confirmLabel: "Remove admin",
@@ -317,14 +319,14 @@ export function AdminUserActions({
             variant="outline"
           />
         ) : (
-          <ActionButton
+          <ToolbarButton
             disabled={isPending}
             icon={ShieldCheck}
             isPending={isPending}
             label="Promote to admin"
             onClick={() =>
-              openConfirm({
-                id: "promote",
+              askConfirm({
+                kind: "promote",
                 label: "Promote to admin",
                 description: `Grant ${targetEmail} access to the admin console.`,
                 confirmLabel: "Promote to admin",
@@ -335,14 +337,14 @@ export function AdminUserActions({
           />
         )}
 
-        <ActionButton
+        <ToolbarButton
           disabled={isPending}
           icon={UserCog}
           isPending={isPending}
           label="Impersonate"
           onClick={() =>
-            openConfirm({
-              id: "impersonate",
+            askConfirm({
+              kind: "impersonate",
               label: "Start impersonation",
               description: `Sign in as ${targetEmail}. The impersonation banner stays visible until you stop.`,
               confirmLabel: "Start impersonation",
@@ -352,14 +354,14 @@ export function AdminUserActions({
           variant="outline"
         />
 
-        <ActionButton
+        <ToolbarButton
           disabled={isPending}
           icon={Trash2}
           isPending={isPending}
           label="Delete"
           onClick={() =>
-            openConfirm({
-              id: "delete",
+            askConfirm({
+              kind: "delete",
               label: "Delete user",
               description: `Permanently delete ${targetEmail}. Data cascades per the existing schema.`,
               confirmLabel: "Delete user",
@@ -386,23 +388,97 @@ export function AdminUserActions({
         />
       </form>
 
-      <ConfirmPasswordDialog
-        actionLabel={queuedAction?.label ?? ""}
-        confirmLabel={queuedAction?.confirmLabel}
-        description={queuedAction?.description}
-        onConfirmed={handleConfirmed}
+      <Dialog
         onOpenChange={(open) => {
           if (!open) {
-            setQueuedAction(null);
+            setInputModal(null);
           }
         }}
-        open={queuedAction !== null}
+        open={inputModal !== null}
+      >
+        <DialogContent className="sm:max-w-md">
+          {inputModal === "suspend" ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Suspend user</DialogTitle>
+                <DialogDescription>
+                  Block {targetEmail} from signing in and drop their live
+                  sessions.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogBody>
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel htmlFor="admin-suspend-reason">
+                      Reason{" "}
+                      <span className="font-normal text-muted-foreground">
+                        (optional)
+                      </span>
+                    </FieldLabel>
+                    <FieldContent>
+                      <Textarea
+                        id="admin-suspend-reason"
+                        maxLength={500}
+                        onChange={(event) =>
+                          setSuspendReason(event.target.value)
+                        }
+                        placeholder="Why is support suspending this account?"
+                        rows={2}
+                        value={suspendReason}
+                      />
+                      <FieldDescription>
+                        Shown to the user and recorded on the audit row.
+                      </FieldDescription>
+                    </FieldContent>
+                  </Field>
+                </FieldGroup>
+              </DialogBody>
+              <DialogFooter>
+                <Button
+                  onClick={() => setInputModal(null)}
+                  type="button"
+                  variant="ghost"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() =>
+                    askConfirm({
+                      kind: "suspend",
+                      label: "Suspend user",
+                      description: `Block ${targetEmail} from signing in.`,
+                      confirmLabel: "Suspend",
+                      reason: suspendReason.trim() || undefined,
+                    })
+                  }
+                  type="button"
+                  variant="destructive"
+                >
+                  Continue
+                </Button>
+              </DialogFooter>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmPasswordDialog
+        actionLabel={pendingConfirm?.label ?? ""}
+        confirmLabel={pendingConfirm?.confirmLabel}
+        description={pendingConfirm?.description}
+        onConfirmed={runConfirmed}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingConfirm(null);
+          }
+        }}
+        open={pendingConfirm !== null}
       />
     </TooltipProvider>
   );
 }
 
-type ActionButtonProps = {
+type ToolbarButtonProps = {
   disabled: boolean;
   disabledReason?: string;
   icon: LucideIcon;
@@ -414,12 +490,12 @@ type ActionButtonProps = {
 };
 
 /**
- * Action button that handles the self-target lockout with an
+ * Toolbar button that handles the self-target lockout with an
  * accessible tooltip. Self-blocked buttons render disabled but
- * discoverable (Req 4.6 / design doc — "don't hide self-actions,
- * disable with explanation").
+ * discoverable — visible but inoperative keeps the surface
+ * discoverable.
  */
-function ActionButton({
+function ToolbarButton({
   disabled,
   disabledReason,
   icon: Icon,
@@ -428,7 +504,7 @@ function ActionButton({
   onClick,
   selfBlocked,
   variant,
-}: ActionButtonProps) {
+}: ToolbarButtonProps) {
   const selfReason = "You can't run this action on your own account.";
   const reason = selfBlocked ? selfReason : disabledReason;
   const isDisabled = disabled || selfBlocked;
@@ -444,7 +520,7 @@ function ActionButton({
       {showSpinner ? (
         <Spinner data-icon="inline-start" aria-hidden="true" />
       ) : (
-        <Icon data-icon="inline-start" />
+        <Icon data-icon="inline-start" aria-hidden="true" />
       )}
       {label}
     </Button>

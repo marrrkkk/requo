@@ -11,56 +11,35 @@ import {
   AdminUserStatusBadge,
   getAdminUserAccountStatus,
 } from "@/features/admin/components/primitives/admin-status-badges";
+import { formatProductDate } from "@/features/admin/components/product/admin-product-format";
 import { getAdminUserDetailPath } from "@/features/admin/navigation";
 import type { AdminUserRow } from "@/features/admin/types";
 
-/** Short, repo-consistent date formatter for table cells. */
-const tableDateFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-});
-
-function formatTableDate(value: Date | null): string {
-  if (!value) {
-    return "—";
-  }
-
-  const date = value instanceof Date ? value : new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "—";
-  }
-
-  return tableDateFormatter.format(date);
-}
-
 const adminUserColumns: AdminDataTableColumn<AdminUserRow>[] = [
   {
-    id: "email",
-    header: "Email",
-    width: "w-[18rem]",
-    cell: (user) => (
-      <TruncatedTextWithTooltip
-        className="table-link"
-        href={getAdminUserDetailPath(user.id)}
-        prefetch={true}
-        text={user.email}
-      />
-    ),
-  },
-  {
-    id: "name",
-    header: "Name",
-    width: "w-[12rem]",
-    cell: (user) => (
-      <TruncatedTextWithTooltip
-        className="table-emphasis"
-        href={getAdminUserDetailPath(user.id)}
-        prefetch={true}
-        text={user.name || "—"}
-      />
-    ),
+    id: "user",
+    header: "User",
+    width: "w-[20rem]",
+    cell: (user) => {
+      const href = getAdminUserDetailPath(user.id);
+
+      return (
+        <div className="table-meta-stack max-w-full">
+          <TruncatedTextWithTooltip
+            className="table-link"
+            href={href}
+            prefetch={true}
+            text={user.name || user.email}
+          />
+          <TruncatedTextWithTooltip
+            className="table-supporting-text"
+            href={href}
+            prefetch={true}
+            text={user.name ? user.email : "No name set"}
+          />
+        </div>
+      );
+    },
   },
   {
     id: "status",
@@ -76,7 +55,7 @@ const adminUserColumns: AdminDataTableColumn<AdminUserRow>[] = [
     width: "w-[8rem]",
     cell: (user) => (
       <span className="text-sm text-muted-foreground">
-        {formatTableDate(user.createdAt)}
+        {formatProductDate(user.createdAt)}
       </span>
     ),
   },
@@ -86,7 +65,7 @@ const adminUserColumns: AdminDataTableColumn<AdminUserRow>[] = [
     width: "w-[8rem]",
     cell: (user) => (
       <span className="text-sm text-muted-foreground">
-        {formatTableDate(user.lastSessionAt)}
+        {formatProductDate(user.lastSessionAt)}
       </span>
     ),
   },
@@ -105,7 +84,10 @@ type AdminUsersTableProps = {
  * Fixed `createdAt DESC` ordering (the list query owns it) — no sortable
  * columns. Account status renders through `AdminUserStatusBadge` so the
  * list shows the same suspended/unverified/admin treatment as the rest of
- * the console. Below `xl` each row becomes a `MobileRecordRow` card.
+ * the console. `flush` renders the table edge to edge inside the page's
+ * list card (one frame, like the businesses list) instead of nesting a
+ * second bordered container. Below `xl` each row becomes a `MobileRecordRow`
+ * card.
  */
 export function AdminUsersTable({
   users,
@@ -125,14 +107,15 @@ export function AdminUsersTable({
       }}
       getRowHref={(user) => getAdminUserDetailPath(user.id)}
       getRowId={(user) => user.id}
+      flush
       minWidthClass="min-w-[60rem]"
       mobileCard={(user) => ({
-        title: user.email,
-        subtitle: user.name || "No name",
+        title: user.name || user.email,
+        subtitle: user.name ? user.email : "No name set",
         statusBadge: (
           <AdminUserStatusBadge status={getAdminUserAccountStatus(user)} />
         ),
-        metadata: <span>Created {formatTableDate(user.createdAt)}</span>,
+        metadata: <span>Created {formatProductDate(user.createdAt)}</span>,
       })}
       pagination={pagination}
       rows={users}
