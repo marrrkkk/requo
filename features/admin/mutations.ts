@@ -27,10 +27,20 @@ import {
   adminStartImpersonationSchema,
   adminSuspendUserSchema,
   adminUnsuspendUserSchema,
+  adminArchiveBusinessSchema,
+  adminRestoreBusinessSchema,
+  adminDeleteBusinessSchema,
+  adminOverrideBusinessPlanSchema,
+  adminCancelBusinessSubscriptionSchema,
   type AdminDeleteUserInput,
   type AdminDemoteUserInput,
   type AdminForceCancelSubscriptionInput,
   type AdminForceVerifyEmailInput,
+  type AdminArchiveBusinessInput,
+  type AdminRestoreBusinessInput,
+  type AdminDeleteBusinessInput,
+  type AdminOverrideBusinessPlanInput,
+  type AdminCancelBusinessSubscriptionInput,
   type AdminManualPlanOverrideInput,
   type AdminPromoteUserInput,
   type AdminRevokeAllSessionsInput,
@@ -52,6 +62,7 @@ import {
   activateSubscription,
   cancelSubscription,
   getAccountSubscription,
+  getBusinessSubscription,
 } from "@/lib/billing/subscription-service";
 import type { BillingCurrency, BillingProvider } from "@/lib/billing/types";
 import {
@@ -1085,12 +1096,13 @@ async function recordSubscriptionOverrideAudit(
   action: AdminAction,
   targetId: string,
   metadata: Record<string, unknown>,
+  targetType: AdminTargetType = "subscription",
 ): Promise<void> {
   await runAdminMutationWithAudit(
     context,
     {
       action,
-      targetType: "subscription",
+      targetType,
       targetId,
       metadata,
     },
@@ -1410,6 +1422,524 @@ export async function forceCancelSubscriptionAction(
   return {
     ok: true,
     message: `Canceled ${ownerRow.email}'s subscription.`,
+  };
+}
+
+/**
+ * Revalidate the standard set of tags touched by a narrow business
+ * lifecycle mutation (archive, restore, soft-delete). Lists, counts,
+ * and the audit feed all change; subscription aggregates do not.
+ */
+function revalidateBusinessLifecycleTags() {
+  revalidateTag(adminBusinessesTag(), "max");
+  revalidateTag(adminDashboardTag(), "max");
+  revalidateTag(adminAuditTag(), "max");
+}
+
+/** Minimal business snapshot for lifecycle guards + audit metadata. */
+type TargetBusinessSummary = {
+  id: string;
+  name: string;
+  slug: string;
+  archivedAt: Date | null;
+  deletedAt: Date | null;
+};
+
+async function loadTargetBusinessSummary(
+  businessId: string,
+): Promise<TargetBusinessSummary | null> {
+  const [row] = await db
+    .select({
+      id: businesses.id,
+      name: businesses.name,
+      slug: businesses.slug,
+      archivedAt: businesses.archivedAt,
+      deletedAt: businesses.deletedAt,
+    })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  return row ?? null;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Business lifecycle mutations (archive / restore / soft-delete)
+ *
+ * Soft state only: archive sets `archivedAt`, delete sets `deletedAt`
+ * (clearing any archive), restore clears both. No hard deletes — the
+ * rows stay queryable on the detail page and the audit trail keeps the
+ * full history. Each action is gated by the password re-confirmation
+ * token and recorded as a `business.*` admin audit row, mirroring the
+ * user-management mutations above.
+ * ────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Archive a business (read-only, hidden from active views, restorable).
+ * Rejects deleted or already-archived rows so repeat invocations
+ * surface state instead of silently no-opping.
+ */
+export async function archiveBusinessAction(
+  input: AdminArchiveBusinessInput,
+): Promise<AdminActionResult> {
+  const { session: authSession, user: admin } = await requireAdminUser();
+  const auditContext = resolveAuditContext(admin, authSession);
+
+  const parsed = adminArchiveBusinessSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "We couldn't verify that request. Refresh and try again.",
+      fieldErrors: mapZodFieldErrors(parsed.error.issues),
+    };
+  }
+
+  const { businessId, confirmToken } = parsed.data;
+
+  const tokenResult = await processConfirmToken(
+    auditContext,
+    confirmToken,
+    "business.archive",
+    businessId,
+    "business",
+  );
+  if (!tokenResult.ok) {
+    return tokenResult;
+  }
+
+  const target = await loadTargetBusinessSummary(businessId);
+  if (!target) {
+    return { ok: false, error: "That business no longer exists." };
+  }
+  if (target.deletedAt) {
+    return {
+      ok: false,
+      error: "That business is deleted. Restore it before archiving.",
+    };
+  }
+  if (target.archivedAt) {
+    return { ok: false, error: "That business is already archived." };
+  }
+
+  try {
+    await runAdminMutationWithAudit(
+      auditContext,
+      {
+        action: "business.archive",
+        targetType: "business",
+        targetId: target.id,
+        metadata: {
+          businessName: target.name,
+          businessSlug: target.slug,
+        },
+      },
+      async (tx) => {
+        await tx
+          .update(businesses)
+          .set({
+            archivedAt: new Date(),
+            archivedBy: admin.id,
+            deletedAt: null,
+            deletedBy: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(businesses.id, target.id));
+      },
+    );
+  } catch (error) {
+    console.error("Failed to archive business.", error);
+    return {
+      ok: false,
+      error: "We couldn't archive that business right now. Try again.",
+    };
+  }
+
+  revalidateBusinessLifecycleTags();
+
+  return { ok: true, message: `Archived ${target.name}.` };
+}
+
+/**
+ * Restore an archived or deleted business back to active. Clears both
+ * `archivedAt` and `deletedAt` so a trashed-then-archived edge state
+ * converges to active in one step.
+ */
+export async function restoreBusinessAction(
+  input: AdminRestoreBusinessInput,
+): Promise<AdminActionResult> {
+  const { session: authSession, user: admin } = await requireAdminUser();
+  const auditContext = resolveAuditContext(admin, authSession);
+
+  const parsed = adminRestoreBusinessSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "We couldn't verify that request. Refresh and try again.",
+      fieldErrors: mapZodFieldErrors(parsed.error.issues),
+    };
+  }
+
+  const { businessId, confirmToken } = parsed.data;
+
+  const tokenResult = await processConfirmToken(
+    auditContext,
+    confirmToken,
+    "business.restore",
+    businessId,
+    "business",
+  );
+  if (!tokenResult.ok) {
+    return tokenResult;
+  }
+
+  const target = await loadTargetBusinessSummary(businessId);
+  if (!target) {
+    return { ok: false, error: "That business no longer exists." };
+  }
+  if (!target.archivedAt && !target.deletedAt) {
+    return { ok: false, error: "That business is already active." };
+  }
+
+  const fromState = target.deletedAt ? "deleted" : "archived";
+
+  try {
+    await runAdminMutationWithAudit(
+      auditContext,
+      {
+        action: "business.restore",
+        targetType: "business",
+        targetId: target.id,
+        metadata: {
+          businessName: target.name,
+          businessSlug: target.slug,
+          from: fromState,
+        },
+      },
+      async (tx) => {
+        await tx
+          .update(businesses)
+          .set({
+            archivedAt: null,
+            archivedBy: null,
+            deletedAt: null,
+            deletedBy: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(businesses.id, target.id));
+      },
+    );
+  } catch (error) {
+    console.error("Failed to restore business.", error);
+    return {
+      ok: false,
+      error: "We couldn't restore that business right now. Try again.",
+    };
+  }
+
+  revalidateBusinessLifecycleTags();
+
+  return { ok: true, message: `Restored ${target.name}.` };
+}
+
+/**
+ * Soft-delete a business (hidden from lists, restorable from the
+ * detail page). Clears any archive flag so restore converges to
+ * active. There is no admin hard-delete — permanent removal stays
+ * with the owner's workspace deletion flow.
+ */
+export async function deleteBusinessAction(
+  input: AdminDeleteBusinessInput,
+): Promise<AdminActionResult> {
+  const { session: authSession, user: admin } = await requireAdminUser();
+  const auditContext = resolveAuditContext(admin, authSession);
+
+  const parsed = adminDeleteBusinessSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "We couldn't verify that request. Refresh and try again.",
+      fieldErrors: mapZodFieldErrors(parsed.error.issues),
+    };
+  }
+
+  const { businessId, confirmToken } = parsed.data;
+
+  const tokenResult = await processConfirmToken(
+    auditContext,
+    confirmToken,
+    "business.delete",
+    businessId,
+    "business",
+  );
+  if (!tokenResult.ok) {
+    return tokenResult;
+  }
+
+  const target = await loadTargetBusinessSummary(businessId);
+  if (!target) {
+    return { ok: false, error: "That business no longer exists." };
+  }
+  if (target.deletedAt) {
+    return { ok: false, error: "That business is already deleted." };
+  }
+
+  try {
+    await runAdminMutationWithAudit(
+      auditContext,
+      {
+        action: "business.delete",
+        targetType: "business",
+        targetId: target.id,
+        metadata: {
+          businessName: target.name,
+          businessSlug: target.slug,
+          wasArchived: Boolean(target.archivedAt),
+        },
+      },
+      async (tx) => {
+        await tx
+          .update(businesses)
+          .set({
+            archivedAt: null,
+            archivedBy: null,
+            deletedAt: new Date(),
+            deletedBy: admin.id,
+            updatedAt: new Date(),
+          })
+          .where(eq(businesses.id, target.id));
+      },
+    );
+  } catch (error) {
+    console.error("Failed to delete business.", error);
+    return {
+      ok: false,
+      error: "We couldn't delete that business right now. Try again.",
+    };
+  }
+
+  revalidateBusinessLifecycleTags();
+
+  return { ok: true, message: `Deleted ${target.name}.` };
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Business subscription mutations (business-scoped)
+ *
+ * Unlike the legacy user-keyed overrides above (which resolve the
+ * owner's first business), these act on one explicit `businessId` via
+ * the subscription service — the same write path as checkout and
+ * webhooks, so `business_subscriptions` and the `businesses.plan`
+ * cache stay in sync. No `account_subscriptions` involvement.
+ * ────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Manually set a business's plan. Upserts the `business_subscriptions`
+ * row (free businesses have none) and syncs the `businesses.plan`
+ * cache through the service. Provider/currency carry over from the
+ * existing row so the override never silently flips providers.
+ */
+export async function overrideBusinessPlanAction(
+  input: AdminOverrideBusinessPlanInput,
+): Promise<AdminActionResult> {
+  const { session: authSession, user: admin } = await requireAdminUser();
+  const auditContext = resolveAuditContext(admin, authSession);
+
+  const parsed = adminOverrideBusinessPlanSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "We couldn't verify that request. Refresh and try again.",
+      fieldErrors: mapZodFieldErrors(parsed.error.issues),
+    };
+  }
+
+  const { businessId, plan, reason, confirmToken } = parsed.data;
+
+  const tokenResult = await processConfirmToken(
+    auditContext,
+    confirmToken,
+    "subscription.manual_plan_override",
+    businessId,
+    "business",
+  );
+  if (!tokenResult.ok) {
+    return tokenResult;
+  }
+
+  const target = await loadTargetBusinessSummary(businessId);
+  if (!target) {
+    return { ok: false, error: "That business no longer exists." };
+  }
+
+  const existing = await getBusinessSubscription(businessId);
+  const previousPlan: BusinessPlan | null = existing
+    ? (existing.plan as BusinessPlan)
+    : null;
+  const provider: BillingProvider =
+    existing?.billingProvider ?? DEFAULT_OVERRIDE_PROVIDER;
+  const currency: BillingCurrency =
+    existing?.billingCurrency ?? DEFAULT_OVERRIDE_CURRENCY;
+
+  try {
+    await activateSubscription({
+      businessId,
+      plan,
+      provider,
+      currency,
+      status: "active",
+    });
+  } catch (error) {
+    console.error(
+      "Subscription service rejected business plan override.",
+      error,
+    );
+    return {
+      ok: false,
+      error: getUserSafeErrorMessage(
+        error,
+        "Couldn't update this subscription.",
+      ),
+    };
+  }
+
+  try {
+    await recordSubscriptionOverrideAudit(
+      auditContext,
+      "subscription.manual_plan_override",
+      existing?.id ?? businessId,
+      {
+        targetBusinessId: businessId,
+        businessName: target.name,
+        businessSlug: target.slug,
+        previousPlan,
+        nextPlan: plan,
+        provider,
+        currency,
+        reason: reason ?? null,
+      },
+      "business",
+    );
+  } catch (error) {
+    console.error(
+      "Failed to write admin audit row after business plan override. " +
+        "The subscription was updated but the admin audit trail is incomplete. " +
+        "Backfill may be required.",
+      error,
+    );
+    return {
+      ok: false,
+      error: "Couldn't record this action. No changes were made.",
+    };
+  }
+
+  revalidateSubscriptionAdminTags();
+
+  return {
+    ok: true,
+    message: previousPlan
+      ? `Updated ${target.name} from ${previousPlan} to ${plan}.`
+      : `Set ${target.name} to ${plan}.`,
+  };
+}
+
+/**
+ * Cancel a business's subscription. Keeps paid access until
+ * `currentPeriodEnd` per the service contract, then the plan
+ * resolves back to free.
+ */
+export async function cancelBusinessSubscriptionAction(
+  input: AdminCancelBusinessSubscriptionInput,
+): Promise<AdminActionResult> {
+  const { session: authSession, user: admin } = await requireAdminUser();
+  const auditContext = resolveAuditContext(admin, authSession);
+
+  const parsed = adminCancelBusinessSubscriptionSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "We couldn't verify that request. Refresh and try again.",
+      fieldErrors: mapZodFieldErrors(parsed.error.issues),
+    };
+  }
+
+  const { businessId, reason, confirmToken } = parsed.data;
+
+  const tokenResult = await processConfirmToken(
+    auditContext,
+    confirmToken,
+    "subscription.force_cancel",
+    businessId,
+    "business",
+  );
+  if (!tokenResult.ok) {
+    return tokenResult;
+  }
+
+  const target = await loadTargetBusinessSummary(businessId);
+  if (!target) {
+    return { ok: false, error: "That business no longer exists." };
+  }
+
+  const existing = await getBusinessSubscription(businessId);
+  if (!existing) {
+    return { ok: false, error: "That business has no subscription to cancel." };
+  }
+  if (existing.status === "canceled" || existing.status === "expired") {
+    return { ok: false, error: "That subscription is already canceled." };
+  }
+
+  try {
+    const updated = await cancelSubscription(businessId);
+    if (!updated) {
+      return { ok: false, error: "That subscription no longer exists." };
+    }
+  } catch (error) {
+    console.error(
+      "Subscription service rejected business subscription cancel.",
+      error,
+    );
+    return {
+      ok: false,
+      error: getUserSafeErrorMessage(
+        error,
+        "Couldn't cancel this subscription.",
+      ),
+    };
+  }
+
+  try {
+    await recordSubscriptionOverrideAudit(
+      auditContext,
+      "subscription.force_cancel",
+      existing.id,
+      {
+        targetBusinessId: businessId,
+        businessName: target.name,
+        businessSlug: target.slug,
+        previousPlan: existing.plan,
+        provider: existing.billingProvider,
+        reason: reason ?? null,
+      },
+      "business",
+    );
+  } catch (error) {
+    console.error(
+      "Failed to write admin audit row after business subscription cancel. " +
+        "The subscription was canceled but the admin audit trail is " +
+        "incomplete. Backfill may be required.",
+      error,
+    );
+    return {
+      ok: false,
+      error: "Couldn't record this action. No changes were made.",
+    };
+  }
+
+  revalidateSubscriptionAdminTags();
+
+  return {
+    ok: true,
+    message: `Canceled ${target.name}'s subscription.`,
   };
 }
 

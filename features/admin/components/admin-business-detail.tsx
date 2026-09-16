@@ -1,43 +1,47 @@
 import Link from "next/link";
 
 import {
+  DashboardDetailFeed,
+  DashboardDetailFeedItem,
   DashboardDetailHeader,
   DashboardDetailLayout,
-  DashboardMetaPill,
   DashboardSection,
   DashboardSidebarStack,
-  DashboardTableContainer,
 } from "@/components/shared/dashboard-layout";
-import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { getAdminUserDetailPath } from "@/features/admin/navigation";
 import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  ADMIN_BUSINESSES_PATH,
-  getAdminUserDetailPath,
-} from "@/features/admin/navigation";
+  AdminBusinessToolbar,
+  type AdminBusinessToolbarStatus,
+} from "@/features/admin/components/admin-business-toolbar";
 import { AdminBusinessBillingSection } from "@/features/admin/components/billing/admin-business-billing-section";
 import type {
   AdminBusinessBilling,
   AdminBusinessDetail,
+  AdminBusinessDetailCore,
 } from "@/features/admin/types";
 import { businessMemberRoleMeta } from "@/lib/business-members";
 import { planMeta, type BusinessPlan } from "@/lib/plans";
 
+type AdminBusinessMembers = AdminBusinessDetail["members"];
+
 /**
- * Read-only admin detail view for a business (Requirements 5.3, 5.4).
+ * Detail view for a business with support actions.
  *
- * Per Requirement 5.4, v1 intentionally renders no mutation affordances.
- * Everything here is passive: identity, owner summary, denormalized plan,
- * member roster, activity counts, and last activity timestamps. Passive
- * information clusters use `soft-panel` + `meta-label` per DESIGN.md.
+ * The header carries identity (name, slug) + lifecycle status alongside
+ * the action toolbar (change plan, cancel subscription, archive /
+ * restore, delete — each behind a modal). The main column holds the
+ * operational content (pipeline overview, member roster, subscription)
+ * and the sidebar holds owner + record metadata. Field clusters use
+ * the flat `dl` + `meta-label` rows from the user detail view — no
+ * nested panels — and rosters use `DashboardDetailFeed`, matching the
+ * inquiry/quote/email details.
+ *
+ * Thin composer over the section components below (kept so the detail
+ * renders identically when the full payload is already in hand, e.g.
+ * tests). Route pages stream each section behind its own Suspense
+ * boundary instead.
  */
 export function AdminBusinessDetail({
   detail,
@@ -53,183 +57,251 @@ export function AdminBusinessDetail({
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <DashboardDetailHeader
-        eyebrow={
-          <Link
-            className="underline-offset-4 hover:text-primary hover:underline"
-            href={ADMIN_BUSINESSES_PATH}
-          >
-            ← Businesses
-          </Link>
-        }
-        meta={
-          <>
-            <DashboardMetaPill>/{detail.slug}</DashboardMetaPill>
-            <DashboardMetaPill>
-              <AdminBusinessPlanBadge plan={detail.plan} />
-            </DashboardMetaPill>
-            <DashboardMetaPill>
-              {detail.memberCount.toLocaleString()}{" "}
-              {detail.memberCount === 1 ? "member" : "members"}
-            </DashboardMetaPill>
-            <DashboardMetaPill>
-              Created {formatAdminDate(detail.createdAt)}
-            </DashboardMetaPill>
-            {detail.archivedAt ? (
-              <DashboardMetaPill>
-                Archived {formatAdminDate(detail.archivedAt)}
-              </DashboardMetaPill>
-            ) : null}
-            {detail.deletedAt ? (
-              <DashboardMetaPill>
-                Deleted {formatAdminDate(detail.deletedAt)}
-              </DashboardMetaPill>
-            ) : null}
-          </>
-        }
-        title={detail.name}
-      />
+      <AdminBusinessHeaderSection billing={billing} detail={detail} />
 
       <DashboardDetailLayout className="xl:grid-cols-[minmax(0,1.1fr)_0.9fr]">
         <div className="flex min-w-0 flex-col gap-6">
-          <DashboardSection
-            description="Read-only snapshot of the business identity and plan cache."
-            title="Business"
-          >
-            <div className="grid gap-3 sm:grid-cols-2">
-              <AdminDetailField label="Name" value={detail.name} />
-              <AdminDetailField label="Slug" value={detail.slug} />
-              <AdminDetailField label="Business id" value={detail.id} />
-              <AdminDetailField
-                label="Plan (cached)"
-                value={planMeta[detail.plan].label}
-              />
-              <AdminDetailField
-                label="Created"
-                value={formatAdminDateTime(detail.createdAt)}
-              />
-              <AdminDetailField
-                label="Updated"
-                value={formatAdminDateTime(detail.updatedAt)}
-              />
-            </div>
-          </DashboardSection>
-
-          <DashboardSection
-            description={`${detail.memberCount.toLocaleString()} ${
-              detail.memberCount === 1 ? "person has" : "people have"
-            } access to this business.`}
-            title="Members"
-          >
-            {detail.members.length === 0 ? (
-              <div className="soft-panel shadow-none">
-                <p className="meta-label">Members</p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  No members have been invited yet.
-                </p>
-              </div>
-            ) : (
-              <DashboardTableContainer innerClassName="border-border/60">
-                <Table className="min-w-[40rem]">
-                  <TableCaption className="sr-only">
-                    Business members sorted by join date.
-                  </TableCaption>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Member</TableHead>
-                      <TableHead className="w-[9rem]">Role</TableHead>
-                      <TableHead className="w-[10rem]">Joined</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {detail.members.map((member) => {
-                      const userHref = getAdminUserDetailPath(member.userId);
-                      const roleLabel =
-                        businessMemberRoleMeta[member.role].label;
-
-                      return (
-                        <TableRow key={member.userId}>
-                          <TableCell>
-                            <div className="table-meta-stack max-w-full">
-                              <TruncatedTextWithTooltip
-                                className="table-link"
-                                href={userHref}
-                                prefetch={true}
-                                text={member.name}
-                              />
-                              <TruncatedTextWithTooltip
-                                className="table-supporting-text"
-                                href={userHref}
-                                prefetch={true}
-                                text={member.email}
-                              />
-                            </div>
-                          </TableCell>
-                          <TableCell className="w-[9rem]">
-                            <Badge variant="outline">{roleLabel}</Badge>
-                          </TableCell>
-                          <TableCell className="w-[10rem] text-sm text-muted-foreground">
-                            {formatAdminDate(member.joinedAt)}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </DashboardTableContainer>
-            )}
-          </DashboardSection>
+          <AdminBusinessOverviewSection detail={detail} />
+          <AdminBusinessMembersSection
+            memberCount={detail.memberCount}
+            members={detail.members}
+          />
+          {billing ? <AdminBusinessBillingSection billing={billing} /> : null}
         </div>
 
-        <DashboardSidebarStack>
-          <DashboardSection title="Owner">
-            <div className="flex flex-col gap-3">
-              <AdminDetailField label="Name" value={detail.ownerName} />
-              <AdminDetailField label="Email" value={detail.ownerEmail} />
-              <AdminDetailField label="User id" value={detail.ownerUserId} />
-              <Link
-                className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-                href={getAdminUserDetailPath(detail.ownerUserId)}
-              >
-                View owner in admin →
-              </Link>
-            </div>
-          </DashboardSection>
-
-          <DashboardSection title="Activity">
-            <div className="flex flex-col gap-3">
-              <AdminDetailField
-                label="Inquiries"
-                value={detail.inquiryCount.toLocaleString()}
-              />
-              <AdminDetailField
-                label="Quotes"
-                value={detail.quoteCount.toLocaleString()}
-              />
-              <AdminDetailField
-                label="Last inquiry"
-                value={
-                  detail.lastInquiryAt
-                    ? formatAdminDateTime(detail.lastInquiryAt)
-                    : "No inquiries yet"
-                }
-              />
-              <AdminDetailField
-                label="Last quote sent"
-                value={
-                  detail.lastQuoteSentAt
-                    ? formatAdminDateTime(detail.lastQuoteSentAt)
-                    : "No quotes sent yet"
-                }
-              />
-            </div>
-          </DashboardSection>
-        </DashboardSidebarStack>
+        <AdminBusinessMetaSidebar detail={detail} />
       </DashboardDetailLayout>
-
-      {billing ? <AdminBusinessBillingSection billing={billing} /> : null}
     </div>
   );
+}
+
+export function AdminBusinessHeaderSection({
+  detail,
+  billing,
+}: {
+  detail: AdminBusinessDetailCore;
+  billing: AdminBusinessBilling | null;
+}) {
+  const status = getBusinessLifecycleStatus(detail);
+
+  return (
+    <DashboardDetailHeader
+      actions={
+        <AdminBusinessToolbar
+          businessId={detail.id}
+          businessName={detail.name}
+          status={status}
+          subscription={
+            billing?.subscription
+              ? {
+                  plan: billing.subscription.plan,
+                  status: billing.subscription.status,
+                }
+              : null
+          }
+        />
+      }
+      description={`/${detail.slug}`}
+      meta={
+        <>
+          <AdminBusinessPlanBadge plan={detail.plan} />
+          <AdminBusinessStatusBadge status={status} />
+          <span className="text-xs text-muted-foreground">
+            {detail.memberCount.toLocaleString()}{" "}
+            {detail.memberCount === 1 ? "member" : "members"}
+            {" · "}
+            {detail.inquiryCount.toLocaleString()}{" "}
+            {detail.inquiryCount === 1 ? "inquiry" : "inquiries"}
+            {" · "}
+            {detail.quoteCount.toLocaleString()}{" "}
+            {detail.quoteCount === 1 ? "quote" : "quotes"}
+          </span>
+        </>
+      }
+      title={detail.name}
+    />
+  );
+}
+
+export function AdminBusinessOverviewSection({
+  detail,
+}: {
+  detail: AdminBusinessDetailCore;
+}) {
+  return (
+    <DashboardSection
+      description="Pipeline and team at a glance."
+      title="Overview"
+    >
+      <div className="grid gap-5 sm:grid-cols-3">
+        <AdminStatBlock
+          label="Members"
+          sub={`${detail.memberCount.toLocaleString()} ${detail.memberCount === 1 ? "person has" : "people have"} access`}
+          value={detail.memberCount.toLocaleString()}
+        />
+        <AdminStatBlock
+          label="Inquiries"
+          sub={
+            detail.lastInquiryAt
+              ? `Last ${formatAdminDate(detail.lastInquiryAt)}`
+              : "No inquiries yet"
+          }
+          value={detail.inquiryCount.toLocaleString()}
+        />
+        <AdminStatBlock
+          label="Quotes"
+          sub={
+            detail.lastQuoteSentAt
+              ? `Last sent ${formatAdminDate(detail.lastQuoteSentAt)}`
+              : "Nothing sent yet"
+          }
+          value={detail.quoteCount.toLocaleString()}
+        />
+      </div>
+    </DashboardSection>
+  );
+}
+
+export function AdminBusinessMembersSection({
+  memberCount,
+  members,
+}: {
+  memberCount: number;
+  members: AdminBusinessMembers;
+}) {
+  return (
+    <DashboardSection
+      description={`${memberCount.toLocaleString()} ${
+        memberCount === 1 ? "person has" : "people have"
+      } access to this business, oldest first.`}
+      title={`Members (${members.length})`}
+    >
+      {members.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No members have been invited yet.
+        </p>
+      ) : (
+        <DashboardDetailFeed>
+          {members.map((member) => {
+            const userHref = getAdminUserDetailPath(member.userId);
+
+            return (
+              <DashboardDetailFeedItem
+                action={
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={userHref} prefetch={true}>
+                      Open
+                    </Link>
+                  </Button>
+                }
+                key={member.userId}
+                meta={
+                  <>
+                    <span className="truncate">{member.email}</span>
+                    <span aria-hidden="true">·</span>
+                    <Badge variant="outline">
+                      {businessMemberRoleMeta[member.role].label}
+                    </Badge>
+                    <span aria-hidden="true">·</span>
+                    <span>Joined {formatAdminDate(member.joinedAt)}</span>
+                  </>
+                }
+                title={member.name}
+              />
+            );
+          })}
+        </DashboardDetailFeed>
+      )}
+    </DashboardSection>
+  );
+}
+
+export function AdminBusinessMetaSidebar({
+  detail,
+}: {
+  detail: AdminBusinessDetailCore;
+}) {
+  const status = getBusinessLifecycleStatus(detail);
+  const ownerHref = getAdminUserDetailPath(detail.ownerUserId);
+
+  return (
+    <DashboardSidebarStack>
+      <DashboardSection title="Owner">
+        <dl className="flex flex-col gap-5">
+          <div className="min-w-0">
+            <dt className="meta-label">Name</dt>
+            <dd className="mt-1 truncate text-sm font-medium text-foreground">
+              {detail.ownerName}
+            </dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="meta-label">Email</dt>
+            <dd className="mt-1 truncate text-sm text-foreground">
+              {detail.ownerEmail}
+            </dd>
+          </div>
+        </dl>
+        <Button asChild className="mt-5" size="sm" variant="outline">
+          <Link href={ownerHref} prefetch={true}>
+            Open owner
+          </Link>
+        </Button>
+      </DashboardSection>
+
+      <DashboardSection title="Record">
+        <dl className="flex flex-col gap-5">
+          <div className="min-w-0">
+            <dt className="meta-label">Status</dt>
+            <dd className="mt-1">
+              <AdminBusinessStatusBadge status={status} />
+            </dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="meta-label">Created</dt>
+            <dd className="mt-1 text-sm text-muted-foreground">
+              {formatAdminDateTime(detail.createdAt)}
+            </dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="meta-label">Updated</dt>
+            <dd className="mt-1 text-sm text-muted-foreground">
+              {formatAdminDateTime(detail.updatedAt)}
+            </dd>
+          </div>
+          {detail.archivedAt ? (
+            <div className="min-w-0">
+              <dt className="meta-label">Archived</dt>
+              <dd className="mt-1 text-sm text-muted-foreground">
+                {formatAdminDateTime(detail.archivedAt)}
+              </dd>
+            </div>
+          ) : null}
+          {detail.deletedAt ? (
+            <div className="min-w-0">
+              <dt className="meta-label">Deleted</dt>
+              <dd className="mt-1 text-sm text-muted-foreground">
+                {formatAdminDateTime(detail.deletedAt)}
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+      </DashboardSection>
+    </DashboardSidebarStack>
+  );
+}
+
+function getBusinessLifecycleStatus(
+  detail: Pick<AdminBusinessDetailCore, "archivedAt" | "deletedAt">,
+): AdminBusinessToolbarStatus {
+  if (detail.deletedAt) {
+    return "deleted";
+  }
+
+  if (detail.archivedAt) {
+    return "archived";
+  }
+
+  return "active";
 }
 
 function AdminBusinessPlanBadge({ plan }: { plan: BusinessPlan }) {
@@ -240,19 +312,38 @@ function AdminBusinessPlanBadge({ plan }: { plan: BusinessPlan }) {
   );
 }
 
-function AdminDetailField({
+function AdminBusinessStatusBadge({
+  status,
+}: {
+  status: AdminBusinessToolbarStatus;
+}) {
+  if (status === "deleted") {
+    return <Badge variant="destructive">Deleted</Badge>;
+  }
+
+  if (status === "archived") {
+    return <Badge variant="outline">Archived</Badge>;
+  }
+
+  return <Badge variant="secondary">Active</Badge>;
+}
+
+function AdminStatBlock({
   label,
+  sub,
   value,
 }: {
   label: string;
+  sub: string;
   value: string;
 }) {
   return (
-    <div data-padding="none" className="soft-panel px-4 py-3 shadow-none">
+    <div className="min-w-0">
       <p className="meta-label">{label}</p>
-      <p className="mt-1.5 text-sm font-medium text-foreground break-words">
+      <p className="mt-1 text-2xl font-semibold tracking-tight text-foreground tabular-nums">
         {value}
       </p>
+      <p className="mt-1 truncate text-xs text-muted-foreground">{sub}</p>
     </div>
   );
 }
