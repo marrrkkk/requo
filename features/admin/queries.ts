@@ -40,6 +40,7 @@ import {
   getAdminBusinessDetailPath,
   getAdminEmailDetailPath,
   getAdminInquiryDetailPath,
+  getAdminInvoiceDetailPath,
   getAdminQuoteDetailPath,
   getAdminUserDetailPath,
 } from "@/features/admin/navigation";
@@ -47,6 +48,7 @@ import {
   adminAuditLogListFiltersSchema,
   adminBusinessesListFiltersSchema,
   adminInquiriesListFiltersSchema,
+  adminInvoicesListFiltersSchema,
   adminQuotesListFiltersSchema,
   adminAiErrorsFiltersSchema,
   adminAiRequestsFiltersSchema,
@@ -56,6 +58,7 @@ import {
   type AdminAuditLogListFilters,
   type AdminBusinessesListFilters,
   type AdminInquiriesListFilters,
+  type AdminInvoicesListFilters,
   type AdminQuotesListFilters,
   type AdminAiErrorsListFilters,
   type AdminAiRequestsListFilters,
@@ -78,23 +81,30 @@ import type {
   AdminAiTaskBreakdown,
   AdminAiWindowStats,
   AdminEmailAttempt,
-  AdminEmailDetail,
+  AdminEmailBody,
+  AdminEmailDetailCore,
+  AdminEmailQuota,
+  AdminEmailQuotas,
   AdminEmailRow,
   AdminAuditLogRow,
   AdminBusinessBilling,
   AdminBusinessDetail,
+  AdminBusinessDetailCore,
   AdminBusinessRow,
-  AdminBusinessSubscriptionSummary,
   AdminDashboardCounts,
   AdminInquiryAttachment,
-  AdminInquiryDetail,
+  AdminInquiryDetailCore,
   AdminInquiryLinkedQuote,
   AdminInquiryMessage,
   AdminInquiryNote,
   AdminInquiryRow,
+  AdminInvoiceDetailCore,
+  AdminInvoiceItem,
+  AdminInvoicePayment,
+  AdminInvoiceRow,
   AdminOverviewMetrics,
   AdminPaginatedResult,
-  AdminQuoteDetail,
+  AdminQuoteDetailCore,
   AdminQuoteEmail,
   AdminQuoteItem,
   AdminQuoteRevisionRequest,
@@ -112,13 +122,19 @@ import type {
   AdminUsageReport,
   AdminUsageResource,
   AdminUserBillingActivity,
-  AdminUserDetail,
   AdminUserDetailBusiness,
+  AdminUserDetailCore,
   AdminUserDetailSubscription,
   AdminUserRow,
 } from "@/features/admin/types";
 import { inquiryStatuses, type InquiryStatus } from "@/features/inquiries/types";
 import { quoteStatuses, type QuoteStatus } from "@/features/quotes/types";
+import { calculateInvoicePaymentState } from "@/features/invoices/utils";
+import { effectiveInvoiceStatusSql } from "@/features/invoices/queries";
+import type {
+  InvoiceStatus,
+  PaymentMethod,
+} from "@/lib/db/schema/invoices";
 import {
   adminDashboardTag,
   adminAiTag,
@@ -152,7 +168,10 @@ import {
   inquiryAttachments,
   inquiryMessages,
   inquiryNotes,
+  invoiceLineItems,
+  invoices,
   paymentAttempts,
+  payments,
   quoteItems,
   quoteRevisionRequests,
   quoteVersions,
@@ -463,6 +482,8 @@ function buildAdminAuditActivityHref(
       return getAdminInquiryDetailPath(targetId);
     case "quote":
       return getAdminQuoteDetailPath(targetId);
+    case "invoice":
+      return getAdminInvoiceDetailPath(targetId);
     case "email":
       return getAdminEmailDetailPath(targetId);
     default:
@@ -696,9 +717,9 @@ export const listAdminUsers = cache(
   },
 );
 
-async function getAdminUserDetailInner(
+async function getAdminUserDetailCoreInner(
   userId: string,
-): Promise<AdminUserDetail | null> {
+): Promise<AdminUserDetailCore | null> {
   const userRows = await db
     .select({
       id: user.id,
@@ -722,14 +743,8 @@ async function getAdminUserDetailInner(
 
   const now = new Date();
 
-  const [
-    subscriptionRows,
-    ownedBusinessRows,
-    activeSessionRows,
-    lastSessionRows,
-    recentAuditRows,
-    adminCountRows,
-  ] = await Promise.all([
+  const [subscriptionRows, activeSessionRows, lastSessionRows, adminCountRows] =
+    await Promise.all([
     db
       .select({
         plan: accountSubscriptions.plan,
@@ -741,21 +756,6 @@ async function getAdminUserDetailInner(
       .where(eq(accountSubscriptions.userId, userId))
       .limit(1),
     db
-      .select({
-        id: businesses.id,
-        name: businesses.name,
-        slug: businesses.slug,
-        plan: businesses.plan,
-      })
-      .from(businesses)
-      .where(
-        and(
-          eq(businesses.ownerUserId, userId),
-          isNull(businesses.deletedAt),
-        ),
-      )
-      .orderBy(desc(businesses.createdAt)),
-    db
       .select({ count: count() })
       .from(session)
       .where(and(eq(session.userId, userId), gt(session.expiresAt, now))),
@@ -763,28 +763,6 @@ async function getAdminUserDetailInner(
       .select({ lastSessionAt: max(session.createdAt) })
       .from(session)
       .where(eq(session.userId, userId)),
-    db
-      .select({
-        id: adminAuditLogs.id,
-        adminUserId: adminAuditLogs.adminUserId,
-        adminEmail: adminAuditLogs.adminEmail,
-        action: adminAuditLogs.action,
-        targetType: adminAuditLogs.targetType,
-        targetId: adminAuditLogs.targetId,
-        metadata: adminAuditLogs.metadata,
-        ipAddress: adminAuditLogs.ipAddress,
-        userAgent: adminAuditLogs.userAgent,
-        createdAt: adminAuditLogs.createdAt,
-      })
-      .from(adminAuditLogs)
-      .where(
-        and(
-          eq(adminAuditLogs.targetType, "user"),
-          eq(adminAuditLogs.targetId, userId),
-        ),
-      )
-      .orderBy(desc(adminAuditLogs.createdAt), desc(adminAuditLogs.id))
-      .limit(10),
     db
       .select({ count: count() })
       .from(user)
@@ -801,28 +779,6 @@ async function getAdminUserDetailInner(
       }
     : null;
 
-  const ownedBusinesses: AdminUserDetailBusiness[] = ownedBusinessRows.map(
-    (row) => ({
-      id: row.id,
-      name: row.name,
-      slug: row.slug,
-      plan: row.plan,
-    }),
-  );
-
-  const recentAuditLogs: AdminAuditLogRow[] = recentAuditRows.map((row) => ({
-    id: row.id,
-    adminUserId: row.adminUserId,
-    adminEmail: row.adminEmail,
-    action: row.action as AdminAction,
-    targetType: row.targetType as AdminTargetType,
-    targetId: row.targetId,
-    metadata: row.metadata,
-    ipAddress: row.ipAddress,
-    userAgent: row.userAgent,
-    createdAt: row.createdAt,
-  }));
-
   const adminCount = Number(adminCountRows[0]?.count ?? 0);
 
   return {
@@ -836,19 +792,107 @@ async function getAdminUserDetailInner(
     createdAt: userRow.createdAt,
     lastSessionAt: lastSessionRows[0]?.lastSessionAt ?? null,
     subscription,
-    ownedBusinesses,
     activeSessionCount: Number(activeSessionRows[0]?.count ?? 0),
-    recentAuditLogs,
     canDemoteTarget: userRow.role === "admin" && adminCount > 1,
   };
 }
 
-/** Detail payload for `/admin/users/[userId]`. Returns `null` when missing. */
-export const getAdminUserDetail = cache(
-  async (userId: string): Promise<AdminUserDetail | null> => {
+async function getAdminUserOwnedBusinessesInner(
+  userId: string,
+): Promise<AdminUserDetailBusiness[]> {
+  const ownedBusinessRows = await db
+    .select({
+      id: businesses.id,
+      name: businesses.name,
+      slug: businesses.slug,
+      plan: businesses.plan,
+    })
+    .from(businesses)
+    .where(
+      and(
+        eq(businesses.ownerUserId, userId),
+        isNull(businesses.deletedAt),
+      ),
+    )
+    .orderBy(desc(businesses.createdAt));
+
+  return ownedBusinessRows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    plan: row.plan,
+  }));
+}
+
+async function getAdminUserRecentAuditLogsInner(
+  userId: string,
+): Promise<AdminAuditLogRow[]> {
+  const recentAuditRows = await db
+    .select({
+      id: adminAuditLogs.id,
+      adminUserId: adminAuditLogs.adminUserId,
+      adminEmail: adminAuditLogs.adminEmail,
+      action: adminAuditLogs.action,
+      targetType: adminAuditLogs.targetType,
+      targetId: adminAuditLogs.targetId,
+      metadata: adminAuditLogs.metadata,
+      ipAddress: adminAuditLogs.ipAddress,
+      userAgent: adminAuditLogs.userAgent,
+      createdAt: adminAuditLogs.createdAt,
+    })
+    .from(adminAuditLogs)
+    .where(
+      and(
+        eq(adminAuditLogs.targetType, "user"),
+        eq(adminAuditLogs.targetId, userId),
+      ),
+    )
+    .orderBy(desc(adminAuditLogs.createdAt), desc(adminAuditLogs.id))
+    .limit(10);
+
+  return recentAuditRows.map((row) => ({
+    id: row.id,
+    adminUserId: row.adminUserId,
+    adminEmail: row.adminEmail,
+    action: row.action as AdminAction,
+    targetType: row.targetType as AdminTargetType,
+    targetId: row.targetId,
+    metadata: row.metadata,
+    ipAddress: row.ipAddress,
+    userAgent: row.userAgent,
+    createdAt: row.createdAt,
+  }));
+}
+
+/**
+ * Staged detail payloads for `/admin/users/[userId]`.
+ *
+ * The core row (identity, subscription, session aggregates) paints the
+ * header, overview stats, and record sidebar first; the owned-business
+ * roster and the recent-audit feed each stream behind their own
+ * boundary.
+ */
+export const getAdminUserDetailCore = cache(
+  async (userId: string): Promise<AdminUserDetailCore | null> => {
     await requireAdminUser();
 
-    return getAdminUserDetailInner(userId);
+    return getAdminUserDetailCoreInner(userId);
+  },
+);
+
+export const getAdminUserOwnedBusinesses = cache(
+  async (userId: string): Promise<AdminUserDetailBusiness[]> => {
+    await requireAdminUser();
+
+    return getAdminUserOwnedBusinessesInner(userId);
+  },
+);
+
+export const getAdminUserRecentAuditLogs = cache(
+  async (userId: string): Promise<AdminAuditLogRow[]> => {
+    await requireAdminUser();
+
+    return getAdminUserRecentAuditLogsInner(userId);
   },
 );
 
@@ -983,9 +1027,9 @@ export const listAdminBusinesses = cache(
   },
 );
 
-async function getAdminBusinessDetailInner(
+async function getAdminBusinessDetailCoreInner(
   businessId: string,
-): Promise<AdminBusinessDetail | null> {
+): Promise<AdminBusinessDetailCore | null> {
   const [rows] = await db
     .select({
       id: businesses.id,
@@ -1010,24 +1054,19 @@ async function getAdminBusinessDetailInner(
   }
 
   const [
-    memberRows,
+    memberCountRows,
     inquiryCountRows,
     quoteCountRows,
     lastInquiryRows,
     lastQuoteSentRows,
   ] = await Promise.all([
+    // Counted with the same inner join the member roster uses, so the
+    // header total always matches the section below.
     db
-      .select({
-        userId: businessMembers.userId,
-        role: businessMembers.role,
-        joinedAt: businessMembers.createdAt,
-        email: user.email,
-        name: user.name,
-      })
+      .select({ count: count() })
       .from(businessMembers)
       .innerJoin(user, eq(user.id, businessMembers.userId))
-      .where(eq(businessMembers.businessId, businessId))
-      .orderBy(businessMembers.createdAt),
+      .where(eq(businessMembers.businessId, businessId)),
     db
       .select({ count: count() })
       .from(inquiries)
@@ -1056,8 +1095,6 @@ async function getAdminBusinessDetailInner(
       ),
   ]);
 
-  const memberCount = memberRows.length;
-
   return {
     id: rows.id,
     name: rows.name,
@@ -1066,14 +1103,7 @@ async function getAdminBusinessDetailInner(
     ownerUserId: rows.ownerUserId,
     ownerEmail: rows.ownerEmail,
     ownerName: rows.ownerName,
-    memberCount,
-    members: memberRows.map((row) => ({
-      userId: row.userId,
-      email: row.email,
-      name: row.name,
-      role: row.role as BusinessMemberRole,
-      joinedAt: row.joinedAt,
-    })),
+    memberCount: Number(memberCountRows[0]?.count ?? 0),
     inquiryCount: Number(inquiryCountRows[0]?.count ?? 0),
     quoteCount: Number(quoteCountRows[0]?.count ?? 0),
     lastInquiryAt: lastInquiryRows[0]?.lastInquiryAt ?? null,
@@ -1085,12 +1115,51 @@ async function getAdminBusinessDetailInner(
   };
 }
 
-/** Detail payload for `/admin/businesses/[businessId]`. */
-export const getAdminBusinessDetail = cache(
-  async (businessId: string): Promise<AdminBusinessDetail | null> => {
+async function getAdminBusinessMembersInner(
+  businessId: string,
+): Promise<AdminBusinessDetail["members"]> {
+  const memberRows = await db
+    .select({
+      userId: businessMembers.userId,
+      role: businessMembers.role,
+      joinedAt: businessMembers.createdAt,
+      email: user.email,
+      name: user.name,
+    })
+    .from(businessMembers)
+    .innerJoin(user, eq(user.id, businessMembers.userId))
+    .where(eq(businessMembers.businessId, businessId))
+    .orderBy(businessMembers.createdAt);
+
+  return memberRows.map((row) => ({
+    userId: row.userId,
+    email: row.email,
+    name: row.name,
+    role: row.role as BusinessMemberRole,
+    joinedAt: row.joinedAt,
+  }));
+}
+
+/**
+ * Staged detail payloads for `/admin/businesses/[businessId]`.
+ *
+ * The core row (identity, pipeline aggregates, member count) paints the
+ * header, overview, and record sidebar first; the member roster streams
+ * behind its own boundary. Billing already has its own query.
+ */
+export const getAdminBusinessDetailCore = cache(
+  async (businessId: string): Promise<AdminBusinessDetailCore | null> => {
     await requireAdminUser();
 
-    return getAdminBusinessDetailInner(businessId);
+    return getAdminBusinessDetailCoreInner(businessId);
+  },
+);
+
+export const getAdminBusinessMembers = cache(
+  async (businessId: string): Promise<AdminBusinessDetail["members"]> => {
+    await requireAdminUser();
+
+    return getAdminBusinessMembersInner(businessId);
   },
 );
 
@@ -1184,9 +1253,9 @@ export const listAdminInquiries = cache(
   },
 );
 
-async function getAdminInquiryDetailInner(
+async function getAdminInquiryDetailCoreInner(
   inquiryId: string,
-): Promise<AdminInquiryDetail | null> {
+): Promise<AdminInquiryDetailCore | null> {
   const [row] = await db
     .select({
       id: inquiries.id,
@@ -1228,99 +1297,6 @@ async function getAdminInquiryDetailInner(
     return null;
   }
 
-  const [messageRows, noteRows, attachmentRows, linkedQuoteRows] =
-    await Promise.all([
-      db
-        .select({
-          id: inquiryMessages.id,
-          role: inquiryMessages.role,
-          content: inquiryMessages.content,
-          status: inquiryMessages.status,
-          createdAt: inquiryMessages.createdAt,
-        })
-        .from(inquiryMessages)
-        .where(eq(inquiryMessages.inquiryId, inquiryId))
-        .orderBy(asc(inquiryMessages.createdAt), asc(inquiryMessages.id))
-        .limit(50),
-      db
-        .select({
-          id: inquiryNotes.id,
-          body: inquiryNotes.body,
-          createdAt: inquiryNotes.createdAt,
-          authorName: user.name,
-          authorEmail: user.email,
-        })
-        .from(inquiryNotes)
-        .leftJoin(user, eq(user.id, inquiryNotes.authorUserId))
-        .where(eq(inquiryNotes.inquiryId, inquiryId))
-        .orderBy(asc(inquiryNotes.createdAt), asc(inquiryNotes.id))
-        .limit(50),
-      db
-        .select({
-          id: inquiryAttachments.id,
-          fileName: inquiryAttachments.fileName,
-          contentType: inquiryAttachments.contentType,
-          fileSize: inquiryAttachments.fileSize,
-          createdAt: inquiryAttachments.createdAt,
-        })
-        .from(inquiryAttachments)
-        .where(eq(inquiryAttachments.inquiryId, inquiryId))
-        .orderBy(asc(inquiryAttachments.createdAt), asc(inquiryAttachments.id))
-        .limit(50),
-      db
-        .select({
-          id: quotes.id,
-          quoteNumber: quotes.quoteNumber,
-          status: quotes.status,
-          totalInCents: quotes.totalInCents,
-          currency: quotes.currency,
-          sentAt: quotes.sentAt,
-        })
-        .from(quotes)
-        .where(
-          and(eq(quotes.inquiryId, inquiryId), isNull(quotes.deletedAt)),
-        )
-        .orderBy(desc(quotes.createdAt), desc(quotes.id))
-        .limit(20),
-    ]);
-
-  const messages: AdminInquiryMessage[] = messageRows.map((message) => ({
-    id: message.id,
-    role: message.role,
-    content: message.content,
-    status: message.status,
-    createdAt: message.createdAt,
-  }));
-
-  const notes: AdminInquiryNote[] = noteRows.map((note) => ({
-    id: note.id,
-    body: note.body,
-    authorName: note.authorName,
-    authorEmail: note.authorEmail,
-    createdAt: note.createdAt,
-  }));
-
-  const attachments: AdminInquiryAttachment[] = attachmentRows.map(
-    (attachment) => ({
-      id: attachment.id,
-      fileName: attachment.fileName,
-      contentType: attachment.contentType,
-      fileSize: attachment.fileSize,
-      createdAt: attachment.createdAt,
-    }),
-  );
-
-  const linkedQuotes: AdminInquiryLinkedQuote[] = linkedQuoteRows.map(
-    (quote) => ({
-      id: quote.id,
-      quoteNumber: quote.quoteNumber,
-      status: quote.status as QuoteStatus,
-      totalInCents: quote.totalInCents,
-      currency: quote.currency,
-      sentAt: quote.sentAt,
-    }),
-  );
-
   return {
     id: row.id,
     businessId: row.businessId,
@@ -1355,19 +1331,158 @@ async function getAdminInquiryDetailInner(
       name: row.ownerName,
       email: row.ownerEmail,
     },
-    messages,
-    notes,
-    attachments,
-    linkedQuotes,
   };
 }
 
-/** Detail payload for `/admin/inquiries/[inquiryId]`. */
-export const getAdminInquiryDetail = cache(
-  async (inquiryId: string): Promise<AdminInquiryDetail | null> => {
+async function getAdminInquiryMessagesInner(
+  inquiryId: string,
+): Promise<AdminInquiryMessage[]> {
+  const messageRows = await db
+    .select({
+      id: inquiryMessages.id,
+      role: inquiryMessages.role,
+      content: inquiryMessages.content,
+      status: inquiryMessages.status,
+      createdAt: inquiryMessages.createdAt,
+    })
+    .from(inquiryMessages)
+    .where(eq(inquiryMessages.inquiryId, inquiryId))
+    .orderBy(asc(inquiryMessages.createdAt), asc(inquiryMessages.id))
+    .limit(50);
+
+  return messageRows.map((message) => ({
+    id: message.id,
+    role: message.role,
+    content: message.content,
+    status: message.status,
+    createdAt: message.createdAt,
+  }));
+}
+
+async function getAdminInquiryNotesInner(
+  inquiryId: string,
+): Promise<AdminInquiryNote[]> {
+  const noteRows = await db
+    .select({
+      id: inquiryNotes.id,
+      body: inquiryNotes.body,
+      createdAt: inquiryNotes.createdAt,
+      authorName: user.name,
+      authorEmail: user.email,
+    })
+    .from(inquiryNotes)
+    .leftJoin(user, eq(user.id, inquiryNotes.authorUserId))
+    .where(eq(inquiryNotes.inquiryId, inquiryId))
+    .orderBy(asc(inquiryNotes.createdAt), asc(inquiryNotes.id))
+    .limit(50);
+
+  return noteRows.map((note) => ({
+    id: note.id,
+    body: note.body,
+    authorName: note.authorName,
+    authorEmail: note.authorEmail,
+    createdAt: note.createdAt,
+  }));
+}
+
+async function getAdminInquiryAttachmentsInner(
+  inquiryId: string,
+): Promise<AdminInquiryAttachment[]> {
+  const attachmentRows = await db
+    .select({
+      id: inquiryAttachments.id,
+      fileName: inquiryAttachments.fileName,
+      contentType: inquiryAttachments.contentType,
+      fileSize: inquiryAttachments.fileSize,
+      createdAt: inquiryAttachments.createdAt,
+    })
+    .from(inquiryAttachments)
+    .where(eq(inquiryAttachments.inquiryId, inquiryId))
+    .orderBy(asc(inquiryAttachments.createdAt), asc(inquiryAttachments.id))
+    .limit(50);
+
+  return attachmentRows.map((attachment) => ({
+    id: attachment.id,
+    fileName: attachment.fileName,
+    contentType: attachment.contentType,
+    fileSize: attachment.fileSize,
+    createdAt: attachment.createdAt,
+  }));
+}
+
+async function getAdminInquiryLinkedQuotesInner(
+  inquiryId: string,
+): Promise<AdminInquiryLinkedQuote[]> {
+  const linkedQuoteRows = await db
+    .select({
+      id: quotes.id,
+      quoteNumber: quotes.quoteNumber,
+      status: quotes.status,
+      totalInCents: quotes.totalInCents,
+      currency: quotes.currency,
+      sentAt: quotes.sentAt,
+    })
+    .from(quotes)
+    .where(
+      and(eq(quotes.inquiryId, inquiryId), isNull(quotes.deletedAt)),
+    )
+    .orderBy(desc(quotes.createdAt), desc(quotes.id))
+    .limit(20);
+
+  return linkedQuoteRows.map((quote) => ({
+    id: quote.id,
+    quoteNumber: quote.quoteNumber,
+    status: quote.status as QuoteStatus,
+    totalInCents: quote.totalInCents,
+    currency: quote.currency,
+    sentAt: quote.sentAt,
+  }));
+}
+
+/**
+ * Staged detail payloads for `/admin/inquiries/[inquiryId]`.
+ *
+ * The core row (identity, request, customer, business) resolves from a
+ * single indexed lookup so the header paints first; each feed streams
+ * behind its own Suspense boundary.
+ */
+export const getAdminInquiryDetailCore = cache(
+  async (inquiryId: string): Promise<AdminInquiryDetailCore | null> => {
     await requireAdminUser();
 
-    return getAdminInquiryDetailInner(inquiryId);
+    return getAdminInquiryDetailCoreInner(inquiryId);
+  },
+);
+
+export const getAdminInquiryMessages = cache(
+  async (inquiryId: string): Promise<AdminInquiryMessage[]> => {
+    await requireAdminUser();
+
+    return getAdminInquiryMessagesInner(inquiryId);
+  },
+);
+
+export const getAdminInquiryNotes = cache(
+  async (inquiryId: string): Promise<AdminInquiryNote[]> => {
+    await requireAdminUser();
+
+    return getAdminInquiryNotesInner(inquiryId);
+  },
+);
+
+export const getAdminInquiryAttachments = cache(
+  async (inquiryId: string): Promise<AdminInquiryAttachment[]> => {
+    await requireAdminUser();
+
+    return getAdminInquiryAttachmentsInner(inquiryId);
+  },
+);
+
+export const getAdminInquiryLinkedQuotes = cache(
+  async (inquiryId: string): Promise<AdminInquiryLinkedQuote[]> => {
+    await requireAdminUser();
+
+    return getAdminInquiryLinkedQuotesInner(inquiryId);
   },
 );
 
@@ -1469,9 +1584,9 @@ export const listAdminQuotes = cache(
   },
 );
 
-async function getAdminQuoteDetailInner(
+async function getAdminQuoteDetailCoreInner(
   quoteId: string,
-): Promise<AdminQuoteDetail | null> {
+): Promise<AdminQuoteDetailCore | null> {
   const [row] = await db
     .select({
       id: quotes.id,
@@ -1523,121 +1638,6 @@ async function getAdminQuoteDetailInner(
     return null;
   }
 
-  const [itemRows, versionRows, revisionRows, emailRows] = await Promise.all([
-    db
-      .select({
-        id: quoteItems.id,
-        description: quoteItems.description,
-        quantity: quoteItems.quantity,
-        unitPriceInCents: quoteItems.unitPriceInCents,
-        lineTotalInCents: quoteItems.lineTotalInCents,
-        position: quoteItems.position,
-      })
-      .from(quoteItems)
-      .where(eq(quoteItems.quoteId, quoteId))
-      .orderBy(asc(quoteItems.position), asc(quoteItems.id))
-      .limit(100),
-    db
-      .select({
-        id: quoteVersions.id,
-        version: quoteVersions.version,
-        title: quoteVersions.title,
-        totalInCents: quoteVersions.totalInCents,
-        currency: quoteVersions.currency,
-        validUntil: quoteVersions.validUntil,
-        createdAt: quoteVersions.createdAt,
-      })
-      .from(quoteVersions)
-      .where(eq(quoteVersions.quoteId, quoteId))
-      .orderBy(desc(quoteVersions.version))
-      .limit(20),
-    db
-      .select({
-        id: quoteRevisionRequests.id,
-        version: quoteRevisionRequests.version,
-        message: quoteRevisionRequests.message,
-        status: quoteRevisionRequests.status,
-        createdAt: quoteRevisionRequests.createdAt,
-        resolvedAt: quoteRevisionRequests.resolvedAt,
-      })
-      .from(quoteRevisionRequests)
-      .where(eq(quoteRevisionRequests.quoteId, quoteId))
-      .orderBy(desc(quoteRevisionRequests.createdAt), desc(quoteRevisionRequests.id))
-      .limit(20),
-    // Delivery emails for this quote share an idempotency-key prefix
-    // (`quote:<id>:sent:*` for the send, `auto-followup:<id>:attempt:*`
-    // for follow-ups), so a prefix LIKE hits the unique key's btree
-    // instead of scanning. Scoped to the business, newest first.
-    db
-      .select({
-        id: emailOutbox.id,
-        subject: emailOutbox.subject,
-        status: emailOutbox.status,
-        provider: emailOutbox.provider,
-        sentAt: emailOutbox.sentAt,
-        createdAt: emailOutbox.createdAt,
-        attempts: emailOutbox.attempts,
-      })
-      .from(emailOutbox)
-      .where(
-        and(
-          eq(emailOutbox.businessId, row.businessId),
-          or(
-            like(
-              emailOutbox.idempotencyKey,
-              `quote:${escapeLikePattern(quoteId)}:%`,
-            ),
-            like(
-              emailOutbox.idempotencyKey,
-              `auto-followup:${escapeLikePattern(quoteId)}:%`,
-            ),
-          ),
-        ),
-      )
-      .orderBy(desc(emailOutbox.createdAt), desc(emailOutbox.id))
-      .limit(10),
-  ]);
-
-  const items: AdminQuoteItem[] = itemRows.map((item) => ({
-    id: item.id,
-    description: item.description,
-    quantity: item.quantity,
-    unitPriceInCents: item.unitPriceInCents,
-    lineTotalInCents: item.lineTotalInCents,
-    position: item.position,
-  }));
-
-  const versions: AdminQuoteVersion[] = versionRows.map((version) => ({
-    id: version.id,
-    version: version.version,
-    title: version.title,
-    totalInCents: version.totalInCents,
-    currency: version.currency,
-    validUntil: version.validUntil,
-    createdAt: version.createdAt,
-  }));
-
-  const revisionRequests: AdminQuoteRevisionRequest[] = revisionRows.map(
-    (request) => ({
-      id: request.id,
-      version: request.version,
-      message: request.message,
-      status: request.status,
-      createdAt: request.createdAt,
-      resolvedAt: request.resolvedAt,
-    }),
-  );
-
-  const emails: AdminQuoteEmail[] = emailRows.map((email) => ({
-    id: email.id,
-    subject: email.subject,
-    status: email.status as EmailOutboxStatus,
-    provider: email.provider,
-    sentAt: email.sentAt,
-    createdAt: email.createdAt,
-    attempts: email.attempts,
-  }));
-
   return {
     id: row.id,
     businessId: row.businessId,
@@ -1688,19 +1688,502 @@ async function getAdminQuoteDetailInner(
             customerName: row.inquiryCustomerName ?? row.customerName,
             status: row.inquiryStatus as InquiryStatus,
           },
-    items,
-    versions,
-    revisionRequests,
-    emails,
   };
 }
 
-/** Detail payload for `/admin/quotes/[quoteId]`. */
-export const getAdminQuoteDetail = cache(
-  async (quoteId: string): Promise<AdminQuoteDetail | null> => {
+async function getAdminQuoteItemsInner(
+  quoteId: string,
+): Promise<AdminQuoteItem[]> {
+  const itemRows = await db
+    .select({
+      id: quoteItems.id,
+      description: quoteItems.description,
+      quantity: quoteItems.quantity,
+      unitPriceInCents: quoteItems.unitPriceInCents,
+      lineTotalInCents: quoteItems.lineTotalInCents,
+      position: quoteItems.position,
+    })
+    .from(quoteItems)
+    .where(eq(quoteItems.quoteId, quoteId))
+    .orderBy(asc(quoteItems.position), asc(quoteItems.id))
+    .limit(100);
+
+  return itemRows.map((item) => ({
+    id: item.id,
+    description: item.description,
+    quantity: item.quantity,
+    unitPriceInCents: item.unitPriceInCents,
+    lineTotalInCents: item.lineTotalInCents,
+    position: item.position,
+  }));
+}
+
+async function getAdminQuoteVersionsInner(
+  quoteId: string,
+): Promise<AdminQuoteVersion[]> {
+  const versionRows = await db
+    .select({
+      id: quoteVersions.id,
+      version: quoteVersions.version,
+      title: quoteVersions.title,
+      totalInCents: quoteVersions.totalInCents,
+      currency: quoteVersions.currency,
+      validUntil: quoteVersions.validUntil,
+      createdAt: quoteVersions.createdAt,
+    })
+    .from(quoteVersions)
+    .where(eq(quoteVersions.quoteId, quoteId))
+    .orderBy(desc(quoteVersions.version))
+    .limit(20);
+
+  return versionRows.map((version) => ({
+    id: version.id,
+    version: version.version,
+    title: version.title,
+    totalInCents: version.totalInCents,
+    currency: version.currency,
+    validUntil: version.validUntil,
+    createdAt: version.createdAt,
+  }));
+}
+
+async function getAdminQuoteRevisionRequestsInner(
+  quoteId: string,
+): Promise<AdminQuoteRevisionRequest[]> {
+  const revisionRows = await db
+    .select({
+      id: quoteRevisionRequests.id,
+      version: quoteRevisionRequests.version,
+      message: quoteRevisionRequests.message,
+      status: quoteRevisionRequests.status,
+      createdAt: quoteRevisionRequests.createdAt,
+      resolvedAt: quoteRevisionRequests.resolvedAt,
+    })
+    .from(quoteRevisionRequests)
+    .where(eq(quoteRevisionRequests.quoteId, quoteId))
+    .orderBy(desc(quoteRevisionRequests.createdAt), desc(quoteRevisionRequests.id))
+    .limit(20);
+
+  return revisionRows.map((request) => ({
+    id: request.id,
+    version: request.version,
+    message: request.message,
+    status: request.status,
+    createdAt: request.createdAt,
+    resolvedAt: request.resolvedAt,
+  }));
+}
+
+async function getAdminQuoteEmailsInner(
+  quoteId: string,
+  businessId: string,
+): Promise<AdminQuoteEmail[]> {
+  // Delivery emails for this quote share an idempotency-key prefix
+  // (`quote:<id>:sent:*` for the send, `auto-followup:<id>:attempt:*`
+  // for follow-ups), so a prefix LIKE hits the unique key's btree
+  // instead of scanning. Scoped to the business, newest first.
+  const emailRows = await db
+    .select({
+      id: emailOutbox.id,
+      subject: emailOutbox.subject,
+      status: emailOutbox.status,
+      provider: emailOutbox.provider,
+      sentAt: emailOutbox.sentAt,
+      createdAt: emailOutbox.createdAt,
+      attempts: emailOutbox.attempts,
+    })
+    .from(emailOutbox)
+    .where(
+      and(
+        eq(emailOutbox.businessId, businessId),
+        or(
+          like(
+            emailOutbox.idempotencyKey,
+            `quote:${escapeLikePattern(quoteId)}:%`,
+          ),
+          like(
+            emailOutbox.idempotencyKey,
+            `auto-followup:${escapeLikePattern(quoteId)}:%`,
+          ),
+        ),
+      ),
+    )
+    .orderBy(desc(emailOutbox.createdAt), desc(emailOutbox.id))
+    .limit(10);
+
+  return emailRows.map((email) => ({
+    id: email.id,
+    subject: email.subject,
+    status: email.status as EmailOutboxStatus,
+    provider: email.provider,
+    sentAt: email.sentAt,
+    createdAt: email.createdAt,
+    attempts: email.attempts,
+  }));
+}
+
+/**
+ * Staged detail payloads for `/admin/quotes/[quoteId]`.
+ *
+ * The core row (identity, amounts, delivery timestamps, linked inquiry)
+ * paints the header and key sections first; items, versions, revision
+ * requests, and delivery emails each stream behind their own boundary.
+ */
+export const getAdminQuoteDetailCore = cache(
+  async (quoteId: string): Promise<AdminQuoteDetailCore | null> => {
     await requireAdminUser();
 
-    return getAdminQuoteDetailInner(quoteId);
+    return getAdminQuoteDetailCoreInner(quoteId);
+  },
+);
+
+export const getAdminQuoteItems = cache(
+  async (quoteId: string): Promise<AdminQuoteItem[]> => {
+    await requireAdminUser();
+
+    return getAdminQuoteItemsInner(quoteId);
+  },
+);
+
+export const getAdminQuoteVersions = cache(
+  async (quoteId: string): Promise<AdminQuoteVersion[]> => {
+    await requireAdminUser();
+
+    return getAdminQuoteVersionsInner(quoteId);
+  },
+);
+
+export const getAdminQuoteRevisionRequests = cache(
+  async (quoteId: string): Promise<AdminQuoteRevisionRequest[]> => {
+    await requireAdminUser();
+
+    return getAdminQuoteRevisionRequestsInner(quoteId);
+  },
+);
+
+export const getAdminQuoteEmails = cache(
+  async (quoteId: string, businessId: string): Promise<AdminQuoteEmail[]> => {
+    await requireAdminUser();
+
+    return getAdminQuoteEmailsInner(quoteId, businessId);
+  },
+);
+
+/* ── Invoices ────────────────────────────────────────────────────────────── */
+
+/** Non-voided payments summed per invoice (mirrors the business queries). */
+const adminInvoicePaidSql = sql<number>`coalesce((select sum(${payments.amountInCents}) from ${payments} where ${payments.invoiceId} = ${invoices.id} and ${payments.businessId} = ${invoices.businessId} and ${payments.voidedAt} is null), 0)`;
+
+function buildInvoiceSearchCondition(search: string) {
+  const pattern = likePattern(search);
+
+  return or(
+    ilike(invoices.invoiceNumber, pattern),
+    ilike(invoices.title, pattern),
+    ilike(invoices.customerName, pattern),
+    ilike(invoices.customerEmail, pattern),
+  );
+}
+
+async function listAdminInvoicesInner(
+  filters: AdminInvoicesListFilters,
+): Promise<AdminPaginatedResult<AdminInvoiceRow>> {
+  const { page, pageSize, search, status } = filters;
+  const offset = toOffset(page, pageSize);
+
+  const conditions = [isNull(invoices.deletedAt)];
+
+  if (search) {
+    const searchCondition = buildInvoiceSearchCondition(search);
+
+    if (searchCondition) {
+      conditions.push(searchCondition);
+    }
+  }
+
+  if (status) {
+    // Match the effective status (payments + due date applied), not the
+    // stored row — the same expression the business invoice list uses.
+    conditions.push(sql`${effectiveInvoiceStatusSql} = ${status}::invoice_status`);
+  }
+
+  const where = and(...conditions);
+
+  const [rows, totalRows] = await Promise.all([
+    db
+      .select({
+        id: invoices.id,
+        invoiceNumber: invoices.invoiceNumber,
+        title: invoices.title,
+        customerName: invoices.customerName,
+        customerEmail: invoices.customerEmail,
+        storedStatus: invoices.status,
+        totalInCents: invoices.totalInCents,
+        currency: invoices.currency,
+        dueDate: invoices.dueDate,
+        sentAt: invoices.sentAt,
+        createdAt: invoices.createdAt,
+        paidInCents: adminInvoicePaidSql,
+        businessId: invoices.businessId,
+        businessName: businesses.name,
+      })
+      .from(invoices)
+      .innerJoin(businesses, eq(businesses.id, invoices.businessId))
+      .where(where)
+      .orderBy(desc(invoices.createdAt), desc(invoices.id))
+      .limit(pageSize)
+      .offset(offset),
+    db.select({ count: count() }).from(invoices).where(where),
+  ]);
+
+  return {
+    items: rows.map((row): AdminInvoiceRow => {
+      const state = calculateInvoicePaymentState({
+        totalInCents: row.totalInCents,
+        paidInCents: Number(row.paidInCents ?? 0),
+        dueDate: row.dueDate,
+        lifecycleStatus: row.storedStatus as InvoiceStatus,
+      });
+
+      return {
+        id: row.id,
+        invoiceNumber: row.invoiceNumber,
+        title: row.title,
+        customerName: row.customerName,
+        customerEmail: row.customerEmail,
+        status: state.status,
+        totalInCents: row.totalInCents,
+        balanceInCents: state.balanceInCents,
+        currency: row.currency,
+        dueDate: row.dueDate,
+        sentAt: row.sentAt,
+        createdAt: row.createdAt,
+        businessId: row.businessId,
+        businessName: row.businessName,
+      };
+    }),
+    total: Number(totalRows[0]?.count ?? 0),
+  };
+}
+
+/**
+ * Paginated cross-business invoice list for `/admin/invoices`.
+ *
+ * Soft-deleted rows are excluded. Search matches invoice number, title,
+ * customer name, or customer email as a case-insensitive substring.
+ * The status filter matches the effective status. Default ordering is
+ * `createdAt` DESC.
+ */
+export const listAdminInvoices = cache(
+  async (
+    input: AdminInvoicesListFilters,
+  ): Promise<AdminPaginatedResult<AdminInvoiceRow>> => {
+    await requireAdminUser();
+
+    const filters = adminInvoicesListFiltersSchema.parse(input);
+    return listAdminInvoicesInner(filters);
+  },
+);
+
+async function getAdminInvoiceDetailCoreInner(
+  invoiceId: string,
+): Promise<AdminInvoiceDetailCore | null> {
+  const [row] = await db
+    .select({
+      id: invoices.id,
+      businessId: invoices.businessId,
+      quoteId: invoices.quoteId,
+      invoiceNumber: invoices.invoiceNumber,
+      title: invoices.title,
+      customerName: invoices.customerName,
+      customerEmail: invoices.customerEmail,
+      customerContactMethod: invoices.customerContactMethod,
+      customerContactHandle: invoices.customerContactHandle,
+      storedStatus: invoices.status,
+      currency: invoices.currency,
+      notes: invoices.notes,
+      paymentTerms: invoices.paymentTerms,
+      subtotalInCents: invoices.subtotalInCents,
+      discountInCents: invoices.discountInCents,
+      taxInCents: invoices.taxInCents,
+      totalInCents: invoices.totalInCents,
+      issueDate: invoices.issueDate,
+      dueDate: invoices.dueDate,
+      sentAt: invoices.sentAt,
+      voidedAt: invoices.voidedAt,
+      voidReason: invoices.voidReason,
+      deletedAt: invoices.deletedAt,
+      createdAt: invoices.createdAt,
+      updatedAt: invoices.updatedAt,
+      businessName: businesses.name,
+      businessSlug: businesses.slug,
+      businessPlan: businesses.plan,
+      ownerUserId: businesses.ownerUserId,
+      ownerName: user.name,
+      ownerEmail: user.email,
+      quoteNumber: quotes.quoteNumber,
+      quoteStatus: quotes.status,
+      // Scalar sum keeps the core row cheap: the recorded-payment rows
+      // stream separately, but the verdict needs a total now.
+      paidInCents: adminInvoicePaidSql,
+    })
+    .from(invoices)
+    .innerJoin(businesses, eq(businesses.id, invoices.businessId))
+    .innerJoin(user, eq(user.id, businesses.ownerUserId))
+    .leftJoin(quotes, eq(quotes.id, invoices.quoteId))
+    .where(eq(invoices.id, invoiceId))
+    .limit(1);
+
+  if (!row) {
+    return null;
+  }
+
+  const state = calculateInvoicePaymentState({
+    totalInCents: row.totalInCents,
+    paidInCents: Number(row.paidInCents ?? 0),
+    dueDate: row.dueDate,
+    lifecycleStatus: row.storedStatus as InvoiceStatus,
+  });
+
+  return {
+    id: row.id,
+    businessId: row.businessId,
+    invoiceNumber: row.invoiceNumber,
+    title: row.title,
+    customerName: row.customerName,
+    customerEmail: row.customerEmail,
+    customerContactMethod: row.customerContactMethod,
+    customerContactHandle: row.customerContactHandle,
+    status: state.status,
+    currency: row.currency,
+    notes: row.notes,
+    paymentTerms: row.paymentTerms,
+    subtotalInCents: row.subtotalInCents,
+    discountInCents: row.discountInCents,
+    taxInCents: row.taxInCents,
+    totalInCents: row.totalInCents,
+    paidInCents: state.paidInCents,
+    balanceInCents: state.balanceInCents,
+    issueDate: row.issueDate,
+    dueDate: row.dueDate,
+    sentAt: row.sentAt,
+    voidedAt: row.voidedAt,
+    voidReason: row.voidReason,
+    deletedAt: row.deletedAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    business: {
+      id: row.businessId,
+      name: row.businessName,
+      slug: row.businessSlug,
+      plan: row.businessPlan,
+    },
+    owner: {
+      userId: row.ownerUserId,
+      name: row.ownerName,
+      email: row.ownerEmail,
+    },
+    linkedQuote:
+      row.quoteId && row.quoteNumber && row.quoteStatus
+        ? {
+            id: row.quoteId,
+            quoteNumber: row.quoteNumber,
+            status: row.quoteStatus as QuoteStatus,
+          }
+        : null,
+  };
+}
+
+async function getAdminInvoiceItemsInner(
+  invoiceId: string,
+): Promise<AdminInvoiceItem[]> {
+  const itemRows = await db
+    .select({
+      id: invoiceLineItems.id,
+      description: invoiceLineItems.description,
+      quantity: invoiceLineItems.quantity,
+      unitPriceInCents: invoiceLineItems.unitPriceInCents,
+      lineTotalInCents: invoiceLineItems.lineTotalInCents,
+      position: invoiceLineItems.position,
+    })
+    .from(invoiceLineItems)
+    .where(eq(invoiceLineItems.invoiceId, invoiceId))
+    .orderBy(asc(invoiceLineItems.position), asc(invoiceLineItems.id));
+
+  return itemRows.map((item) => ({
+    id: item.id,
+    description: item.description,
+    quantity: item.quantity,
+    unitPriceInCents: item.unitPriceInCents,
+    lineTotalInCents: item.lineTotalInCents,
+    position: item.position,
+  }));
+}
+
+async function getAdminInvoicePaymentsInner(
+  invoiceId: string,
+): Promise<AdminInvoicePayment[]> {
+  const paymentRows = await db
+    .select({
+      id: payments.id,
+      amountInCents: payments.amountInCents,
+      paymentDate: payments.paymentDate,
+      method: payments.method,
+      reference: payments.reference,
+      notes: payments.notes,
+      createdByName: user.name,
+      voidedAt: payments.voidedAt,
+      voidReason: payments.voidReason,
+      createdAt: payments.createdAt,
+    })
+    .from(payments)
+    .leftJoin(user, eq(payments.createdBy, user.id))
+    .where(eq(payments.invoiceId, invoiceId))
+    .orderBy(desc(payments.paymentDate), desc(payments.createdAt));
+
+  return paymentRows.map((payment) => ({
+    id: payment.id,
+    amountInCents: payment.amountInCents,
+    paymentDate: payment.paymentDate,
+    method: payment.method as PaymentMethod,
+    reference: payment.reference,
+    notes: payment.notes,
+    createdByName: payment.createdByName,
+    voidedAt: payment.voidedAt,
+    voidReason: payment.voidReason,
+    createdAt: payment.createdAt,
+  }));
+}
+
+/**
+ * Staged detail payloads for `/admin/invoices/[invoiceId]`.
+ *
+ * The core row (identity, amounts, paid/balance totals from a scalar
+ * payments sum, linked quote) paints the header, payment verdict,
+ * amounts, and sidebars first; the line items and the recorded-payments
+ * feed each stream behind their own boundary.
+ */
+export const getAdminInvoiceDetailCore = cache(
+  async (invoiceId: string): Promise<AdminInvoiceDetailCore | null> => {
+    await requireAdminUser();
+
+    return getAdminInvoiceDetailCoreInner(invoiceId);
+  },
+);
+
+export const getAdminInvoiceItems = cache(
+  async (invoiceId: string): Promise<AdminInvoiceItem[]> => {
+    await requireAdminUser();
+
+    return getAdminInvoiceItemsInner(invoiceId);
+  },
+);
+
+export const getAdminInvoicePayments = cache(
+  async (invoiceId: string): Promise<AdminInvoicePayment[]> => {
+    await requireAdminUser();
+
+    return getAdminInvoicePaymentsInner(invoiceId);
   },
 );
 
@@ -1965,13 +2448,11 @@ export const getAdminUserBillingActivity = cache(
 );
 
 /**
- * Every plan signal for `/admin/businesses/[businessId]`.
+ * Billing picture for `/admin/businesses/[businessId]`.
  *
- * Returns null when the business does not exist. Otherwise returns three
- * separately-labelled facts: the denormalized `businesses.plan` read cache
- * (what the product enforces), the owner's full `account_subscriptions`
- * detail, and the business-scoped `business_subscriptions` row. Callers
- * must label each distinctly — the two subscription tables can disagree.
+ * Business-scoped only: the `businesses.plan` read cache plus the
+ * authoritative `business_subscriptions` row. The legacy
+ * `account_subscriptions` table is intentionally not read here.
  */
 export const getAdminBusinessBilling = cache(
   async (businessId: string): Promise<AdminBusinessBilling | null> => {
@@ -1981,11 +2462,8 @@ export const getAdminBusinessBilling = cache(
       .select({
         id: businesses.id,
         plan: businesses.plan,
-        ownerUserId: businesses.ownerUserId,
-        ownerEmail: user.email,
       })
       .from(businesses)
-      .innerJoin(user, eq(user.id, businesses.ownerUserId))
       .where(eq(businesses.id, businessId))
       .limit(1);
 
@@ -1993,28 +2471,23 @@ export const getAdminBusinessBilling = cache(
       return null;
     }
 
-    const [accountRow, businessSubscriptionRows] = await Promise.all([
-      selectAdminSubscriptionBaseRow(
-        eq(accountSubscriptions.userId, businessRow.ownerUserId),
-      ),
-      db
-        .select({
-          id: businessSubscriptions.id,
-          plan: businessSubscriptions.plan,
-          status: businessSubscriptions.status,
-          provider: businessSubscriptions.billingProvider,
-          currentPeriodEnd: businessSubscriptions.currentPeriodEnd,
-          canceledAt: businessSubscriptions.canceledAt,
-        })
-        .from(businessSubscriptions)
-        .where(eq(businessSubscriptions.businessId, businessId))
-        .limit(1),
-    ]);
+    const [businessSubscriptionRow] = await db
+      .select({
+        id: businessSubscriptions.id,
+        plan: businessSubscriptions.plan,
+        status: businessSubscriptions.status,
+        provider: businessSubscriptions.billingProvider,
+        currentPeriodEnd: businessSubscriptions.currentPeriodEnd,
+        canceledAt: businessSubscriptions.canceledAt,
+      })
+      .from(businessSubscriptions)
+      .where(eq(businessSubscriptions.businessId, businessId))
+      .limit(1);
 
-    const businessSubscriptionRow = businessSubscriptionRows[0] ?? null;
-
-    const businessSubscription: AdminBusinessSubscriptionSummary | null =
-      businessSubscriptionRow
+    return {
+      businessId: businessRow.id,
+      plan: businessRow.plan,
+      subscription: businessSubscriptionRow
         ? {
             id: businessSubscriptionRow.id,
             plan: businessSubscriptionRow.plan,
@@ -2023,17 +2496,7 @@ export const getAdminBusinessBilling = cache(
             currentPeriodEnd: businessSubscriptionRow.currentPeriodEnd,
             canceledAt: businessSubscriptionRow.canceledAt,
           }
-        : null;
-
-    return {
-      businessId: businessRow.id,
-      effectivePlan: businessRow.plan,
-      ownerUserId: businessRow.ownerUserId,
-      ownerEmail: businessRow.ownerEmail,
-      accountSubscription: accountRow
-        ? await assembleAdminSubscriptionDetail(accountRow)
         : null,
-      businessSubscription,
     };
   },
 );
@@ -2473,11 +2936,52 @@ export async function getAdminAiCapacity(): Promise<AdminAiCapacityEntry[]> {
       minuteUsage: entry.minuteUsage,
       dayUsage: entry.dayUsage,
       available: entry.available,
+      rpm: entry.rpm,
+      rpd: entry.rpd,
+      tpm: entry.tpm,
+      tpd: entry.tpd,
+      tokenUsage: entry.tokenUsage,
+      dailyTokenUsage: entry.dailyTokenUsage,
+      neuronUsageMilli: entry.neuronUsageMilli,
+      neuronPool: entry.neuronPool,
     }))
     .sort((a, b) => b.loadRatio - a.loadRatio);
 }
 
 /* ── Emails ─────────────────────────────────────────────────────────────── */
+
+/**
+ * Local send volumes plus live provider quotas for `/admin/emails`.
+ *
+ * Local counts are fresh DB aggregates over `email_outbox`. Live quotas
+ * come from `getEmailProviderQuotas()` (5-minute cache, fail-soft per
+ * provider). Never cached here and never part of the list payload —
+ * call it from its own Suspense boundary like AI capacity.
+ */
+export async function getAdminEmailQuotas(): Promise<AdminEmailQuotas> {
+  await requireAdminUser();
+
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  const { getEmailProviderQuotas } = await import("@/lib/email/provider-quotas");
+
+  const [sent24hRows, sent7dRows, failed24hRows, live] = await Promise.all([
+    db.select({ count: count() }).from(emailOutbox).where(and(eq(emailOutbox.status, "sent"), gte(emailOutbox.createdAt, since24h))),
+    db.select({ count: count() }).from(emailOutbox).where(and(eq(emailOutbox.status, "sent"), gte(emailOutbox.createdAt, since7d))),
+    db.select({ count: count() }).from(emailOutbox).where(and(eq(emailOutbox.status, "failed"), gte(emailOutbox.createdAt, since24h))),
+    getEmailProviderQuotas(),
+  ]);
+
+  const quotas: AdminEmailQuota[] = live.map((q) => ({ ...q }));
+
+  return {
+    sentLast24h: Number(sent24hRows[0]?.count ?? 0),
+    sentLast7d: Number(sent7dRows[0]?.count ?? 0),
+    failedLast24h: Number(failed24hRows[0]?.count ?? 0),
+    quotas,
+  };
+}
 
 function buildEmailSearchCondition(search: string) {
   const pattern = likePattern(search);
@@ -2582,9 +3086,9 @@ export const listAdminEmails = cache(
   },
 );
 
-async function getAdminEmailDetailInner(
+async function getAdminEmailDetailCoreInner(
   emailId: string,
-): Promise<AdminEmailDetail | null> {
+): Promise<AdminEmailDetailCore | null> {
   const [row] = await db
     .select({
       id: emailOutbox.id,
@@ -2612,28 +3116,70 @@ async function getAdminEmailDetailInner(
     return null;
   }
 
-  // Privacy contract: auth email bodies never leave the database. The
-  // second select only runs for non-auth types, so verification codes
-  // and magic links cannot reach the browser even through the RSC
-  // payload. `cc`/`bcc` are never selected at all.
-  const bodyRedacted = row.type === "auth";
-  let html: string | null = null;
-  let textBody: string | null = null;
+  return {
+    id: row.id,
+    businessId: row.businessId,
+    businessName: row.businessName,
+    type: row.type,
+    recipients: row.recipients,
+    subject: row.subject,
+    bodyRedacted: row.type === "auth",
+    status: row.status as EmailOutboxStatus,
+    provider: row.provider,
+    providerMessageId: row.providerMessageId,
+    attempts: row.attempts,
+    lastError: row.lastError,
+    idempotencyKey: row.idempotencyKey,
+    sentAt: row.sentAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
 
-  if (!bodyRedacted) {
-    const [bodyRow] = await db
-      .select({
-        html: emailOutbox.html,
-        textBody: emailOutbox.textBody,
-      })
-      .from(emailOutbox)
-      .where(eq(emailOutbox.id, emailId))
-      .limit(1);
+/**
+ * Body slice of `/admin/emails/[emailId]`.
+ *
+ * Privacy contract: auth email bodies never leave the database. The row
+ * type is read first and the body select only runs for non-auth types,
+ * so verification codes and magic links cannot reach the browser even
+ * through the RSC payload. `cc`/`bcc` are never selected at all.
+ */
+async function getAdminEmailBodyInner(
+  emailId: string,
+): Promise<AdminEmailBody | null> {
+  const [row] = await db
+    .select({ type: emailOutbox.type })
+    .from(emailOutbox)
+    .where(eq(emailOutbox.id, emailId))
+    .limit(1);
 
-    html = bodyRow?.html ?? null;
-    textBody = bodyRow?.textBody ?? null;
+  if (!row) {
+    return null;
   }
 
+  if (row.type === "auth") {
+    return { html: null, textBody: null, bodyRedacted: true };
+  }
+
+  const [bodyRow] = await db
+    .select({
+      html: emailOutbox.html,
+      textBody: emailOutbox.textBody,
+    })
+    .from(emailOutbox)
+    .where(eq(emailOutbox.id, emailId))
+    .limit(1);
+
+  return {
+    html: bodyRow?.html ?? null,
+    textBody: bodyRow?.textBody ?? null,
+    bodyRedacted: false,
+  };
+}
+
+async function getAdminEmailTimelineInner(
+  emailId: string,
+): Promise<AdminEmailAttempt[]> {
   const attemptRows = await db
     .select({
       id: emailAttempts.id,
@@ -2647,7 +3193,7 @@ async function getAdminEmailDetailInner(
     .where(eq(emailAttempts.emailOutboxId, emailId))
     .orderBy(asc(emailAttempts.createdAt), asc(emailAttempts.id));
 
-  const timeline: AdminEmailAttempt[] = attemptRows.map((attempt) => ({
+  return attemptRows.map((attempt) => ({
     id: attempt.id,
     provider: attempt.provider,
     status: attempt.status,
@@ -2655,36 +3201,37 @@ async function getAdminEmailDetailInner(
     retryable: attempt.retryable,
     createdAt: attempt.createdAt,
   }));
-
-  return {
-    id: row.id,
-    businessId: row.businessId,
-    businessName: row.businessName,
-    type: row.type,
-    recipients: row.recipients,
-    subject: row.subject,
-    html,
-    textBody,
-    bodyRedacted,
-    status: row.status as EmailOutboxStatus,
-    provider: row.provider,
-    providerMessageId: row.providerMessageId,
-    attempts: row.attempts,
-    lastError: row.lastError,
-    idempotencyKey: row.idempotencyKey,
-    sentAt: row.sentAt,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    timeline,
-  };
 }
 
-/** Detail payload for `/admin/emails/[emailId]`. */
-export const getAdminEmailDetail = cache(
-  async (emailId: string): Promise<AdminEmailDetail | null> => {
+/**
+ * Staged detail payloads for `/admin/emails/[emailId]`.
+ *
+ * The core row (identity, delivery state, recipients) paints the header,
+ * delivery section, and business sidebar first; the (potentially large)
+ * body and the provider-attempt timeline each stream behind their own
+ * boundary.
+ */
+export const getAdminEmailDetailCore = cache(
+  async (emailId: string): Promise<AdminEmailDetailCore | null> => {
     await requireAdminUser();
 
-    return getAdminEmailDetailInner(emailId);
+    return getAdminEmailDetailCoreInner(emailId);
+  },
+);
+
+export const getAdminEmailBody = cache(
+  async (emailId: string): Promise<AdminEmailBody | null> => {
+    await requireAdminUser();
+
+    return getAdminEmailBodyInner(emailId);
+  },
+);
+
+export const getAdminEmailTimeline = cache(
+  async (emailId: string): Promise<AdminEmailAttempt[]> => {
+    await requireAdminUser();
+
+    return getAdminEmailTimelineInner(emailId);
   },
 );
 
@@ -2741,6 +3288,7 @@ async function getCachedAdminUsageReport(
     quoteRows,
     emailRows,
     aiRows,
+    aiSpendRows,
   ] = await Promise.all([
     db
       .select({ day: dayKey(user.createdAt), count: sql<number>`count(*)::int` })
@@ -2776,6 +3324,14 @@ async function getCachedAdminUsageReport(
       .from(aiTokenLogs)
       .where(gte(aiTokenLogs.createdAt, since))
       .groupBy(sql`1`),
+    db
+      .select({
+        tokens: sql<number>`coalesce(sum(${aiTokenLogs.totalTokens}), 0)::int`,
+        costCents: sql<number>`coalesce(sum(${aiTokenLogs.estimatedCostCents}), 0)::int`,
+        unpriced: sql<number>`count(*) filter (where ${aiTokenLogs.estimatedCostCents} is null)::int`,
+      })
+      .from(aiTokenLogs)
+      .where(gte(aiTokenLogs.createdAt, since)),
   ]);
 
   const buckets = emptyUsageBuckets();
@@ -2835,15 +3391,20 @@ async function getCachedAdminUsageReport(
     to: series[series.length - 1]?.date ?? "",
     series,
     totals,
+    aiTokens: Number(aiSpendRows[0]?.tokens ?? 0),
+    aiCostCents: Number(aiSpendRows[0]?.costCents ?? 0),
+    aiUnpricedCalls: Number(aiSpendRows[0]?.unpriced ?? 0),
   };
 }
 
 /**
  * Platform activity per day for `/admin/usage`.
  *
- * Six bounded `date_trunc('day', …)` aggregates merged and zero-filled in
- * JS. No storage-usage series exists, so none is shown. `"use cache"` is
- * argument-scoped, so each day-range caches separately for 60 seconds.
+ * Seven bounded aggregates merged and zero-filled in
+ * JS (six per-day `date_trunc('day', …)` series plus one range-wide AI
+ * spend rollup). No storage-usage series exists, so none is shown.
+ * `"use cache"` is argument-scoped, so each day-range caches separately
+ * for 60 seconds.
  */
 export const getAdminUsageReport = cache(
   async (days = 30): Promise<AdminUsageReport> => {

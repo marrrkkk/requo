@@ -28,6 +28,7 @@ import {
 import { businessPlans, type BusinessPlan } from "@/lib/plans/plans";
 import { inquiryStatuses } from "@/features/inquiries/types";
 import { quoteStatuses } from "@/features/quotes/types";
+import { invoiceStatuses } from "@/features/invoices/types";
 import {
   ADMIN_USAGE_BUSINESS_RESOURCES,
 } from "@/features/admin/types";
@@ -166,6 +167,56 @@ export const adminManualPlanOverrideSchema = z
 export const adminForceCancelSubscriptionSchema = z
   .object({
     subscriptionId: adminIdSchema,
+    reason: z
+      .string()
+      .trim()
+      .max(500, "Cancellation reasons must be 500 characters or fewer.")
+      .optional(),
+    confirmToken: adminConfirmTokenSchema,
+  })
+  .strict();
+
+/* ── Business lifecycle mutations ────────────────────────────────────────── */
+
+export const adminArchiveBusinessSchema = z
+  .object({
+    businessId: adminIdSchema,
+    confirmToken: adminConfirmTokenSchema,
+  })
+  .strict();
+
+export const adminRestoreBusinessSchema = z
+  .object({
+    businessId: adminIdSchema,
+    confirmToken: adminConfirmTokenSchema,
+  })
+  .strict();
+
+export const adminDeleteBusinessSchema = z
+  .object({
+    businessId: adminIdSchema,
+    confirmToken: adminConfirmTokenSchema,
+  })
+  .strict();
+
+/* ── Business subscription mutations (business-scoped) ───────────────────── */
+
+export const adminOverrideBusinessPlanSchema = z
+  .object({
+    businessId: adminIdSchema,
+    plan: paidPlanSchema,
+    reason: z
+      .string()
+      .trim()
+      .max(500, "Override reasons must be 500 characters or fewer.")
+      .optional(),
+    confirmToken: adminConfirmTokenSchema,
+  })
+  .strict();
+
+export const adminCancelBusinessSubscriptionSchema = z
+  .object({
+    businessId: adminIdSchema,
     reason: z
       .string()
       .trim()
@@ -376,6 +427,20 @@ export const adminQuotesListFiltersSchema = z.preprocess(
   }),
 );
 
+export const adminInvoicesListFiltersSchema = z.preprocess(
+  normalizeSearchAlias,
+  z.object({
+    status: z
+      .preprocess(
+        (value) => emptyToUndefined(firstString(value)),
+        z.enum(invoiceStatuses).optional(),
+      )
+      .catch(undefined),
+    ...searchQueryShape,
+    ...paginationShape,
+  }),
+);
+
 /** Parse an optional `YYYY-MM-DD` date param, tolerating garbage. */
 function toOptionalDate(value: unknown): Date | undefined {
   const first = firstString(value);
@@ -562,6 +627,21 @@ export type AdminManualPlanOverrideInput = z.infer<
 export type AdminForceCancelSubscriptionInput = z.infer<
   typeof adminForceCancelSubscriptionSchema
 >;
+export type AdminArchiveBusinessInput = z.infer<
+  typeof adminArchiveBusinessSchema
+>;
+export type AdminRestoreBusinessInput = z.infer<
+  typeof adminRestoreBusinessSchema
+>;
+export type AdminDeleteBusinessInput = z.infer<
+  typeof adminDeleteBusinessSchema
+>;
+export type AdminOverrideBusinessPlanInput = z.infer<
+  typeof adminOverrideBusinessPlanSchema
+>;
+export type AdminCancelBusinessSubscriptionInput = z.infer<
+  typeof adminCancelBusinessSubscriptionSchema
+>;
 export type AdminStartImpersonationInput = z.infer<
   typeof adminStartImpersonationSchema
 >;
@@ -582,6 +662,9 @@ export type AdminInquiriesListFilters = z.infer<
   typeof adminInquiriesListFiltersSchema
 >;
 export type AdminQuotesListFilters = z.infer<typeof adminQuotesListFiltersSchema>;
+export type AdminInvoicesListFilters = z.infer<
+  typeof adminInvoicesListFiltersSchema
+>;
 export type AdminAiRequestsListFilters = z.infer<
   typeof adminAiRequestsFiltersSchema
 >;

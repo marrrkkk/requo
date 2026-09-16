@@ -14,6 +14,10 @@ import type {
 } from "@/features/admin/constants";
 import type { InquiryStatus } from "@/features/inquiries/types";
 import type { QuoteStatus } from "@/features/quotes/types";
+import type {
+  InvoiceStatus,
+  PaymentMethod,
+} from "@/features/invoices/types";
 import type { EmailOutboxStatus } from "@/lib/db/schema/email";
 import type { BusinessMemberRole } from "@/lib/business-members";
 import type {
@@ -69,6 +73,17 @@ export type AdminUserDetail = AdminUserRow & {
    */
   canDemoteTarget: boolean;
 };
+
+/**
+ * Cheap core of the user detail: identity row, subscription, and session
+ * aggregates. Resolves from single-row lookups so the header, overview
+ * stats, and record sidebar paint before the heavier rosters
+ * (`ownedBusinesses`, `recentAuditLogs`) stream in.
+ */
+export type AdminUserDetailCore = Omit<
+  AdminUserDetail,
+  "ownedBusinesses" | "recentAuditLogs"
+>;
 
 /** Row shape rendered by `AdminBusinessesTable`. */
 export type AdminBusinessRow = {
@@ -135,9 +150,7 @@ export type AdminDashboardCounts = {
 };
 
 /** Full payload rendered by `AdminBusinessDetail`. */
-export type AdminBusinessDetail = AdminBusinessRow & {
-  ownerUserId: string;
-  ownerName: string;
+export type AdminBusinessDetail = AdminBusinessDetailCore & {
   members: Array<{
     userId: string;
     email: string;
@@ -145,6 +158,16 @@ export type AdminBusinessDetail = AdminBusinessRow & {
     role: BusinessMemberRole;
     joinedAt: Date;
   }>;
+};
+
+/**
+ * Cheap core of the business detail: identity row plus pipeline
+ * aggregates. Paints the header, overview, and record sidebar while the
+ * member roster streams separately (billing already has its own query).
+ */
+export type AdminBusinessDetailCore = AdminBusinessRow & {
+  ownerUserId: string;
+  ownerName: string;
   inquiryCount: number;
   quoteCount: number;
   lastInquiryAt: Date | null;
@@ -289,24 +312,19 @@ export type AdminBusinessSubscriptionSummary = {
 };
 
 /**
- * Every plan signal for one business, each labelled distinctly.
+ * Billing picture for one business.
  *
- * Admin reads `account_subscriptions` while runtime plan resolution reads
- * `business_subscriptions`, and the two can disagree — so the UI must
- * present `effectivePlan` ("effective, cached"), `accountSubscription`
- * ("account subscription"), and `businessSubscription` as three separate
- * facts and never claim a single source of truth.
+ * Billing is business-scoped: `business_subscriptions` is authoritative
+ * and `businesses.plan` is the denormalized read cache the product
+ * enforces. `account_subscriptions` is legacy and intentionally absent
+ * here — it must never render on the business page.
  */
 export type AdminBusinessBilling = {
   businessId: string;
   /** Denormalized read cache on `businesses` — what the product enforces. */
-  effectivePlan: BusinessPlan;
-  ownerUserId: string;
-  ownerEmail: string;
-  /** The owner's full `account_subscriptions` detail, or null when free. */
-  accountSubscription: AdminSubscriptionDetail | null;
-  /** The business-scoped subscription row, or null when free. */
-  businessSubscription: AdminBusinessSubscriptionSummary | null;
+  plan: BusinessPlan;
+  /** The business-scoped subscription row, or null when on the free plan. */
+  subscription: AdminBusinessSubscriptionSummary | null;
 };
 
 /* ── Product (inquiries) ─────────────────────────────────────────────────── */
@@ -402,6 +420,16 @@ export type AdminInquiryDetail = {
   attachments: AdminInquiryAttachment[];
   linkedQuotes: AdminInquiryLinkedQuote[];
 };
+
+/**
+ * Cheap core of the inquiry detail: the inquiry row with its business and
+ * owner. Paints the header, request, and sidebar metadata while the feeds
+ * (messages, notes, attachments, linked quotes) stream separately.
+ */
+export type AdminInquiryDetailCore = Omit<
+  AdminInquiryDetail,
+  "messages" | "notes" | "attachments" | "linkedQuotes"
+>;
 
 /* ── Product (quotes) ────────────────────────────────────────────────────── */
 
@@ -521,8 +549,129 @@ export type AdminQuoteDetail = {
   emails: AdminQuoteEmail[];
 };
 
-/* ── AI ──────────────────────────────────────────────────────────────────── */
+/**
+ * Cheap core of the quote detail: the quote row with its business and
+ * linked inquiry. Paints the header, delivery summary, amounts, and
+ * sidebars while items, versions, revision requests, and delivery emails
+ * stream separately.
+ */
+export type AdminQuoteDetailCore = Omit<
+  AdminQuoteDetail,
+  "items" | "versions" | "revisionRequests" | "emails"
+>;
 
+/* ── Product (invoices) ────────────────────────────────────────────────── */
+
+/** Minimal row shape rendered by the admin invoices table. */
+export type AdminInvoiceRow = {
+  id: string;
+  invoiceNumber: string;
+  title: string;
+  customerName: string;
+  customerEmail: string | null;
+  /** Effective status (payments + due date applied), not the stored row. */
+  status: InvoiceStatus;
+  totalInCents: number;
+  balanceInCents: number;
+  currency: string;
+  dueDate: string;
+  sentAt: Date | null;
+  createdAt: Date;
+  businessId: string;
+  businessName: string;
+};
+
+export type AdminInvoiceItem = {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPriceInCents: number;
+  lineTotalInCents: number;
+  position: number;
+};
+
+export type AdminInvoicePayment = {
+  id: string;
+  amountInCents: number;
+  paymentDate: string;
+  method: PaymentMethod;
+  reference: string | null;
+  notes: string | null;
+  createdByName: string | null;
+  voidedAt: Date | null;
+  voidReason: string | null;
+  createdAt: Date;
+};
+
+export type AdminInvoiceLinkedQuote = {
+  id: string;
+  quoteNumber: string;
+  status: QuoteStatus;
+};
+
+/**
+ * Full payload rendered by the admin invoice detail view.
+ *
+ * Read-only and manual-payments only: there is no provider, checkout,
+ * or delivery state — just amounts, line items, and recorded payments.
+ */
+export type AdminInvoiceDetail = {
+  id: string;
+  businessId: string;
+  invoiceNumber: string;
+  title: string;
+  customerName: string;
+  customerEmail: string | null;
+  customerContactMethod: string;
+  customerContactHandle: string;
+  /** Effective status (payments + due date applied), not the stored row. */
+  status: InvoiceStatus;
+  currency: string;
+  notes: string | null;
+  paymentTerms: string | null;
+  subtotalInCents: number;
+  discountInCents: number;
+  taxInCents: number;
+  totalInCents: number;
+  paidInCents: number;
+  balanceInCents: number;
+  issueDate: string;
+  dueDate: string;
+  sentAt: Date | null;
+  voidedAt: Date | null;
+  voidReason: string | null;
+  deletedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  business: {
+    id: string;
+    name: string;
+    slug: string;
+    plan: BusinessPlan;
+  };
+  owner: {
+    userId: string;
+    name: string;
+    email: string;
+  };
+  linkedQuote: AdminInvoiceLinkedQuote | null;
+  items: AdminInvoiceItem[];
+  payments: AdminInvoicePayment[];
+};
+
+/**
+ * Cheap core of the invoice detail: the invoice row with its business,
+ * owner, and linked quote, plus the paid/balance totals derived from a
+ * scalar payments sum. Paints the header, payment verdict, amounts, and
+ * sidebars while line items and the recorded-payments feed stream
+ * separately.
+ */
+export type AdminInvoiceDetailCore = Omit<
+  AdminInvoiceDetail,
+  "items" | "payments"
+>;
+
+/* ── AI ──────────────────────────────────────────────────────────────────── */
 /** Aggregate AI usage for one trailing window (24h or 7d). */
 export type AdminAiWindowStats = {
   requests: number;
@@ -633,16 +782,45 @@ export type AdminAiProviders = {
   profiles: AdminAiRoutingProfile[];
 };
 
-/** Trimmed live-capacity row for one catalog model. */
+/** Live-capacity row for one catalog model with limits. */
 export type AdminAiCapacityEntry = {
   modelId: string;
   loadRatio: number;
   minuteUsage: number;
   dayUsage: number;
   available: boolean;
+  rpm: number;
+  rpd: number;
+  tpm: number;
+  tpd: number;
+  tokenUsage: number;
+  dailyTokenUsage: number;
+  neuronUsageMilli: number | null;
+  neuronPool: number | null;
 };
 
 /* ── Operations (emails) ─────────────────────────────────────────────────── */
+
+/** Live email quota for one provider (local + polled, fail-soft). */
+export type AdminEmailQuota = {
+  provider: "resend" | "mailtrap" | "brevo";
+  label: string;
+  configured: boolean;
+  dailyUsed: number | null;
+  dailyLimit: number | null;
+  monthlyUsed: number | null;
+  monthlyLimit: number | null;
+  resetsAt: string | null;
+  status: "ok" | "unavailable" | "error";
+  message: string | null;
+};
+
+export type AdminEmailQuotas = {
+  sentLast24h: number;
+  sentLast7d: number;
+  failedLast24h: number;
+  quotas: AdminEmailQuota[];
+};
 
 /** Minimal row shape rendered by the admin emails table. */
 export type AdminEmailRow = {
@@ -699,6 +877,23 @@ export type AdminEmailDetail = {
   timeline: AdminEmailAttempt[];
 };
 
+/**
+ * Cheap core of the email detail: the outbox row with its business.
+ * Paints the header, delivery state, recipients, and business sidebar
+ * while the (potentially large) body and the attempts timeline stream
+ * separately.
+ */
+export type AdminEmailDetailCore = Omit<
+  AdminEmailDetail,
+  "html" | "textBody" | "timeline"
+>;
+
+/** Body slice of the email detail, loaded by its own query. */
+export type AdminEmailBody = Pick<
+  AdminEmailDetail,
+  "html" | "textBody" | "bodyRedacted"
+>;
+
 /* ── Operations (usage) ──────────────────────────────────────────────────── */
 
 export const ADMIN_USAGE_RESOURCES = [
@@ -741,6 +936,15 @@ export type AdminUsageReport = {
   to: string;
   series: AdminUsageDay[];
   totals: Record<AdminUsageResource, number>;
+  /** Sum of `ai_token_logs.total_tokens` over the range. */
+  aiTokens: number;
+  /**
+   * Spend floor over the range: `sum()` silently skips unpriced models,
+   * so pair with `aiUnpricedCalls` whenever it is non-zero.
+   */
+  aiCostCents: number;
+  /** Calls in range with no catalog price (excluded from `aiCostCents`). */
+  aiUnpricedCalls: number;
 };
 
 export type AdminUsageBusinessRow = {
