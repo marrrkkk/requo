@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   adminBusinessesListFiltersSchema,
+  adminInvoicesListFiltersSchema,
   adminSubscriptionsListFiltersSchema,
   adminUsersListFiltersSchema,
 } from "@/features/admin/schemas";
@@ -111,6 +112,16 @@ describe("features/admin/schemas search param aliasing", () => {
     expect(businesses.data?.plan).toBe("pro");
     expect(subscriptions.data?.status).toBe("active");
     expect(subscriptions.data?.provider).toBe("polar");
+  });
+
+  it("parses the invoice status filter alongside the search", () => {
+    const invoices = adminInvoicesListFiltersSchema.safeParse({
+      q: "INV-1",
+      status: "overdue",
+    });
+
+    expect(invoices.data?.search).toBe("INV-1");
+    expect(invoices.data?.status).toBe("overdue");
   });
 
   it("parses an empty param set into usable pagination defaults", () => {

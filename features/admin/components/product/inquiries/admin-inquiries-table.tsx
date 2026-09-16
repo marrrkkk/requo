@@ -81,7 +81,10 @@ type AdminInquiriesTableProps = {
  *
  * Fixed `submittedAt DESC` ordering (the list query owns it) — no sortable
  * columns. Status renders through the main app's `InquiryStatusBadge`
- * unchanged. Below `xl` each row becomes a `MobileRecordRow` card.
+ * unchanged. `flush` renders the table edge to edge inside the page's
+ * list card (one frame, like the businesses list) instead of nesting a
+ * second bordered container. Below `xl` each row becomes a
+ * `MobileRecordRow` card.
  */
 export function AdminInquiriesTable({
   items,
@@ -103,6 +106,7 @@ export function AdminInquiriesTable({
       }}
       getRowHref={(row) => getAdminInquiryDetailPath(row.id)}
       getRowId={(row) => row.id}
+      flush
       minWidthClass="min-w-[56rem]"
       mobileCard={(row) => ({
         title: row.subject?.trim() || `Inquiry from ${row.customerName}`,

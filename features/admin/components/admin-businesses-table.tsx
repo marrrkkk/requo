@@ -8,6 +8,7 @@ import {
   AdminDataTable,
   type AdminDataTableColumn,
 } from "@/features/admin/components/primitives/admin-data-table";
+import { formatProductDate } from "@/features/admin/components/product/admin-product-format";
 import { getAdminBusinessDetailPath } from "@/features/admin/navigation";
 import type { AdminBusinessRow } from "@/features/admin/types";
 import { planMeta, type BusinessPlan } from "@/lib/plans";
@@ -20,19 +21,11 @@ function AdminBusinessPlanBadge({ plan }: { plan: BusinessPlan }) {
   );
 }
 
-function formatAdminDate(value: Date) {
-  return value.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
 const adminBusinessColumns: AdminDataTableColumn<AdminBusinessRow>[] = [
   {
     id: "business",
     header: "Business",
-    width: "w-[18rem]",
+    width: "w-[20rem]",
     cell: (item) => {
       const href = getAdminBusinessDetailPath(item.id);
 
@@ -55,9 +48,15 @@ const adminBusinessColumns: AdminDataTableColumn<AdminBusinessRow>[] = [
     },
   },
   {
+    id: "plan",
+    header: "Plan",
+    width: "w-[9rem]",
+    cell: (item) => <AdminBusinessPlanBadge plan={item.plan} />,
+  },
+  {
     id: "owner",
     header: "Owner",
-    width: "w-[16rem]",
+    width: "w-[14rem]",
     cell: (item) => (
       <TruncatedTextWithTooltip
         className="table-emphasis"
@@ -68,16 +67,9 @@ const adminBusinessColumns: AdminDataTableColumn<AdminBusinessRow>[] = [
     ),
   },
   {
-    id: "plan",
-    header: "Plan",
-    width: "w-[8rem]",
-    cell: (item) => <AdminBusinessPlanBadge plan={item.plan} />,
-  },
-  {
     id: "members",
     header: "Members",
-    width: "w-[8rem]",
-    align: "right",
+    width: "w-[6rem]",
     cell: (item) => (
       <span className="text-sm tabular-nums text-muted-foreground">
         {item.memberCount.toLocaleString()}
@@ -87,10 +79,10 @@ const adminBusinessColumns: AdminDataTableColumn<AdminBusinessRow>[] = [
   {
     id: "created",
     header: "Created",
-    width: "w-[10rem]",
+    width: "w-[8rem]",
     cell: (item) => (
       <span className="text-sm text-muted-foreground">
-        {formatAdminDate(item.createdAt)}
+        {formatProductDate(item.createdAt)}
       </span>
     ),
   },
@@ -107,7 +99,10 @@ type AdminBusinessesTableProps = {
  * Admin businesses list on the shared `AdminDataTable`.
  *
  * Fixed `createdAt DESC` ordering (the list query owns it) — no sortable
- * columns. Below `xl` each row becomes a `MobileRecordRow` card.
+ * columns. `flush` renders the table edge to edge inside the page's list
+ * card (one frame, like the business inquiries list) instead of nesting a
+ * second bordered container. Below `xl` each row becomes a `MobileRecordRow`
+ * card.
  */
 export function AdminBusinessesTable({
   items,
@@ -127,7 +122,8 @@ export function AdminBusinessesTable({
       }}
       getRowHref={(item) => getAdminBusinessDetailPath(item.id)}
       getRowId={(item) => item.id}
-      minWidthClass="min-w-[72rem]"
+      flush
+      minWidthClass="min-w-[60rem]"
       mobileCard={(item) => ({
         title: item.name,
         subtitle: `${item.slug} · ${item.ownerEmail}`,
@@ -136,7 +132,7 @@ export function AdminBusinessesTable({
           <span>
             {item.memberCount.toLocaleString()}{" "}
             {item.memberCount === 1 ? "member" : "members"} · Created{" "}
-            {formatAdminDate(item.createdAt)}
+            {formatProductDate(item.createdAt)}
           </span>
         ),
       })}

@@ -101,7 +101,9 @@ type AdminAiRequestsTableProps = {
  *
  * Fixed `createdAt DESC` ordering — no sortable columns, no row detail
  * page. Failed rows carry the error badge; the message itself lives on
- * the Errors page.
+ * the Errors page. `flush` renders the table edge to edge inside the
+ * page's list card (one frame, like the inquiries list) instead of
+ * nesting a second bordered container.
  */
 export function AdminAiRequestsTable({
   items,
@@ -122,6 +124,7 @@ export function AdminAiRequestsTable({
         icon: Cpu,
       }}
       getRowId={(row) => row.id}
+      flush
       minWidthClass="min-w-[72rem]"
       pagination={pagination}
       rows={items}
