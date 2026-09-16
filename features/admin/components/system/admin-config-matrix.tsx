@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import type { AdminConfigMatrixRow } from "@/lib/admin/health-checks";
 import { cn } from "@/lib/utils";
 
@@ -35,39 +36,28 @@ export function AdminConfigMatrix({ rows }: AdminConfigMatrixProps) {
   const configuredCount = rows.filter((row) => row.configured).length;
 
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="font-heading text-lg font-semibold tracking-tight text-foreground">
-            Configuration
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Which integrations have credentials set. Secret values are never
-            shown.
-          </p>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          <span className="font-semibold tabular-nums text-foreground">
-            {configuredCount}
-          </span>{" "}
-          of {rows.length} configured
-        </p>
-      </div>
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-muted-foreground">
+        <span className="font-semibold tabular-nums text-foreground">
+          {configuredCount}
+        </span>{" "}
+        of {rows.length} configured
+      </p>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {rows.map((row) => {
           const Icon = integrationIcons[row.integration] ?? Server;
 
           return (
-            <article
+            <Card
+              size="sm"
               className={cn(
- "soft-panel flex flex-col gap-3",
-                row.configured
-                  ? "border-primary/15"
-                  : "opacity-95",
+                "gap-3",
+                row.configured ? "border-primary/15" : "opacity-95",
               )}
               key={row.integration}
             >
+              <CardContent className="flex flex-col gap-3 pt-3.5 sm:pt-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/50 text-muted-foreground">
                   <Icon className="size-4" />
@@ -84,10 +74,11 @@ export function AdminConfigMatrix({ rows }: AdminConfigMatrixProps) {
                   {row.notes}
                 </p>
               </div>
-            </article>
+              </CardContent>
+            </Card>
           );
         })}
       </div>
-    </section>
+    </div>
   );
 }

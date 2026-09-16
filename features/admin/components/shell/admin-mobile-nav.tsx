@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -11,7 +11,6 @@ import {
 } from "@remixicon/react";
 
 import { AdminFullscreenNav } from "@/features/admin/components/shell/admin-fullscreen-nav";
-import type { AdminShellUser } from "@/features/admin/components/shell/admin-user-menu";
 import {
   ADMIN_BUSINESSES_PATH,
   ADMIN_ROOT_PATH,
@@ -31,7 +30,7 @@ const dockItems = [
   { href: ADMIN_USERS_PATH, label: "Users", icon: RiUserLine },
 ] as const;
 
-export function AdminMobileNav({ user }: { user: AdminShellUser }) {
+export function AdminMobileNav({ userSlot }: { userSlot: ReactNode }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -107,7 +106,7 @@ export function AdminMobileNav({ user }: { user: AdminShellUser }) {
       <AdminFullscreenNav
         open={moreOpen}
         onOpenChange={setMoreOpen}
-        user={user}
+        userSlot={userSlot}
       />
     </>
   );

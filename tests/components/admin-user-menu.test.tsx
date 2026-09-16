@@ -94,7 +94,7 @@ describe("admin user menu", () => {
     expect(avatar?.className).toContain("border-0");
   });
 
-  it("signs out through Better Auth and lands on /login", async () => {
+  it("signs out through Better Auth and lands on the console root", async () => {
     const browser = userEvent.setup();
     renderMenu();
 
@@ -104,7 +104,7 @@ describe("admin user menu", () => {
 
     expect(signOutMock).toHaveBeenCalledTimes(1);
     expect(clearPersistedThemePreferenceMock).toHaveBeenCalledTimes(1);
-    expect(assignMock).toHaveBeenCalledWith("/login");
+    expect(assignMock).toHaveBeenCalledWith("/");
   });
 
   it("never posts to the deprecated logout route", async () => {
@@ -148,6 +148,6 @@ describe("admin user menu", () => {
     await browser.click(within(menu).getByText("Sign out"));
 
     expect(signOutMock).toHaveBeenCalledTimes(1);
-    expect(assignMock).toHaveBeenCalledWith("/login");
+    expect(assignMock).toHaveBeenCalledWith("/");
   });
 });

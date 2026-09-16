@@ -10,7 +10,8 @@ import {
 
 import type {
   DashboardQuoteLibraryItem,
-  DashboardQuoteDetail,
+  DashboardQuoteDetailCore,
+  DashboardQuoteItem,
   QuoteEditorLineItemValue,
   QuoteInquiryPrefill,
   QuoteLibraryEntryKind,
@@ -329,8 +330,15 @@ export function getQuoteEditorInitialValuesFromInquiry(
   };
 }
 
+/**
+ * Seeds the editor from a quote.
+ *
+ * Reads only the quote's own fields plus its line items, so it accepts the
+ * staged `getQuoteDetailCoreForBusiness` slice (core + items) as well as the
+ * whole-record aggregate.
+ */
 export function getQuoteEditorInitialValuesFromDetail(
-  quote: DashboardQuoteDetail,
+  quote: DashboardQuoteDetailCore & { items: DashboardQuoteItem[] },
 ) {
   return {
     title: quote.title,

@@ -1,7 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { getAdminHost } from "@/lib/admin/subdomain-config";
 import {
   activeBusinessSlugCookieName,
   getActiveBusinessCookieAttributes,
@@ -41,23 +40,6 @@ function finalizeProxyResponse(request: NextRequest, response: NextResponse) {
 }
 
 export async function proxy(request: NextRequest) {
-  const host = request.headers.get("host") ?? "";
-  const adminHost = getAdminHost();
-
-  // Admin subdomain: rewrite all requests to the /admin route tree
-  if (host === adminHost) {
-    const { pathname } = request.nextUrl;
-
-    // Don't rewrite API routes or Next.js internals — they work at their original paths
-    if (pathname.startsWith("/api/") || pathname.startsWith("/_next/")) {
-      return finalizeProxyResponse(request, NextResponse.next());
-    }
-
-    const url = request.nextUrl.clone();
-    url.pathname = `/admin${pathname === "/" ? "" : pathname}`;
-    return NextResponse.rewrite(url);
-  }
-
   // Markdown agent discovery
   if (
     request.nextUrl.pathname === "/" &&

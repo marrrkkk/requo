@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { LogOut, Settings2 } from "lucide-react";
+import { LogOut, Server } from "lucide-react";
 import Link from "next/link";
 
 import { ChevronDownSmall } from "@/components/foundations/icons/chevrons";
@@ -23,7 +23,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { ADMIN_SETTINGS_PATH } from "@/features/admin/navigation";
+import { ADMIN_SYSTEM_PATH } from "@/features/admin/navigation";
 import { getDisplayFirstName } from "@/features/account/name";
 import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-menu";
 import { clearPersistedThemePreference } from "@/features/theme/persistence";
@@ -66,7 +66,9 @@ function useAdminSignOut() {
 
       window.localStorage.removeItem(themeUserStorageKey);
       clearPersistedThemePreference();
-      window.location.assign("/login");
+      // Land on the console root: with no session the console gate bounces
+      // to the main app, so signed-out admins never see a dead login route.
+      window.location.assign("/");
     });
   }
 
@@ -84,9 +86,9 @@ function AdminMenuItems({
     <>
       <DropdownMenuGroup>
         <DropdownMenuItem asChild>
-          <Link href={ADMIN_SETTINGS_PATH} prefetch={true} onClick={onNavigate}>
-            <Settings2 data-icon="inline-start" />
-            Admin settings
+          <Link href={ADMIN_SYSTEM_PATH} prefetch={true} onClick={onNavigate}>
+            <Server data-icon="inline-start" />
+            System
           </Link>
         </DropdownMenuItem>
         <AppearanceMenuSubmenu userId={user.id} />

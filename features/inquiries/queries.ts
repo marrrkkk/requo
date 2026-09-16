@@ -67,8 +67,13 @@ import {
   businesses,
   } from "@/lib/db/schema";
 import type {
+  DashboardInquiryActivity,
+  DashboardInquiryAttachment,
   DashboardInquiryDetail,
+  DashboardInquiryDetailCore,
   DashboardInquiryListItem,
+  DashboardInquiryNote,
+  DashboardInquiryRelatedQuotes,
   InquiryEditorForm,
   InquiryListQueryFilters,
   PublicInquiryBusiness,
@@ -708,10 +713,19 @@ type GetInquiryDetailForBusinessInput = {
   inquiryId: string;
 };
 
-export async function getInquiryDetailForBusiness({
+/**
+ * Core slice of the inquiry detail: the inquiry row plus its intake form.
+ *
+ * Split out of `getInquiryDetailForBusiness` so the detail page can paint
+ * the header and the core sections from one indexed lookup while the
+ * attachment, note, activity, and related-quote feeds stream behind their
+ * own boundaries. Shares `getBusinessInquiryDetailCacheTags` with the
+ * aggregate, so every existing inquiry mutation still invalidates it.
+ */
+async function getCachedInquiryDetailCore({
   businessId,
   inquiryId,
-}: GetInquiryDetailForBusinessInput): Promise<DashboardInquiryDetail | null> {
+}: GetInquiryDetailForBusinessInput): Promise<DashboardInquiryDetailCore | null> {
   "use cache";
 
   cacheLife(hotBusinessCacheLife);
@@ -766,96 +780,204 @@ export async function getInquiryDetailForBusiness({
     inquiry.inquiryFormBusinessType ?? "general_project_services",
   );
 
-  const [attachments, notes, activities, relatedQuoteRows] =
-    await Promise.all([
-      db
-        .select({
-          id: inquiryAttachments.id,
-          fileName: inquiryAttachments.fileName,
-          contentType: inquiryAttachments.contentType,
-          fileSize: inquiryAttachments.fileSize,
-          createdAt: inquiryAttachments.createdAt,
-        })
-        .from(inquiryAttachments)
-        .where(
-          and(
-            eq(inquiryAttachments.businessId, businessId),
-            eq(inquiryAttachments.inquiryId, inquiryId),
-          ),
-        )
-        .orderBy(desc(inquiryAttachments.createdAt)),
-      db
-        .select({
-          id: inquiryNotes.id,
-          body: inquiryNotes.body,
-          createdAt: inquiryNotes.createdAt,
-          authorName: user.name,
-          authorEmail: user.email,
-        })
-        .from(inquiryNotes)
-        .leftJoin(user, eq(inquiryNotes.authorUserId, user.id))
-        .where(
-          and(
-            eq(inquiryNotes.businessId, businessId),
-            eq(inquiryNotes.inquiryId, inquiryId),
-          ),
-        )
-        .orderBy(desc(inquiryNotes.createdAt)),
-      db
-        .select({
-          id: activityLogs.id,
-          type: activityLogs.type,
-          summary: activityLogs.summary,
-          createdAt: activityLogs.createdAt,
-          actorName: user.name,
-        })
-        .from(activityLogs)
-        .leftJoin(user, eq(activityLogs.actorUserId, user.id))
-        .where(
-          and(
-            eq(activityLogs.businessId, businessId),
-            eq(activityLogs.inquiryId, inquiryId),
-          ),
-        )
-        .orderBy(desc(activityLogs.createdAt)),
-      db
-        .select({
-          id: quotes.id,
-          status: quotes.status,
-          quoteNumber: quotes.quoteNumber,
-          totalInCents: quotes.totalInCents,
-          createdAt: quotes.createdAt,
-        })
-        .from(quotes)
-        .where(
-          and(
-            eq(quotes.businessId, businessId),
-            eq(quotes.inquiryId, inquiryId),
-            isNull(quotes.deletedAt),
-          ),
-        )
-        .orderBy(desc(quotes.createdAt)),
-    ]);
-
-  const relatedQuotes = relatedQuoteRows.length
-    ? {
-        latest: relatedQuoteRows[0],
-        all: relatedQuoteRows,
-        count: relatedQuoteRows.length,
-      }
-    : null;
-
   return {
     ...inquiry,
     inquiryFormBusinessType,
     submittedFieldSnapshot: getNormalizedInquirySubmittedFieldSnapshot(
       inquiry.submittedFieldSnapshot,
     ),
+  };
+}
+
+async function getCachedInquiryAttachments({
+  businessId,
+  inquiryId,
+}: GetInquiryDetailForBusinessInput): Promise<DashboardInquiryAttachment[]> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessInquiryDetailCacheTags(businessId, inquiryId));
+
+  return db
+    .select({
+      id: inquiryAttachments.id,
+      fileName: inquiryAttachments.fileName,
+      contentType: inquiryAttachments.contentType,
+      fileSize: inquiryAttachments.fileSize,
+      createdAt: inquiryAttachments.createdAt,
+    })
+    .from(inquiryAttachments)
+    .where(
+      and(
+        eq(inquiryAttachments.businessId, businessId),
+        eq(inquiryAttachments.inquiryId, inquiryId),
+      ),
+    )
+    .orderBy(desc(inquiryAttachments.createdAt));
+}
+
+async function getCachedInquiryNotes({
+  businessId,
+  inquiryId,
+}: GetInquiryDetailForBusinessInput): Promise<DashboardInquiryNote[]> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessInquiryDetailCacheTags(businessId, inquiryId));
+
+  return db
+    .select({
+      id: inquiryNotes.id,
+      body: inquiryNotes.body,
+      createdAt: inquiryNotes.createdAt,
+      authorName: user.name,
+      authorEmail: user.email,
+    })
+    .from(inquiryNotes)
+    .leftJoin(user, eq(inquiryNotes.authorUserId, user.id))
+    .where(
+      and(
+        eq(inquiryNotes.businessId, businessId),
+        eq(inquiryNotes.inquiryId, inquiryId),
+      ),
+    )
+    .orderBy(desc(inquiryNotes.createdAt));
+}
+
+async function getCachedInquiryActivities({
+  businessId,
+  inquiryId,
+}: GetInquiryDetailForBusinessInput): Promise<DashboardInquiryActivity[]> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessInquiryDetailCacheTags(businessId, inquiryId));
+
+  return db
+    .select({
+      id: activityLogs.id,
+      type: activityLogs.type,
+      summary: activityLogs.summary,
+      createdAt: activityLogs.createdAt,
+      actorName: user.name,
+    })
+    .from(activityLogs)
+    .leftJoin(user, eq(activityLogs.actorUserId, user.id))
+    .where(
+      and(
+        eq(activityLogs.businessId, businessId),
+        eq(activityLogs.inquiryId, inquiryId),
+      ),
+    )
+    .orderBy(desc(activityLogs.createdAt));
+}
+
+async function getCachedInquiryRelatedQuotes({
+  businessId,
+  inquiryId,
+}: GetInquiryDetailForBusinessInput): Promise<DashboardInquiryRelatedQuotes | null> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessInquiryDetailCacheTags(businessId, inquiryId));
+
+  const relatedQuoteRows = await db
+    .select({
+      id: quotes.id,
+      status: quotes.status,
+      quoteNumber: quotes.quoteNumber,
+      totalInCents: quotes.totalInCents,
+      createdAt: quotes.createdAt,
+    })
+    .from(quotes)
+    .where(
+      and(
+        eq(quotes.businessId, businessId),
+        eq(quotes.inquiryId, inquiryId),
+        isNull(quotes.deletedAt),
+      ),
+    )
+    .orderBy(desc(quotes.createdAt));
+
+  return relatedQuoteRows.length
+    ? {
+        latest: relatedQuoteRows[0],
+        all: relatedQuoteRows,
+        count: relatedQuoteRows.length,
+      }
+    : null;
+}
+
+/**
+ * Whole-record inquiry payload.
+ *
+ * Composes the staged slices below so the print page, the export route,
+ * and the integration tests keep resolving one record in a single call.
+ */
+export async function getInquiryDetailForBusiness({
+  businessId,
+  inquiryId,
+}: GetInquiryDetailForBusinessInput): Promise<DashboardInquiryDetail | null> {
+  const [core, attachments, notes, activities, relatedQuotes] =
+    await Promise.all([
+      getCachedInquiryDetailCore({ businessId, inquiryId }),
+      getCachedInquiryAttachments({ businessId, inquiryId }),
+      getCachedInquiryNotes({ businessId, inquiryId }),
+      getCachedInquiryActivities({ businessId, inquiryId }),
+      getCachedInquiryRelatedQuotes({ businessId, inquiryId }),
+    ]);
+
+  if (!core) {
+    return null;
+  }
+
+  return {
+    ...core,
     attachments,
     notes,
     activities,
     relatedQuotes,
   };
+}
+
+/** Core slice, for the inquiry detail page's own Suspense regions. */
+export async function getInquiryDetailCoreForBusiness({
+  businessId,
+  inquiryId,
+}: GetInquiryDetailForBusinessInput): Promise<DashboardInquiryDetailCore | null> {
+  return getCachedInquiryDetailCore({ businessId, inquiryId });
+}
+
+/** Attachment metadata, for the inquiry detail page's attachments region. */
+export async function getInquiryAttachmentsForBusiness({
+  businessId,
+  inquiryId,
+}: GetInquiryDetailForBusinessInput): Promise<DashboardInquiryAttachment[]> {
+  return getCachedInquiryAttachments({ businessId, inquiryId });
+}
+
+/** Owner notes, for the inquiry detail page's notes region. */
+export async function getInquiryNotesForBusiness({
+  businessId,
+  inquiryId,
+}: GetInquiryDetailForBusinessInput): Promise<DashboardInquiryNote[]> {
+  return getCachedInquiryNotes({ businessId, inquiryId });
+}
+
+/** Activity log, for the inquiry detail page's activity region. */
+export async function getInquiryActivitiesForBusiness({
+  businessId,
+  inquiryId,
+}: GetInquiryDetailForBusinessInput): Promise<DashboardInquiryActivity[]> {
+  return getCachedInquiryActivities({ businessId, inquiryId });
+}
+
+/** Related quotes, for the inquiry detail page's related-quotes region. */
+export async function getInquiryRelatedQuotesForBusiness({
+  businessId,
+  inquiryId,
+}: GetInquiryDetailForBusinessInput): Promise<DashboardInquiryRelatedQuotes | null> {
+  return getCachedInquiryRelatedQuotes({ businessId, inquiryId });
 }
 
 export async function getBusinessInquiryFormOptionsForBusiness(

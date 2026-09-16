@@ -44,7 +44,10 @@ import {
 } from "@/lib/cache/business-tags";
 import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
 import type {
+  DashboardQuoteActivity,
   DashboardQuoteDetail,
+  DashboardQuoteDetailCore,
+  DashboardQuoteItem,
   DashboardQuoteListItem,
   PublicQuoteView,
   QuoteInquiryPrefill,
@@ -456,10 +459,20 @@ export async function getQuoteDetailForBusiness({
   });
 }
 
-async function getCachedQuoteDetailForBusiness({
+/**
+ * Core slice of the quote detail: the quote row plus its linked inquiry and
+ * derived reminders.
+ *
+ * Split out of `getQuoteDetailForBusiness` so the detail page can paint its
+ * header and sidebars from one indexed lookup while line items and activity
+ * stream behind their own boundaries. Shares
+ * `getBusinessQuoteDetailCacheTags` with the aggregate, so every existing
+ * quote mutation still invalidates it.
+ */
+async function getCachedQuoteDetailCore({
   businessId,
   quoteId,
-}: GetQuoteDetailForBusinessInput): Promise<DashboardQuoteDetail | null> {
+}: GetQuoteDetailForBusinessInput): Promise<DashboardQuoteDetailCore | null> {
   "use cache";
 
   cacheLife(hotBusinessCacheLife);
@@ -536,43 +549,6 @@ async function getCachedQuoteDetailForBusiness({
     return null;
   }
 
-  const [items, activities] = await Promise.all([
-    db
-      .select({
-        id: quoteItems.id,
-        description: quoteItems.description,
-        quantity: quoteItems.quantity,
-        unitPriceInCents: quoteItems.unitPriceInCents,
-        lineTotalInCents: quoteItems.lineTotalInCents,
-        position: quoteItems.position,
-      })
-      .from(quoteItems)
-      .where(
-        and(
-          eq(quoteItems.businessId, businessId),
-          eq(quoteItems.quoteId, quoteId),
-        ),
-      )
-      .orderBy(asc(quoteItems.position), asc(quoteItems.createdAt)),
-    db
-      .select({
-        id: activityLogs.id,
-        type: activityLogs.type,
-        summary: activityLogs.summary,
-        createdAt: activityLogs.createdAt,
-        actorName: user.name,
-      })
-      .from(activityLogs)
-      .leftJoin(user, eq(activityLogs.actorUserId, user.id))
-      .where(
-        and(
-          eq(activityLogs.businessId, businessId),
-          eq(activityLogs.quoteId, quoteId),
-        ),
-      )
-      .orderBy(desc(activityLogs.createdAt)),
-  ]);
-
   return {
     id: quote.id,
     businessId: quote.businessId,
@@ -616,8 +592,6 @@ async function getCachedQuoteDetailForBusiness({
     updatedAt: quote.updatedAt,
     aiReadiness: quote.aiReadiness,
     aiAcknowledgedAt: quote.aiAcknowledgedAt,
-    items,
-    activities,
     linkedInquiry: quote.linkedInquiryId
       ? {
           id: quote.linkedInquiryId,
@@ -640,6 +614,117 @@ async function getCachedQuoteDetailForBusiness({
       validUntil: quote.validUntil,
     }),
   };
+}
+
+async function getCachedQuoteItems({
+  businessId,
+  quoteId,
+}: GetQuoteDetailForBusinessInput): Promise<DashboardQuoteItem[]> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessQuoteDetailCacheTags(businessId, quoteId));
+
+  return db
+    .select({
+      id: quoteItems.id,
+      description: quoteItems.description,
+      quantity: quoteItems.quantity,
+      unitPriceInCents: quoteItems.unitPriceInCents,
+      lineTotalInCents: quoteItems.lineTotalInCents,
+      position: quoteItems.position,
+    })
+    .from(quoteItems)
+    .where(
+      and(
+        eq(quoteItems.businessId, businessId),
+        eq(quoteItems.quoteId, quoteId),
+      ),
+    )
+    .orderBy(asc(quoteItems.position), asc(quoteItems.createdAt));
+}
+
+async function getCachedQuoteActivities({
+  businessId,
+  quoteId,
+}: GetQuoteDetailForBusinessInput): Promise<DashboardQuoteActivity[]> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessQuoteDetailCacheTags(businessId, quoteId));
+
+  return db
+    .select({
+      id: activityLogs.id,
+      type: activityLogs.type,
+      summary: activityLogs.summary,
+      createdAt: activityLogs.createdAt,
+      actorName: user.name,
+    })
+    .from(activityLogs)
+    .leftJoin(user, eq(activityLogs.actorUserId, user.id))
+    .where(
+      and(
+        eq(activityLogs.businessId, businessId),
+        eq(activityLogs.quoteId, quoteId),
+      ),
+    )
+    .orderBy(desc(activityLogs.createdAt));
+}
+
+/**
+ * Whole-record quote payload.
+ *
+ * Composes the staged slices above so the print page, the preview page, the
+ * export route, and the invoice-creation flow keep resolving one record in a
+ * single call.
+ */
+async function getCachedQuoteDetailForBusiness({
+  businessId,
+  quoteId,
+}: GetQuoteDetailForBusinessInput): Promise<DashboardQuoteDetail | null> {
+  const [core, items, activities] = await Promise.all([
+    getCachedQuoteDetailCore({ businessId, quoteId }),
+    getCachedQuoteItems({ businessId, quoteId }),
+    getCachedQuoteActivities({ businessId, quoteId }),
+  ]);
+
+  if (!core) {
+    return null;
+  }
+
+  return { ...core, items, activities };
+}
+
+/**
+ * Core slice, for the quote detail page's frame region.
+ *
+ * Keeps the expired-quote sync that `getQuoteDetailForBusiness` schedules,
+ * so opening the detail page still nudges stale quotes.
+ */
+export async function getQuoteDetailCoreForBusiness({
+  businessId,
+  quoteId,
+}: GetQuoteDetailForBusinessInput): Promise<DashboardQuoteDetailCore | null> {
+  scheduleExpiredQuotesSyncForBusiness(businessId);
+
+  return getCachedQuoteDetailCore({ businessId, quoteId });
+}
+
+/** Line items, for the quote detail page's own streaming regions. */
+export async function getQuoteItemsForBusiness({
+  businessId,
+  quoteId,
+}: GetQuoteDetailForBusinessInput): Promise<DashboardQuoteItem[]> {
+  return getCachedQuoteItems({ businessId, quoteId });
+}
+
+/** Activity log, for the quote detail page's activity region. */
+export async function getQuoteActivitiesForBusiness({
+  businessId,
+  quoteId,
+}: GetQuoteDetailForBusinessInput): Promise<DashboardQuoteActivity[]> {
+  return getCachedQuoteActivities({ businessId, quoteId });
 }
 
 export async function getQuoteSendPayloadForBusiness({

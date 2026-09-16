@@ -186,7 +186,7 @@ describe("AdminInquiryDetail", () => {
 
     expect(
       screen.getByRole("link", { name: "Open" }),
-    ).toHaveAttribute("href", "/quotes/quote_1");
+    ).toHaveAttribute("href", "/admin/quotes/quote_1");
   });
 
   it("names empty collections instead of rendering empty feeds", () => {
@@ -243,7 +243,7 @@ describe("AdminQuoteDetail", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Open inquiry" }),
-    ).toHaveAttribute("href", "/inquiries/inq_1");
+    ).toHaveAttribute("href", "/admin/inquiries/inq_1");
   });
 
   it("renders versions and revision requests when present", () => {

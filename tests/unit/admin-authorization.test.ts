@@ -1,9 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getOptionalSessionMock, redirectMock } = vi.hoisted(() => ({
-  getOptionalSessionMock: vi.fn(),
-  redirectMock: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+  const dbRows: Array<{ role: string | null; banned: boolean }> = [];
+  const select = vi.fn(() => ({
+    from: () => ({
+      where: () => ({
+        limit: async () => dbRows,
+      }),
+    }),
+  }));
+  return {
+    getOptionalSessionMock: vi.fn(),
+    forbiddenMock: vi.fn(),
+    redirectMock: vi.fn(),
+    dbRows,
+    selectMock: select,
+  };
+});
 
 vi.mock("react", async () => {
   const actual = await vi.importActual<typeof import("react")>("react");
@@ -18,18 +31,38 @@ vi.mock("next/headers", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
-  redirect: redirectMock,
+  forbidden: mocks.forbiddenMock,
+  redirect: mocks.redirectMock,
 }));
 
 vi.mock("@/lib/auth/session", () => ({
-  getOptionalSession: getOptionalSessionMock,
+  getOptionalSession: mocks.getOptionalSessionMock,
+}));
+
+vi.mock("@/lib/db/client", () => ({
+  db: { select: mocks.selectMock },
+  dbConnection: { end: vi.fn() },
+}));
+
+vi.mock("@/lib/env", () => ({
+  env: {
+    ADMIN_EMAILS: "allowlisted@example.com",
+    BETTER_AUTH_URL: "http://127.0.0.1:3000",
+  },
 }));
 
 import {
-  getMainAppUrl,
   requireAdminConsoleUser,
   requireAdminUser,
 } from "@/features/admin/access";
+
+const {
+  getOptionalSessionMock,
+  forbiddenMock,
+  redirectMock,
+  dbRows,
+  selectMock,
+} = mocks;
 
 const adminUser = {
   id: "admin_1",
@@ -56,92 +89,128 @@ function makeSession(user: Record<string, unknown> & { id: string }) {
   };
 }
 
-describe("features/admin/access requireAdminUser", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+function setDbRows(rows: Array<{ role: string | null; banned: boolean }>) {
+  dbRows.length = 0;
+  dbRows.push(...rows);
+}
 
+beforeEach(() => {
+  vi.clearAllMocks();
+  setDbRows([]);
+  forbiddenMock.mockImplementation(() => {
+    throw new Error("NEXT_FORBIDDEN");
+  });
+  redirectMock.mockImplementation((url: string) => {
+    throw new Error(`NEXT_REDIRECT ${url}`);
+  });
+});
+
+describe("features/admin/access requireAdminUser", () => {
   it("redirects to /login when there is no active session", async () => {
     getOptionalSessionMock.mockResolvedValue(null);
-    redirectMock.mockImplementation(() => {
-      throw new Error("NEXT_REDIRECT /login");
-    });
 
-    await expect(requireAdminUser()).rejects.toThrow("NEXT_REDIRECT");
+    await expect(requireAdminUser()).rejects.toThrow("NEXT_REDIRECT /login");
     expect(redirectMock).toHaveBeenCalledWith("/login");
+    expect(forbiddenMock).not.toHaveBeenCalled();
   });
 
   it("redirects to /login when the session has no user", async () => {
     getOptionalSessionMock.mockResolvedValue({ session: {} });
-    redirectMock.mockImplementation(() => {
-      throw new Error("NEXT_REDIRECT /login");
-    });
 
-    await expect(requireAdminUser()).rejects.toThrow("NEXT_REDIRECT");
+    await expect(requireAdminUser()).rejects.toThrow("NEXT_REDIRECT /login");
     expect(redirectMock).toHaveBeenCalledWith("/login");
   });
 
-  it("redirects to /login when the user role is not admin", async () => {
+  it("answers a non-admin with 403", async () => {
     getOptionalSessionMock.mockResolvedValue(makeSession(memberUser));
-    redirectMock.mockImplementation(() => {
-      throw new Error("NEXT_REDIRECT /login");
-    });
 
-    await expect(requireAdminUser()).rejects.toThrow("NEXT_REDIRECT");
-    expect(redirectMock).toHaveBeenCalledWith("/login");
+    await expect(requireAdminUser()).rejects.toThrow("NEXT_FORBIDDEN");
+    expect(forbiddenMock).toHaveBeenCalledTimes(1);
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 
-  it("redirects to /login when the user role is null", async () => {
+  it("answers with 403 when the user role is null and the DB agrees", async () => {
     getOptionalSessionMock.mockResolvedValue(
       makeSession({ ...memberUser, role: null }),
     );
-    redirectMock.mockImplementation(() => {
-      throw new Error("NEXT_REDIRECT /login");
-    });
+    setDbRows([{ role: "user", banned: false }]);
 
-    await expect(requireAdminUser()).rejects.toThrow("NEXT_REDIRECT");
-    expect(redirectMock).toHaveBeenCalledWith("/login");
+    await expect(requireAdminUser()).rejects.toThrow("NEXT_FORBIDDEN");
+    expect(forbiddenMock).toHaveBeenCalledTimes(1);
   });
 
-  it("returns the session context for an admin user", async () => {
+  it("returns the session context for an admin user without a DB lookup", async () => {
     const session = makeSession(adminUser);
     getOptionalSessionMock.mockResolvedValue(session);
 
     const context = await requireAdminUser();
 
-    expect(redirectMock).not.toHaveBeenCalled();
+    expect(forbiddenMock).not.toHaveBeenCalled();
+    expect(selectMock).not.toHaveBeenCalled();
     expect(context).toEqual({
       session,
       user: session.user,
     });
   });
-});
 
-describe("features/admin/access requireAdminConsoleUser", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    redirectMock.mockImplementation((url: string) => {
-      throw new Error(`NEXT_REDIRECT ${url}`);
+  it("admits a stale session once the database shows role = admin", async () => {
+    // Better Auth's session cookieCache keeps serving the pre-promotion
+    // role until updateAge elapses; the gate must not bounce these users.
+    const session = makeSession({ ...memberUser, role: "user" });
+    getOptionalSessionMock.mockResolvedValue(session);
+    setDbRows([{ role: "admin", banned: false }]);
+
+    const context = await requireAdminUser();
+
+    expect(forbiddenMock).not.toHaveBeenCalled();
+    expect(context).toEqual({
+      session,
+      user: session.user,
     });
   });
 
-  it("sends logged-out visitors back to the main app, not the admin login", async () => {
+  it("admits an allowlisted email even before the role column is promoted", async () => {
+    const session = makeSession({
+      ...memberUser,
+      email: "allowlisted@example.com",
+    });
+    getOptionalSessionMock.mockResolvedValue(session);
+    setDbRows([{ role: "user", banned: false }]);
+
+    const context = await requireAdminUser();
+
+    expect(forbiddenMock).not.toHaveBeenCalled();
+    expect(context.user.email).toBe("allowlisted@example.com");
+  });
+
+  it("refuses a banned user even when allowlisted", async () => {
+    getOptionalSessionMock.mockResolvedValue(
+      makeSession({ ...memberUser, email: "allowlisted@example.com" }),
+    );
+    setDbRows([{ role: "admin", banned: true }]);
+
+    await expect(requireAdminUser()).rejects.toThrow("NEXT_FORBIDDEN");
+    expect(forbiddenMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("features/admin/access requireAdminConsoleUser", () => {
+  it("redirects to /login when there is no active session", async () => {
     getOptionalSessionMock.mockResolvedValue(null);
 
     await expect(requireAdminConsoleUser()).rejects.toThrow(
-      `NEXT_REDIRECT ${getMainAppUrl()}`,
+      "NEXT_REDIRECT /login",
     );
-    expect(redirectMock).toHaveBeenCalledWith(getMainAppUrl());
+    expect(redirectMock).toHaveBeenCalledWith("/login");
+    expect(forbiddenMock).not.toHaveBeenCalled();
   });
 
-  it("sends authenticated non-admins back to the main app instead of looping on /login", async () => {
+  it("answers a non-admin with 403", async () => {
     getOptionalSessionMock.mockResolvedValue(makeSession(memberUser));
 
-    await expect(requireAdminConsoleUser()).rejects.toThrow(
-      `NEXT_REDIRECT ${getMainAppUrl()}`,
-    );
-    expect(redirectMock).toHaveBeenCalledWith(getMainAppUrl());
-    expect(redirectMock).not.toHaveBeenCalledWith("/login");
+    await expect(requireAdminConsoleUser()).rejects.toThrow("NEXT_FORBIDDEN");
+    expect(forbiddenMock).toHaveBeenCalledTimes(1);
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 
   it("returns the session context for an admin user", async () => {
@@ -151,15 +220,40 @@ describe("features/admin/access requireAdminConsoleUser", () => {
     const context = await requireAdminConsoleUser();
 
     expect(redirectMock).not.toHaveBeenCalled();
+    expect(forbiddenMock).not.toHaveBeenCalled();
     expect(context).toEqual({
       session,
       user: session.user,
     });
   });
-});
 
-describe("features/admin/access getMainAppUrl", () => {
-  it("returns the base origin without any path", () => {
-    expect(getMainAppUrl()).toMatch(/^https?:\/\/[^/]+$/);
+  it("admits a stale session once the database shows role = admin", async () => {
+    const session = makeSession({ ...memberUser, role: "user" });
+    getOptionalSessionMock.mockResolvedValue(session);
+    setDbRows([{ role: "admin", banned: false }]);
+
+    const context = await requireAdminConsoleUser();
+
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(forbiddenMock).not.toHaveBeenCalled();
+    expect(context).toEqual({
+      session,
+      user: session.user,
+    });
+  });
+
+  it("admits an allowlisted email even before the role column is promoted", async () => {
+    const session = makeSession({
+      ...memberUser,
+      email: "allowlisted@example.com",
+    });
+    getOptionalSessionMock.mockResolvedValue(session);
+    setDbRows([{ role: "user", banned: false }]);
+
+    const context = await requireAdminConsoleUser();
+
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(forbiddenMock).not.toHaveBeenCalled();
+    expect(context.user.email).toBe("allowlisted@example.com");
   });
 });

@@ -1,4 +1,3 @@
-import type { Stat } from "@/components/application/dashboard/stat-cards";
 import { AdminOverviewStatCards } from "@/features/admin/components/overview/admin-overview-stat-cards";
 import type {
   AdminDashboardCounts,
@@ -48,10 +47,10 @@ export function formatAdminPercent(
 /**
  * Serializable icon keys for the overview tiles.
  *
- * `StatCards` is a client component and `Stat.icon` is a component
- * reference, which cannot cross the server → client boundary — so the
- * builder below emits keys and `AdminOverviewStatCards` resolves them to
- * icon components client-side (same bridge as `HomeKpiCards`).
+ * `AdminOverviewStatCards` is a client component and icons are component
+ * references, which cannot cross the server → client boundary — so the
+ * builder below emits keys and the cards resolve them to icon components
+ * client-side (same bridge as `HomeKpiCards`).
  */
 export type AdminOverviewStatIcon =
   | "users"
@@ -59,8 +58,16 @@ export type AdminOverviewStatIcon =
   | "inquiries"
   | "quotes";
 
-export type AdminOverviewStat = Omit<Stat, "icon"> & {
+export type AdminOverviewStat = {
   icon: AdminOverviewStatIcon;
+  label: string;
+  value: string;
+  /** Momentum pill next to the label. */
+  delta: string;
+  /** Badge sentiment: primary when the window is active, muted when empty. */
+  variant: "default" | "secondary";
+  /** One line explaining what the delta counts. */
+  caption: string;
 };
 
 /**
@@ -68,8 +75,8 @@ export type AdminOverviewStat = Omit<Stat, "icon"> & {
  *
  * Totals come from the aggregate metrics; the deltas reuse the 7-day
  * throughput counts so each tile pairs a lifetime figure with recent
- * momentum. `StatCards variant="plain"` always renders the delta pill, so
- * every tile carries one — zero states read "0 in 7d", never an empty pill.
+ * momentum. Every tile carries a delta — zero states read "0 in 7d",
+ * never an empty pill.
  */
 export function buildAdminOverviewStats(
   counts: AdminDashboardCounts,
@@ -81,32 +88,32 @@ export function buildAdminOverviewStats(
       label: "Total users",
       value: formatAdminCount(counts.totalUsers),
       delta: `+${formatAdminCount(counts.signUpsLast7d)} in 7d`,
-      deltaColor: counts.signUpsLast7d > 0 ? "lime" : "neutral",
-      deltaDirection: counts.signUpsLast7d > 0 ? "up" : "flat",
+      variant: counts.signUpsLast7d > 0 ? "default" : "secondary",
+      caption: "New accounts in the last 7 days",
     },
     {
       icon: "businesses",
       label: "Businesses",
       value: formatAdminCount(counts.totalBusinesses),
       delta: `${formatAdminCount(counts.totalActiveSubscriptions)} active subs`,
-      deltaColor: counts.totalActiveSubscriptions > 0 ? "lime" : "neutral",
-      deltaDirection: counts.totalActiveSubscriptions > 0 ? "up" : "flat",
+      variant: counts.totalActiveSubscriptions > 0 ? "default" : "secondary",
+      caption: "Paid subscriptions active now",
     },
     {
       icon: "inquiries",
       label: "Inquiries",
       value: formatAdminCount(metrics.inquiries.total),
       delta: `${formatAdminCount(counts.inquiriesLast7d)} in 7d`,
-      deltaColor: counts.inquiriesLast7d > 0 ? "lime" : "neutral",
-      deltaDirection: counts.inquiriesLast7d > 0 ? "up" : "flat",
+      variant: counts.inquiriesLast7d > 0 ? "default" : "secondary",
+      caption: "New requests in the last 7 days",
     },
     {
       icon: "quotes",
       label: "Quotes",
       value: formatAdminCount(metrics.quotes.total),
       delta: `${formatAdminCount(counts.quotesSentLast7d)} sent in 7d`,
-      deltaColor: counts.quotesSentLast7d > 0 ? "lime" : "neutral",
-      deltaDirection: counts.quotesSentLast7d > 0 ? "up" : "flat",
+      variant: counts.quotesSentLast7d > 0 ? "default" : "secondary",
+      caption: "Quotes sent in the last 7 days",
     },
   ];
 }

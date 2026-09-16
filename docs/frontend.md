@@ -39,7 +39,7 @@ export default function SomePage({ params }) {   // sync — no awaits
 }
 ```
 
-Rules: `params`/`searchParams`/session/queries only inside `<Suspense>`-wrapped async children; one boundary per independently-loading region; add `<RegionErrorBoundary>` (`components/shared/region-error-boundary.tsx`) where a region can fail alone. Never silence failures with `instant = false` — use the escape-hatch registry (`lib/instant-navigation/escape-hatch-registry.ts`). Stale times: dynamic 30s, static 180s (`next.config.ts`). `loading.tsx` (80+ files) must mirror its page's Static Shell (same header copy, tabs, grid, section order). Skeletons: `components/shell/*-skeleton.tsx`, `components/shared/*-skeleton.tsx`, `components/ui/{skeleton,spinner}.tsx`.
+Rules: `params`/`searchParams`/session/queries only inside `<Suspense>`-wrapped async children; one boundary per independently-loading region; add `<RegionErrorBoundary>` (`components/shared/region-error-boundary.tsx`) where a region can fail alone. Never silence failures with `instant = false` — use the escape-hatch registry (`lib/instant-navigation/escape-hatch-registry.ts`). Stale times: dynamic 30s, static 180s (`next.config.ts`). `loading.tsx` (80+ files) must mirror its page's Static Shell (same header copy, tabs, grid, section order). Skeletons: `components/shell/*-skeleton.tsx`, `components/shared/*-skeleton.tsx`, `components/ui/{skeleton,spinner}.tsx`. Staged detail routes reuse `components/shared/detail-section-fallback.tsx` (`DetailSectionFallback` per feed, plus header-shaped fallbacks) — see `docs/architecture/instant-navigation.md`.
 
 ## Server / client split
 

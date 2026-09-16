@@ -5,7 +5,6 @@ import {
   DashboardDetailFeedItem,
   DashboardDetailHeader,
   DashboardDetailLayout,
-  DashboardMetaPill,
   DashboardSection,
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
@@ -16,13 +15,17 @@ import {
   formatFileSize,
 } from "@/features/admin/components/product/admin-product-format";
 import {
-  ADMIN_BUSINESSES_PATH,
-  ADMIN_INQUIRIES_PATH,
   getAdminBusinessDetailPath,
   getAdminQuoteDetailPath,
-  getAdminUserDetailPath,
 } from "@/features/admin/navigation";
-import type { AdminInquiryDetail } from "@/features/admin/types";
+import type {
+  AdminInquiryAttachment,
+  AdminInquiryDetail,
+  AdminInquiryDetailCore,
+  AdminInquiryLinkedQuote,
+  AdminInquiryMessage,
+  AdminInquiryNote,
+} from "@/features/admin/types";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import {
   inquirySourceLabels,
@@ -68,15 +71,27 @@ function formatDate(value: Date | null): string {
   });
 }
 
-function DetailField({ label, value }: { label: string; value: string }) {
+function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div data-padding="none" className="soft-panel px-4 py-3 shadow-none">
-      <p className="meta-label">{label}</p>
-      <p className="mt-1.5 text-sm font-medium text-foreground break-words">
-        {value}
-      </p>
+    <div className="min-w-0">
+      <dt className="meta-label">{label}</dt>
+      <dd className="mt-1 text-sm text-foreground break-words">{value}</dd>
     </div>
   );
+}
+
+function qualificationLabel(detail: AdminInquiryDetailCore): string {
+  const parts = [
+    detail.qualificationTemperature
+      ? detail.qualificationTemperature.charAt(0).toUpperCase() +
+        detail.qualificationTemperature.slice(1)
+      : null,
+    detail.qualificationScore === null
+      ? null
+      : `score ${detail.qualificationScore}`,
+  ].filter(Boolean);
+
+  return parts.join(" · ") || "—";
 }
 
 /**
@@ -84,336 +99,350 @@ function DetailField({ label, value }: { label: string; value: string }) {
  *
  * Identity, request content, conversation messages, owner notes,
  * attachment metadata, and linked quotes — passive inspection only, no
- * customer-facing editing. Attachments are metadata only: the query never
- * selects `storagePath`, so there is nothing here that could leak a
- * private asset URL.
+ * actions. Attachments are metadata only: the query never selects
+ * `storagePath`, so there is nothing here that could leak a private
+ * asset URL. Field clusters use flat `dl` rows and rosters use
+ * `DashboardDetailFeed` — the same composition as the business detail
+ * view.
+ *
+ * Thin composer over the section components below (kept so the detail
+ * renders identically when the full payload is already in hand, e.g.
+ * tests). Route pages stream each section behind its own Suspense
+ * boundary instead.
  */
 export function AdminInquiryDetail({
   detail,
 }: {
   detail: AdminInquiryDetail;
 }) {
-  const title = detail.subject?.trim() || `Inquiry from ${detail.customerName}`;
-
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <DashboardDetailHeader
-        eyebrow={
-          <Link
-            className="underline-offset-4 hover:text-primary hover:underline"
-            href={ADMIN_INQUIRIES_PATH}
-          >
-            ← Inquiries
-          </Link>
-        }
-        meta={
-          <>
-            <DashboardMetaPill>
-              <InquiryStatusBadge status={detail.status} />
-            </DashboardMetaPill>
-            <DashboardMetaPill>{detail.business.name}</DashboardMetaPill>
-            <DashboardMetaPill>
-              Submitted {formatDate(detail.submittedAt)}
-            </DashboardMetaPill>
-            {detail.archivedAt ? (
-              <DashboardMetaPill>
-                Archived {formatDate(detail.archivedAt)}
-              </DashboardMetaPill>
-            ) : null}
-            {detail.deletedAt ? (
-              <DashboardMetaPill>
-                Deleted {formatDate(detail.deletedAt)}
-              </DashboardMetaPill>
-            ) : null}
-          </>
-        }
-        title={title}
-      />
+      <AdminInquiryHeaderSection detail={detail} />
 
       <DashboardDetailLayout className="xl:grid-cols-[minmax(0,1.1fr)_0.9fr]">
         <div className="flex min-w-0 flex-col gap-6">
-          <DashboardSection
-            description="What the customer asked for, as submitted."
-            title="Request"
-          >
-            <div className="grid gap-3 sm:grid-cols-2">
-              <DetailField
-                label="Service category"
-                value={detail.serviceCategory || "—"}
-              />
-              <DetailField
-                label="Budget"
-                value={detail.budgetText || "—"}
-              />
-              <DetailField
-                label="Requested deadline"
-                value={detail.requestedDeadline || "—"}
-              />
-              <DetailField
-                label="Source"
-                value={inquirySourceLabels[normalizeInquirySource(detail.source)]}
-              />
-              <DetailField
-                label="Quote requested"
-                value={detail.quoteRequested ? "Yes" : "No"}
-              />
-              <DetailField
-                label="Qualification"
-                value={
-                  detail.qualificationScore === null &&
-                  !detail.qualificationTemperature
-                    ? "Not scored"
-                    : [
-                        detail.qualificationTemperature
-                          ? detail.qualificationTemperature
-                              .charAt(0)
-                              .toUpperCase() +
-                            detail.qualificationTemperature.slice(1)
-                          : null,
-                        detail.qualificationScore === null
-                          ? null
-                          : `score ${detail.qualificationScore}`,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ") || "—"
-                }
-              />
-              <DetailField
-                label="AI assisted"
-                value={detail.aiAssisted ? "Yes" : "No"}
-              />
-              <DetailField
-                label="Escalated"
-                value={detail.escalated ? "Yes" : "No"}
-              />
-            </div>
-            <div className="mt-3" data-padding="none">
-              <div className="soft-panel px-4 py-3 shadow-none">
-                <p className="meta-label">Details</p>
-                <p className="mt-1.5 text-sm leading-6 text-foreground whitespace-pre-wrap break-words">
-                  {detail.details}
-                </p>
-              </div>
-            </div>
-          </DashboardSection>
-
-          <DashboardSection
-            description="Conversation history on this inquiry, oldest first."
-            title={`Messages (${detail.messages.length})`}
-          >
-            {detail.messages.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No messages recorded.
-              </p>
-            ) : (
-              <DashboardDetailFeed>
-                {detail.messages.map((message) => (
-                  <DashboardDetailFeedItem
-                    key={message.id}
-                    meta={
-                      <>
-                        <span className="capitalize">{message.role}</span>
-                        {message.status !== "completed" ? (
-                          <>
-                            <span aria-hidden="true">·</span>
-                            <span>{message.status}</span>
-                          </>
-                        ) : null}
-                        <span aria-hidden="true">·</span>
-                        <span>{formatDateTime(message.createdAt)}</span>
-                      </>
-                    }
-                    title={message.role === "user" ? detail.customerName : "Assistant"}
-                    titleLines={1}
-                  >
-                    <p className="text-sm leading-6 text-foreground whitespace-pre-wrap break-words">
-                      {message.content}
-                    </p>
-                  </DashboardDetailFeedItem>
-                ))}
-              </DashboardDetailFeed>
-            )}
-          </DashboardSection>
-
-          <DashboardSection
-            description="Internal owner notes, oldest first."
-            title={`Notes (${detail.notes.length})`}
-          >
-            {detail.notes.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No notes recorded.
-              </p>
-            ) : (
-              <DashboardDetailFeed>
-                {detail.notes.map((note) => (
-                  <DashboardDetailFeedItem
-                    key={note.id}
-                    meta={
-                      <>
-                        <span>
-                          {note.authorName || note.authorEmail || "Unknown author"}
-                        </span>
-                        <span aria-hidden="true">·</span>
-                        <span>{formatDateTime(note.createdAt)}</span>
-                      </>
-                    }
-                    title="Owner note"
-                  >
-                    <p className="text-sm leading-6 text-foreground whitespace-pre-wrap break-words">
-                      {note.body}
-                    </p>
-                  </DashboardDetailFeedItem>
-                ))}
-              </DashboardDetailFeed>
-            )}
-          </DashboardSection>
-
-          <DashboardSection
-            description="File metadata only — downloads stay inside the business dashboard."
-            title={`Attachments (${detail.attachments.length})`}
-          >
-            {detail.attachments.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No attachments.
-              </p>
-            ) : (
-              <DashboardDetailFeed>
-                {detail.attachments.map((attachment) => (
-                  <DashboardDetailFeedItem
-                    key={attachment.id}
-                    meta={
-                      <>
-                        <span>{attachment.contentType}</span>
-                        <span aria-hidden="true">·</span>
-                        <span>{formatFileSize(attachment.fileSize)}</span>
-                        <span aria-hidden="true">·</span>
-                        <span>{formatDateTime(attachment.createdAt)}</span>
-                      </>
-                    }
-                    title={attachment.fileName}
-                  />
-                ))}
-              </DashboardDetailFeed>
-            )}
-          </DashboardSection>
-
-          <DashboardSection
-            description="Quotes drafted from this inquiry."
-            title={`Linked quotes (${detail.linkedQuotes.length})`}
-          >
-            {detail.linkedQuotes.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No quotes drafted from this inquiry yet.
-              </p>
-            ) : (
-              <DashboardDetailFeed>
-                {detail.linkedQuotes.map((quote) => (
-                  <DashboardDetailFeedItem
-                    action={
-                      <Button asChild size="sm" variant="outline">
-                        <Link
-                          href={getAdminQuoteDetailPath(quote.id)}
-                          prefetch={true}
-                        >
-                          Open
-                        </Link>
-                      </Button>
-                    }
-                    key={quote.id}
-                    meta={
-                      <>
-                        <QuoteStatusBadge status={quote.status} />
-                        <span aria-hidden="true">·</span>
-                        <span>
-                          {formatAdminMoney(quote.totalInCents, quote.currency)}
-                        </span>
-                        {quote.sentAt ? (
-                          <>
-                            <span aria-hidden="true">·</span>
-                            <span>Sent {formatDate(quote.sentAt)}</span>
-                          </>
-                        ) : null}
-                      </>
-                    }
-                    title={quote.quoteNumber}
-                  />
-                ))}
-              </DashboardDetailFeed>
-            )}
-          </DashboardSection>
+          <AdminInquiryRequestSection detail={detail} />
+          <AdminInquiryMessagesSection
+            customerName={detail.customerName}
+            messages={detail.messages}
+          />
+          <AdminInquiryNotesSection notes={detail.notes} />
+          <AdminInquiryAttachmentsSection attachments={detail.attachments} />
+          <AdminInquiryLinkedQuotesSection linkedQuotes={detail.linkedQuotes} />
         </div>
 
-        <DashboardSidebarStack>
-          <DashboardSection title="Customer">
-            <div className="flex flex-col gap-3">
-              <DetailField label="Name" value={detail.customerName} />
-              <DetailField label="Email" value={detail.customerEmail || "—"} />
-              <DetailField
-                label="Contact"
-                value={`${detail.customerContactMethod || "—"}${detail.customerContactHandle ? ` · ${detail.customerContactHandle}` : ""}`}
-              />
-            </div>
-          </DashboardSection>
-
-          <DashboardSection title="Business">
-            <div className="flex flex-col gap-3">
-              <DetailField label="Name" value={detail.business.name} />
-              <DetailField
-                label="Slug"
-                value={detail.business.slug}
-              />
-              <DetailField label="Owner" value={detail.owner.email} />
-              <Link
-                className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-                href={getAdminBusinessDetailPath(detail.business.id)}
-              >
-                View business in admin →
-              </Link>
-              <Link
-                className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-                href={getAdminUserDetailPath(detail.owner.userId)}
-              >
-                View owner in admin →
-              </Link>
-              <Link
-                className="text-sm font-medium text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
-                href={ADMIN_BUSINESSES_PATH}
-              >
-                ← All businesses
-              </Link>
-            </div>
-          </DashboardSection>
-
-          <DashboardSection title="Activity">
-            <div className="flex flex-col gap-3">
-              <DetailField
-                label="Submitted"
-                value={formatDateTime(detail.submittedAt)}
-              />
-              <DetailField
-                label="Last responded"
-                value={
-                  detail.lastRespondedAt
-                    ? formatDateTime(detail.lastRespondedAt)
-                    : "No response yet"
-                }
-              />
-              {detail.qualificationScore !== null ||
-              detail.escalated ||
-              detail.aiAssisted ? (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {detail.aiAssisted ? (
-                    <Badge variant="secondary">AI assisted</Badge>
-                  ) : null}
-                  {detail.escalated ? (
-                    <Badge variant="destructive">Escalated</Badge>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          </DashboardSection>
-        </DashboardSidebarStack>
+        <AdminInquiryMetaSidebar detail={detail} />
       </DashboardDetailLayout>
     </div>
+  );
+}
+
+export function AdminInquiryHeaderSection({
+  detail,
+}: {
+  detail: AdminInquiryDetailCore;
+}) {
+  const title = detail.subject?.trim() || `Inquiry from ${detail.customerName}`;
+
+  return (
+    <DashboardDetailHeader
+      meta={
+        <>
+          <InquiryStatusBadge status={detail.status} />
+          {detail.aiAssisted ? (
+            <Badge variant="secondary">AI assisted</Badge>
+          ) : null}
+          {detail.escalated ? (
+            <Badge variant="destructive">Escalated</Badge>
+          ) : null}
+          {detail.archivedAt ? (
+            <Badge variant="outline">Archived</Badge>
+          ) : null}
+          {detail.deletedAt ? (
+            <Badge variant="destructive">Deleted</Badge>
+          ) : null}
+          <span className="text-xs text-muted-foreground">
+            {detail.business.name} · Submitted{" "}
+            {formatDate(detail.submittedAt)}
+          </span>
+        </>
+      }
+      title={title}
+    />
+  );
+}
+
+export function AdminInquiryRequestSection({
+  detail,
+}: {
+  detail: AdminInquiryDetailCore;
+}) {
+  return (
+    <DashboardSection
+      description="What the customer asked for, as submitted."
+      title="Request"
+    >
+      <dl className="grid gap-5 sm:grid-cols-2">
+        <DetailRow
+          label="Service category"
+          value={detail.serviceCategory || "—"}
+        />
+        <DetailRow label="Budget" value={detail.budgetText || "—"} />
+        <DetailRow
+          label="Requested deadline"
+          value={detail.requestedDeadline || "—"}
+        />
+        <DetailRow
+          label="Source"
+          value={inquirySourceLabels[normalizeInquirySource(detail.source)]}
+        />
+        <DetailRow
+          label="Quote requested"
+          value={detail.quoteRequested ? "Yes" : "No"}
+        />
+        <DetailRow
+          label="Qualification"
+          value={qualificationLabel(detail)}
+        />
+      </dl>
+      <div className="mt-5 min-w-0">
+        <p className="meta-label">Details</p>
+        <p className="mt-1 text-sm leading-6 text-foreground whitespace-pre-wrap break-words">
+          {detail.details}
+        </p>
+      </div>
+    </DashboardSection>
+  );
+}
+
+export function AdminInquiryMessagesSection({
+  customerName,
+  messages,
+}: {
+  customerName: string;
+  messages: AdminInquiryMessage[];
+}) {
+  return (
+    <DashboardSection
+      description="Conversation history on this inquiry, oldest first."
+      title={`Messages (${messages.length})`}
+    >
+      {messages.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No messages recorded.
+        </p>
+      ) : (
+        <DashboardDetailFeed>
+          {messages.map((message) => (
+            <DashboardDetailFeedItem
+              key={message.id}
+              meta={
+                <>
+                  <span className="capitalize">{message.role}</span>
+                  {message.status !== "completed" ? (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>{message.status}</span>
+                    </>
+                  ) : null}
+                  <span aria-hidden="true">·</span>
+                  <span>{formatDateTime(message.createdAt)}</span>
+                </>
+              }
+              title={message.role === "user" ? customerName : "Assistant"}
+              titleLines={1}
+            >
+              <p className="text-sm leading-6 text-foreground whitespace-pre-wrap break-words">
+                {message.content}
+              </p>
+            </DashboardDetailFeedItem>
+          ))}
+        </DashboardDetailFeed>
+      )}
+    </DashboardSection>
+  );
+}
+
+export function AdminInquiryNotesSection({
+  notes,
+}: {
+  notes: AdminInquiryNote[];
+}) {
+  return (
+    <DashboardSection
+      description="Internal owner notes, oldest first."
+      title={`Notes (${notes.length})`}
+    >
+      {notes.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No notes recorded.
+        </p>
+      ) : (
+        <DashboardDetailFeed>
+          {notes.map((note) => (
+            <DashboardDetailFeedItem
+              key={note.id}
+              meta={
+                <>
+                  <span>
+                    {note.authorName || note.authorEmail || "Unknown author"}
+                  </span>
+                  <span aria-hidden="true">·</span>
+                  <span>{formatDateTime(note.createdAt)}</span>
+                </>
+              }
+              title="Owner note"
+            >
+              <p className="text-sm leading-6 text-foreground whitespace-pre-wrap break-words">
+                {note.body}
+              </p>
+            </DashboardDetailFeedItem>
+          ))}
+        </DashboardDetailFeed>
+      )}
+    </DashboardSection>
+  );
+}
+
+export function AdminInquiryAttachmentsSection({
+  attachments,
+}: {
+  attachments: AdminInquiryAttachment[];
+}) {
+  return (
+    <DashboardSection
+      description="File metadata only — downloads stay inside the business dashboard."
+      title={`Attachments (${attachments.length})`}
+    >
+      {attachments.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No attachments.
+        </p>
+      ) : (
+        <DashboardDetailFeed>
+          {attachments.map((attachment) => (
+            <DashboardDetailFeedItem
+              key={attachment.id}
+              meta={
+                <>
+                  <span>{attachment.contentType}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{formatFileSize(attachment.fileSize)}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{formatDateTime(attachment.createdAt)}</span>
+                </>
+              }
+              title={attachment.fileName}
+            />
+          ))}
+        </DashboardDetailFeed>
+      )}
+    </DashboardSection>
+  );
+}
+
+export function AdminInquiryLinkedQuotesSection({
+  linkedQuotes,
+}: {
+  linkedQuotes: AdminInquiryLinkedQuote[];
+}) {
+  return (
+    <DashboardSection
+      description="Quotes drafted from this inquiry."
+      title={`Linked quotes (${linkedQuotes.length})`}
+    >
+      {linkedQuotes.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No quotes drafted from this inquiry yet.
+        </p>
+      ) : (
+        <DashboardDetailFeed>
+          {linkedQuotes.map((quote) => (
+            <DashboardDetailFeedItem
+              action={
+                <Button asChild size="sm" variant="outline">
+                  <Link
+                    href={getAdminQuoteDetailPath(quote.id)}
+                    prefetch={true}
+                  >
+                    Open
+                  </Link>
+                </Button>
+              }
+              key={quote.id}
+              meta={
+                <>
+                  <QuoteStatusBadge status={quote.status} />
+                  <span aria-hidden="true">·</span>
+                  <span>
+                    {formatAdminMoney(quote.totalInCents, quote.currency)}
+                  </span>
+                  {quote.sentAt ? (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>Sent {formatDate(quote.sentAt)}</span>
+                    </>
+                  ) : null}
+                </>
+              }
+              title={quote.quoteNumber}
+            />
+          ))}
+        </DashboardDetailFeed>
+      )}
+    </DashboardSection>
+  );
+}
+
+export function AdminInquiryMetaSidebar({
+  detail,
+}: {
+  detail: AdminInquiryDetailCore;
+}) {
+  return (
+    <DashboardSidebarStack>
+      <DashboardSection title="Customer">
+        <dl className="flex flex-col gap-5">
+          <DetailRow label="Name" value={detail.customerName} />
+          <DetailRow label="Email" value={detail.customerEmail || "—"} />
+          <DetailRow
+            label="Contact"
+            value={`${detail.customerContactMethod || "—"}${detail.customerContactHandle ? ` · ${detail.customerContactHandle}` : ""}`}
+          />
+        </dl>
+      </DashboardSection>
+
+      <DashboardSection title="Business">
+        <dl className="flex flex-col gap-5">
+          <DetailRow label="Name" value={detail.business.name} />
+          <DetailRow label="Owner" value={detail.owner.email} />
+        </dl>
+        <Button asChild className="mt-5" size="sm" variant="outline">
+          <Link
+            href={getAdminBusinessDetailPath(detail.business.id)}
+            prefetch={true}
+          >
+            Open business
+          </Link>
+        </Button>
+      </DashboardSection>
+
+      <DashboardSection title="Activity">
+        <dl className="flex flex-col gap-5">
+          <DetailRow
+            label="Submitted"
+            value={formatDateTime(detail.submittedAt)}
+          />
+          <DetailRow
+            label="Last responded"
+            value={
+              detail.lastRespondedAt
+                ? formatDateTime(detail.lastRespondedAt)
+                : "No response yet"
+            }
+          />
+        </dl>
+      </DashboardSection>
+    </DashboardSidebarStack>
   );
 }

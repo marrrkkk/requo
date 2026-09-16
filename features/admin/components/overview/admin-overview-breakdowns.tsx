@@ -51,24 +51,45 @@ function emailStatusLabel(status: EmailOutboxStatus): string {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-function BreakdownRow({
+/**
+ * One pipeline row: status badge, count, and a share-of-total bar.
+ *
+ * The bar uses semantic tokens (`bg-muted` track, `bg-primary` fill) so
+ * every breakdown on the Overview shares one visual language.
+ */
+function PipelineRow({
   label,
   badge,
   count,
+  total,
 }: {
   label: string;
   badge: React.ReactNode;
   count: number;
+  total: number;
 }) {
+  const percent = total > 0 ? Math.min(100, (count / total) * 100) : 0;
+
   return (
     <li
       aria-label={`${label}: ${formatAdminCount(count)}`}
-      className="flex items-center justify-between gap-3 border-b border-border/60 py-1.5 last:border-0"
+      className="flex flex-col gap-1.5 border-b border-border/60 py-2 last:border-0"
     >
-      {badge}
-      <span className="text-sm font-semibold tabular-nums text-foreground">
-        {formatAdminCount(count)}
-      </span>
+      <div className="flex items-center justify-between gap-3">
+        {badge}
+        <span className="text-sm font-semibold tabular-nums text-foreground">
+          {formatAdminCount(count)}
+        </span>
+      </div>
+      <div
+        aria-hidden="true"
+        className="h-1.5 overflow-hidden rounded-full bg-muted"
+      >
+        <div
+          className="h-full rounded-full bg-primary"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
     </li>
   );
 }
@@ -95,11 +116,12 @@ export function AdminOverviewInquiriesSection({
     >
       <ul>
         {(inquiryStatuses as readonly InquiryStatus[]).map((status) => (
-          <BreakdownRow
+          <PipelineRow
             badge={<InquiryStatusBadge status={status} />}
             count={inquiries.byStatus[status]}
             key={status}
             label={getInquiryStatusLabel(status)}
+            total={inquiries.total}
           />
         ))}
       </ul>
@@ -129,15 +151,65 @@ export function AdminOverviewQuotesSection({
     >
       <ul>
         {(quoteStatuses as readonly QuoteStatus[]).map((status) => (
-          <BreakdownRow
+          <PipelineRow
             badge={<QuoteStatusBadge status={status} />}
             count={quotes.byStatus[status]}
             key={status}
             label={getQuoteStatusLabel(status)}
+            total={quotes.total}
           />
         ))}
       </ul>
     </DashboardSection>
+  );
+}
+
+/**
+ * One AI metric row, mirroring `PipelineRow` rhythm.
+ *
+ * Same dividers (`border-b border-border/60 py-2`), same label-left /
+ * value-right top line, same `bg-muted` track + token fill bar — so the AI
+ * card reads as one of the pipeline breakdowns instead of a loose dl grid.
+ * The bar only renders where a rate exists (errors, cache hits).
+ */
+function AiFactRow({
+  label,
+  value,
+  percent,
+  barVariant = "primary",
+}: {
+  label: string;
+  value: string;
+  percent?: number | null;
+  barVariant?: "primary" | "destructive";
+}) {
+  return (
+    <li
+      aria-label={`${label}: ${value}`}
+      className="flex flex-col gap-1.5 border-b border-border/60 py-2 last:border-0"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm text-muted-foreground">{label}</span>
+        <span className="text-sm font-semibold tabular-nums text-foreground">
+          {value}
+        </span>
+      </div>
+      {percent != null ? (
+        <div
+          aria-hidden="true"
+          className="h-1.5 overflow-hidden rounded-full bg-muted"
+        >
+          <div
+            className={
+              barVariant === "destructive"
+                ? "h-full rounded-full bg-destructive"
+                : "h-full rounded-full bg-primary"
+            }
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+      ) : null}
+    </li>
   );
 }
 
@@ -148,8 +220,17 @@ export function AdminOverviewAiSection({ ai }: { ai: AdminOverviewAi }) {
   const errorRate = formatAdminPercent(ai.errors, ai.calls);
   const cacheHitRate = formatAdminPercent(ai.cacheHits, ai.calls);
   const unpricedNote = getUnpricedCostNote(ai.unpricedCalls);
+  const errorPercent =
+    ai.calls > 0 ? Math.min(100, (ai.errors / ai.calls) * 100) : 0;
+  const cachePercent =
+    ai.calls > 0 ? Math.min(100, (ai.cacheHits / ai.calls) * 100) : 0;
 
-  const facts: Array<{ label: string; value: string }> = [
+  const facts: Array<{
+    label: string;
+    value: string;
+    percent?: number;
+    barVariant?: "primary" | "destructive";
+  }> = [
     { label: "Calls (24h)", value: formatAdminCount(ai.calls) },
     {
       label: "Errors",
@@ -157,6 +238,8 @@ export function AdminOverviewAiSection({ ai }: { ai: AdminOverviewAi }) {
         errorRate === null
           ? formatAdminCount(ai.errors)
           : `${formatAdminCount(ai.errors)} · ${errorRate}`,
+      percent: errorPercent,
+      barVariant: "destructive",
     },
     { label: "Tokens (24h)", value: formatAdminCount(ai.totalTokens) },
     { label: "Est. cost (24h)", value: formatAdminCostCents(ai.estimatedCostCents) },
@@ -166,6 +249,7 @@ export function AdminOverviewAiSection({ ai }: { ai: AdminOverviewAi }) {
         cacheHitRate === null
           ? formatAdminCount(ai.cacheHits)
           : `${formatAdminCount(ai.cacheHits)} · ${cacheHitRate}`,
+      percent: cachePercent,
     },
     {
       label: "Avg latency",
@@ -188,16 +272,17 @@ export function AdminOverviewAiSection({ ai }: { ai: AdminOverviewAi }) {
       description="Model usage, cost, and reliability for the last 24 hours."
       title="AI"
     >
-      <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+      <ul>
         {facts.map((fact) => (
-          <div className="min-w-0" key={fact.label}>
-            <dt className="meta-label">{fact.label}</dt>
-            <dd className="mt-1 text-sm font-medium tabular-nums text-foreground">
-              {fact.value}
-            </dd>
-          </div>
+          <AiFactRow
+            barVariant={fact.barVariant}
+            key={fact.label}
+            label={fact.label}
+            percent={fact.percent}
+            value={fact.value}
+          />
         ))}
-      </dl>
+      </ul>
       {unpricedNote ? (
         <p className="mt-4 text-xs leading-5 text-muted-foreground">
           {unpricedNote}
@@ -230,11 +315,12 @@ export function AdminOverviewEmailSection({ email }: { email: AdminOverviewEmail
             {(
               emailOutboxStatuses as readonly EmailOutboxStatus[]
             ).map((status) => (
-              <BreakdownRow
+              <PipelineRow
                 badge={<AdminEmailStatusBadge status={status} />}
                 count={email.last24h.byStatus[status]}
                 key={status}
                 label={emailStatusLabel(status)}
+                total={email.last24h.total}
               />
             ))}
           </ul>
@@ -245,11 +331,12 @@ export function AdminOverviewEmailSection({ email }: { email: AdminOverviewEmail
             {(
               emailOutboxStatuses as readonly EmailOutboxStatus[]
             ).map((status) => (
-              <BreakdownRow
+              <PipelineRow
                 badge={<AdminEmailStatusBadge status={status} />}
                 count={email.last7d.byStatus[status]}
                 key={status}
                 label={emailStatusLabel(status)}
+                total={email.last7d.total}
               />
             ))}
           </ul>

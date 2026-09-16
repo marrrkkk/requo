@@ -57,13 +57,14 @@ const adminQuoteColumns: AdminDataTableColumn<AdminQuoteRow>[] = [
   {
     id: "status",
     header: "Status",
-    width: "w-[10rem]",
+    width: "w-[12rem]",
+    align: "center",
     cell: (row) => <QuoteStatusBadge status={row.status} />,
   },
   {
     id: "total",
     header: "Total",
-    width: "w-[8rem]",
+    width: "w-[7rem]",
     align: "right",
     cell: (row) => (
       <span className="text-sm font-medium tabular-nums text-foreground">
@@ -108,7 +109,10 @@ type AdminQuotesTableProps = {
  *
  * Fixed `createdAt DESC` ordering (the list query owns it) — no sortable
  * columns. Status renders through the main app's `QuoteStatusBadge`
- * unchanged. Below `xl` each row becomes a `MobileRecordRow` card.
+ * unchanged. `flush` renders the table edge to edge inside the page's
+ * list card (one frame, like the businesses list) instead of nesting a
+ * second bordered container. Below `xl` each row becomes a
+ * `MobileRecordRow` card.
  */
 export function AdminQuotesTable({
   items,
@@ -130,6 +134,7 @@ export function AdminQuotesTable({
       }}
       getRowHref={(row) => getAdminQuoteDetailPath(row.id)}
       getRowId={(row) => row.id}
+      flush
       minWidthClass="min-w-[72rem]"
       mobileCard={(row) => ({
         title: `${row.quoteNumber} · ${row.customerName}`,

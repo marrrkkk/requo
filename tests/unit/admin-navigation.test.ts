@@ -11,7 +11,7 @@ import {
   ADMIN_INQUIRIES_PATH,
   ADMIN_QUOTES_PATH,
   ADMIN_ROOT_PATH,
-  ADMIN_SETTINGS_PATH,
+  ADMIN_SYSTEM_PATH,
   ADMIN_USAGE_PATH,
   ADMIN_USERS_PATH,
   adminNavigation,
@@ -45,7 +45,7 @@ const EXPECTED_HREFS = [
   ADMIN_EMAILS_PATH,
   ADMIN_USAGE_PATH,
   ADMIN_AUDIT_LOGS_PATH,
-  ADMIN_SETTINGS_PATH,
+  ADMIN_SYSTEM_PATH,
 ];
 
 describe("features/admin/navigation", () => {
@@ -96,7 +96,9 @@ describe("features/admin/navigation", () => {
       expect(isAdminNavigationItemActive(ADMIN_USERS_PATH, ADMIN_USERS_PATH)).toBe(
         true,
       );
-      expect(isAdminNavigationItemActive("/users/u1", ADMIN_USERS_PATH)).toBe(true);
+      expect(
+        isAdminNavigationItemActive(`${ADMIN_USERS_PATH}/u1`, ADMIN_USERS_PATH),
+      ).toBe(true);
       expect(
         isAdminNavigationItemActive(ADMIN_BUSINESSES_PATH, ADMIN_USERS_PATH),
       ).toBe(false);
@@ -120,19 +122,21 @@ describe("features/admin/navigation", () => {
     });
 
     it("resolves a detail page to its section", () => {
-      expect(getActiveAdminNavigationItem("/users/u1")?.href).toBe(
+      expect(getActiveAdminNavigationItem(`${ADMIN_USERS_PATH}/u1`)?.href).toBe(
         ADMIN_USERS_PATH,
       );
-      expect(getActiveAdminNavigationItem("/quotes/q1")?.href).toBe(
-        ADMIN_QUOTES_PATH,
-      );
-      expect(getActiveAdminNavigationItem("/emails/e1")?.href).toBe(
-        ADMIN_EMAILS_PATH,
-      );
+      expect(
+        getActiveAdminNavigationItem(`${ADMIN_QUOTES_PATH}/q1`)?.href,
+      ).toBe(ADMIN_QUOTES_PATH);
+      expect(
+        getActiveAdminNavigationItem(`${ADMIN_EMAILS_PATH}/e1`)?.href,
+      ).toBe(ADMIN_EMAILS_PATH);
     });
 
     it("returns undefined for a route outside the navigation", () => {
-      expect(getActiveAdminNavigationItem("/not-a-section")).toBeUndefined();
+      expect(
+        getActiveAdminNavigationItem("/admin/not-a-section"),
+      ).toBeUndefined();
     });
   });
 
@@ -151,7 +155,7 @@ describe("features/admin/navigation", () => {
     });
 
     it("links back to the section from a detail page", () => {
-      expect(getAdminBreadcrumbs("/users/u1")).toEqual([
+      expect(getAdminBreadcrumbs(`${ADMIN_USERS_PATH}/u1`)).toEqual([
         { label: "Overview", href: ADMIN_ROOT_PATH },
         { label: "Users", href: ADMIN_USERS_PATH },
         { label: "User detail" },
@@ -167,7 +171,7 @@ describe("features/admin/navigation", () => {
     });
 
     it("falls back to a generic trail for an unknown section", () => {
-      expect(getAdminBreadcrumbs("/not-a-section/thing")).toEqual([
+      expect(getAdminBreadcrumbs("/admin/not-a-section/thing")).toEqual([
         { label: "Overview", href: ADMIN_ROOT_PATH },
         { label: "Admin" },
       ]);

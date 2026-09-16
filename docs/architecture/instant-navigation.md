@@ -62,6 +62,126 @@ What the user experiences:
 2. **Cached data streams in** → list/detail content appears almost instantly from the two-layer cache.
 3. **Live data streams behind its own boundary** → genuinely fresh data resolves separately.
 
+### Detail Page Staging (Frame First, Feeds Streamed)
+
+List pages were the easy case: their headers are static, so one boundary per
+region was enough. Detail pages were not. Each one resolved a single aggregate
+query (`getInquiryDetailForBusiness`, `getQuoteDetailForBusiness`,
+`getInvoiceForBusiness`) that returned the row plus every feed, and rendered it
+behind one whole-page skeleton. The route painted *nothing* — not the quote
+number or the customer name it had already fetched — until items, notes,
+attachments, payments, and customer history had all resolved.
+
+The pattern now is **one cheap identity read in the frame, one boundary per
+feed**:
+
+```tsx
+export default function QuoteDetailPage({ params }: QuoteDetailPageProps) {
+  return (
+    <RegionErrorBoundary fallback={<DashboardDetailPageSkeleton variant="quote" />}>
+      <Suspense fallback={<DashboardDetailPageSkeleton variant="quote" />}>
+        <QuoteDetailRegion params={params} />
+      </Suspense>
+    </RegionErrorBoundary>
+  );
+}
+
+async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
+  const { businessSlug, id } = await params;
+  const { businessContext } = await getAppShellContext(businessSlug);
+  const quote = await getQuoteDetailCoreForBusiness({ businessId, quoteId: id });
+  if (!quote) notFound();
+
+  return (
+    <>
+      {/* Header, meta badges, and manage/export actions — core row only */}
+      <DashboardDetailHeader
+        eyebrow="Quote"
+        title={quote.title}
+        meta={<QuoteStatusBadge status={quote.status} />}
+        actions={<QuoteManageActions quote={quote} />}
+      />
+
+      {/* Editor payload: items, pricing library, revision feedback */}
+      <Suspense fallback={<DashboardQuoteEditorSkeleton />}>
+        <QuoteEditorRegion businessId={businessId} quote={quote} />
+      </Suspense>
+
+      <RegionErrorBoundary fallback={<QuoteCustomerHistoryFallback />}>
+        <Suspense fallback={<QuoteCustomerHistoryFallback />}>
+          <QuoteCustomerHistoryRegion businessId={businessId} quoteId={quote.id} />
+        </Suspense>
+      </RegionErrorBoundary>
+    </>
+  );
+}
+```
+
+Rules that keep the split honest:
+
+- **The frame query returns only what the header and its links need.** That is
+  the `*DetailCore` type (`InvoiceDetailCore`, `DashboardInquiryDetailCore`,
+  `DashboardQuoteDetailCore`) or a purpose-built identity slice
+  (`getBusinessInquiryFormHeaderForBusiness` on the service editor). It is a
+  single indexed row fetch — never a join fan-out.
+- **A feed the header itself depends on resolves with the frame.** The inquiry
+  detail frame loads its related quotes alongside the core row, because the
+  header's primary action switches on whether the inquiry already has quotes.
+  The heavier feeds stay behind their own boundaries.
+- **`notFound()` belongs in the frame.** That is the 404 decision. A feed query
+  returning null afterwards is a race guard, not a routing decision.
+- **Regions stay independent.** A section that needs the core row re-reads it
+  rather than receiving it through props (the invoice status tiles do this); the
+  `"use cache"` / `React.cache()` layer makes the repeat read free, and no region
+  depends on another having resolved first.
+- **Every feed gets its own `<Suspense>`**, and its own `<RegionErrorBoundary>`
+  where it can fail alone (customer history, follow-up panel, duplicate banner),
+  so one failing feed degrades one card instead of the page.
+- **Keep the aggregate queries.** `getInquiryDetailForBusiness`,
+  `getQuoteDetailForBusiness`, and `getInvoiceForBusiness` are still consumed by
+  print routes, the public preview, export API routes, and quote/invoice
+  actions. The split *adds* core and feed queries alongside them; it does not
+  replace them.
+- **Feed queries repeat the frame's cache contract** — `"use cache"`,
+  `cacheLife(hotBusinessCacheLife)`, and the same tag helper
+  (`getBusinessQuoteDetailCacheTags`, `getBusinessInvoiceDetailCacheTags`,
+  which include the record-scoped `business:<id>:quote:<id>` tag) — so
+  `updateTag`/`revalidateTag` invalidation keeps working untouched.
+- **`loading.tsx` still mirrors the static shell**: the same header copy and
+  region order the staged page paints.
+
+Staged detail routes today:
+
+| Route | Frame read | Feeds (each its own boundary) |
+|---|---|---|
+| `inquiries/[id]` | `getInquiryDetailCoreForBusiness` (+ related quotes, header action) | attachments, notes, activity, customer history, follow-ups, duplicate banner |
+| `quotes/[id]` | `getQuoteDetailCoreForBusiness` | editor payload (items, pricing library, revision feedback), preview items, activity, customer history, revisions, follow-ups |
+| `invoices/[invoiceId]` | `getInvoiceDetailCoreForBusiness` | status tiles (core re-read), line items, payments |
+| `services/[serviceSlug]` | `getBusinessInquiryFormHeaderForBusiness` | editor tabs payload (normalized form/page configs, form + inquiry counts) |
+
+Deliberately not staged: `assistant/chat/[sessionId]` is a pure `redirect()`, and
+`quotes/[id]/preview`, `invoices/[invoiceId]/edit`, `preview/*`, and `print/*`
+are single-payload surfaces where a split would be cosmetic.
+
+The admin console uses the same shape with its own fallbacks
+(`features/admin/components/admin-detail-section-fallback.tsx`) and its
+per-view `getAdmin*DetailCore` queries.
+
+### Admin Console Parity
+
+The `/admin` console follows the same model. Its layout (`app/admin/layout.tsx`)
+is synchronous and renders `AdminShell` instantly from static navigation data
+(`features/admin/navigation.ts` derives the rail and breadcrumbs from
+`usePathname()` alone); the admin session resolves in Suspense-wrapped user-menu
+slots (`UserMenuSkeleton` / `MobileUserMenuSkeleton` fallbacks), mirroring how
+`(main)/layout.tsx` streams its user menu. Every console page is a synchronous
+shell (`DashboardPage` + `PageHeader`) with per-region Suspense boundaries, and
+the `view.*` audit row is written once from the primary content region via
+`withAdminViewLog` — the same rows as before, recorded just after the shell
+paints instead of before. The per-request `cache()` on the admin role check
+(`features/admin/access.ts`) keeps the gate's DB fallback to one lookup no
+matter how many slots and regions re-check it.
+
 ### Router Cache (Stale Times)
 
 ```ts
@@ -161,6 +281,8 @@ requires an exemption.
 | `lib/instant-navigation/rollout.ts` | Verification gate, phase ordering |
 | `scripts/instant-navigation/check-coverage.ts` | CI coverage check |
 | `components/shared/region-error-boundary.tsx` | Error boundary for independently-failing regions |
+| `components/shared/detail-section-fallback.tsx` | `DetailSectionFallback` / `DetailHeaderFallback` / `DetailPageHeaderFallback` for staged detail routes |
+| `features/admin/components/admin-detail-section-fallback.tsx` | Admin console equivalents of the detail fallbacks |
 | `features/auth/components/auth-form-skeleton.tsx` | Skeleton for auth form Suspense fallbacks |
 
 ## Common Tasks
@@ -172,6 +294,19 @@ requires an exemption.
 3. Put all dynamic reads (`params`, `getAppShellContext`, queries) in async child server components inside those boundaries.
 4. Export `instant = true` (the supported Next.js 16.3 route segment config).
 5. Run `npm run build` to verify the static shell still prerenders.
+
+### Staging an existing detail page
+
+1. Keep the aggregate query (print, preview, export, and actions still read it)
+   and add a `*DetailCore` frame query plus one query per feed.
+2. Give every new query the same `"use cache"`, `cacheLife`, and record-scoped
+   cache tags as the query it was split from.
+3. Call `notFound()` on the frame's core row, then wrap each feed in
+   `<Suspense>` — and in `<RegionErrorBoundary>` when it can fail alone — using
+   the fallbacks in `components/shared/detail-section-fallback.tsx`.
+4. Keep `loading.tsx` mirroring the shell: same header copy, same region order.
+5. Update tests that named the aggregate query, then run `npm run check`,
+   `npm test`, and `npm run build`.
 
 ### Fixing a validation failure
 

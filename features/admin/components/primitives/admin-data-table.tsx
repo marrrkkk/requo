@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useTransition } from "react";
+import { Fragment, type ReactNode, useTransition } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
@@ -29,7 +29,7 @@ export type AdminDataTableColumn<T> = {
   cell: (row: T) => ReactNode;
   /** Applied to the `th`/`td` (e.g. `w-40`). */
   width?: string;
-  align?: "left" | "right";
+  align?: "left" | "center" | "right";
   /** Server-side sortable. Requires the list query to whitelist this column. */
   sortable?: boolean;
   /** Hide this column below the given breakpoint. */
@@ -74,6 +74,14 @@ export type AdminDataTableProps<T> = {
   minWidthClass?: string;
   isLoading?: boolean;
   /**
+   * Render the table flush inside a parent `dashboard-table-shell` list
+   * card (toolbar strip + table + pagination as one object, like the
+   * business inquiries list). Skips the inner `DashboardTableContainer`
+   * shell so borders, radii, and shadows don't double up. Leave false
+   * when the table stands alone without an outer card.
+   */
+  flush?: boolean;
+  /**
    * Mobile (< xl) card rendering. When provided together with `getRowHref`,
    * the table is replaced by `MobileRecordRow` cards below `xl` instead of
    * horizontally scrolling.
@@ -81,6 +89,12 @@ export type AdminDataTableProps<T> = {
   mobileCard?: (row: T) => AdminDataTableMobileCard;
   className?: string;
 };
+
+const alignClassNames = {
+  left: "",
+  center: "text-center",
+  right: "text-right",
+} as const;
 
 const hideBelowClassNames = {
   sm: "hidden sm:table-cell",
@@ -111,6 +125,7 @@ export function AdminDataTable<T>({
   pagination,
   minWidthClass = "min-w-[56rem]",
   isLoading = false,
+  flush = false,
   mobileCard,
   className,
 }: AdminDataTableProps<T>) {
@@ -143,22 +158,145 @@ export function AdminDataTable<T>({
 
   const isEmpty = !isLoading && rows.length === 0;
 
+  const table = (
+    <Table className={minWidthClass}>
+      <TableHeader>
+        <TableRow>
+          {columns.map((column) => {
+            const isSorted = sort?.key === column.id;
+            const SortIcon = isSorted
+              ? sort?.dir === "asc"
+                ? ChevronUp
+                : ChevronDown
+              : ChevronsUpDown;
+
+            return (
+              <TableHead
+                key={column.id}
+                scope="col"
+                aria-sort={
+                  isSorted
+                    ? sort?.dir === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : column.sortable
+                      ? "none"
+                      : undefined
+                }
+                className={cn(
+                  column.width,
+                  alignClassNames[column.align ?? "left"],
+                  column.hideBelow && hideBelowClassNames[column.hideBelow],
+                )}
+              >
+                {column.sortable ? (
+                  <Button
+                    className={cn(
+                      "-mx-2 h-7 gap-1 px-2 font-medium text-muted-foreground hover:text-foreground",
+                      isSorted && "text-foreground",
+                      column.align === "right" && "ml-auto",
+                    )}
+                    disabled={isPending}
+                    onClick={() => handleSort(column.id)}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    {column.header}
+                    <SortIcon aria-hidden className="size-3.5" />
+                  </Button>
+                ) : (
+                  column.header
+                )}
+              </TableHead>
+            );
+          })}
+        </TableRow>
+      </TableHeader>
+
+      <TableBody>
+        {isLoading
+          ? Array.from({ length: SKELETON_ROW_COUNT }).map((_, rowIndex) => (
+              <TableRow key={rowIndex}>
+                {columns.map((column) => (
+                  <TableCell
+                    key={column.id}
+                    className={cn(
+                      // Breathing room for two-line stacked cells — the
+                      // base table's `py-2` leaves dividers sitting
+                      // against the supporting line.
+                      "py-3",
+                      column.hideBelow && hideBelowClassNames[column.hideBelow],
+                    )}
+                  >
+                    <Skeleton className="h-4 w-full max-w-40 rounded" />
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          : rows.map((row) => (
+              <TableRow key={getRowId(row)}>
+                {columns.map((column) => (
+                  <TableCell
+                    key={column.id}
+                    className={cn(
+                      "py-3",
+                      alignClassNames[column.align ?? "left"],
+                      column.hideBelow && hideBelowClassNames[column.hideBelow],
+                    )}
+                  >
+                    {column.cell(row)}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+      </TableBody>
+    </Table>
+  );
+
+  const emptyState = (
+    <DashboardEmptyState
+      title={empty.title}
+      description={empty.description}
+      icon={empty.icon}
+      action={empty.action}
+      variant="list"
+    />
+  );
+
   return (
-    <div className={cn("flex min-w-0 flex-col gap-4", className)}>
-      {toolbar}
+    // The three sibling expressions below form a dynamic children array, so
+    // React reconciles them as a list. `toolbar` and `pagination` are nodes
+    // created by the *calling* component (a different owner), and a node that
+    // arrives from another owner without a key trips React's "Each child in a
+    // list should have a unique key" warning. Each slot is therefore wrapped in
+    // a keyed `Fragment` (no extra DOM) so the list entries always carry keys.
+    // Flush mode drops the inter-slot gap: the toolbar strip, table, and
+    // pagination footer merge into the parent card with their own dividers,
+    // exactly like the business list pages.
+    <div className={cn("flex min-w-0 flex-col", !flush && "gap-4", className)}>
+      {toolbar == null ? null : (
+        <Fragment key="toolbar">{toolbar}</Fragment>
+      )}
 
       {isEmpty ? (
-        <DashboardEmptyState
-          title={empty.title}
-          description={empty.description}
-          icon={empty.icon}
-          action={empty.action}
-          variant="list"
-        />
+        flush ? (
+          <div className="p-4" key="empty">
+            {emptyState}
+          </div>
+        ) : (
+          <Fragment key="empty">{emptyState}</Fragment>
+        )
       ) : (
-        <>
+        <Fragment key="content">
           {useCards ? (
-            <div className="flex flex-col gap-3 xl:hidden">
+            <div
+              className={
+                flush
+                  ? "flex flex-col gap-2.5 p-4 xl:hidden"
+                  : "flex flex-col gap-3 xl:hidden"
+              }
+            >
               {isLoading
                 ? Array.from({ length: SKELETON_ROW_COUNT }).map((_, index) => (
                     <Skeleton
@@ -184,107 +322,29 @@ export function AdminDataTable<T>({
             </div>
           ) : null}
 
-          <DashboardTableContainer
-            className={cn(useCards && "hidden xl:block")}
-          >
-            <Table className={minWidthClass}>
-              <TableHeader>
-                <TableRow>
-                  {columns.map((column) => {
-                    const isSorted = sort?.key === column.id;
-                    const SortIcon = isSorted
-                      ? sort?.dir === "asc"
-                        ? ChevronUp
-                        : ChevronDown
-                      : ChevronsUpDown;
-
-                    return (
-                      <TableHead
-                        key={column.id}
-                        scope="col"
-                        aria-sort={
-                          isSorted
-                            ? sort?.dir === "asc"
-                              ? "ascending"
-                              : "descending"
-                            : column.sortable
-                              ? "none"
-                              : undefined
-                        }
-                        className={cn(
-                          column.width,
-                          column.align === "right" && "text-right",
-                          column.hideBelow &&
-                            hideBelowClassNames[column.hideBelow],
-                        )}
-                      >
-                        {column.sortable ? (
-                          <Button
-                            className={cn(
-                              "-mx-2 h-7 gap-1 px-2 font-medium text-muted-foreground hover:text-foreground",
-                              isSorted && "text-foreground",
-                              column.align === "right" && "ml-auto",
-                            )}
-                            disabled={isPending}
-                            onClick={() => handleSort(column.id)}
-                            size="sm"
-                            type="button"
-                            variant="ghost"
-                          >
-                            {column.header}
-                            <SortIcon aria-hidden className="size-3.5" />
-                          </Button>
-                        ) : (
-                          column.header
-                        )}
-                      </TableHead>
-                    );
-                  })}
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {isLoading
-                  ? Array.from({ length: SKELETON_ROW_COUNT }).map(
-                      (_, rowIndex) => (
-                        <TableRow key={rowIndex}>
-                          {columns.map((column) => (
-                            <TableCell
-                              key={column.id}
-                              className={cn(
-                                column.hideBelow &&
-                                  hideBelowClassNames[column.hideBelow],
-                              )}
-                            >
-                              <Skeleton className="h-4 w-full max-w-40 rounded" />
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ),
-                    )
-                  : rows.map((row) => (
-                      <TableRow key={getRowId(row)}>
-                        {columns.map((column) => (
-                          <TableCell
-                            key={column.id}
-                            className={cn(
-                              column.align === "right" && "text-right",
-                              column.hideBelow &&
-                                hideBelowClassNames[column.hideBelow],
-                            )}
-                          >
-                            {column.cell(row)}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-              </TableBody>
-            </Table>
-          </DashboardTableContainer>
-        </>
+          {flush ? (
+            <div
+              className={cn(
+                "overflow-x-auto no-scrollbar",
+                useCards && "hidden xl:block",
+              )}
+              data-table-container
+            >
+              {table}
+            </div>
+          ) : (
+            <DashboardTableContainer
+              className={cn(useCards && "hidden xl:block")}
+            >
+              {table}
+            </DashboardTableContainer>
+          )}
+        </Fragment>
       )}
 
-      {pagination}
+      {pagination == null ? null : (
+        <Fragment key="pagination">{pagination}</Fragment>
+      )}
     </div>
   );
 }

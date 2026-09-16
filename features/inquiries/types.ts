@@ -188,6 +188,16 @@ export type DashboardInquiryDetail = {
   submittedFieldSnapshot: InquirySubmittedFieldSnapshot | null;
 };
 
+/**
+ * Cheap core of the inquiry detail: the inquiry row with its intake form.
+ * Paints the header, overview, and sidebars while the attachments, notes,
+ * activity, and related-quote feeds stream separately.
+ */
+export type DashboardInquiryDetailCore = Omit<
+  DashboardInquiryDetail,
+  "attachments" | "notes" | "activities" | "relatedQuotes"
+>;
+
 export type InquiryListFilters = {
   q?: string;
   view: InquiryRecordView;

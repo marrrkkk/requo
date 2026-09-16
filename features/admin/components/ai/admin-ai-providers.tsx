@@ -11,13 +11,13 @@ import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import {
+  formatCompactCount,
   formatLoadPercent,
 } from "@/features/admin/components/ai/admin-ai-format";
 import {
@@ -59,21 +59,15 @@ export function AdminProvidersSection({
       description={`${configuredCount} of ${data.providers.length} providers have credentials configured. Unconfigured providers are skipped by the router.`}
       title="Providers"
     >
-      <ul className="grid gap-3 sm:grid-cols-2">
+      <ul>
         {data.providers.map((provider) => (
           <li
-            className="soft-panel flex items-center justify-between gap-3 px-4 py-3 shadow-none"
-            data-padding="none"
+            className="flex items-center justify-between gap-3 border-b border-border/60 py-2 last:border-0"
             key={provider.id}
           >
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">
-                {provider.label}
-              </p>
-              <p className="mt-0.5 font-mono text-xs text-muted-foreground">
-                {provider.id}
-              </p>
-            </div>
+            <span className="min-w-0 truncate text-sm font-medium text-foreground">
+              {provider.label}
+            </span>
             {provider.configured ? (
               <Badge variant="secondary">Configured</Badge>
             ) : (
@@ -102,11 +96,6 @@ export function AdminRoutingProfilesSection({
             key={profile.name}
             meta={
               <>
-                <span>
-                  {profile.order.length}{" "}
-                  {profile.order.length === 1 ? "model" : "models"}
-                </span>
-                <span aria-hidden="true">·</span>
                 <span>min quality {profile.minQuality}</span>
                 {profile.needsTools ? (
                   <>
@@ -159,12 +148,17 @@ export async function AdminAiCapacitySection() {
           </Link>
         </Button>
       }
-      description="Live Redis counters at page-load time, most-loaded first. Refresh to re-read."
+      description="Live Redis counters with catalog limits at page-load time, most-loaded first. Refresh to re-read."
       title="Live capacity"
     >
       <AdminAiCapacityTable entries={entries} />
     </DashboardSection>
   );
+}
+
+function formatUsageLimit(used: number, limit: number): string {
+  if (limit <= 0) return formatCompactCount(used);
+  return `${formatCompactCount(used)}/${formatCompactCount(limit)}`;
 }
 
 export function AdminAiCapacityTable({
@@ -182,16 +176,13 @@ export function AdminAiCapacityTable({
 
   return (
     <DashboardTableContainer>
-      <Table className="min-w-[48rem]">
-        <TableCaption className="sr-only">
-          Live per-model capacity, most-loaded first.
-        </TableCaption>
+      <Table className="min-w-[52rem]">
         <TableHeader>
           <TableRow>
             <TableHead>Model</TableHead>
             <TableHead className="w-[7rem] text-right">Load</TableHead>
-            <TableHead className="w-[8rem] text-right">This minute</TableHead>
-            <TableHead className="w-[8rem] text-right">Today</TableHead>
+            <TableHead className="w-[9rem] text-right">Req/min</TableHead>
+            <TableHead className="w-[9rem] text-right">Tok/min</TableHead>
             <TableHead className="w-[8rem]">Status</TableHead>
           </TableRow>
         </TableHeader>
@@ -202,15 +193,28 @@ export function AdminAiCapacityTable({
                 <span className="block truncate font-mono text-xs text-foreground">
                   {entry.modelId}
                 </span>
+                {entry.neuronPool ? (
+                  <span className="block truncate font-mono text-xs text-muted-foreground">
+                    neurons {formatUsageLimit(entry.neuronUsageMilli ?? 0, entry.neuronPool * 1000)}
+                  </span>
+                ) : null}
               </TableCell>
               <TableCell className="w-[7rem] text-right text-sm font-medium tabular-nums text-foreground">
                 {formatLoadPercent(entry.loadRatio)}
               </TableCell>
-              <TableCell className="w-[8rem] text-right text-sm tabular-nums text-muted-foreground">
-                {entry.minuteUsage.toLocaleString("en-US")}
+              <TableCell className="w-[9rem] text-right text-sm tabular-nums text-muted-foreground">
+                {formatUsageLimit(entry.minuteUsage, entry.rpm)}
+                <span className="block text-xs">
+                  day {formatUsageLimit(entry.dayUsage, entry.rpd)}
+                </span>
               </TableCell>
-              <TableCell className="w-[8rem] text-right text-sm tabular-nums text-muted-foreground">
-                {entry.dayUsage.toLocaleString("en-US")}
+              <TableCell className="w-[9rem] text-right text-sm tabular-nums text-muted-foreground">
+                {formatUsageLimit(entry.tokenUsage, entry.tpm)}
+                {entry.tpd > 0 ? (
+                  <span className="block text-xs">
+                    day {formatUsageLimit(entry.dailyTokenUsage, entry.tpd)}
+                  </span>
+                ) : null}
               </TableCell>
               <TableCell className="w-[8rem]">
                 {entry.available ? (

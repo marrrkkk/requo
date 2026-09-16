@@ -3,7 +3,6 @@ import {
   AtSign,
   Briefcase,
   CalendarClock,
-  ClipboardList,
   FileText,
   Mail,
   MessageSquare,
@@ -25,6 +24,7 @@ import {
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
 import { ArchivedRecordBanner } from "@/components/shared/archived-record-banner";
+import { DetailSectionFallback } from "@/components/shared/detail-section-fallback";
 import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -37,7 +37,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { RequoIcon } from "@/components/shared/requo-icon";
 import { InfoTile } from "@/components/shared/info-tile";
 import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
 import { CustomerHistoryPanel } from "@/features/customers/components/customer-history-panel";
@@ -69,7 +68,14 @@ import { InquiryExportPopover } from "@/features/inquiries/components/inquiry-ex
 import { InquiryManageDropdown } from "@/features/inquiries/components/inquiry-manage-dropdown";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { InquiryViewedTracker } from "@/features/inquiries/components/inquiry-viewed-tracker";
-import { getInquiryDetailForBusiness, getInquiryDuplicateForBusiness } from "@/features/inquiries/queries";
+import {
+  getInquiryActivitiesForBusiness,
+  getInquiryAttachmentsForBusiness,
+  getInquiryDetailCoreForBusiness,
+  getInquiryDuplicateForBusiness,
+  getInquiryNotesForBusiness,
+  getInquiryRelatedQuotesForBusiness,
+} from "@/features/inquiries/queries";
 import { inquiryRouteParamsSchema } from "@/features/inquiries/schemas";
 import {
   formatFileSize,
@@ -79,7 +85,9 @@ import {
   getInquirySourceLabel,
 } from "@/features/inquiries/utils";
 import {
-  type DashboardInquiryDetail,
+  type DashboardInquiryDetailCore,
+  type DashboardInquiryNote,
+  type DashboardInquiryRelatedQuotes,
   type InquiryNoteActionState,
   type InquiryWorkflowStatus,
 } from "@/features/inquiries/types";
@@ -116,10 +124,16 @@ export const instant = true;
 /**
  * Inquiry detail page — returns the structural shell synchronously.
  *
- * All dynamic reads (params, getAppShellContext, getInquiryDetailForBusiness)
- * are pushed into `<Suspense>`-wrapped child server components so the shell
- * paints instantly on client navigation. Independently-failing regions (follow-ups,
+ * All dynamic reads (params, getAppShellContext, queries) are pushed into
+ * `<Suspense>`-wrapped child server components so the shell paints instantly
+ * on client navigation. Independently-failing regions (follow-ups,
  * customer history) are wrapped in co-located error boundaries.
+ *
+ * Staging: the frame resolves only the core row plus the related quotes the
+ * header's primary action depends on, then paints the header, overview, and
+ * sidebars. Attachments, notes, activity, follow-ups, and customer history
+ * each stream behind their own region so a slow feed never holds back the
+ * record.
  */
 export default function InquiryDetailPage({
   params,
@@ -136,7 +150,7 @@ export default function InquiryDetailPage({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Main detail region — resolves params + context + data inside Suspense     */
+/*  Main detail region — resolves params + context + core row                 */
 /* -------------------------------------------------------------------------- */
 
 async function InquiryDetailRegion({
@@ -151,19 +165,15 @@ async function InquiryDetailRegion({
     notFound();
   }
   const businessSlug = businessContext.business.slug;
-  // Follow-ups only need businessId + inquiryId — start alongside the detail fetch.
-  const followUpsPromise = getFollowUpsForInquiry({
-    businessId: businessContext.business.id,
-    inquiryId: parsedParams.data.id,
-  });
-  const duplicatePromise = getInquiryDuplicateForBusiness({
-    businessId: businessContext.business.id,
-    inquiryId: parsedParams.data.id,
-  });
-  const inquiry = await getInquiryDetailForBusiness({
-    businessId: businessContext.business.id,
-    inquiryId: parsedParams.data.id,
-  });
+  const businessId = businessContext.business.id;
+  const inquiryId = parsedParams.data.id;
+  // The header's primary action switches on whether this inquiry already has
+  // quotes, so the core row and the related quotes resolve together. The
+  // heavier feeds (attachments, notes, activity) stream in their own regions.
+  const [inquiry, relatedQuotes] = await Promise.all([
+    getInquiryDetailCoreForBusiness({ businessId, inquiryId }),
+    getInquiryRelatedQuotesForBusiness({ businessId, inquiryId }),
+  ]);
 
   if (!inquiry) {
     notFound();
@@ -174,8 +184,6 @@ async function InquiryDetailRegion({
   // write + `updateTag` here during render throws
   // "used updateTag during render which is unsupported".
   const isUnreadInitially = !inquiry.firstViewedAt;
-
-  const duplicateRecord = await duplicatePromise;
 
   const noteAction = addInquiryNoteAction.bind(null, inquiry.id);
   const statusAction = changeInquiryStatusAction.bind(null, inquiry.id);
@@ -190,14 +198,6 @@ async function InquiryDetailRegion({
     businessContext.business.plan,
     "exports",
   );
-  // Customer history + follow-ups stream via Suspense — don't block page render.
-  const customerHistoryPromise = getCustomerHistoryForBusiness({
-    businessId: businessContext.business.id,
-    customerEmail: inquiry.customerEmail,
-    customerContactHandle: inquiry.customerContactHandle,
-    excludeInquiryId: inquiry.id,
-    excludeQuoteId: inquiry.relatedQuotes?.latest.id ?? null,
-  });
 
   const canGenerateQuote = inquiry.recordState !== "archived";
   const workflowStatus: InquiryWorkflowStatus =
@@ -218,22 +218,13 @@ async function InquiryDetailRegion({
         inquiryId={inquiry.id}
         isUnreadInitially={isUnreadInitially}
       />
-      {duplicateRecord && !duplicateRecord.dismissedAt ? (
-        <InquiryDuplicateBanner
-          duplicate={{
-            originalInquiryId: duplicateRecord.originalInquiryId,
-            reason: duplicateRecord.reason as DuplicateFlag["reason"],
-            tokenOverlap: duplicateRecord.tokenOverlap,
-          }}
+      <Suspense fallback={null}>
+        <InquiryDuplicateBannerRegion
+          businessId={businessId}
           businessSlug={businessSlug}
-          dismissAction={dismissDuplicateWarningAction.bind(
-            null,
-            duplicateRecord.id,
-            businessContext.business.id,
-            inquiry.id,
-          )}
+          inquiryId={inquiry.id}
         />
-      ) : null}
+      </Suspense>
       {inquiry.recordState === "archived" ? (
         <ArchivedRecordBanner
           recordLabel="inquiry"
@@ -277,10 +268,10 @@ async function InquiryDetailRegion({
                 "png",
               )}
             />
-            {inquiry.relatedQuotes ? (
+            {relatedQuotes ? (
               <InquiryQuoteActions
                 businessSlug={businessSlug}
-                relatedQuotes={inquiry.relatedQuotes}
+                relatedQuotes={relatedQuotes}
                 canGenerateQuote={canGenerateQuote}
                 inquiryId={inquiry.id}
                 currency={businessContext.business.defaultCurrency}
@@ -301,389 +292,89 @@ async function InquiryDetailRegion({
 
       <DashboardDetailLayout className="xl:grid-cols-[1.45fr_0.95fr]">
         <DashboardSidebarStack>
-          <DashboardSection
-            contentClassName="flex flex-col gap-4"
-            description="What the customer is asking for."
-            title="Inquiry overview"
-          >
-            <div className="grid gap-3 sm:grid-cols-2">
-              <InfoTile
-                icon={Briefcase}
-                label="Service"
-                value={
-                  inquiry.inquiryFormSlug ? (
-                    <Link
-                      href={getBusinessServicePath(
-                        businessSlug,
-                        inquiry.inquiryFormSlug,
-                      )}
-                      className="hover:underline"
-                    >
-                      {inquiry.inquiryFormName ??
-                        getInquirySourceLabel(inquiry.source)}
-                    </Link>
-                  ) : (
-                    inquiry.inquiryFormName ??
-                    getInquirySourceLabel(inquiry.source)
-                  )
-                }
-              />
-              <InfoTile
-                icon={Wallet}
-                label={systemFieldDefaultLabels.budgetText}
-                value={formatInquiryBudget(inquiry.budgetText)}
-              />
-              <InfoTile
-                icon={CalendarClock}
-                label={systemFieldDefaultLabels.requestedDeadline}
-                value={inquiry.requestedDeadline ?? "Not provided"}
-              />
-              <InfoTile
-                icon={Tag}
-                label="Source"
-                value={getInquirySourceLabel(inquiry.source)}
-              />
-            </div>
+          <InquiryOverviewSection
+            businessSlug={businessSlug}
+            customFields={customFields}
+            inquiry={inquiry}
+          />
 
-            {inquiry.subject &&
-            inquiry.subject !== (inquiry.inquiryFormName ?? "") ? (
-              <div className="soft-panel shadow-none">
-                <p className="meta-label">Subject</p>
-                <p className="mt-2 text-sm leading-6 text-foreground">
-                  {inquiry.subject}
-                </p>
-              </div>
-            ) : null}
-
-            <div className="soft-panel flex flex-col gap-3 shadow-none">
-              <div className="flex items-center gap-2">
-                <MessageSquare
-                  aria-hidden="true"
-                  className="size-4 text-muted-foreground"
-                />
-                <p className="meta-label">
-                  {systemFieldDefaultLabels.details}
-                </p>
-              </div>
-              <TruncatedTextWithTooltip
-                className="whitespace-pre-wrap text-sm leading-6 text-foreground"
-                lines={6}
-                text={inquiry.details}
-              />
-            </div>
-
-            {customFields.length ? (
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button className="w-full sm:w-fit" type="button" variant="outline">
-                    View additional details
-                  </Button>
-                </SheetTrigger>
-                <SheetContent
-                  className="w-full data-[side=right]:sm:max-w-2xl data-[side=right]:lg:max-w-3xl data-[side=right]:xl:max-w-4xl"
-                  motionPreset="sidebar"
-                >
-                  <SheetHeader>
-                    <SheetTitle>Additional details</SheetTitle>
-                    <SheetDescription>
-                      Custom fields submitted with this inquiry.
-                    </SheetDescription>
-                  </SheetHeader>
-                  <SheetBody className="min-h-0 flex-1">
-                    <ScrollArea className="h-full pr-4">
-                      <div className="grid gap-3 xl:grid-cols-2">
-                        {customFields.map((field) => (
-                          <InfoTile
-                            key={field.id}
-                            label={<span className="break-words">{field.label}</span>}
-                            value={field.displayValue}
-                          />
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </SheetBody>
-                </SheetContent>
-              </Sheet>
-            ) : null}
-          </DashboardSection>
-
-          {inquiry.attachments.length ? (
-            <DashboardSection
-              contentClassName="flex flex-col gap-4"
-              description="Files included with the inquiry."
-              title="Attachments"
-            >
-              <div className="soft-panel shadow-none">
-                <p className="text-sm font-medium text-foreground">
-                  {inquiry.attachments.length} file
-                  {inquiry.attachments.length === 1 ? "" : "s"} attached
-                </p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Open the attachment list when you need the customer files.
-                </p>
-              </div>
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button className="w-full sm:w-fit" type="button" variant="outline">
-                    <FileText data-icon="inline-start" />
-                    View attachments
-                  </Button>
-                </SheetTrigger>
-                <SheetContent className="w-full sm:max-w-xl">
-                  <SheetHeader>
-                    <SheetTitle>Attachments</SheetTitle>
-                    <SheetDescription>
-                      Files included with this inquiry.
-                    </SheetDescription>
-                  </SheetHeader>
-                  <SheetBody className="min-h-0 flex-1">
-                    <ScrollArea className="h-full pr-4">
-                      <DashboardDetailFeed>
-                        {inquiry.attachments.map((attachment) => (
-                          <DashboardDetailFeedItem
-                            key={attachment.id}
-                            action={
-                              <Button asChild size="sm" variant="outline">
-                                <a
-                                  href={`/api/inquiries/${inquiry.id}/attachments/${attachment.id}`}
-                                >
-                                  Download
-                                </a>
-                              </Button>
-                            }
-                            meta={
-                              <>
-                                <span>{formatFileSize(attachment.fileSize)}</span>
-                                <span aria-hidden="true">|</span>
-                                <TruncatedTextWithTooltip
-                                  className="max-w-44"
-                                  text={attachment.contentType}
-                                />
-                                <span aria-hidden="true">|</span>
-                                <span>
-                                  {formatInquiryDateTime(attachment.createdAt)}
-                                </span>
-                              </>
-                            }
-                            title={attachment.fileName}
-                          />
-                        ))}
-                      </DashboardDetailFeed>
-                    </ScrollArea>
-                  </SheetBody>
-                </SheetContent>
-              </Sheet>
-            </DashboardSection>
-          ) : null}
+          <Suspense fallback={null}>
+            <InquiryAttachmentsRegion
+              businessId={businessId}
+              inquiryId={inquiry.id}
+            />
+          </Suspense>
 
           <div className="dashboard-detail-support-grid">
-            <InquiryNotesSheetSection
-              inquiry={inquiry}
-              noteAction={noteAction}
-            />
+            <Suspense fallback={<DetailSectionFallback rows={2} />}>
+              <InquiryNotesRegion
+                businessId={businessId}
+                inquiryId={inquiry.id}
+                noteAction={noteAction}
+              />
+            </Suspense>
 
             <RegionErrorBoundary fallback={<CustomerHistoryFallback locked={false} />}>
               <Suspense fallback={<CustomerHistoryFallback locked={false} />}>
-                <StreamedCustomerHistory
+                <InquiryCustomerHistoryRegion
+                  businessId={businessId}
                   businessSlug={businessSlug}
-                  historyPromise={customerHistoryPromise}
-                  locked={false}
+                  customerContactHandle={inquiry.customerContactHandle}
+                  customerEmail={inquiry.customerEmail}
+                  excludeQuoteId={relatedQuotes?.latest.id ?? null}
+                  inquiryId={inquiry.id}
                 />
               </Suspense>
             </RegionErrorBoundary>
 
-            <DashboardSection
-              description="Submission and owner actions."
-              title="Activity log"
-            >
-              {inquiry.activities.length ? (
-                <div className="flex flex-col gap-3">
-                  <DashboardDetailFeed>
-                    {inquiry.activities.slice(0, 1).map((activity) => (
-                      <DashboardDetailFeedItem
-                        key={activity.id}
-                        meta={
-                          <>
-                            <span>{activity.actorName ?? "Requo"}</span>
-                            <span aria-hidden="true">|</span>
-                            <span>{formatInquiryDateTime(activity.createdAt)}</span>
-                          </>
-                        }
-                        title={activity.summary}
-                      />
-                    ))}
-                  </DashboardDetailFeed>
-
-                  {inquiry.activities.length > 1 && (
-                    <Sheet>
-                      <SheetTrigger asChild>
-                        <Button className="w-full" type="button" variant="outline">
-                          View all activity
-                        </Button>
-                      </SheetTrigger>
-                      <SheetContent className="w-full sm:max-w-md">
-                        <SheetHeader>
-                          <SheetTitle>Activity log</SheetTitle>
-                          <SheetDescription>
-                            Complete timeline of events for this inquiry.
-                          </SheetDescription>
-                        </SheetHeader>
-                        <SheetBody className="min-h-0 flex-1 gap-5">
-                          <ScrollArea className="h-full pr-4">
-                            <DashboardDetailFeed>
-                              {inquiry.activities.map((activity) => (
-                                <DashboardDetailFeedItem
-                                  key={activity.id}
-                                  meta={
-                                    <>
-                                      <span>{activity.actorName ?? "Requo"}</span>
-                                      <span aria-hidden="true">|</span>
-                                      <span>{formatInquiryDateTime(activity.createdAt)}</span>
-                                    </>
-                                  }
-                                  title={activity.summary}
-                                />
-                              ))}
-                            </DashboardDetailFeed>
-                          </ScrollArea>
-                        </SheetBody>
-                      </SheetContent>
-                    </Sheet>
-                  )}
-                </div>
-              ) : (
-                <DashboardEmptyState
-                  description="Change the status or generate a quote to start the timeline for this inquiry."
-                  title="No activity yet"
-                  variant="section"
-                />
-              )}
-            </DashboardSection>
+            <Suspense fallback={<DetailSectionFallback />}>
+              <InquiryActivityRegion
+                businessId={businessId}
+                inquiryId={inquiry.id}
+              />
+            </Suspense>
           </div>
         </DashboardSidebarStack>
 
         <DashboardSidebarStack>
-          <DashboardSection
-            contentClassName="grid gap-3 sm:grid-cols-2"
-            footer={
-              customerContactEmail ? (
-                <>
-                  <Button asChild variant="outline">
-                    <a href={`mailto:${customerContactEmail}`}>Email customer</a>
-                  </Button>
-                  <CopyEmailButton email={customerContactEmail} />
-                </>
-              ) : null
-            }
-            title="Customer contact"
-          >
-            <InfoTile
-              className={showPreferredContact ? undefined : "sm:col-span-2"}
-              icon={Mail}
-              label="Email"
-              valueClassName="break-all"
-              value={
-                customerContactEmail ? (
-                  <TruncatedTextWithTooltip
-                    className="underline-offset-4 hover:underline"
-                    href={`mailto:${customerContactEmail}`}
-                    text={customerContactEmail}
-                  />
-                ) : (
-                  "Not provided"
-                )
-              }
-            />
-
-            {showPreferredContact ? (
-              <InfoTile
-                icon={AtSign}
-                label={preferredContactLabel}
-                value={inquiry.customerContactHandle}
-                valueClassName="break-all"
-              />
-            ) : null}
-          </DashboardSection>
+          <InquiryContactSection
+            customerContactEmail={customerContactEmail}
+            inquiry={inquiry}
+            preferredContactLabel={preferredContactLabel}
+            showPreferredContact={showPreferredContact}
+          />
 
           <div id="follow-ups">
             <RegionErrorBoundary fallback={<FollowUpPanelFallback />}>
               <Suspense fallback={<FollowUpPanelFallback />}>
-                <StreamedFollowUpPanel
+                <InquiryFollowUpsRegion
+                  businessId={businessId}
                   businessSlug={businessSlug}
                   createAction={createFollowUpAction}
-                  ctaDescription="Set a reminder for the next customer touchpoint on this inquiry."
-                  defaultChannel={inquiry.customerContactMethod}
-                  defaultReason="Follow up with the customer to keep this inquiry moving."
-                  defaultTitle={`Follow up with ${inquiry.customerName}`}
-                  followUpsPromise={followUpsPromise}
+                  inquiryId={inquiry.id}
+                  customerContactMethod={inquiry.customerContactMethod}
+                  customerName={inquiry.customerName}
                 />
               </Suspense>
             </RegionErrorBoundary>
           </div>
 
-          <DashboardSection
-            contentClassName="flex flex-col gap-4"
-            description="Quotes linked to this inquiry."
-            footer={
-              canGenerateQuote ? (
-                <Button asChild variant="outline">
-                  <Link
-                    href={getBusinessNewQuotePath(businessSlug, inquiry.id)}
-                  >
-                    <ReceiptText data-icon="inline-start" />
-                    Create new quote
-                  </Link>
-                </Button>
-              ) : null
-            }
-            title={inquiry.relatedQuotes ? `Related quotes (${inquiry.relatedQuotes.count})` : "Related quotes"}
-          >
-            {inquiry.relatedQuotes ? (
-              <div className="flex flex-col gap-3">
-                {inquiry.relatedQuotes.all.map((quote) => (
-                  <Link
-                    key={quote.id}
-                    href={getBusinessQuotePath(businessSlug, quote.id)}
-                    className="soft-panel flex items-center justify-between gap-3 shadow-none transition-colors hover:bg-accent/50"
-                  >
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-sm font-medium text-foreground truncate">
-                        {quote.quoteNumber ?? quote.id}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatQuoteMoney(
-                          quote.totalInCents,
-                          businessContext.business.defaultCurrency,
-                        )}
-                        {" · "}
-                        {formatInquiryDate(quote.createdAt)}
-                      </span>
-                    </div>
-                    <QuoteStatusBadge status={quote.status as QuoteStatus} />
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <DashboardEmptyState
-                description="Create a quote from this inquiry."
-                icon={ReceiptText}
-                title="No related quotes yet"
-                variant="section"
-              />
-            )}
-          </DashboardSection>
+          <InquiryRelatedQuotesSection
+            businessSlug={businessSlug}
+            canGenerateQuote={canGenerateQuote}
+            currency={businessContext.business.defaultCurrency}
+            inquiryId={inquiry.id}
+            relatedQuotes={relatedQuotes}
+          />
 
           <RegionErrorBoundary fallback={null}>
             <Suspense fallback={null}>
               <AgentTranscriptSection
-                businessId={businessContext.business.id}
+                businessId={businessId}
                 inquiryId={inquiry.id}
               />
             </Suspense>
           </RegionErrorBoundary>
-
-
-
         </DashboardSidebarStack>
       </DashboardDetailLayout>
     </DashboardPage>
@@ -691,20 +382,545 @@ async function InquiryDetailRegion({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Helper components                                                          */
+/*  Streaming regions                                                         */
 /* -------------------------------------------------------------------------- */
 
-function InquiryNotesSheetSection({
-  inquiry,
+async function InquiryDuplicateBannerRegion({
+  businessId,
+  businessSlug,
+  inquiryId,
+}: {
+  businessId: string;
+  businessSlug: string;
+  inquiryId: string;
+}) {
+  const duplicateRecord = await getInquiryDuplicateForBusiness({
+    businessId,
+    inquiryId,
+  });
+
+  if (!duplicateRecord || duplicateRecord.dismissedAt) {
+    return null;
+  }
+
+  return (
+    <InquiryDuplicateBanner
+      duplicate={{
+        originalInquiryId: duplicateRecord.originalInquiryId,
+        reason: duplicateRecord.reason as DuplicateFlag["reason"],
+        tokenOverlap: duplicateRecord.tokenOverlap,
+      }}
+      businessSlug={businessSlug}
+      dismissAction={dismissDuplicateWarningAction.bind(
+        null,
+        duplicateRecord.id,
+        businessId,
+        inquiryId,
+      )}
+    />
+  );
+}
+
+async function InquiryAttachmentsRegion({
+  businessId,
+  inquiryId,
+}: {
+  businessId: string;
+  inquiryId: string;
+}) {
+  const attachments = await getInquiryAttachmentsForBusiness({
+    businessId,
+    inquiryId,
+  });
+
+  if (!attachments.length) {
+    return null;
+  }
+
+  return (
+    <DashboardSection
+      contentClassName="flex flex-col gap-4"
+      description="Files included with the inquiry."
+      title="Attachments"
+    >
+      <div className="soft-panel shadow-none">
+        <p className="text-sm font-medium text-foreground">
+          {attachments.length} file
+          {attachments.length === 1 ? "" : "s"} attached
+        </p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Open the attachment list when you need the customer files.
+        </p>
+      </div>
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button className="w-full sm:w-fit" type="button" variant="outline">
+            <FileText data-icon="inline-start" />
+            View attachments
+          </Button>
+        </SheetTrigger>
+        <SheetContent className="w-full sm:max-w-xl">
+          <SheetHeader>
+            <SheetTitle>Attachments</SheetTitle>
+            <SheetDescription>
+              Files included with this inquiry.
+            </SheetDescription>
+          </SheetHeader>
+          <SheetBody className="min-h-0 flex-1">
+            <ScrollArea className="h-full pr-4">
+              <DashboardDetailFeed>
+                {attachments.map((attachment) => (
+                  <DashboardDetailFeedItem
+                    key={attachment.id}
+                    action={
+                      <Button asChild size="sm" variant="outline">
+                        <a
+                          href={`/api/inquiries/${inquiryId}/attachments/${attachment.id}`}
+                        >
+                          Download
+                        </a>
+                      </Button>
+                    }
+                    meta={
+                      <>
+                        <span>{formatFileSize(attachment.fileSize)}</span>
+                        <span aria-hidden="true">|</span>
+                        <TruncatedTextWithTooltip
+                          className="max-w-44"
+                          text={attachment.contentType}
+                        />
+                        <span aria-hidden="true">|</span>
+                        <span>
+                          {formatInquiryDateTime(attachment.createdAt)}
+                        </span>
+                      </>
+                    }
+                    title={attachment.fileName}
+                  />
+                ))}
+              </DashboardDetailFeed>
+            </ScrollArea>
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
+    </DashboardSection>
+  );
+}
+
+async function InquiryNotesRegion({
+  businessId,
+  inquiryId,
   noteAction,
 }: {
-  inquiry: DashboardInquiryDetail;
+  businessId: string;
+  inquiryId: string;
   noteAction: (
     state: InquiryNoteActionState,
     formData: FormData,
   ) => Promise<InquiryNoteActionState>;
 }) {
-  const latestNote = inquiry.notes[0];
+  const notes = await getInquiryNotesForBusiness({ businessId, inquiryId });
+
+  return <InquiryNotesSheetSection noteAction={noteAction} notes={notes} />;
+}
+
+async function InquiryActivityRegion({
+  businessId,
+  inquiryId,
+}: {
+  businessId: string;
+  inquiryId: string;
+}) {
+  const activities = await getInquiryActivitiesForBusiness({
+    businessId,
+    inquiryId,
+  });
+  const latestActivity = activities[0];
+
+  return (
+    <DashboardSection
+      description="Submission and owner actions."
+      title="Activity log"
+    >
+      {activities.length ? (
+        <div className="flex flex-col gap-3">
+          <DashboardDetailFeed>
+            <DashboardDetailFeedItem
+              meta={
+                <>
+                  <span>{latestActivity.actorName ?? "Requo"}</span>
+                  <span aria-hidden="true">|</span>
+                  <span>{formatInquiryDateTime(latestActivity.createdAt)}</span>
+                </>
+              }
+              title={latestActivity.summary}
+            />
+          </DashboardDetailFeed>
+
+          {activities.length > 1 && (
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button className="w-full" type="button" variant="outline">
+                  View all activity
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="w-full sm:max-w-md">
+                <SheetHeader>
+                  <SheetTitle>Activity log</SheetTitle>
+                  <SheetDescription>
+                    Complete timeline of events for this inquiry.
+                  </SheetDescription>
+                </SheetHeader>
+                <SheetBody className="min-h-0 flex-1 gap-5">
+                  <ScrollArea className="h-full pr-4">
+                    <DashboardDetailFeed>
+                      {activities.map((activity) => (
+                        <DashboardDetailFeedItem
+                          key={activity.id}
+                          meta={
+                            <>
+                              <span>{activity.actorName ?? "Requo"}</span>
+                              <span aria-hidden="true">|</span>
+                              <span>
+                                {formatInquiryDateTime(activity.createdAt)}
+                              </span>
+                            </>
+                          }
+                          title={activity.summary}
+                        />
+                      ))}
+                    </DashboardDetailFeed>
+                  </ScrollArea>
+                </SheetBody>
+              </SheetContent>
+            </Sheet>
+          )}
+        </div>
+      ) : (
+        <DashboardEmptyState
+          description="Change the status or generate a quote to start the timeline for this inquiry."
+          title="No activity yet"
+          variant="section"
+        />
+      )}
+    </DashboardSection>
+  );
+}
+
+async function InquiryCustomerHistoryRegion({
+  businessId,
+  businessSlug,
+  customerContactHandle,
+  customerEmail,
+  excludeQuoteId,
+  inquiryId,
+}: {
+  businessId: string;
+  businessSlug: string;
+  customerContactHandle: string;
+  customerEmail: string | null;
+  excludeQuoteId: string | null;
+  inquiryId: string;
+}) {
+  const history = await getCustomerHistoryForBusiness({
+    businessId,
+    customerEmail,
+    customerContactHandle,
+    excludeInquiryId: inquiryId,
+    excludeQuoteId,
+  });
+
+  return (
+    <CustomerHistorySheetSection
+      businessSlug={businessSlug}
+      history={history}
+      locked={false}
+    />
+  );
+}
+
+async function InquiryFollowUpsRegion({
+  businessId,
+  businessSlug,
+  createAction,
+  inquiryId,
+  customerContactMethod,
+  customerName,
+}: {
+  businessId: string;
+  businessSlug: string;
+  createAction: React.ComponentProps<typeof FollowUpPanel>["createAction"];
+  inquiryId: string;
+  customerContactMethod: string;
+  customerName: string;
+}) {
+  const followUps = await getFollowUpsForInquiry({ businessId, inquiryId });
+
+  return (
+    <FollowUpPanel
+      businessSlug={businessSlug}
+      createAction={createAction}
+      ctaDescription="Set a reminder for the next customer touchpoint on this inquiry."
+      defaultChannel={customerContactMethod}
+      defaultReason="Follow up with the customer to keep this inquiry moving."
+      defaultTitle={`Follow up with ${customerName}`}
+      followUps={followUps}
+    />
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Sections                                                                  */
+/* -------------------------------------------------------------------------- */
+
+function InquiryOverviewSection({
+  businessSlug,
+  customFields,
+  inquiry,
+}: {
+  businessSlug: string;
+  customFields: ReturnType<typeof getCustomSubmittedFields>;
+  inquiry: DashboardInquiryDetailCore;
+}) {
+  return (
+    <DashboardSection
+      contentClassName="flex flex-col gap-4"
+      description="What the customer is asking for."
+      title="Inquiry overview"
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        <InfoTile
+          icon={Briefcase}
+          label="Service"
+          value={
+            inquiry.inquiryFormSlug ? (
+              <Link
+                href={getBusinessServicePath(
+                  businessSlug,
+                  inquiry.inquiryFormSlug,
+                )}
+                className="hover:underline"
+              >
+                {inquiry.inquiryFormName ??
+                  getInquirySourceLabel(inquiry.source)}
+              </Link>
+            ) : (
+              inquiry.inquiryFormName ??
+              getInquirySourceLabel(inquiry.source)
+            )
+          }
+        />
+        <InfoTile
+          icon={Wallet}
+          label={systemFieldDefaultLabels.budgetText}
+          value={formatInquiryBudget(inquiry.budgetText)}
+        />
+        <InfoTile
+          icon={CalendarClock}
+          label={systemFieldDefaultLabels.requestedDeadline}
+          value={inquiry.requestedDeadline ?? "Not provided"}
+        />
+        <InfoTile
+          icon={Tag}
+          label="Source"
+          value={getInquirySourceLabel(inquiry.source)}
+        />
+      </div>
+
+      {inquiry.subject &&
+      inquiry.subject !== (inquiry.inquiryFormName ?? "") ? (
+        <div className="soft-panel shadow-none">
+          <p className="meta-label">Subject</p>
+          <p className="mt-2 text-sm leading-6 text-foreground">
+            {inquiry.subject}
+          </p>
+        </div>
+      ) : null}
+
+      <div className="soft-panel flex flex-col gap-3 shadow-none">
+        <div className="flex items-center gap-2">
+          <MessageSquare
+            aria-hidden="true"
+            className="size-4 text-muted-foreground"
+          />
+          <p className="meta-label">{systemFieldDefaultLabels.details}</p>
+        </div>
+        <TruncatedTextWithTooltip
+          className="whitespace-pre-wrap text-sm leading-6 text-foreground"
+          lines={6}
+          text={inquiry.details}
+        />
+      </div>
+
+      {customFields.length ? (
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button className="w-full sm:w-fit" type="button" variant="outline">
+              View additional details
+            </Button>
+          </SheetTrigger>
+          <SheetContent
+            className="w-full data-[side=right]:sm:max-w-2xl data-[side=right]:lg:max-w-3xl data-[side=right]:xl:max-w-4xl"
+            motionPreset="sidebar"
+          >
+            <SheetHeader>
+              <SheetTitle>Additional details</SheetTitle>
+              <SheetDescription>
+                Custom fields submitted with this inquiry.
+              </SheetDescription>
+            </SheetHeader>
+            <SheetBody className="min-h-0 flex-1">
+              <ScrollArea className="h-full pr-4">
+                <div className="grid gap-3 xl:grid-cols-2">
+                  {customFields.map((field) => (
+                    <InfoTile
+                      key={field.id}
+                      label={
+                        <span className="break-words">{field.label}</span>
+                      }
+                      value={field.displayValue}
+                    />
+                  ))}
+                </div>
+              </ScrollArea>
+            </SheetBody>
+          </SheetContent>
+        </Sheet>
+      ) : null}
+    </DashboardSection>
+  );
+}
+
+function InquiryContactSection({
+  customerContactEmail,
+  inquiry,
+  preferredContactLabel,
+  showPreferredContact,
+}: {
+  customerContactEmail: string | null;
+  inquiry: DashboardInquiryDetailCore;
+  preferredContactLabel: string;
+  showPreferredContact: boolean;
+}) {
+  return (
+    <DashboardSection
+      contentClassName="grid gap-3 sm:grid-cols-2"
+      footer={
+        customerContactEmail ? (
+          <>
+            <Button asChild variant="outline">
+              <a href={`mailto:${customerContactEmail}`}>Email customer</a>
+            </Button>
+            <CopyEmailButton email={customerContactEmail} />
+          </>
+        ) : null
+      }
+      title="Customer contact"
+    >
+      <InfoTile
+        className={showPreferredContact ? undefined : "sm:col-span-2"}
+        icon={Mail}
+        label="Email"
+        valueClassName="break-all"
+        value={
+          customerContactEmail ? (
+            <TruncatedTextWithTooltip
+              className="underline-offset-4 hover:underline"
+              href={`mailto:${customerContactEmail}`}
+              text={customerContactEmail}
+            />
+          ) : (
+            "Not provided"
+          )
+        }
+      />
+
+      {showPreferredContact ? (
+        <InfoTile
+          icon={AtSign}
+          label={preferredContactLabel}
+          value={inquiry.customerContactHandle}
+          valueClassName="break-all"
+        />
+      ) : null}
+    </DashboardSection>
+  );
+}
+
+function InquiryRelatedQuotesSection({
+  businessSlug,
+  canGenerateQuote,
+  currency,
+  inquiryId,
+  relatedQuotes,
+}: {
+  businessSlug: string;
+  canGenerateQuote: boolean;
+  currency: string;
+  inquiryId: string;
+  relatedQuotes: DashboardInquiryRelatedQuotes | null;
+}) {
+  return (
+    <DashboardSection
+      contentClassName="flex flex-col gap-4"
+      description="Quotes linked to this inquiry."
+      footer={
+        canGenerateQuote ? (
+          <Button asChild variant="outline">
+            <Link href={getBusinessNewQuotePath(businessSlug, inquiryId)}>
+              <ReceiptText data-icon="inline-start" />
+              Create new quote
+            </Link>
+          </Button>
+        ) : null
+      }
+      title={relatedQuotes ? `Related quotes (${relatedQuotes.count})` : "Related quotes"}
+    >
+      {relatedQuotes ? (
+        <div className="flex flex-col gap-3">
+          {relatedQuotes.all.map((quote) => (
+            <Link
+              key={quote.id}
+              href={getBusinessQuotePath(businessSlug, quote.id)}
+              className="soft-panel flex items-center justify-between gap-3 shadow-none transition-colors hover:bg-accent/50"
+            >
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-sm font-medium text-foreground truncate">
+                  {quote.quoteNumber ?? quote.id}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {formatQuoteMoney(quote.totalInCents, currency)}
+                  {" · "}
+                  {formatInquiryDate(quote.createdAt)}
+                </span>
+              </div>
+              <QuoteStatusBadge status={quote.status as QuoteStatus} />
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <DashboardEmptyState
+          description="Create a quote from this inquiry."
+          icon={ReceiptText}
+          title="No related quotes yet"
+          variant="section"
+        />
+      )}
+    </DashboardSection>
+  );
+}
+
+function InquiryNotesSheetSection({
+  notes,
+  noteAction,
+}: {
+  notes: DashboardInquiryNote[];
+  noteAction: (
+    state: InquiryNoteActionState,
+    formData: FormData,
+  ) => Promise<InquiryNoteActionState>;
+}) {
+  const latestNote = notes[0];
 
   return (
     <DashboardSection
@@ -748,10 +964,10 @@ function InquiryNotesSheetSection({
           </SheetHeader>
           <SheetBody className="min-h-0 flex-1 gap-5">
             <InquiryNoteForm action={noteAction} embedded />
-            {inquiry.notes.length ? (
+            {notes.length ? (
               <ScrollArea className="h-full pr-4">
                 <DashboardDetailFeed>
-                  {inquiry.notes.map((note) => (
+                  {notes.map((note) => (
                     <DashboardDetailFeedItem
                       key={note.id}
                       meta={formatInquiryDateTime(note.createdAt)}
@@ -832,6 +1048,10 @@ function CustomerHistorySheetSection({
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Helpers + fallbacks                                                       */
+/* -------------------------------------------------------------------------- */
+
 function getCustomerContactEmail(inquiry: {
   customerEmail: string | null;
   customerContactMethod: string | null;
@@ -868,45 +1088,6 @@ function getContactMethodLabel(method: string | null) {
     inquiryContactMethodLabels[method as InquiryContactMethod] ?? "Contact"
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/*  Streamed sections — async components wrapped in Suspense above            */
-/* -------------------------------------------------------------------------- */
-
-async function StreamedFollowUpPanel({
-  followUpsPromise,
-  ...props
-}: Omit<React.ComponentProps<typeof FollowUpPanel>, "followUps"> & {
-  followUpsPromise: Promise<Awaited<ReturnType<typeof getFollowUpsForInquiry>>>;
-}) {
-  const followUps = await followUpsPromise;
-
-  return <FollowUpPanel {...props} followUps={followUps} />;
-}
-
-async function StreamedCustomerHistory({
-  businessSlug,
-  historyPromise,
-  locked,
-}: {
-  businessSlug: string;
-  historyPromise: Promise<Awaited<ReturnType<typeof getCustomerHistoryForBusiness>> | null>;
-  locked: boolean;
-}) {
-  const history = await historyPromise;
-
-  return (
-    <CustomerHistorySheetSection
-      businessSlug={businessSlug}
-      history={history}
-      locked={locked}
-    />
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Fallbacks                                                                  */
-/* -------------------------------------------------------------------------- */
 
 function FollowUpPanelFallback() {
   return (

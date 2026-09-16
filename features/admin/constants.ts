@@ -24,6 +24,8 @@ export const ADMIN_ACTIONS = [
   "view.inquiry",
   "view.quotes",
   "view.quote",
+  "view.invoices",
+  "view.invoice",
   "view.ai",
   "view.ai-requests",
   "view.ai-providers",
@@ -47,6 +49,10 @@ export const ADMIN_ACTIONS = [
   // Subscription mutations
   "subscription.manual_plan_override",
   "subscription.force_cancel",
+  // Business lifecycle mutations (soft state only — no hard deletes)
+  "business.archive",
+  "business.restore",
+  "business.delete",
   // Impersonation lifecycle
   "impersonation.start",
   "impersonation.stop",
@@ -66,11 +72,13 @@ export const ADMIN_TARGET_TYPES = [
   "subscription",
   "inquiry",
   "quote",
+  "invoice",
   "ai-request",
   "ai-provider",
   "email",
   "usage",
   "settings",
+  "system",
   "audit-log",
   "dashboard",
 ] as const;

@@ -85,15 +85,17 @@ export async function AdminAiRequestsListControlsSection({
   const { total } = await listAdminAiRequests(filters);
 
   return (
-    <AdminListToolbar
-      description="Per-call records across every business. The log keeps the last 90 days — older calls are pruned nightly."
-      fields={aiRequestToolbarFields}
-      resultLabel={`${total.toLocaleString("en-US")} ${total === 1 ? "request" : "requests"}`}
-      searchKey="q"
-      searchLabel="Request id"
-      searchPlaceholder="Exact request id"
-      values={toolbarValues(rawParams)}
-    />
+    <div className="data-list-toolbar-strip">
+      <AdminListToolbar
+        description="Per-call records across every business. The log keeps the last 90 days — older calls are pruned nightly."
+        fields={aiRequestToolbarFields}
+        resultLabel={`${total.toLocaleString("en-US")} ${total === 1 ? "request" : "requests"}`}
+        searchKey="q"
+        searchLabel="Request id"
+        searchPlaceholder="Exact request id"
+        values={toolbarValues(rawParams)}
+      />
+    </div>
   );
 }
 

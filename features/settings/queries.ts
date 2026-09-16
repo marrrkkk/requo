@@ -10,6 +10,7 @@ import { normalizeBusinessType } from "@/features/inquiries/business-types";
 import type {
   BusinessInquiryFormsSettingsView,
   BusinessInquiryFormEditorView,
+  BusinessInquiryFormHeaderView,
   BusinessInquiryFormSettingsView,
   BusinessInquiryPageSettingsView,
   BusinessSettingsView,
@@ -371,6 +372,73 @@ export async function getBusinessInquiryFormsSettingsForBusiness(
         }),
       };
     }),
+  };
+}
+
+/**
+ * Cheap identity lookup for the service editor route.
+ *
+ * The page header and its links only need the business/form identity, so this
+ * runs a single joined row fetch instead of the full editor payload (normalized
+ * form + page configs and the form/inquiry counts), which streams separately.
+ *
+ * Cached under the form's own tag set so form edits (and business-level
+ * settings such as the logo) invalidate it alongside the editor payload.
+ */
+export async function getBusinessInquiryFormHeaderForBusiness(
+  businessId: string,
+  formSlug: string,
+): Promise<BusinessInquiryFormHeaderView | null> {
+  "use cache";
+
+  cacheLife(settingsBusinessCacheLife);
+  cacheTag(...getBusinessSettingsCacheTags(businessId));
+  cacheTag(...getBusinessInquiryFormCacheTags(businessId, formSlug));
+
+  const [row] = await db
+    .select({
+      id: businesses.id,
+      name: businesses.name,
+      slug: businesses.slug,
+      plan: businesses.plan,
+      logoStoragePath: businesses.logoStoragePath,
+      updatedAt: businesses.updatedAt,
+      formId: businessInquiryForms.id,
+      formName: businessInquiryForms.name,
+      formSlug: businessInquiryForms.slug,
+      businessType: businessInquiryForms.businessType,
+      publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
+      isDefault: businessInquiryForms.isDefault,
+    })
+    .from(businesses)
+    .innerJoin(
+      businessInquiryForms,
+      and(
+        eq(businessInquiryForms.businessId, businesses.id),
+        eq(businessInquiryForms.slug, formSlug),
+        isNull(businessInquiryForms.archivedAt),
+      ),
+    )
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    plan: row.plan,
+    logoStoragePath: row.logoStoragePath,
+    updatedAt: row.updatedAt,
+    formId: row.formId,
+    formName: row.formName,
+    formSlug: row.formSlug,
+    businessType: normalizeBusinessType(row.businessType),
+    publicInquiryEnabled: row.publicInquiryEnabled,
+    isDefault: row.isDefault,
   };
 }
 

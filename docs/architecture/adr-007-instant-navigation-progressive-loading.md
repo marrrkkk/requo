@@ -58,6 +58,15 @@ Analytics is grouped, not per-card: static header/date controls first, core
 metrics next, advanced charts after, and the AI summary streaming in place
 inside its advanced region (it must never hold back charts).
 
+Detail pages extend the same rule to their own payloads. The frame reads an
+identity/core row (`*DetailCore`, or a purpose-built header slice such as the
+service editor's `getBusinessInquiryFormHeaderForBusiness`) so the page header
+and its links paint first, and each feed (items, payments, notes, activity,
+customer history, follow-ups) streams behind its own boundary with a shared
+section fallback. The aggregate query these pages used to render — still
+consumed by print routes, public preview, export API routes, and
+quote/invoice actions — stays in place.
+
 ### Rationale
 
 1. Orientation before data: title, description, and controls tell the member
@@ -159,3 +168,7 @@ content before its redirect/paywall decision.
 - **2026-09-05**: Accepted (implemented: `instant` migration, Partial
   Prefetching, shell navigation feedback, Analytics progressive regions,
   remaining settings refactors, audits, E2E coverage).
+- **2026-09-16**: Detail-page staging applied to the main app detail routes
+  (inquiry, quote, invoice, service) and the admin console detail views: core
+  read in the frame, one boundary per feed, shared detail fallbacks
+  (Decision 2).

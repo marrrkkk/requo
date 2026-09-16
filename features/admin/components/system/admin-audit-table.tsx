@@ -81,14 +81,6 @@ function formatMetadataPretty(
   }
 }
 
-function formatTargetIdForDisplay(targetId: string): string {
-  if (targetId === ADMIN_DASHBOARD_TARGET_ID) {
-    return "—";
-  }
-
-  return targetId;
-}
-
 const absoluteTimestampFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
@@ -128,76 +120,61 @@ const adminAuditColumns: AdminDataTableColumn<AdminAuditLogRow>[] = [
   {
     id: "action",
     header: "Action",
-    width: "w-[13rem]",
-    cell: (entry) => (
-      <div className="flex flex-col items-start gap-1.5">
-        <Badge variant={getActionBadgeVariant(entry.action)}>
-          {getAdminActionLabel(entry.action)}
-        </Badge>
-        <span className="font-mono text-xs text-muted-foreground">
-          {entry.action}
-        </span>
-      </div>
-    ),
+    width: "w-[16rem]",
+    cell: (entry) => {
+      const excerpt = formatMetadataExcerpt(entry.metadata);
+      const pretty = formatMetadataPretty(entry.metadata);
+
+      return (
+        <div className="flex min-w-0 flex-col items-start gap-1.5">
+          <Badge
+            title={entry.action}
+            variant={getActionBadgeVariant(entry.action)}
+          >
+            {getAdminActionLabel(entry.action)}
+          </Badge>
+          {excerpt ? (
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="block max-w-full cursor-default truncate font-mono text-xs leading-5 text-muted-foreground">
+                    {excerpt}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-md whitespace-pre-wrap break-words">
+                  <pre className="font-mono text-xs leading-5">
+                    {pretty ?? excerpt}
+                  </pre>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : null}
+        </div>
+      );
+    },
   },
   {
     id: "target",
     header: "Target",
     width: "w-[14rem]",
-    cell: (entry) => (
-      <div className="flex flex-col gap-1">
-        <span className="meta-label">
-          {getAdminTargetTypeLabel(entry.targetType)}
-        </span>
-        <TruncatedTextWithTooltip
-          className="font-mono text-sm text-foreground"
-          text={formatTargetIdForDisplay(entry.targetId)}
-        />
-      </div>
-    ),
-  },
-  {
-    id: "metadata",
-    header: "Metadata",
-    width: "w-[14rem]",
     cell: (entry) => {
-      const excerpt = formatMetadataExcerpt(entry.metadata);
-      const pretty = formatMetadataPretty(entry.metadata);
-
-      if (!excerpt) {
-        return <span className="text-xs text-muted-foreground">—</span>;
-      }
+      const targetId =
+        entry.targetId === ADMIN_DASHBOARD_TARGET_ID ? null : entry.targetId;
 
       return (
-        <TooltipProvider delayDuration={300}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="block cursor-default truncate font-mono text-xs leading-5 text-muted-foreground">
-                {excerpt}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-md whitespace-pre-wrap break-words">
-              <pre className="font-mono text-xs leading-5">
-                {pretty ?? excerpt}
-              </pre>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="meta-label">
+            {getAdminTargetTypeLabel(entry.targetType)}
+          </span>
+          {targetId ? (
+            <TruncatedTextWithTooltip
+              className="font-mono text-sm text-foreground"
+              text={targetId}
+            />
+          ) : null}
+        </div>
       );
     },
-  },
-  {
-    id: "request",
-    header: "Request",
-    width: "w-[11rem]",
-    cell: (entry) => (
-      <span
-        className="block truncate font-mono text-xs text-muted-foreground"
-        title={entry.userAgent ?? undefined}
-      >
-        {entry.ipAddress ?? "—"}
-      </span>
-    ),
   },
 ];
 
@@ -212,10 +189,13 @@ type AdminAuditTableProps = {
  * Admin audit log on the shared `AdminDataTable`.
  *
  * Fixed `createdAt DESC` ordering (the list query owns it) — no sortable
- * columns, no row detail page. The metadata column keeps the excerpt +
- * pretty-JSON tooltip so the full row payload stays inspectable without
- * a dedicated detail view: audit rows carry `metadata` only, never
- * before/after JSON.
+ * columns, no row detail page. Four columns only: the action badge carries
+ * the exact action key as its hover title (no repeated mono line), and
+ * the metadata excerpt renders inline under the badge only on rows that
+ * have metadata — with the pretty-JSON tooltip — so the full row payload
+ * stays inspectable without a dedicated detail view or an always-empty
+ * column. The request IP is deliberately not shown: it is identical on
+ * nearly every row and carries no per-row signal.
  */
 export function AdminAuditTable({
   items,
@@ -234,7 +214,8 @@ export function AdminAuditTable({
         icon: ScrollText,
       }}
       getRowId={(entry) => entry.id}
-      minWidthClass="min-w-[76rem]"
+      flush
+      minWidthClass="min-w-[56rem]"
       pagination={pagination}
       rows={items}
       toolbar={toolbar}

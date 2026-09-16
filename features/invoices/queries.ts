@@ -6,7 +6,7 @@ import { cache } from "react";
 
 import { db } from "@/lib/db/client";
 import { invoiceLineItems, invoices, payments, user } from "@/lib/db/schema";
-import type { InvoiceDetail, InvoiceListFilters, InvoiceListItem, PaymentView } from "@/features/invoices/types";
+import type { InvoiceDetail, InvoiceDetailCore, InvoiceLineItemView, InvoiceListFilters, InvoiceListItem, PaymentView } from "@/features/invoices/types";
 import type { InvoiceStatus } from "@/lib/db/schema/invoices";
 import { calculateInvoicePaymentState } from "@/features/invoices/utils";
 import { getBusinessInvoiceDetailCacheTags, getBusinessInvoiceListCacheTags, hotBusinessCacheLife } from "@/lib/cache/business-tags";
@@ -116,42 +116,124 @@ const getCachedInvoiceByQuote = cache(
   },
 );
 
-const getCachedInvoice = cache(async ({ businessId, invoiceId }: { businessId: string; invoiceId: string }) => {
-  "use cache";
-  cacheLife(hotBusinessCacheLife);
-  cacheTag(...getBusinessInvoiceDetailCacheTags(businessId, invoiceId));
-  const [row] = await db.select({
-    id: invoices.id,
-    invoiceNumber: invoices.invoiceNumber,
-    title: invoices.title,
-    customerName: invoices.customerName,
-    customerEmail: invoices.customerEmail,
-    customerContactMethod: invoices.customerContactMethod,
-    customerContactHandle: invoices.customerContactHandle,
-    currency: invoices.currency,
-    issueDate: invoices.issueDate,
-    dueDate: invoices.dueDate,
-    totalInCents: invoices.totalInCents,
-    status: invoices.status,
-    quoteId: invoices.quoteId,
-    notes: invoices.notes,
-    paymentTerms: invoices.paymentTerms,
-    subtotalInCents: invoices.subtotalInCents,
-    discountInCents: invoices.discountInCents,
-    taxInCents: invoices.taxInCents,
-    taxLabel: invoices.taxLabel,
-    sentAt: invoices.sentAt,
-    voidedAt: invoices.voidedAt,
-    paidInCents: paidAmountSql(),
-  }).from(invoices).where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId), isNull(invoices.deletedAt))).limit(1);
-  if (!row) return null;
-  const [items, paymentRows] = await Promise.all([
-    db.select({ id: invoiceLineItems.id, description: invoiceLineItems.description, quantity: invoiceLineItems.quantity, unitPriceInCents: invoiceLineItems.unitPriceInCents, lineTotalInCents: invoiceLineItems.lineTotalInCents, position: invoiceLineItems.position }).from(invoiceLineItems).where(and(eq(invoiceLineItems.invoiceId, invoiceId), eq(invoiceLineItems.businessId, businessId))).orderBy(invoiceLineItems.position),
-    db.select({ id: payments.id, amountInCents: payments.amountInCents, paymentDate: payments.paymentDate, method: payments.method, reference: payments.reference, notes: payments.notes, createdAt: payments.createdAt, voidedAt: payments.voidedAt, createdByName: user.name }).from(payments).leftJoin(user, eq(payments.createdBy, user.id)).where(and(eq(payments.invoiceId, invoiceId), eq(payments.businessId, businessId))).orderBy(desc(payments.paymentDate), desc(payments.createdAt)),
-  ]);
-  const state = calculateInvoicePaymentState({ totalInCents: row.totalInCents, paidInCents: Number(row.paidInCents ?? 0), dueDate: row.dueDate, lifecycleStatus: row.status });
-  return { ...row, paidInCents: state.paidInCents, balanceInCents: state.balanceInCents, status: state.status, items, payments: paymentRows as PaymentView[] };
-});
+/**
+ * Cheap core of the invoice detail: the invoice row plus paid/balance
+ * totals derived from a scalar payments sum. Paints the page header and
+ * the status/amounts section while the line items and the recorded
+ * payments stream behind their own boundaries.
+ */
+const getCachedInvoiceDetailCore = cache(
+  async ({
+    businessId,
+    invoiceId,
+  }: {
+    businessId: string;
+    invoiceId: string;
+  }): Promise<InvoiceDetailCore | null> => {
+    "use cache";
+    cacheLife(hotBusinessCacheLife);
+    cacheTag(...getBusinessInvoiceDetailCacheTags(businessId, invoiceId));
+    const [row] = await db.select({
+      id: invoices.id,
+      invoiceNumber: invoices.invoiceNumber,
+      title: invoices.title,
+      customerName: invoices.customerName,
+      customerEmail: invoices.customerEmail,
+      customerContactMethod: invoices.customerContactMethod,
+      customerContactHandle: invoices.customerContactHandle,
+      currency: invoices.currency,
+      issueDate: invoices.issueDate,
+      dueDate: invoices.dueDate,
+      totalInCents: invoices.totalInCents,
+      status: invoices.status,
+      quoteId: invoices.quoteId,
+      notes: invoices.notes,
+      paymentTerms: invoices.paymentTerms,
+      subtotalInCents: invoices.subtotalInCents,
+      discountInCents: invoices.discountInCents,
+      taxInCents: invoices.taxInCents,
+      taxLabel: invoices.taxLabel,
+      sentAt: invoices.sentAt,
+      voidedAt: invoices.voidedAt,
+      paidInCents: paidAmountSql(),
+    }).from(invoices).where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId), isNull(invoices.deletedAt))).limit(1);
+    if (!row) return null;
+    const state = calculateInvoicePaymentState({ totalInCents: row.totalInCents, paidInCents: Number(row.paidInCents ?? 0), dueDate: row.dueDate, lifecycleStatus: row.status });
+    return { ...row, paidInCents: state.paidInCents, balanceInCents: state.balanceInCents, status: state.status };
+  },
+);
+
+const getCachedInvoiceItems = cache(
+  async ({
+    businessId,
+    invoiceId,
+  }: {
+    businessId: string;
+    invoiceId: string;
+  }): Promise<InvoiceLineItemView[]> => {
+    "use cache";
+    cacheLife(hotBusinessCacheLife);
+    cacheTag(...getBusinessInvoiceDetailCacheTags(businessId, invoiceId));
+    return db.select({ id: invoiceLineItems.id, description: invoiceLineItems.description, quantity: invoiceLineItems.quantity, unitPriceInCents: invoiceLineItems.unitPriceInCents, lineTotalInCents: invoiceLineItems.lineTotalInCents, position: invoiceLineItems.position }).from(invoiceLineItems).where(and(eq(invoiceLineItems.invoiceId, invoiceId), eq(invoiceLineItems.businessId, businessId))).orderBy(invoiceLineItems.position);
+  },
+);
+
+const getCachedInvoicePayments = cache(
+  async ({
+    businessId,
+    invoiceId,
+  }: {
+    businessId: string;
+    invoiceId: string;
+  }): Promise<PaymentView[]> => {
+    "use cache";
+    cacheLife(hotBusinessCacheLife);
+    cacheTag(...getBusinessInvoiceDetailCacheTags(businessId, invoiceId));
+    const paymentRows = await db.select({ id: payments.id, amountInCents: payments.amountInCents, paymentDate: payments.paymentDate, method: payments.method, reference: payments.reference, notes: payments.notes, createdAt: payments.createdAt, voidedAt: payments.voidedAt, createdByName: user.name }).from(payments).leftJoin(user, eq(payments.createdBy, user.id)).where(and(eq(payments.invoiceId, invoiceId), eq(payments.businessId, businessId))).orderBy(desc(payments.paymentDate), desc(payments.createdAt));
+    return paymentRows as PaymentView[];
+  },
+);
+
+/**
+ * Core slice of the invoice detail, for the staged detail page.
+ *
+ * Shares `getBusinessInvoiceDetailCacheTags` with the aggregate below, so
+ * every existing invoice mutation still invalidates it.
+ */
+export async function getInvoiceDetailCoreForBusiness({ businessId, invoiceId }: { businessId: string; invoiceId: string }): Promise<InvoiceDetailCore | null> {
+  return getCachedInvoiceDetailCore({ businessId, invoiceId });
+}
+
+/** Line items for the invoice detail page's own streaming region. */
+export async function getInvoiceItemsForBusiness({ businessId, invoiceId }: { businessId: string; invoiceId: string }): Promise<InvoiceLineItemView[]> {
+  return getCachedInvoiceItems({ businessId, invoiceId });
+}
+
+/** Recorded payments for the invoice detail page's own streaming region. */
+export async function getInvoicePaymentsForBusiness({ businessId, invoiceId }: { businessId: string; invoiceId: string }): Promise<PaymentView[]> {
+  return getCachedInvoicePayments({ businessId, invoiceId });
+}
+
+/**
+ * Whole-record invoice payload.
+ *
+ * Composes the staged slices above so the print page, the export route,
+ * and the invoice actions keep resolving a single record in one call.
+ */
+const getCachedInvoice = cache(
+  async ({ businessId, invoiceId }: { businessId: string; invoiceId: string }): Promise<InvoiceDetail | null> => {
+    "use cache";
+    cacheLife(hotBusinessCacheLife);
+    cacheTag(...getBusinessInvoiceDetailCacheTags(businessId, invoiceId));
+    const [core, items, payments] = await Promise.all([
+      getCachedInvoiceDetailCore({ businessId, invoiceId }),
+      getCachedInvoiceItems({ businessId, invoiceId }),
+      getCachedInvoicePayments({ businessId, invoiceId }),
+    ]);
+    if (!core) return null;
+    return { ...core, items, payments };
+  },
+);
 
 export type InvoiceOverviewItem = {
   id: string;

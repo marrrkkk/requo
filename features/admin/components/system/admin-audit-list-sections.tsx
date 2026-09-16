@@ -32,7 +32,6 @@ export function AdminAuditListPageShell({
     <DashboardPage>
       <PageHeader
         description="Every admin view and high-trust action, newest first."
-        eyebrow="Admin"
         title="Audit"
       />
       {children}
@@ -95,12 +94,14 @@ export async function AdminAuditListControlsSection({
   const { total } = await listAdminAuditLogs(filters);
 
   return (
-    <AdminListToolbar
-      description="Narrow the audit feed by admin, action, target type, or target id."
-      fields={auditToolbarFields}
-      resultLabel={`${total.toLocaleString("en-US")} ${total === 1 ? "entry" : "entries"}`}
-      values={toolbarValues(rawParams)}
-    />
+    <div className="data-list-toolbar-strip">
+      <AdminListToolbar
+        description="Narrow the audit feed by admin, action, target type, or target id."
+        fields={auditToolbarFields}
+        resultLabel={`${total.toLocaleString("en-US")} ${total === 1 ? "entry" : "entries"}`}
+        values={toolbarValues(rawParams)}
+      />
+    </div>
   );
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
 import {
@@ -14,13 +14,10 @@ import {
   getAdminSidebarNavGroups,
   isAdminNavigationItemActive,
 } from "@/features/admin/navigation";
-import {
-  AdminUserMenu,
-  type AdminShellUser,
-} from "@/features/admin/components/shell/admin-user-menu";
 
 export type AdminSidebarProps = {
-  user: AdminShellUser;
+  /** Streamed user menu slot (Suspense-wrapped by the console layout). */
+  userSlot: ReactNode;
   /** Rendered inside the mobile drawer: always expanded, close button instead of collapse. */
   mobile?: boolean;
   onClose?: () => void;
@@ -42,7 +39,7 @@ export type AdminSidebarProps = {
  * the console's rail is pixel-identical to the main app's.
  */
 export function BoarduiAdminSidebar({
-  user,
+  userSlot,
   mobile = false,
   onClose,
   flat = false,
@@ -79,7 +76,7 @@ export function BoarduiAdminSidebar({
     </div>
   );
 
-  const bottomSlot = <AdminUserMenu user={user} />;
+  const bottomSlot = userSlot;
 
   return (
     <DashboardSidebar

@@ -5,7 +5,6 @@ import { nextCookies } from "better-auth/next-js";
 
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { extractFirstName } from "@/features/account/name";
-import { getAdminHost } from "@/lib/admin/subdomain-config";
 import { db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { env } from "@/lib/env";
@@ -22,15 +21,13 @@ function toOrigin(value: string) {
 /**
  * Derive the cookie domain for cross-subdomain session sharing.
  *
- * - Production (https://requo.app): domain = ".requo.app" so both
- *   app.requo.app and admin.requo.app share the session cookie.
+ * - Production (https://requo.app): domain = ".requo.app" so the session
+ *   cookie is shared across subdomains.
  * - Development (http://localhost:3000): "" (no Domain attribute).
  *   Browsers silently drop `Set-Cookie` responses carrying
  *   `Domain=localhost`, which surfaces as a login that succeeds
  *   server-side (fresh session row per attempt) but bounces straight
- *   back to `/login`. Host-only cookies work fine — the tradeoff is
- *   that localhost:3000 and admin.localhost:3000 keep separate
- *   sessions in dev, so you sign in on each host once.
+ *   back to `/login`. Host-only cookies work fine.
  */
 function getCookieDomain(): string {
   const baseUrl = process.env.BETTER_AUTH_URL;
@@ -104,11 +101,6 @@ function buildTrustedOrigins() {
       origins.add(url.origin);
     }
   }
-
-  // Add admin subdomain to trusted origins
-  const adminHost = getAdminHost();
-  const adminProtocol = getBaseUrlProtocol();
-  origins.add(`${adminProtocol}://${adminHost}`);
 
   return Array.from(origins);
 }

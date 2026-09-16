@@ -14,8 +14,12 @@ import {
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
 import { ArchivedRecordBanner } from "@/components/shared/archived-record-banner";
+import { DetailSectionFallback } from "@/components/shared/detail-section-fallback";
 import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
-import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
+import {
+  DashboardDetailPageSkeleton,
+  DashboardQuoteEditorSkeleton,
+} from "@/components/shell/dashboard-detail-page-skeleton";
 import { InfoTile } from "@/components/shared/info-tile";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { Button } from "@/components/ui/button";
@@ -74,10 +78,20 @@ import { AutoFollowUpStatus } from "@/features/quotes/components/auto-follow-up-
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import { getFollowUpsForQuote } from "@/features/follow-ups/queries";
 import { getQuoteLibraryForBusiness } from "@/features/quotes/quote-library-queries";
-import { getBusinessContactEmailForPreview, getQuoteDetailForBusiness, getRevisionRequestsForQuote } from "@/features/quotes/queries";
+import {
+  getBusinessContactEmailForPreview,
+  getQuoteActivitiesForBusiness,
+  getQuoteDetailCoreForBusiness,
+  getQuoteItemsForBusiness,
+  getRevisionRequestsForQuote,
+} from "@/features/quotes/queries";
 import { quoteRouteParamsSchema } from "@/features/quotes/schemas";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
-import type { DashboardQuoteActivity } from "@/features/quotes/types";
+import type {
+  DashboardQuoteActivity,
+  DashboardQuoteDetailCore,
+  QuoteReminderKind,
+} from "@/features/quotes/types";
 import {
   formatQuoteDate,
   formatQuoteDateTime,
@@ -96,6 +110,7 @@ import {
 import { getInvoiceIdByQuoteId } from "@/features/invoices/queries";
 import { env, isEmailConfigured } from "@/lib/env";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
@@ -119,6 +134,12 @@ export const instant = true;
  * a `<Suspense>`-wrapped child server component so the shell paints instantly
  * on client navigation. The error boundary catches failures without breaking
  * the surrounding layout.
+ *
+ * Staging: the frame resolves the core row plus the two cheap lookups the
+ * header's actions need (contact email, linked invoice). Pricing library and
+ * business settings (editor-only), line items, activity, follow-ups, and
+ * customer history each stream behind their own region, so the published view
+ * never waits on draft-only data and a slow feed never holds back the header.
  */
 export default function QuoteDetailPage({
   params,
@@ -126,17 +147,19 @@ export default function QuoteDetailPage({
   return (
     <RegionErrorBoundary fallback={<DashboardDetailPageSkeleton variant="quote" />}>
       <Suspense fallback={<DashboardDetailPageSkeleton variant="quote" />}>
-        <QuoteDetailContent params={params} />
+        <QuoteDetailRegion params={params} />
       </Suspense>
     </RegionErrorBoundary>
   );
 }
 
-async function QuoteDetailContent({
-  params,
-}: QuoteDetailPageProps) {
+/* -------------------------------------------------------------------------- */
+/*  Frame — params + context + core row + header actions                      */
+/* -------------------------------------------------------------------------- */
+
+async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
   const resolvedParams = await params;
-  const { user, businessContext } = await getAppShellContext(resolvedParams.businessSlug);
+  const { businessContext } = await getAppShellContext(resolvedParams.businessSlug);
 
   const parsedParams = quoteRouteParamsSchema.safeParse(resolvedParams);
 
@@ -144,24 +167,14 @@ async function QuoteDetailContent({
     notFound();
   }
   const businessSlug = businessContext.business.slug;
-  // Follow-ups only need businessId + quoteId — start alongside the detail fetch.
-  const followUpsPromise = getFollowUpsForQuote({
-    businessId: businessContext.business.id,
-    quoteId: parsedParams.data.id,
-  });
-  const [quote, pricingLibrary, businessSettings, businessContactEmail, linkedInvoice] = await Promise.all([
-    getQuoteDetailForBusiness({
-      businessId: businessContext.business.id,
-      quoteId: parsedParams.data.id,
-    }),
-    getQuoteLibraryForBusiness(businessContext.business.id),
-    getBusinessSettingsForBusiness(businessContext.business.id),
-    getBusinessContactEmailForPreview(businessContext.business.id),
-    getInvoiceIdByQuoteId({
-      businessId: businessContext.business.id,
-      quoteId: parsedParams.data.id,
-    }).catch((error) => {
-      console.error("Failed to load linked invoice.", { quoteId: parsedParams.data.id }, error);
+  const businessId = businessContext.business.id;
+  const quoteId = parsedParams.data.id;
+
+  const [quote, businessContactEmail, linkedInvoice] = await Promise.all([
+    getQuoteDetailCoreForBusiness({ businessId, quoteId }),
+    getBusinessContactEmailForPreview(businessId),
+    getInvoiceIdByQuoteId({ businessId, quoteId }).catch((error) => {
+      console.error("Failed to load linked invoice.", { quoteId }, error);
       return null;
     }),
   ]);
@@ -169,10 +182,6 @@ async function QuoteDetailContent({
   if (!quote) {
     notFound();
   }
-
-  const revisionRequests = (quote.status === "revision_requested" || quote.status === "draft")
-    ? await getRevisionRequestsForQuote(businessContext.business.id, quote.id)
-    : [];
 
   const updateAction = updateQuoteAction.bind(null, quote.id);
   const archiveAction = archiveQuoteAction.bind(null, quote.id);
@@ -190,64 +199,14 @@ async function QuoteDetailContent({
     businessContext.business.plan,
     "quoteLibrary",
   );
-  // Auto follow-up is plan-gated and additionally capped by how many
-  // sequences may be in flight at once for the business.
-  const canAutoFollowUpByPlan = hasFeatureAccess(
-    businessContext.business.plan,
-    "autoFollowUps",
-  );
-  const activeAutoFollowUpLimit = getUsageLimit(
-    businessContext.business.plan,
-    "activeAutoFollowUpsPerBusiness",
-  );
-  const activeAutoFollowUpCount = canAutoFollowUpByPlan
-    ? await getActiveAutoFollowUpCount(businessContext.business.id)
-    : 0;
-  const canAutoFollowUp =
-    canAutoFollowUpByPlan &&
-    (activeAutoFollowUpLimit === null ||
-      activeAutoFollowUpCount < activeAutoFollowUpLimit);
-  const autoFollowUpUnavailableNote =
-    canAutoFollowUpByPlan && !canAutoFollowUp
-      ? "You've reached your plan's limit for active auto follow-ups. Stop or complete one to start another."
-      : undefined;
   const customerQuotePath = quote.publicToken
     ? getPublicQuoteUrl(quote.publicToken)
     : null;
   const customerQuoteUrl = customerQuotePath
     ? new URL(customerQuotePath, env.BETTER_AUTH_URL).toString()
     : null;
-  // Customer history streams via Suspense — start early, don't block page render.
-  const customerHistoryPromise = getCustomerHistoryForBusiness({
-    businessId: businessContext.business.id,
-    customerEmail: quote.customerEmail,
-    customerContactHandle: quote.customerContactHandle,
-    excludeInquiryId: quote.inquiryId,
-    excludeQuoteId: quote.id,
-  });
-  const followUps = await followUpsPromise;
 
-
-
-  const linkedInquiry = quote.linkedInquiry
-    ? {
-        id: quote.linkedInquiry.id,
-        customerName: quote.linkedInquiry.customerName,
-        customerEmail: quote.linkedInquiry.customerEmail,
-        customerContactMethod: quote.linkedInquiry.customerContactMethod,
-        customerContactHandle: quote.linkedInquiry.customerContactHandle,
-        recordState: quote.linkedInquiry.recordState,
-        subject: quote.linkedInquiry.subject,
-        requestedDeadline: quote.linkedInquiry.requestedDeadline,
-        status: quote.linkedInquiry.status,
-        details: quote.linkedInquiry.details,
-        budgetText: quote.linkedInquiry.budgetText,
-      }
-    : null;
   const isArchived = quote.archivedAt !== null;
-  const hasPendingFollowUp = followUps.some(
-    (followUp) => followUp.status === "pending",
-  );
   const viewedWithoutResponse = Boolean(
     quote.status === "sent" &&
       quote.publicViewedAt &&
@@ -277,20 +236,589 @@ async function QuoteDetailContent({
     businessContext.business.plan,
     "exports",
   );
-
-  const unpricedItemCount = quote.items.filter(
-    (item) => item.unitPriceInCents <= 0,
-  ).length;
-
   const needsAiConfirmation =
     quote.status === "draft" &&
     quote.aiReadiness === "needs_confirmation" &&
     !quote.aiAcknowledgedAt;
-  const acknowledgeAction = quote.status === "draft"
-    ? acknowledgeQuoteUncertaintyAction.bind(null, quote.id)
-    : undefined;
+  const acknowledgeAction =
+    quote.status === "draft"
+      ? acknowledgeQuoteUncertaintyAction.bind(null, quote.id)
+      : undefined;
 
-  const linkedInquirySection = (
+  const sendDialogContext = {
+    businessId,
+    businessName: businessContext.business.name,
+    businessPlan: businessContext.business.plan,
+    businessSlug,
+    businessLogoStoragePath: businessContext.business.logoStoragePath,
+    canExportData,
+    customerQuoteUrl,
+    needsAiConfirmation,
+    acknowledgeAction,
+    quote,
+    sendAction,
+    logEventAction,
+    createFollowUpAction,
+    previewHref: getBusinessQuotePreviewPath(businessSlug, quote.id),
+  };
+
+  return (
+    <DashboardPage className="pb-24">
+      {isArchived ? (
+        <ArchivedRecordBanner
+          recordLabel="quote"
+          redirectHref={getBusinessQuotePath(businessSlug, quote.id)}
+          unarchiveAction={restoreArchivedAction}
+        />
+      ) : null}
+      <DashboardDetailHeader
+        eyebrow="Quote"
+        title={quote.title}
+        description={`Quote created · ${formatQuoteDateTime(quote.createdAt)}`}
+        meta={
+          <>
+            <QuoteStatusBadge status={quote.status} />
+            {isArchived ? <QuoteRecordStateBadge state="archived" /> : null}
+          </>
+        }
+        actions={
+          <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto">
+
+            <QuoteManageDropdown
+              archiveAction={archiveAction}
+              businessQuoteListHref={getBusinessQuotesPath(businessSlug)}
+              deleteDraftAction={deleteDraftAction}
+              isArchived={isArchived}
+              restoreArchivedAction={restoreArchivedAction}
+              saveAsTemplateAction={canSaveAsTemplate ? saveAsTemplate : undefined}
+              status={quote.status}
+              voidAction={voidAction}
+            />
+            <QuoteExportPopover
+              canExport={canExportData}
+              pdfHref={getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")}
+              pngHref={getBusinessQuoteExportPath(businessSlug, quote.id, "png")}
+            />
+            {/* Preview and the draft send dialog both need the line items, so
+                they resolve in one feed region instead of holding the
+                header's identity and management actions. */}
+            <Suspense fallback={<QuoteHeaderActionsFallback />}>
+              <QuoteHeaderFeedActionsRegion
+                {...sendDialogContext}
+                businessContactEmail={businessContactEmail}
+                openQuoteHref={customerQuoteUrl}
+              />
+            </Suspense>
+            {quote.status === "accepted" && linkedInvoice ? (
+              <Button asChild variant="outline">
+                <Link href={getBusinessInvoicePath(businessSlug, linkedInvoice.id)}>
+                  <Receipt data-icon="inline-start" />
+                  View invoice {linkedInvoice.invoiceNumber}
+                </Link>
+              </Button>
+            ) : null}
+            {quote.status === "accepted" && !linkedInvoice ? (
+              <Button asChild>
+                <Link href={getBusinessNewInvoicePath(businessSlug, quote.id)}>
+                  <Receipt data-icon="inline-start" />
+                  Create invoice
+                </Link>
+              </Button>
+            ) : null}
+          </div>
+        }
+      />
+
+      <QuoteWorkflowSteps
+        status={quote.status}
+        publicViewedAt={quote.publicViewedAt}
+      />
+
+      {quote.status === "draft" ? (
+        <>
+          <Suspense fallback={<DashboardQuoteEditorSkeleton />}>
+            <QuoteEditorRegion
+              businessId={businessId}
+              businessName={businessContext.business.name}
+              businessPlan={businessContext.business.plan}
+              businessSlug={businessSlug}
+              quote={quote}
+              updateAction={updateAction}
+            />
+          </Suspense>
+
+          <DashboardDetailLayout className="xl:grid-cols-[1.25fr_0.75fr]">
+            <DashboardSidebarStack>
+              <QuoteLinkedInquirySection businessSlug={businessSlug} quote={quote} />
+              <Suspense fallback={<DetailSectionFallback rows={2} />}>
+                <QuoteActivityRegion businessId={businessId} quoteId={quote.id} />
+              </Suspense>
+              <RegionErrorBoundary fallback={<QuoteCustomerHistoryFallback />}>
+                <Suspense fallback={<QuoteCustomerHistoryFallback />}>
+                  <QuoteCustomerHistoryRegion
+                    businessId={businessId}
+                    businessSlug={businessSlug}
+                    customerContactHandle={quote.customerContactHandle}
+                    customerEmail={quote.customerEmail}
+                    excludeInquiryId={quote.inquiryId}
+                    excludeQuoteId={quote.id}
+                  />
+                </Suspense>
+              </RegionErrorBoundary>
+            </DashboardSidebarStack>
+
+            <DashboardSidebarStack>
+              <div id="send-quote">
+                <DashboardSection
+                  description="Send the finished draft to your customer."
+                  title="Send quote"
+                >
+                  <Suspense fallback={<DetailSectionFallback rows={3} />}>
+                    <QuoteSendSectionRegion {...sendDialogContext} />
+                  </Suspense>
+                </DashboardSection>
+              </div>
+
+              <div id="follow-ups">
+                <RegionErrorBoundary fallback={<FollowUpPanelFallback />}>
+                  <Suspense fallback={<FollowUpPanelFallback />}>
+                    <QuoteFollowUpsRegion
+                      businessId={businessId}
+                      businessPlan={businessContext.business.plan}
+                      businessSlug={businessSlug}
+                      createFollowUpAction={createFollowUpAction}
+                      mode="draft"
+                      quote={quote}
+                      stopAutoFollowUp={stopAutoFollowUp}
+                    />
+                  </Suspense>
+                </RegionErrorBoundary>
+              </div>
+            </DashboardSidebarStack>
+          </DashboardDetailLayout>
+        </>
+      ) : (
+        <DashboardDetailLayout className="xl:grid-cols-[minmax(0,1.05fr)_0.95fr]">
+          <DashboardSidebarStack>
+
+            <Suspense fallback={<DetailSectionFallback rows={6} />}>
+              <QuotePreviewRegion
+                businessId={businessId}
+                businessName={businessContext.business.name}
+                quote={quote}
+              />
+            </Suspense>
+
+            <QuoteLinkedInquirySection businessSlug={businessSlug} quote={quote} />
+            <Suspense fallback={<DetailSectionFallback rows={2} />}>
+              <QuoteActivityRegion businessId={businessId} quoteId={quote.id} />
+            </Suspense>
+            <RegionErrorBoundary fallback={<QuoteCustomerHistoryFallback />}>
+              <Suspense fallback={<QuoteCustomerHistoryFallback />}>
+                <QuoteCustomerHistoryRegion
+                  businessId={businessId}
+                  businessSlug={businessSlug}
+                  customerContactHandle={quote.customerContactHandle}
+                  customerEmail={quote.customerEmail}
+                  excludeInquiryId={quote.inquiryId}
+                  excludeQuoteId={quote.id}
+                />
+              </Suspense>
+            </RegionErrorBoundary>
+          </DashboardSidebarStack>
+
+          <DashboardSidebarStack>
+            {quote.status === "revision_requested" ? (
+              <Suspense fallback={<DetailSectionFallback rows={3} />}>
+                <QuoteRevisionSectionRegion businessId={businessId} quoteId={quote.id} />
+              </Suspense>
+            ) : null}
+
+            <QuoteCustomerViewSection
+              customerQuotePath={customerQuotePath}
+              customerQuoteUrl={customerQuoteUrl}
+              customerViewCopy={customerViewCopy}
+              quote={quote}
+              visibleQuoteReminders={visibleQuoteReminders}
+            />
+
+            <QuoteContactSection
+              quote={quote}
+              quoteContactEmail={quoteContactEmail}
+              quotePreferredContactLabel={quotePreferredContactLabel}
+              showQuotePreferredContact={showQuotePreferredContact}
+            />
+
+            <div id="follow-ups">
+              <RegionErrorBoundary fallback={<FollowUpPanelFallback />}>
+                <Suspense fallback={<FollowUpPanelFallback />}>
+                  <QuoteFollowUpsRegion
+                    businessId={businessId}
+                    businessPlan={businessContext.business.plan}
+                    businessSlug={businessSlug}
+                    createFollowUpAction={createFollowUpAction}
+                    mode="published"
+                    quote={quote}
+                    stopAutoFollowUp={stopAutoFollowUp}
+                    viewedWithoutResponse={viewedWithoutResponse}
+                  />
+                </Suspense>
+              </RegionErrorBoundary>
+            </div>
+
+            {visibleQuoteReminders.includes("expiring_soon") ? (
+              <DismissibleQuoteAlert
+                id={`quote-${quote.id}-expiring`}
+                title="Quote expiring soon"
+                description={`This quote expires on ${formatQuoteDate(quote.validUntil)}.`}
+              />
+            ) : null}
+          </DashboardSidebarStack>
+        </DashboardDetailLayout>
+      )}
+    </DashboardPage>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Streaming regions                                                         */
+/* -------------------------------------------------------------------------- */
+
+type SendDialogContext = {
+  businessId: string;
+  businessName: string;
+  businessPlan: Parameters<typeof hasFeatureAccess>[0];
+  businessSlug: string;
+  businessLogoStoragePath: string | null;
+  canExportData: boolean;
+  customerQuoteUrl: string | null;
+  needsAiConfirmation: boolean;
+  acknowledgeAction?: React.ComponentProps<typeof SendQuoteDialog>["acknowledgeAction"];
+  quote: DashboardQuoteDetailCore;
+  sendAction: React.ComponentProps<typeof SendQuoteDialog>["sendAction"];
+  logEventAction: React.ComponentProps<typeof SendQuoteDialog>["logEventAction"];
+  createFollowUpAction: React.ComponentProps<typeof SendQuoteDialog>["createFollowUpAction"];
+  previewHref: string;
+};
+
+async function QuoteHeaderFeedActionsRegion(
+  props: SendDialogContext & {
+    businessContactEmail: string | null;
+    openQuoteHref: string | null;
+  },
+) {
+  const [items, gate] = await Promise.all([
+    getQuoteItemsForBusiness({ businessId: props.businessId, quoteId: props.quote.id }),
+    resolveAutoFollowUpGate(props.businessId, props.businessPlan),
+  ]);
+
+  return (
+    <>
+      <QuotePreviewButton
+        quote={{
+          id: props.quote.id,
+          businessId: props.businessId,
+          token: props.quote.publicToken ?? "",
+          quoteNumber: props.quote.quoteNumber,
+          title: props.quote.title,
+          businessName: props.businessName,
+          businessSlug: props.businessSlug,
+          businessPlan: props.businessPlan,
+          businessShortDescription: null,
+          businessContactEmail: props.businessContactEmail,
+          businessLogoStoragePath: props.businessLogoStoragePath,
+          customerName: props.quote.customerName,
+          customerEmail: props.quote.customerEmail,
+          customerContactMethod: props.quote.customerContactMethod,
+          customerContactHandle: props.quote.customerContactHandle,
+          currency: props.quote.currency,
+          notes: props.quote.notes,
+          terms: props.quote.terms,
+          validUntil: props.quote.validUntil,
+          version: props.quote.version,
+          status: props.quote.status,
+          subtotalInCents: props.quote.subtotalInCents,
+          discountInCents: props.quote.discountInCents,
+          taxInCents: props.quote.taxInCents,
+          taxLabel: props.quote.taxLabel,
+          totalInCents: props.quote.totalInCents,
+          sentAt: props.quote.sentAt,
+          acceptedAt: props.quote.acceptedAt,
+          publicViewedAt: props.quote.publicViewedAt,
+          customerRespondedAt: props.quote.customerRespondedAt,
+          customerResponseMessage: props.quote.customerResponseMessage,
+          items,
+        }}
+        businessPlan={props.businessPlan}
+        businessContactEmail={props.businessContactEmail}
+        businessName={props.businessName}
+        openQuoteHref={props.openQuoteHref}
+      />
+      {props.quote.status === "draft" ? (
+        <SendQuoteDialog {...buildSendDialogProps({ ...props, ...gate, items })} />
+      ) : null}
+    </>
+  );
+}
+
+async function QuoteSendSectionRegion(props: SendDialogContext) {
+  const [items, gate] = await Promise.all([
+    getQuoteItemsForBusiness({ businessId: props.businessId, quoteId: props.quote.id }),
+    resolveAutoFollowUpGate(props.businessId, props.businessPlan),
+  ]);
+
+  return <SendQuoteDialog {...buildSendDialogProps({ ...props, ...gate, items })} />;
+}
+
+async function QuoteEditorRegion({
+  businessId,
+  businessName,
+  businessPlan,
+  businessSlug,
+  quote,
+  updateAction,
+}: {
+  businessId: string;
+  businessName: string;
+  businessPlan: Parameters<typeof hasFeatureAccess>[0];
+  businessSlug: string;
+  quote: DashboardQuoteDetailCore;
+  updateAction: React.ComponentProps<typeof QuoteEditor>["action"];
+}) {
+  // Editor-only payload: the pricing library and business defaults are not
+  // needed by the published view, so they load here instead of in the frame.
+  const [items, pricingLibrary, businessSettings, revisionRequests] =
+    await Promise.all([
+      getQuoteItemsForBusiness({ businessId, quoteId: quote.id }),
+      getQuoteLibraryForBusiness(businessId),
+      getBusinessSettingsForBusiness(businessId),
+      quote.status === "revision_requested" || quote.status === "draft"
+        ? getRevisionRequestsForQuote(businessId, quote.id)
+        : Promise.resolve([]),
+    ]);
+
+  const linkedInquiry = quote.linkedInquiry;
+
+  return (
+    <>
+      {revisionRequests.length > 0 ? (
+        <DashboardSection
+          description="Customer feedback from the previous version. Use this to guide your edits."
+          title="Revision feedback"
+        >
+          <RevisionRequestFeedback requests={revisionRequests} />
+        </DashboardSection>
+      ) : null}
+
+      <QuoteEditor
+        action={updateAction}
+        businessDefaults={
+          businessSettings
+            ? {
+                defaultQuoteNotes: businessSettings.defaultQuoteNotes,
+                defaultQuoteTerms: businessSettings.defaultQuoteTerms,
+                defaultQuoteValidityDays: businessSettings.defaultQuoteValidityDays,
+              }
+            : undefined
+        }
+        businessName={businessName}
+        businessSlug={businessSlug}
+        canUseAiGenerator={hasFeatureAccess(businessPlan, "aiQuoteDrafting")}
+        canUseQuoteLibrary={hasFeatureAccess(businessPlan, "quoteLibrary")}
+        currency={quote.currency}
+        initialValues={getQuoteEditorInitialValuesFromDetail({
+          ...quote,
+          items,
+        })}
+        key={quote.id}
+        linkedInquiry={linkedInquiry}
+        pricingLibrary={pricingLibrary}
+        quoteNumber={quote.quoteNumber}
+        revisionComment={revisionRequests[0]?.message ?? null}
+        showFloatingUnsavedChanges
+        submitLabel="Save changes"
+        submitPendingLabel="Saving changes..."
+      />
+    </>
+  );
+}
+
+async function QuotePreviewRegion({
+  businessId,
+  businessName,
+  quote,
+}: {
+  businessId: string;
+  businessName: string;
+  quote: DashboardQuoteDetailCore;
+}) {
+  const items = await getQuoteItemsForBusiness({
+    businessId,
+    quoteId: quote.id,
+  });
+
+  return (
+    <QuotePreview
+      businessName={businessName}
+      quoteNumber={quote.quoteNumber}
+      title={quote.title}
+      customerName={quote.customerName}
+      customerEmail={quote.customerEmail}
+      currency={quote.currency}
+      validUntil={quote.validUntil}
+      notes={quote.notes}
+      terms={quote.terms}
+      items={items}
+      subtotalInCents={quote.subtotalInCents}
+      discountInCents={quote.discountInCents}
+      taxInCents={quote.taxInCents}
+      taxLabel={quote.taxLabel}
+      totalInCents={quote.totalInCents}
+    />
+  );
+}
+
+async function QuoteActivityRegion({
+  businessId,
+  quoteId,
+}: {
+  businessId: string;
+  quoteId: string;
+}) {
+  const activities = await getQuoteActivitiesForBusiness({ businessId, quoteId });
+
+  return <QuoteActivitySheetSection activities={activities} />;
+}
+
+async function QuoteCustomerHistoryRegion({
+  businessId,
+  businessSlug,
+  customerContactHandle,
+  customerEmail,
+  excludeInquiryId,
+  excludeQuoteId,
+}: {
+  businessId: string;
+  businessSlug: string;
+  customerContactHandle: string;
+  customerEmail: string | null;
+  excludeInquiryId: string | null;
+  excludeQuoteId: string | null;
+}) {
+  const history = await getCustomerHistoryForBusiness({
+    businessId,
+    customerEmail,
+    customerContactHandle,
+    excludeInquiryId,
+    excludeQuoteId,
+  });
+
+  return (
+    <CustomerHistorySheetSection history={history} businessSlug={businessSlug} />
+  );
+}
+
+async function QuoteRevisionSectionRegion({
+  businessId,
+  quoteId,
+}: {
+  businessId: string;
+  quoteId: string;
+}) {
+  const revisionRequests = await getRevisionRequestsForQuote(businessId, quoteId);
+
+  return (
+    <DashboardSection
+      description="The customer has requested changes. Review their feedback, then create a new version to edit and re-send."
+      title="Revision requested"
+    >
+      <RevisionRequestFeedback requests={revisionRequests} />
+      <div className="mt-4">
+        <ReviseQuoteButton quoteId={quoteId} />
+      </div>
+    </DashboardSection>
+  );
+}
+
+async function QuoteFollowUpsRegion({
+  businessId,
+  businessPlan,
+  businessSlug,
+  createFollowUpAction,
+  mode,
+  quote,
+  stopAutoFollowUp,
+  viewedWithoutResponse = false,
+}: {
+  businessId: string;
+  businessPlan: Parameters<typeof hasFeatureAccess>[0];
+  businessSlug: string;
+  createFollowUpAction: React.ComponentProps<typeof FollowUpPanel>["createAction"];
+  mode: "draft" | "published";
+  quote: DashboardQuoteDetailCore;
+  stopAutoFollowUp: React.ComponentProps<typeof AutoFollowUpStatus>["stopAction"];
+  viewedWithoutResponse?: boolean;
+}) {
+  const [followUps, gate] = await Promise.all([
+    getFollowUpsForQuote({ businessId, quoteId: quote.id }),
+    resolveAutoFollowUpGate(businessId, businessPlan),
+  ]);
+
+  const hasPendingFollowUp = followUps.some(
+    (followUp) => followUp.status === "pending",
+  );
+
+  return (
+    <>
+      {quote.autoFollowUpEnabled ? (
+        <AutoFollowUpStatus
+          enabled={quote.autoFollowUpEnabled}
+          attempts={quote.autoFollowUpAttempts}
+          maxAttempts={quote.autoFollowUpMaxAttempts}
+          delayDays={quote.autoFollowUpDelayDays}
+          lastSentAt={quote.autoFollowUpLastSentAt}
+          stoppedAt={quote.autoFollowUpStoppedAt}
+          activeCount={gate.activeAutoFollowUpCount}
+          activeLimit={gate.activeAutoFollowUpLimit}
+          stopAction={stopAutoFollowUp}
+        />
+      ) : null}
+      <FollowUpPanel
+        businessSlug={businessSlug}
+        createAction={createFollowUpAction}
+        ctaDescription={
+          mode === "published" && viewedWithoutResponse
+            ? "Set a reminder to follow up now that the customer has viewed this quote."
+            : "Set a reminder to check back after sharing this quote."
+        }
+        defaultChannel={quote.customerContactMethod}
+        defaultReason={
+          mode === "published" && viewedWithoutResponse
+            ? "Follow up because the customer viewed this quote but has not responded."
+            : "Follow up with the customer about this quote if they have not responded."
+        }
+        defaultTitle={`Follow up on quote ${quote.quoteNumber}`}
+        followUps={followUps}
+        sharedQuoteWithoutFollowUp={
+          mode === "published" && quote.status === "sent" && !hasPendingFollowUp
+        }
+      />
+    </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Sections                                                                  */
+/* -------------------------------------------------------------------------- */
+
+function QuoteLinkedInquirySection({
+  businessSlug,
+  quote,
+}: {
+  businessSlug: string;
+  quote: DashboardQuoteDetailCore;
+}) {
+  return (
     <DashboardSection
       description="Original inquiry context."
       footer={
@@ -351,489 +879,153 @@ async function QuoteDetailContent({
       )}
     </DashboardSection>
   );
+}
 
+function QuoteCustomerViewSection({
+  customerQuotePath,
+  customerQuoteUrl,
+  customerViewCopy,
+  quote,
+  visibleQuoteReminders,
+}: {
+  customerQuotePath: string | null;
+  customerQuoteUrl: string | null;
+  customerViewCopy: { title: string };
+  quote: DashboardQuoteDetailCore;
+  visibleQuoteReminders: QuoteReminderKind[];
+}) {
   return (
-    <DashboardPage className="pb-24">
-      {isArchived ? (
-        <ArchivedRecordBanner
-          recordLabel="quote"
-          redirectHref={getBusinessQuotePath(businessSlug, quote.id)}
-          unarchiveAction={restoreArchivedAction}
-        />
-      ) : null}
-      <DashboardDetailHeader
-        eyebrow="Quote"
-        title={quote.title}
-        description={`Quote created · ${formatQuoteDateTime(quote.createdAt)}`}
-        meta={
-          <>
-            <QuoteStatusBadge status={quote.status} />
-            {isArchived ? <QuoteRecordStateBadge state="archived" /> : null}
-          </>
-        }
-        actions={
-          <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto">
-
-            <QuoteManageDropdown
-              archiveAction={archiveAction}
-              businessQuoteListHref={getBusinessQuotesPath(businessSlug)}
-              deleteDraftAction={deleteDraftAction}
-              isArchived={isArchived}
-              restoreArchivedAction={restoreArchivedAction}
-              saveAsTemplateAction={canSaveAsTemplate ? saveAsTemplate : undefined}
-              status={quote.status}
-              voidAction={voidAction}
-            />
-            <QuoteExportPopover
-              canExport={canExportData}
-              pdfHref={getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")}
-              pngHref={getBusinessQuoteExportPath(businessSlug, quote.id, "png")}
-            />
-            <QuotePreviewButton
-              quote={{
-                id: quote.id,
-                businessId: businessContext.business.id,
-                token: quote.publicToken ?? "",
-                quoteNumber: quote.quoteNumber,
-                title: quote.title,
-                businessName: businessContext.business.name,
-                businessSlug,
-                businessPlan: businessContext.business.plan,
-                businessShortDescription: null,
-                businessContactEmail,
-                businessLogoStoragePath: businessContext.business.logoStoragePath,
-                customerName: quote.customerName,
-                customerEmail: quote.customerEmail,
-                customerContactMethod: quote.customerContactMethod,
-                customerContactHandle: quote.customerContactHandle,
-                currency: quote.currency,
-                notes: quote.notes,
-                terms: quote.terms,
-                validUntil: quote.validUntil,
-                version: quote.version,
-                status: quote.status,
-                subtotalInCents: quote.subtotalInCents,
-                discountInCents: quote.discountInCents,
-                taxInCents: quote.taxInCents,
-                taxLabel: quote.taxLabel,
-                totalInCents: quote.totalInCents,
-                sentAt: quote.sentAt,
-                acceptedAt: quote.acceptedAt,
-                publicViewedAt: quote.publicViewedAt,
-                customerRespondedAt: quote.customerRespondedAt,
-                customerResponseMessage: quote.customerResponseMessage,
-                items: quote.items,
-              }}
-              businessPlan={businessContext.business.plan}
-              businessContactEmail={businessContactEmail}
-              businessName={businessContext.business.name}
-              openQuoteHref={customerQuoteUrl}
-            />
-            {quote.status === "accepted" && linkedInvoice ? (
-              <Button asChild variant="outline">
-                <Link href={getBusinessInvoicePath(businessSlug, linkedInvoice.id)}>
-                  <Receipt data-icon="inline-start" />
-                  View invoice {linkedInvoice.invoiceNumber}
-                </Link>
-              </Button>
-            ) : null}
-            {quote.status === "accepted" && !linkedInvoice ? (
-              <Button asChild>
-                <Link href={getBusinessNewInvoicePath(businessSlug, quote.id)}>
-                  <Receipt data-icon="inline-start" />
-                  Create invoice
-                </Link>
-              </Button>
-            ) : null}
-            {quote.status === "draft" ? (
-              <SendQuoteDialog
-                sendAction={sendAction}
-                logEventAction={logEventAction}
-                createFollowUpAction={createFollowUpAction}
-                quote={quote}
-                customerQuoteUrl={customerQuoteUrl}
-                businessName={businessContext.business.name}
-                isRequoEmailAvailable={
-                  isEmailConfigured &&
-                  quote.customerContactMethod === "email" &&
-                  !!quote.customerEmail
-                }
-                pdfExportHref={
-                  canExportData
-                    ? getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")
-                    : undefined
-                }
-                pdfExportLocked={!canExportData}
-                canAutoFollowUp={canAutoFollowUp}
-                autoFollowUpUnavailableNote={autoFollowUpUnavailableNote}
-                unpricedItemCount={unpricedItemCount}
-                needsAiConfirmation={needsAiConfirmation}
-                acknowledgeAction={acknowledgeAction}
-                previewHref={getBusinessQuotePreviewPath(businessSlug, quote.id)}
-                previewData={{
-                  businessName: businessContext.business.name,
-                  businessLogoStoragePath: businessContext.business.logoStoragePath,
-                  businessSlug,
-                  quoteNumber: quote.quoteNumber,
-                  title: quote.title,
-                  customerName: quote.customerName,
-                  customerEmail: quote.customerEmail,
-                  currency: quote.currency,
-                  validUntil: quote.validUntil,
-                  notes: quote.notes,
-                  terms: quote.terms,
-                  items: quote.items,
-                  subtotalInCents: quote.subtotalInCents,
-                  discountInCents: quote.discountInCents,
-                  taxInCents: quote.taxInCents,
-                  taxLabel: quote.taxLabel,
-                  totalInCents: quote.totalInCents,
-                  version: quote.version,
-                  showWatermark: !hasFeatureAccess(businessContext.business.plan, "removeWatermark"),
-                }}
-              />
-            ) : null}
-          </div>
-        }
-      />
-
-      <QuoteWorkflowSteps
-        status={quote.status}
-        publicViewedAt={quote.publicViewedAt}
-      />
-
-      {quote.status === "draft" ? (
+    <DashboardSection
+      contentClassName="flex flex-col gap-3"
+      description="Share, open, and track the secure quote page."
+      title="Customer view"
+    >
+      {customerQuoteUrl ? (
         <>
-          {revisionRequests.length > 0 ? (
-            <DashboardSection
-              description="Customer feedback from the previous version. Use this to guide your edits."
-              title="Revision feedback"
-            >
-              <RevisionRequestFeedback requests={revisionRequests} />
-            </DashboardSection>
-          ) : null}
-
-          <QuoteEditor
-            action={updateAction}
-            businessDefaults={businessSettings ? {
-              defaultQuoteNotes: businessSettings.defaultQuoteNotes,
-              defaultQuoteTerms: businessSettings.defaultQuoteTerms,
-              defaultQuoteValidityDays: businessSettings.defaultQuoteValidityDays,
-            } : undefined}
-            businessName={businessContext.business.name}
-            businessSlug={businessSlug}
-            canUseAiGenerator={hasFeatureAccess(
-              businessContext.business.plan,
-              "aiQuoteDrafting",
-            )}
-            canUseQuoteLibrary={hasFeatureAccess(
-              businessContext.business.plan,
-              "quoteLibrary",
-            )}
-            currency={quote.currency}
-            initialValues={getQuoteEditorInitialValuesFromDetail(quote)}
-            key={quote.id}
-            linkedInquiry={linkedInquiry}
-            pricingLibrary={pricingLibrary}
-            quoteNumber={quote.quoteNumber}
-            revisionComment={revisionRequests[0]?.message ?? null}
-            showFloatingUnsavedChanges
-            submitLabel="Save changes"
-            submitPendingLabel="Saving changes..."
-          />
-
-          <DashboardDetailLayout className="xl:grid-cols-[1.25fr_0.75fr]">
-            <DashboardSidebarStack>
-              {linkedInquirySection}
-              <QuoteActivitySheetSection activities={quote.activities} />
-              <Suspense fallback={<QuoteCustomerHistoryFallback />}>
-                <StreamedQuoteCustomerHistory
-                  historyPromise={customerHistoryPromise}
-                  businessSlug={businessSlug}
-                />
-              </Suspense>
-            </DashboardSidebarStack>
-
-            <DashboardSidebarStack>
-              <div id="send-quote">
-                <DashboardSection
-                  description="Send the finished draft to your customer."
-                  title="Send quote"
-                >
-                  <SendQuoteDialog
-                    sendAction={sendAction}
-                    logEventAction={logEventAction}
-                    createFollowUpAction={createFollowUpAction}
-                    quote={quote}
-                    customerQuoteUrl={customerQuoteUrl}
-                    businessName={businessContext.business.name}
-                    isRequoEmailAvailable={isEmailConfigured && quote.customerContactMethod === "email" && !!quote.customerEmail}
-                    pdfExportHref={
-                      canExportData
-                        ? getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")
-                        : undefined
-                    }
-                    pdfExportLocked={!canExportData}
-                    canAutoFollowUp={canAutoFollowUp}
-                autoFollowUpUnavailableNote={autoFollowUpUnavailableNote}
-                    unpricedItemCount={unpricedItemCount}
-                    needsAiConfirmation={needsAiConfirmation}
-                    acknowledgeAction={acknowledgeAction}
-                    previewHref={getBusinessQuotePreviewPath(businessSlug, quote.id)}
-                    previewData={{
-                      businessName: businessContext.business.name,
-                      businessLogoStoragePath: businessContext.business.logoStoragePath,
-                      businessSlug,
-                      quoteNumber: quote.quoteNumber,
-                      title: quote.title,
-                      customerName: quote.customerName,
-                      customerEmail: quote.customerEmail,
-                      currency: quote.currency,
-                      validUntil: quote.validUntil,
-                      notes: quote.notes,
-                      terms: quote.terms,
-                      items: quote.items,
-                      subtotalInCents: quote.subtotalInCents,
-                      discountInCents: quote.discountInCents,
-                      taxInCents: quote.taxInCents,
-                      taxLabel: quote.taxLabel,
-                      totalInCents: quote.totalInCents,
-                      version: quote.version,
-                      showWatermark: !hasFeatureAccess(businessContext.business.plan, "removeWatermark"),
-                    }}
-                  />
-                </DashboardSection>
-              </div>
-
-              <div id="follow-ups">
-                {quote.autoFollowUpEnabled ? (
-                  <AutoFollowUpStatus
-                    enabled={quote.autoFollowUpEnabled}
-                    attempts={quote.autoFollowUpAttempts}
-                    maxAttempts={quote.autoFollowUpMaxAttempts}
-                    delayDays={quote.autoFollowUpDelayDays}
-                    lastSentAt={quote.autoFollowUpLastSentAt}
-                    stoppedAt={quote.autoFollowUpStoppedAt}
-                    activeCount={activeAutoFollowUpCount}
-                    activeLimit={activeAutoFollowUpLimit}
-                    stopAction={stopAutoFollowUp}
-                  />
-                ) : null}
-                <FollowUpPanel
-                  businessSlug={businessSlug}
-                  createAction={createFollowUpAction}
-                  ctaDescription="Set a reminder to check back after sharing this quote."
-                  defaultChannel={quote.customerContactMethod}
-                  defaultReason="Follow up with the customer about this quote if they have not responded."
-                  defaultTitle={`Follow up on quote ${quote.quoteNumber}`}
-                  followUps={followUps}
-                  sharedQuoteWithoutFollowUp={false}
-                />
-              </div>
-
-
-            </DashboardSidebarStack>
-          </DashboardDetailLayout>
-        </>
-      ) : (
-        <DashboardDetailLayout className="xl:grid-cols-[minmax(0,1.05fr)_0.95fr]">
-          <DashboardSidebarStack>
-
-            <QuotePreview
-              businessName={businessContext.business.name}
-              quoteNumber={quote.quoteNumber}
-              title={quote.title}
-              customerName={quote.customerName}
-              customerEmail={quote.customerEmail}
-              currency={quote.currency}
-              validUntil={quote.validUntil}
-              notes={quote.notes}
-              terms={quote.terms}
-              items={quote.items}
-              subtotalInCents={quote.subtotalInCents}
-              discountInCents={quote.discountInCents}
-              taxInCents={quote.taxInCents}
-              taxLabel={quote.taxLabel}
-              totalInCents={quote.totalInCents}
-            />
-
-            {linkedInquirySection}
-            <QuoteActivitySheetSection activities={quote.activities} />
-            <Suspense fallback={<QuoteCustomerHistoryFallback />}>
-              <StreamedQuoteCustomerHistory
-                historyPromise={customerHistoryPromise}
-                businessSlug={businessSlug}
-              />
-            </Suspense>
-          </DashboardSidebarStack>
-
-          <DashboardSidebarStack>
-            {quote.status === "revision_requested" ? (
-              <DashboardSection
-                description="The customer has requested changes. Review their feedback, then create a new version to edit and re-send."
-                title="Revision requested"
-              >
-                <RevisionRequestFeedback requests={revisionRequests} />
-                <div className="mt-4">
-                  <ReviseQuoteButton quoteId={quote.id} />
-                </div>
-              </DashboardSection>
-            ) : null}
-
-            <DashboardSection
-              contentClassName="flex flex-col gap-3"
-              description="Share, open, and track the secure quote page."
-              title="Customer view"
-            >
-              {customerQuoteUrl ? (
-                <>
-                  <div className={cn(
-                    "rounded-xl border px-4 py-4 shadow-none",
-                    quote.status === "accepted" && "border-green-200 bg-green-50 dark:border-green-900/40 dark:bg-green-950/30",
-                    quote.status === "rejected" && "border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/30",
-                    quote.status !== "accepted" && quote.status !== "rejected" && "soft-panel",
-                  )}>
-                    <p className="text-sm font-medium text-foreground">
-                      {customerViewCopy.title}
-                    </p>
-                    <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
-                      {quote.sentAt ? (
-                        <span>Sent {formatQuoteDateTime(quote.sentAt)}</span>
-                      ) : null}
-                      <span>
-                        {quote.publicViewedAt
-                          ? `Viewed ${formatQuoteDateTime(quote.publicViewedAt)}`
-                          : "Not viewed yet"}
-                      </span>
-                      {quote.customerRespondedAt ? (
-                        <span>Responded {formatQuoteDateTime(quote.customerRespondedAt)}</span>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  {quote.customerResponseMessage ? (
-                    <div className="soft-panel shadow-none">
-                      <p className="meta-label">Customer message</p>
-                      <TruncatedTextWithTooltip
-                        className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground"
-                        lines={4}
-                        text={quote.customerResponseMessage}
-                      />
-                    </div>
-                  ) : null}
-
-                  {visibleQuoteReminders.length ? (
-                    <div className="flex flex-wrap gap-2">
-                      {visibleQuoteReminders.map((reminder) => (
-                        <QuoteReminderBadge key={reminder} kind={reminder} />
-                      ))}
-                    </div>
-                  ) : null}
-
-                  {customerQuotePath ? (
-                    <div className="flex items-center gap-2">
-                      <CopyQuoteLinkButton url={customerQuoteUrl} />
-                      <Button asChild size="sm" variant="ghost">
-                        <Link href={customerQuotePath} target="_blank">
-                          Open
-                          <ExternalLink data-icon="inline-end" />
-                        </Link>
-                      </Button>
-                    </div>
-                  ) : null}
-                </>
-              ) : (
-                <Alert>
-                  <AlertTitle>Customer link unavailable</AlertTitle>
-                  <AlertDescription>
-                    Requo couldn&apos;t recover the secure customer link for this quote,
-                    so public sharing is temporarily unavailable.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </DashboardSection>
-
-            <DashboardSection
-              contentClassName="grid gap-3 sm:grid-cols-2"
-              description="Saved customer channel for sending and follow-up."
-              title="Customer contact"
-            >
-              <InfoTile
-                className={showQuotePreferredContact ? undefined : "sm:col-span-2"}
-                icon={Mail}
-                label="Email"
-                value={
-                  quoteContactEmail ? (
-                    <TruncatedTextWithTooltip
-                      className="underline-offset-4 hover:underline"
-                      href={`mailto:${quoteContactEmail}`}
-                      text={quoteContactEmail}
-                    />
-                  ) : (
-                    "Not provided"
-                  )
-                }
-                valueClassName="break-all"
-              />
-              {showQuotePreferredContact ? (
-                <InfoTile
-                  icon={AtSign}
-                  label={quotePreferredContactLabel}
-                  value={
-                    getContactHandleUrl(quote.customerContactMethod, quote.customerContactHandle) ? (
-                      <a
-                        className="text-primary underline-offset-4 hover:underline break-all"
-                        href={getContactHandleUrl(quote.customerContactMethod, quote.customerContactHandle)!}
-                        rel="noopener noreferrer"
-                        target="_blank"
-                      >
-                        {quote.customerContactHandle}
-                      </a>
-                    ) : (
-                      quote.customerContactHandle
-                    )
-                  }
-                  valueClassName="break-all"
-                />
+          <div className={cn(
+            "rounded-xl border px-4 py-4 shadow-none",
+            quote.status === "accepted" && "border-green-200 bg-green-50 dark:border-green-900/40 dark:bg-green-950/30",
+            quote.status === "rejected" && "border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/30",
+            quote.status !== "accepted" && quote.status !== "rejected" && "soft-panel",
+          )}>
+            <p className="text-sm font-medium text-foreground">
+              {customerViewCopy.title}
+            </p>
+            <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
+              {quote.sentAt ? (
+                <span>Sent {formatQuoteDateTime(quote.sentAt)}</span>
               ) : null}
-            </DashboardSection>
+              <span>
+                {quote.publicViewedAt
+                  ? `Viewed ${formatQuoteDateTime(quote.publicViewedAt)}`
+                  : "Not viewed yet"}
+              </span>
+              {quote.customerRespondedAt ? (
+                <span>Responded {formatQuoteDateTime(quote.customerRespondedAt)}</span>
+              ) : null}
+            </div>
+          </div>
 
-            <div id="follow-ups">
-              <FollowUpPanel
-                businessSlug={businessSlug}
-                createAction={createFollowUpAction}
-                ctaDescription={
-                  viewedWithoutResponse
-                    ? "Set a reminder to follow up now that the customer has viewed this quote."
-                    : "Set a reminder to check back after sharing this quote."
-                }
-                defaultChannel={quote.customerContactMethod}
-                defaultReason={
-                  viewedWithoutResponse
-                    ? "Follow up because the customer viewed this quote but has not responded."
-                    : "Follow up with the customer about this quote if they have not responded."
-                }
-                defaultTitle={`Follow up on quote ${quote.quoteNumber}`}
-                followUps={followUps}
-                sharedQuoteWithoutFollowUp={quote.status === "sent" && !hasPendingFollowUp}
+          {quote.customerResponseMessage ? (
+            <div className="soft-panel shadow-none">
+              <p className="meta-label">Customer message</p>
+              <TruncatedTextWithTooltip
+                className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground"
+                lines={4}
+                text={quote.customerResponseMessage}
               />
             </div>
+          ) : null}
 
+          {visibleQuoteReminders.length ? (
+            <div className="flex flex-wrap gap-2">
+              {visibleQuoteReminders.map((reminder) => (
+                <QuoteReminderBadge key={reminder} kind={reminder} />
+              ))}
+            </div>
+          ) : null}
 
-
-            {visibleQuoteReminders.includes("expiring_soon") ? (
-              <DismissibleQuoteAlert
-                id={`quote-${quote.id}-expiring`}
-                title="Quote expiring soon"
-                description={`This quote expires on ${formatQuoteDate(quote.validUntil)}.`}
-              />
-            ) : null}
-
-
-          </DashboardSidebarStack>
-        </DashboardDetailLayout>
+          {customerQuotePath ? (
+            <div className="flex items-center gap-2">
+              <CopyQuoteLinkButton url={customerQuoteUrl} />
+              <Button asChild size="sm" variant="ghost">
+                <Link href={customerQuotePath} target="_blank">
+                  Open
+                  <ExternalLink data-icon="inline-end" />
+                </Link>
+              </Button>
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <Alert>
+          <AlertTitle>Customer link unavailable</AlertTitle>
+          <AlertDescription>
+            Requo couldn&apos;t recover the secure customer link for this quote,
+            so public sharing is temporarily unavailable.
+          </AlertDescription>
+        </Alert>
       )}
-    </DashboardPage>
+    </DashboardSection>
+  );
+}
+
+function QuoteContactSection({
+  quote,
+  quoteContactEmail,
+  quotePreferredContactLabel,
+  showQuotePreferredContact,
+}: {
+  quote: DashboardQuoteDetailCore;
+  quoteContactEmail: string | null;
+  quotePreferredContactLabel: string;
+  showQuotePreferredContact: boolean;
+}) {
+  return (
+    <DashboardSection
+      contentClassName="grid gap-3 sm:grid-cols-2"
+      description="Saved customer channel for sending and follow-up."
+      title="Customer contact"
+    >
+      <InfoTile
+        className={showQuotePreferredContact ? undefined : "sm:col-span-2"}
+        icon={Mail}
+        label="Email"
+        value={
+          quoteContactEmail ? (
+            <TruncatedTextWithTooltip
+              className="underline-offset-4 hover:underline"
+              href={`mailto:${quoteContactEmail}`}
+              text={quoteContactEmail}
+            />
+          ) : (
+            "Not provided"
+          )
+        }
+        valueClassName="break-all"
+      />
+      {showQuotePreferredContact ? (
+        <InfoTile
+          icon={AtSign}
+          label={quotePreferredContactLabel}
+          value={
+            getContactHandleUrl(quote.customerContactMethod, quote.customerContactHandle) ? (
+              <a
+                className="text-primary underline-offset-4 hover:underline break-all"
+                href={getContactHandleUrl(quote.customerContactMethod, quote.customerContactHandle)!}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                {quote.customerContactHandle}
+              </a>
+            ) : (
+              quote.customerContactHandle
+            )
+          }
+          valueClassName="break-all"
+        />
+      ) : null}
+    </DashboardSection>
   );
 }
 
@@ -961,6 +1153,110 @@ function CustomerHistorySheetSection({
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Helpers                                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Plan gate + in-flight count for auto follow-up, shared by the send dialog
+ * and the follow-up panel regions.
+ */
+// (see resolveAutoFollowUpGate below)
+async function resolveAutoFollowUpGate(
+  businessId: string,
+  businessPlan: Parameters<typeof hasFeatureAccess>[0],
+) {
+  const canAutoFollowUpByPlan = hasFeatureAccess(businessPlan, "autoFollowUps");
+  const activeAutoFollowUpLimit = getUsageLimit(
+    businessPlan,
+    "activeAutoFollowUpsPerBusiness",
+  );
+  const activeAutoFollowUpCount = canAutoFollowUpByPlan
+    ? await getActiveAutoFollowUpCount(businessId)
+    : 0;
+  const canAutoFollowUp =
+    canAutoFollowUpByPlan &&
+    (activeAutoFollowUpLimit === null ||
+      activeAutoFollowUpCount < activeAutoFollowUpLimit);
+
+  return {
+    canAutoFollowUp,
+    activeAutoFollowUpCount,
+    activeAutoFollowUpLimit,
+    autoFollowUpUnavailableNote:
+      canAutoFollowUpByPlan && !canAutoFollowUp
+        ? "You've reached your plan's limit for active auto follow-ups. Stop or complete one to start another."
+        : undefined,
+  };
+}
+
+function buildSendDialogProps({
+  acknowledgeAction,
+  autoFollowUpUnavailableNote,
+  businessLogoStoragePath,
+  businessName,
+  businessPlan,
+  businessSlug,
+  canAutoFollowUp,
+  canExportData,
+  createFollowUpAction,
+  customerQuoteUrl,
+  items,
+  logEventAction,
+  needsAiConfirmation,
+  previewHref,
+  quote,
+  sendAction,
+}: SendDialogContext & {
+  items: React.ComponentProps<typeof QuotePreview>["items"];
+  canAutoFollowUp: boolean;
+  autoFollowUpUnavailableNote?: string;
+}): React.ComponentProps<typeof SendQuoteDialog> {
+  return {
+    sendAction,
+    logEventAction,
+    createFollowUpAction,
+    quote,
+    customerQuoteUrl,
+    businessName,
+    isRequoEmailAvailable:
+      isEmailConfigured &&
+      quote.customerContactMethod === "email" &&
+      !!quote.customerEmail,
+    pdfExportHref: canExportData
+      ? getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")
+      : undefined,
+    pdfExportLocked: !canExportData,
+    canAutoFollowUp,
+    autoFollowUpUnavailableNote,
+    unpricedItemCount: items.filter((item) => item.unitPriceInCents <= 0).length,
+    needsAiConfirmation,
+    acknowledgeAction,
+    previewHref,
+    previewData: {
+      businessName,
+      businessLogoStoragePath,
+      businessSlug,
+      quoteNumber: quote.quoteNumber,
+      title: quote.title,
+      customerName: quote.customerName,
+      customerEmail: quote.customerEmail,
+      currency: quote.currency,
+      validUntil: quote.validUntil,
+      notes: quote.notes,
+      terms: quote.terms,
+      items,
+      subtotalInCents: quote.subtotalInCents,
+      discountInCents: quote.discountInCents,
+      taxInCents: quote.taxInCents,
+      taxLabel: quote.taxLabel,
+      totalInCents: quote.totalInCents,
+      version: quote.version,
+      showWatermark: !hasFeatureAccess(businessPlan, "removeWatermark"),
+    },
+  };
+}
+
 function getContactMethodLabel(method: string) {
   const normalized = method.trim().toLowerCase();
 
@@ -1023,23 +1319,32 @@ function getContactHandleUrl(method: string, handle: string): string | null {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Streamed sections — async components wrapped in Suspense above            */
+/*  Fallbacks                                                                  */
 /* -------------------------------------------------------------------------- */
 
-async function StreamedQuoteCustomerHistory({
-  historyPromise,
-  businessSlug,
-}: {
-  historyPromise: Promise<Awaited<ReturnType<typeof getCustomerHistoryForBusiness>>>;
-  businessSlug: string;
-}) {
-  const history = await historyPromise;
-
+/** Header-slot placeholder for the item-dependent header actions. */
+function QuoteHeaderActionsFallback() {
   return (
-    <CustomerHistorySheetSection
-      history={history}
-      businessSlug={businessSlug}
-    />
+    <>
+      <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-28" />
+      <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-32" />
+    </>
+  );
+}
+
+function FollowUpPanelFallback() {
+  return (
+    <DashboardSection
+      description="Loading follow-up reminders..."
+      title="Follow-ups"
+    >
+      <div className="flex flex-col gap-3">
+        <div className="soft-panel animate-pulse shadow-none">
+          <div className="h-4 w-40 rounded bg-muted" />
+          <div className="mt-2 h-3 w-64 rounded bg-muted" />
+        </div>
+      </div>
+    </DashboardSection>
   );
 }
 

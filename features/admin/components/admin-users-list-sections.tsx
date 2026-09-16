@@ -42,6 +42,7 @@ export async function AdminUsersListContentSection({
 
   const { items, total } = await listAdminUsers(filters);
   const totalPages = Math.max(1, Math.ceil(total / filters.pageSize));
+  const currentPage = Math.min(Math.max(1, filters.page), totalPages);
   const hasActiveFilters = Boolean(
     filters.search?.trim() || (filters.status && filters.status !== "all"),
   );
@@ -51,7 +52,7 @@ export async function AdminUsersListContentSection({
       hasActiveFilters={hasActiveFilters}
       pagination={
         <DataListPagination
-          currentPage={filters.page}
+          currentPage={currentPage}
           pageSize={filters.pageSize}
           pathname={ADMIN_USERS_PATH}
           searchParams={rawParams}

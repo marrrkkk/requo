@@ -40,7 +40,7 @@ export type EscapeHatchValidationResult =
  * - app/(business)/[businessSlug]/(main)/ (home, inquiries, quotes, follow-ups,
  *   services, invoices, products, notifications, analytics, assistant)
  * - app/(business)/[businessSlug]/settings/ (including members)
- * - app/admin/(console)/
+ * - app/admin/
  * - app/onboarding/
  * - app/(business)/new/
  * - app/(auth)/ (login, signup, forgot-password, reset-password, check-email)
@@ -91,24 +91,26 @@ export const IN_SCOPE_ROUTES: ReadonlySet<string> = new Set([
   // settings-level forms pages remain.
 
   // Admin console routes
-  "app/admin/(console)/page.tsx",
-  "app/admin/(console)/users/page.tsx",
-  "app/admin/(console)/users/[userId]/page.tsx",
-  "app/admin/(console)/businesses/page.tsx",
-  "app/admin/(console)/businesses/[businessId]/page.tsx",
-  "app/admin/(console)/inquiries/page.tsx",
-  "app/admin/(console)/inquiries/[inquiryId]/page.tsx",
-  "app/admin/(console)/quotes/page.tsx",
-  "app/admin/(console)/quotes/[quoteId]/page.tsx",
-  "app/admin/(console)/ai/page.tsx",
-  "app/admin/(console)/ai/requests/page.tsx",
-  "app/admin/(console)/ai/providers/page.tsx",
-  "app/admin/(console)/ai/errors/page.tsx",
-  "app/admin/(console)/emails/page.tsx",
-  "app/admin/(console)/emails/[emailId]/page.tsx",
-  "app/admin/(console)/usage/page.tsx",
-  "app/admin/(console)/audit-logs/page.tsx",
-  "app/admin/(console)/settings/page.tsx",
+  "app/admin/page.tsx",
+  "app/admin/users/page.tsx",
+  "app/admin/users/[userId]/page.tsx",
+  "app/admin/businesses/page.tsx",
+  "app/admin/businesses/[businessId]/page.tsx",
+  "app/admin/inquiries/page.tsx",
+  "app/admin/inquiries/[inquiryId]/page.tsx",
+  "app/admin/quotes/page.tsx",
+  "app/admin/quotes/[quoteId]/page.tsx",
+  "app/admin/invoices/page.tsx",
+  "app/admin/invoices/[invoiceId]/page.tsx",
+  "app/admin/ai/page.tsx",
+  "app/admin/ai/requests/page.tsx",
+  "app/admin/ai/providers/page.tsx",
+  "app/admin/ai/errors/page.tsx",
+  "app/admin/emails/page.tsx",
+  "app/admin/emails/[emailId]/page.tsx",
+  "app/admin/usage/page.tsx",
+  "app/admin/audit-logs/page.tsx",
+  "app/admin/system/page.tsx",
 
   // Onboarding
   "app/onboarding/page.tsx",
