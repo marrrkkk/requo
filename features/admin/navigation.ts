@@ -4,9 +4,10 @@
  * Single source of truth for the admin left-rail, breadcrumbs, and route
  * helpers. Consumed by `admin-sidebar.tsx`, `admin-shell.tsx`, and pages.
  *
- * Paths are **admin-relative** (`/users`, not `/admin/users`) because the
- * admin console is served on its own subdomain and `proxy.ts` rewrites the
- * host onto the `/admin` route tree.
+ * Paths are absolute from the main host (`/admin/users`) because the console
+ * is served path-only at `/admin` — no subdomain rewrite. Keep every path
+ * below under `/admin/*`: anything else falls through to the business
+ * `[businessSlug]` routes and renders business mode instead of the console.
  */
 
 import type { ComponentType } from "react";
@@ -20,8 +21,9 @@ import {
   RiHistoryLine,
   RiInboxLine,
   RiMailSendLine,
+  RiPlugLine,
+  RiReceiptLine,
   RiServerLine,
-  RiSettings4Line,
   RiSparklingLine,
   RiUserLine,
 } from "@remixicon/react";
@@ -56,19 +58,20 @@ export type AdminBreadcrumbItem = {
 
 /* ── Paths ──────────────────────────────────────────────────────────────── */
 
-export const ADMIN_ROOT_PATH = "/";
-export const ADMIN_BUSINESSES_PATH = "/businesses";
-export const ADMIN_USERS_PATH = "/users";
-export const ADMIN_INQUIRIES_PATH = "/inquiries";
-export const ADMIN_QUOTES_PATH = "/quotes";
-export const ADMIN_AI_PATH = "/ai";
-export const ADMIN_AI_REQUESTS_PATH = "/ai/requests";
-export const ADMIN_AI_PROVIDERS_PATH = "/ai/providers";
-export const ADMIN_AI_ERRORS_PATH = "/ai/errors";
-export const ADMIN_EMAILS_PATH = "/emails";
-export const ADMIN_USAGE_PATH = "/usage";
-export const ADMIN_AUDIT_LOGS_PATH = "/audit-logs";
-export const ADMIN_SETTINGS_PATH = "/settings";
+export const ADMIN_ROOT_PATH = "/admin";
+export const ADMIN_BUSINESSES_PATH = "/admin/businesses";
+export const ADMIN_USERS_PATH = "/admin/users";
+export const ADMIN_INQUIRIES_PATH = "/admin/inquiries";
+export const ADMIN_QUOTES_PATH = "/admin/quotes";
+export const ADMIN_INVOICES_PATH = "/admin/invoices";
+export const ADMIN_AI_PATH = "/admin/ai";
+export const ADMIN_AI_REQUESTS_PATH = "/admin/ai/requests";
+export const ADMIN_AI_PROVIDERS_PATH = "/admin/ai/providers";
+export const ADMIN_AI_ERRORS_PATH = "/admin/ai/errors";
+export const ADMIN_EMAILS_PATH = "/admin/emails";
+export const ADMIN_USAGE_PATH = "/admin/usage";
+export const ADMIN_AUDIT_LOGS_PATH = "/admin/audit-logs";
+export const ADMIN_SYSTEM_PATH = "/admin/system";
 
 /* ── Grouped navigation ─────────────────────────────────────────────────── */
 
@@ -116,6 +119,12 @@ export const adminNavigationGroups: readonly AdminNavGroup[] = [
         description: "Quote drafts, deliveries, and customer responses.",
         icon: RiFileTextLine,
       },
+      {
+        href: ADMIN_INVOICES_PATH,
+        label: "Invoices",
+        description: "Manual-payment invoices across every business.",
+        icon: RiReceiptLine,
+      },
     ],
   },
   {
@@ -137,7 +146,7 @@ export const adminNavigationGroups: readonly AdminNavGroup[] = [
         href: ADMIN_AI_PROVIDERS_PATH,
         label: "Providers",
         description: "Configured providers, routing, and live capacity.",
-        icon: RiServerLine,
+        icon: RiPlugLine,
       },
       {
         href: ADMIN_AI_ERRORS_PATH,
@@ -174,10 +183,10 @@ export const adminNavigationGroups: readonly AdminNavGroup[] = [
         icon: RiFileList3Line,
       },
       {
-        href: ADMIN_SETTINGS_PATH,
-        label: "Settings",
-        description: "Admin access, health checks, and configuration.",
-        icon: RiSettings4Line,
+        href: ADMIN_SYSTEM_PATH,
+        label: "System",
+        description: "System health, admin access, and configuration.",
+        icon: RiServerLine,
       },
     ],
   },
@@ -223,6 +232,10 @@ export function getAdminQuoteDetailPath(quoteId: string) {
   return `${ADMIN_QUOTES_PATH}/${quoteId}`;
 }
 
+export function getAdminInvoiceDetailPath(invoiceId: string) {
+  return `${ADMIN_INVOICES_PATH}/${invoiceId}`;
+}
+
 export function getAdminEmailDetailPath(emailId: string) {
   return `${ADMIN_EMAILS_PATH}/${emailId}`;
 }
@@ -231,7 +244,7 @@ export function getAdminStartImpersonationPath(userId: string) {
   return `${ADMIN_USERS_PATH}/${userId}/impersonate`;
 }
 
-export const ADMIN_STOP_IMPERSONATING_PATH = "/stop-impersonating";
+export const ADMIN_STOP_IMPERSONATING_PATH = "/admin/stop-impersonating";
 
 /* ── Active state ───────────────────────────────────────────────────────── */
 
@@ -258,11 +271,12 @@ const ADMIN_SECTION_CRUMBS: Record<string, string> = {
   [ADMIN_USERS_PATH]: "Users",
   [ADMIN_INQUIRIES_PATH]: "Inquiries",
   [ADMIN_QUOTES_PATH]: "Quotes",
+  [ADMIN_INVOICES_PATH]: "Invoices",
   [ADMIN_AI_PATH]: "AI",
   [ADMIN_EMAILS_PATH]: "Emails",
   [ADMIN_USAGE_PATH]: "Usage",
   [ADMIN_AUDIT_LOGS_PATH]: "Audit Logs",
-  [ADMIN_SETTINGS_PATH]: "Settings",
+  [ADMIN_SYSTEM_PATH]: "System",
 };
 
 /** Second-level pages that are real routes, not `[id]` detail pages. */
@@ -278,6 +292,7 @@ const ADMIN_DETAIL_CRUMBS: Record<string, string> = {
   [ADMIN_USERS_PATH]: "User detail",
   [ADMIN_INQUIRIES_PATH]: "Inquiry detail",
   [ADMIN_QUOTES_PATH]: "Quote detail",
+  [ADMIN_INVOICES_PATH]: "Invoice detail",
   [ADMIN_EMAILS_PATH]: "Email detail",
 };
 
@@ -292,8 +307,13 @@ export function getAdminBreadcrumbs(pathname: string): AdminBreadcrumbItem[] {
     return [{ label: "Overview" }];
   }
 
-  const segments = pathname.split("/").filter(Boolean);
-  const sectionPath = `/${segments[0]}`;
+  // Strip the `/admin` mount point: `usePathname()` returns absolute paths
+  // (`/admin/users/u1`), while the section tables below are keyed per section.
+  const segments = pathname
+    .replace(/^\/admin(?=\/|$)/, "")
+    .split("/")
+    .filter(Boolean);
+  const sectionPath = `${ADMIN_ROOT_PATH}/${segments[0]}`;
   const sectionLabel = ADMIN_SECTION_CRUMBS[sectionPath];
 
   if (!sectionLabel) {

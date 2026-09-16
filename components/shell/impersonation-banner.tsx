@@ -55,18 +55,22 @@ export async function ImpersonationBanner() {
   const adminLabel = adminRow ?? "an admin session";
 
   return (
-    <Alert role="status" className="mb-4 border-primary/25">
-      <UserCog />
-      <AlertTitle>Impersonating {targetLabel}</AlertTitle>
-      <AlertDescription>Started by {adminLabel}.</AlertDescription>
-      <AlertAction>
-        <form action="/admin/stop-impersonating" method="POST">
-          <Button size="sm" type="submit" variant="outline">
-            Stop impersonating
-          </Button>
-        </form>
-      </AlertAction>
-    </Alert>
+    // Containment lives here (not in the layout slot) so non-impersonated
+    // pages render zero dead space above the page header.
+    <div className="dashboard-content pt-4">
+      <Alert role="status" className="mb-4 border-primary/25">
+        <UserCog />
+        <AlertTitle>Impersonating {targetLabel}</AlertTitle>
+        <AlertDescription>Started by {adminLabel}.</AlertDescription>
+        <AlertAction>
+          <form action="/admin/stop-impersonating" method="POST">
+            <Button size="sm" type="submit" variant="outline">
+              Stop impersonating
+            </Button>
+          </form>
+        </AlertAction>
+      </Alert>
+    </div>
   );
 }
 

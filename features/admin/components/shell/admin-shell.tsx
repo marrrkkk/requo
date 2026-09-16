@@ -6,14 +6,17 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AdminHeader } from "@/features/admin/components/shell/admin-header";
 import { AdminMobileNav } from "@/features/admin/components/shell/admin-mobile-nav";
 import { BoarduiAdminSidebar } from "@/features/admin/components/shell/admin-sidebar";
-import type { AdminShellUser } from "@/features/admin/components/shell/admin-user-menu";
 
 export type AdminShellProps = {
   children: ReactNode;
   /** Streamed slot below the topbar (impersonation banner). */
   banner?: ReactNode;
-  /** Signed-in admin, resolved server-side by the console layout. */
-  user: AdminShellUser;
+  /** Streamed sidebar-footer user menu (Suspense-wrapped by the layout). */
+  sidebarUserSlot: ReactNode;
+  /** Streamed compact user menu for the mobile topbar. */
+  headerUserSlot: ReactNode;
+  /** Streamed user menu for the fullscreen mobile nav. */
+  mobileNavUserSlot: ReactNode;
 };
 
 /**
@@ -30,17 +33,23 @@ export type AdminShellProps = {
  * `SidebarProvider` is kept for the shadcn sidebar context the shared
  * `SidebarMenu*` primitives inside the admin rail consume.
  */
-export function AdminShell({ children, banner, user }: AdminShellProps) {
+export function AdminShell({
+  children,
+  banner,
+  sidebarUserSlot,
+  headerUserSlot,
+  mobileNavUserSlot,
+}: AdminShellProps) {
   return (
     <SidebarProvider defaultOpen>
       <div className="flex min-h-svh flex-1 bg-background">
         {/* Desktop rail — hidden below lg; mobile uses the topbar + bottom dock. */}
         <div className="sticky top-0 hidden h-svh shrink-0 lg:block">
-          <BoarduiAdminSidebar user={user} />
+          <BoarduiAdminSidebar userSlot={sidebarUserSlot} />
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col" data-slot="sidebar-inset">
-          <AdminHeader user={user} />
+          <AdminHeader userSlot={headerUserSlot} />
           {banner}
 
           <div
@@ -52,7 +61,7 @@ export function AdminShell({ children, banner, user }: AdminShellProps) {
             </main>
           </div>
 
-          <AdminMobileNav user={user} />
+          <AdminMobileNav userSlot={mobileNavUserSlot} />
         </div>
       </div>
     </SidebarProvider>

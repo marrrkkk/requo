@@ -59,7 +59,7 @@ Rules: `app/` stays thin (routing, composition, loading). Product logic lives in
 - `next.config.ts`: `cacheComponents: true`, `partialPrefetching: true`, `staleTimes { dynamic: 30, static: 180 }`, security headers + per-surface cache headers, `/:businessSlug/forms/*` → `/services/*` redirects.
 - `vercel-build` runs `db:migrate:strict && next build` (apply migrations, never generate against prod).
 - DB connections: runtime uses `DATABASE_URL` (pooler, port 6543); migrations use `DATABASE_MIGRATION_URL` (direct, port 5432). See `lib/db/client.ts`, `lib/db/connection-options.ts`, `scripts/migrate.ts`, `drizzle.config.ts`.
-- `proxy.ts` (middleware) does routing/headers only — no auth checks: admin-subdomain rewrite, `X-Robots-Tag` for authenticated routes, `/` + `Accept: text/markdown` → `/api/public/markdown`, legacy `/account/*` → business settings, business-slug cookie.
+- `proxy.ts` (middleware) does routing/headers only — no auth checks: `X-Robots-Tag` for authenticated routes, `/` + `Accept: text/markdown` → `/api/public/markdown`, legacy `/account/*` → business settings, business-slug cookie.
 
 ## Request lifecycle
 

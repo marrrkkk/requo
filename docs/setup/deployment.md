@@ -33,7 +33,6 @@ pushes to any other branch or PRs build nothing on Vercel.
 ### Optional but recommended
 
 - `NEXT_PUBLIC_BETTER_AUTH_URL`
-- `ADMIN_SUBDOMAIN_HOST`
 - `ADMIN_EMAILS`
 - `VERCEL_URL`
 - `RESEND_API_KEY`
@@ -189,44 +188,26 @@ sites; in-app/push equivalents remain authoritative.
 6. Configure at least one AI provider and verify the inquiry assistant.
 7. Configure Polar if checkout is part of the deployment.
 8. Configure Inngest Cloud and verify cron schedules plus event-triggered functions sync successfully.
-9. Configure the admin subdomain (see Admin Subdomain Checklist below).
+9. Bootstrap admin access (see Admin Access Checklist below).
 10. Run the baseline health checks and smoke-test dashboard login, non-member denial, public inquiry submission, quote send/share, and public quote response.
 
-## Admin Subdomain Checklist
+## Admin Access Checklist
 
-The admin console lives on a separate subdomain (e.g., `admin.requo.app`) and is
-rewritten to the `/admin` route tree by the proxy. To make it accessible in production:
+The admin console lives at the `/admin` path (no subdomain, no separate
+login). To make it accessible in production:
 
-1. **Add the subdomain as a domain on the Vercel project.**
-   In the Vercel dashboard → Project Settings → Domains, add `admin.<your-domain>`
-   (e.g., `admin.requo.app`). Vercel will route requests for that domain to the
-   same deployment.
-
-2. **Configure DNS.**
-   Add a CNAME record for `admin` pointing to `cname.vercel-dns.com` (or use
-   Vercel nameservers if the apex domain is already delegated).
-
-3. **Set the environment variable.**
-   In Vercel → Project Settings → Environment Variables, add for Production:
-   ```
-   ADMIN_SUBDOMAIN_HOST=admin.requo.app
-   ```
-   This ensures the proxy matches the admin subdomain regardless of how
-   `BETTER_AUTH_URL` is configured. If unset, the host is derived from
-   `BETTER_AUTH_URL` (e.g., `https://requo.app` → `admin.requo.app`).
-
-4. **Bootstrap admin access.**
-   Admin access is role-based: a user with `role = "admin"` can sign in
-   normally and use the admin console. Promote the first admins from the
+1. **Bootstrap admin access.**
+   Admin access is role-based: a user with `role = "admin"` signs in
+   normally and visits `/admin`. Promote the first admins from the
    `ADMIN_EMAILS` allowlist:
    ```
    npx tsx scripts/bootstrap-admin.ts
    ```
    Re-runs are idempotent.
 
-5. **Verify.**
-   Visit `https://admin.requo.app` — sign in with a promoted admin's Requo
-   account. Non-admins are redirected to `/login`.
+2. **Verify.**
+   Sign in with a promoted admin's Requo account, then visit `/admin`.
+   Logged-out visitors go to `/login`; signed-in non-admins get a 403.
 
 ## Current Operational Gaps
 

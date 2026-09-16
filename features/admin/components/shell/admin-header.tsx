@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { RiDashboardLine } from "@remixicon/react";
 
@@ -9,10 +9,6 @@ import {
   BreadcrumbItem,
 } from "@/components/base/breadcrumb/breadcrumb";
 import { BrandMark } from "@/components/shared/brand-mark";
-import {
-  AdminMobileUserMenu,
-  type AdminShellUser,
-} from "@/features/admin/components/shell/admin-user-menu";
 import {
   ADMIN_ROOT_PATH,
   getActiveAdminNavigationItem,
@@ -30,7 +26,7 @@ import {
  * desktop, matching the main app; it only appears here below `lg`, where the
  * sidebar is not rendered.
  */
-export function AdminHeader({ user }: { user: AdminShellUser }) {
+export function AdminHeader({ userSlot }: { userSlot: ReactNode }) {
   const pathname = usePathname();
 
   const breadcrumbs = useMemo(() => getAdminBreadcrumbs(pathname), [pathname]);
@@ -79,7 +75,7 @@ export function AdminHeader({ user }: { user: AdminShellUser }) {
             </div>
 
             <div className="flex shrink-0 items-center gap-2 lg:hidden">
-              <AdminMobileUserMenu user={user} />
+              {userSlot}
             </div>
           </div>
         </div>

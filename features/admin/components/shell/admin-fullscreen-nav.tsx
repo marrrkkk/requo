@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
 import { BoarduiAdminSidebar } from "@/features/admin/components/shell/admin-sidebar";
-import type { AdminShellUser } from "@/features/admin/components/shell/admin-user-menu";
 
 export type AdminFullscreenNavProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  user: AdminShellUser;
+  /** Streamed user menu slot (Suspense-wrapped by the console layout). */
+  userSlot: ReactNode;
   /** When provided, Quick Search opens the global quick-actions dialog. */
   onQuickSearch?: () => void;
 };
@@ -25,7 +25,7 @@ export type AdminFullscreenNavProps = {
 export function AdminFullscreenNav({
   open,
   onOpenChange,
-  user,
+  userSlot,
   onQuickSearch,
 }: AdminFullscreenNavProps) {
   const pathname = usePathname();
@@ -74,7 +74,7 @@ export function AdminFullscreenNav({
     >
       <div className="h-dvh w-full">
         <BoarduiAdminSidebar
-          user={user}
+          userSlot={userSlot}
           onQuickSearch={onQuickSearch}
           mobile
           onClose={handleClose}

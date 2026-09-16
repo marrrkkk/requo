@@ -87,7 +87,7 @@ function renderReport(report: Awaited<ReturnType<typeof runAdminHealthChecks>>) 
   const appUrl = getEnv("BETTER_AUTH_URL") || "http://localhost:3000";
   console.log(`  ${c.white}App:${c.reset}   ${c.cyan}${appUrl}${c.reset}`);
   console.log(
-    `  ${c.white}Admin:${c.reset} ${c.cyan}http://admin.localhost:3000${c.reset}`,
+    `  ${c.white}Admin:${c.reset} ${c.cyan}${appUrl}/admin${c.reset}`,
   );
   console.log(`  ${divider}`);
   console.log("");
