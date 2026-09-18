@@ -1,6 +1,6 @@
 # Requo Development
 
-How to run, test, build, and deploy. Commands verified against `package.json`. Environment reference: `.env.example` (206 lines). Setup guides: `docs/setup/local.md`, `docs/setup/deployment.md`, `docs/setup/billing.md`, `docs/setup/ai-provider-limits.md`, `docs/setup/crisp-support.md`.
+How to run, test, build, and deploy. Commands verified against `package.json`. Environment reference: `.env.example`. Setup guides: `docs/setup/local.md`, `docs/setup/deployment.md`, `docs/setup/billing.md`, `docs/setup/payments.md`, `docs/setup/ai-provider-limits.md`, `docs/setup/crisp-support.md`.
 
 ## Prerequisites
 
@@ -36,7 +36,7 @@ Local-first: `DATABASE_URL` + `DATABASE_MIGRATION_URL` pointing at local Postgre
 
 ## Environment essentials
 
-Groups: Database (`DATABASE_URL` pooler / `DATABASE_MIGRATION_URL` direct), Auth (`BETTER_AUTH_SECRET/URL`, `GOOGLE_*`, `ADMIN_EMAILS`), Supabase (URL, anon, service-role, `SUPABASE_JWT_SECRET` for realtime), Email (`RESEND_API_KEY`, `MAILTRAP_API_TOKEN`, `BREVO_API_KEY`, `EMAIL_DOMAIN`, `EMAIL_FROM_*`), AI (7 provider keys + `AI_TPM_*` budgets), Billing (Polar token/secret/server/product IDs), Push (VAPID pair), Inngest keys, `CRON_SECRET`. Generate secrets with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
+Groups: Database (`DATABASE_URL` pooler / `DATABASE_MIGRATION_URL` direct), Auth (`BETTER_AUTH_SECRET/URL`, `GOOGLE_*`, `ADMIN_EMAILS`), Supabase (URL, anon, service-role, `SUPABASE_JWT_SECRET` for realtime), Email (`RESEND_API_KEY`, `MAILTRAP_API_TOKEN`, `BREVO_API_KEY`, `EMAIL_DOMAIN`, `EMAIL_FROM_*`), AI (7 provider keys + `AI_TPM_*` budgets), Billing (Polar token/secret/server/product IDs), Invoice payments (`PAYMENT_CREDENTIALS_KEY`, base64 32-byte; per-business provider secrets live encrypted in the DB, plus optional `STRIPE_PLATFORM_SECRET_KEY`/`STRIPE_PLATFORM_WEBHOOK_SECRET` for Stripe Connect platform links — both or neither), Push (VAPID pair), Inngest keys, `CRON_SECRET`. Generate secrets with `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"` for `PAYMENT_CREDENTIALS_KEY`.
 
 ## Debugging
 

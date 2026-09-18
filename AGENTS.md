@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Requo Development Guide
 
-Owner-led SaaS for service businesses: inquiry → quote → share/send → follow-up → accepted/rejected → invoice (manual payments only). `app/` thin routes; product logic in `features/`; infra in `lib/`. Better Auth only; tenant isolation by `businessId`; all AI through `lib/ai/`.
+Owner-led SaaS for service businesses: inquiry → quote → share/send → follow-up → accepted/rejected → invoice (manual payments + online payments through the business's own PayMongo/Stripe/PayPal accounts — Stripe Connect platform links or BYO keys, ADR-012 / ADR-013). `app/` thin routes; product logic in `features/`; infra in `lib/`. Better Auth only; tenant isolation by `businessId`; all AI through `lib/ai/`.
 
 ## Project knowledge
 

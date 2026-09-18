@@ -24,7 +24,7 @@ Read these sources first when relevant (paths relative to this skill file):
 - Keep `app/` focused on routes, layouts, loading states, and route handlers.
 - Keep business logic, validation, queries, actions, and mutations in `features/`.
 - Keep provider integrations and shared utilities in `lib/`.
-- Stay within current product scope: owner-first service-business workflows (inquiry → quote → invoice → payment) with workspace billing and light role-based membership. Do not add marketplace, live chat, mobile app, dispatch, payroll, payment gateways, or advanced team collaboration unless explicitly requested.
+- Stay within current product scope: owner-first service-business workflows (inquiry → quote → invoice → payment, including online invoice payments through the business's own PayMongo/Stripe/PayPal accounts — platform links or BYO keys, ADR-012 / ADR-013) with workspace billing and light role-based membership. Do not add marketplace, live chat, mobile app, dispatch, payroll, merchant-of-record billing, or advanced team collaboration unless explicitly requested.
 
 ## UI System
 
@@ -47,6 +47,7 @@ Read these sources first when relevant (paths relative to this skill file):
 - Resend for transactional email (Mailtrap/Brevo fallback)
 - Groq, Cerebras, Gemini, Mistral, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter through `lib/ai` for server-side AI
 - Polar for card subscriptions (multi-currency, merchant of record)
+- PayMongo/Stripe/PayPal through `lib/payments` adapters for online invoice payments (platform links via Stripe Connect, or BYO business accounts; webhooks authoritative, ADR-012 / ADR-013). Feature code never imports provider APIs.
 
 ## Billing
 
@@ -68,7 +69,7 @@ Read these sources first when relevant (paths relative to this skill file):
 - **Plan locks, role hides.** Never filter navigation by plan — gate with `features/paywall/` components + server-side `hasFeatureAccess` before expensive work.
 - **Dashboard pages:** `export const instant = true`, synchronous shell, dynamic reads only in `<Suspense>` children. Never `instant = false` to silence a failure — use the escape-hatch registry.
 - **Panel padding is baked in** (`section-panel`, `soft-panel`); opt out with `data-padding="none"`. Call-site padding on the same attribute is silently ignored and fails `audit:density`.
-- **Do not add** Supabase Auth (Better Auth only), pgvector (embeddings are `jsonb`), payment gateways, or a `lib/billing/refunds.ts` (refunds are portal-initiated).
+- **Do not add** Supabase Auth (Better Auth only), pgvector (embeddings are `jsonb`), merchant-of-record billing, or a `lib/billing/refunds.ts` (refunds are portal-initiated). Online invoice payments go through the business's own provider account in `lib/payments` (platform link or BYO keys, ADR-012 / ADR-013) — never new gateway SDKs in feature code.
 - **Update `docs/` when architecture or behavior changes materially**, and re-grep for dangling references when deleting or moving docs.
 
 ## Testing

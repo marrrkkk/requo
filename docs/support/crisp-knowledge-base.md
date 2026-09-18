@@ -18,12 +18,12 @@ Requo helps service businesses manage the inquiry-to-quote workflow:
 - Quote editor, Products library, revisions, expiry, public quote pages, and accept/reject responses
 - Requo email delivery, custom quote email templates, and public-link sharing
 - Manual follow-ups, automatic follow-ups on eligible plans, reminders, and AI-assisted follow-up drafting
-- Invoices converted from accepted quotes (or created manually), Requo email delivery, PDF/print export, manual payment recording, overdue reminders, and payment notifications
+- Invoices converted from accepted quotes (or created manually), Requo email delivery, PDF/print export, manual payment recording, online payments through the business's own PayMongo/Stripe/PayPal account, overdue reminders, and payment notifications
 - Conversion and workflow analytics, scheduled reports, notifications, audit logs, and business members
 - AI quote drafting grounded in inquiry details, Products, and uploaded knowledge files
 - Multiple businesses per account with business-scoped billing and role-based access
 
-The current product does not include jobs, calendar scheduling, dispatch, a mobile app, marketplace features, or a general-purpose AI chat assistant. Invoices cover manual payment tracking only; there is no payment gateway or online customer payment page.
+The current product does not include jobs, calendar scheduling, dispatch, a mobile app, marketplace features, or a general-purpose AI chat assistant. Invoices support manual payment recording plus online payments through the business's own connected PayMongo, Stripe, or PayPal account (provider-hosted checkout; Requo never holds customer money).
 
 ## Plans
 

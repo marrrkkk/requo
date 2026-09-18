@@ -12,10 +12,13 @@ app/
   (business)/    # new/ + [businessSlug]/(main|settings|preview|print)
     [businessSlug]/(main)/  # home, inquiries, quotes, products, services,
                             # follow-ups, invoices, analytics, notifications, assistant
-    [businessSlug]/settings/ # ~15 pages incl. members, email templates, support
+    [businessSlug]/settings/ # ~16 pages incl. members, email templates, integrations, support
   (checkout)/ admin/ onboarding/ invite/[token]/ verify-email/ home/
+  pay/return     # provider redirect landing (static, informational, never writes)
   api/           # account, admin, auth, billing/polar, business, cron, dev,
-                 # inngest, ai (agent + owner-assistant), inquiries, public, push
+                 # inngest, ai (agent + owner-assistant), inquiries, public, push,
+                 # payments/webhooks/{paymongo,stripe,paypal},
+                 # payments/stripe/connect/{return,refresh} (redirect-only)
   .well-known/   # agent-skills, api-catalog, mcp, oauth, openid, security-txt
 ```
 

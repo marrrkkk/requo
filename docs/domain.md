@@ -29,7 +29,10 @@ Related: `docs/architecture.md`, `docs/data.md` (tables), `docs/workflows.md` (e
 | Quote | Priced proposal with line items, versions, delivery state | `businessId` (+ optional `inquiryId`) | `quotes`, `quote_items`, `quote_versions`, `quote_revision_requests` |
 | Quote library entry | Reusable block/package/template + items | `businessId` | `quote_library_entries`, `quote_library_entry_items` |
 | Invoice | Payment request from accepted quote or standalone; snapshot on send | `businessId` (+ optional `quoteId`) | `invoices`, `invoice_line_items` |
-| Payment | Manually recorded amount against one invoice | `businessId` → invoice | `payments` |
+| Payment | Amount against one invoice: Manual (human-recorded) or Provider (reconciled from a connected PayMongo/Stripe/PayPal account) | `businessId` → invoice | `payments` (single ledger) |
+| Provider Connection | A business's own provider account for one environment (`test`/`live`), via pasted merchant credentials (`byo`) or the provider platform relationship (`platform`) | `businessId` | `payment_provider_connections` |
+| Platform Link | Requo's relationship with a provider's platform program/account (Stripe Connect, PayPal partner). One per provider/environment, never per business. Never call it a "connection". | platform config, not a table row | env (`STRIPE_PLATFORM_*`, partner app) |
+| Payment Event | One provider webhook delivery; many map to one Payment | `businessId` + connection | `payment_events` (delivery inbox, not the ledger) |
 | Follow-up | Owner reminder task linked to inquiry and/or quote | `businessId` | `follow_ups` |
 | Business Memory | Owner-maintained knowledge for RAG grounding | `businessId` | `business_memories`, `business_knowledge_files`, `business_knowledge_chunks` |
 | Notification | In-app event for a business | `businessId` | `business_notifications`, `..._states`, `..._reads` |
@@ -47,7 +50,11 @@ Related: `docs/architecture.md`, `docs/data.md` (tables), `docs/workflows.md` (e
 
 **Quote** (`quote_status`): `draft` → `sent` → `accepted` | `rejected` | `revision_requested` → (new version) → `sent` … → `expired` | `voided`. `publicToken` gates the public page. `autoFollowUp*` fields drive the unattended nudge sequence. `aiReadiness` (`ready` | `needs_confirmation` | `scope_only`) + `aiMissingInfo` describe AI-draft confidence — display only, never price authority.
 
-**Invoice** (`invoice_status`): `draft` → `sent` → `unpaid` | `partially_paid` → `paid` | `overdue`; `voided` terminal. One non-void invoice per quote (`businessId, quoteId` unique partial). Payments are manual records; voided payments excluded from balances.
+**Invoice** (`invoice_status`): `draft` → `sent` → `unpaid` | `partially_paid` → `paid` | `overdue`; `voided` terminal. One non-void invoice per quote (`businessId, quoteId` unique partial). Net paid = manual records plus provider money in succeeded-family states minus cumulative refunds; voided payments excluded. Overpayment keeps status `paid` with a display-only overpaid amount (never a new status).
+
+**Provider Payment** (`pending` → `processing` → `succeeded` → `partially_refunded` → `refunded`; `failed`/`canceled` terminal): money observed through a connected provider, reconciled monotonically from provider snapshots — stale or duplicate webhook deliveries never move it backward. Checkout/session identity (`provider_checkout_id`) and money identity (`provider_payment_id`: PayMongo `pay_…`, Stripe PaymentIntent, PayPal capture) are separate concepts. Provider rows never use `voidedAt`; reversals flow through refund states. Auth mode (`byo`/`platform`) never affects this pipeline — both modes produce the same snapshot. See ADR-012.
+
+**Provider Connection status** (`onboarding` → `action_required` | `ready`; `revoked` terminal-ish): `ready` means the provider reports the capabilities Requo needs (Stripe: `charges_enabled` + `details_submitted` + no `currently_due`; never `payouts_enabled`). `connected` (authorization exists) is not `ready` (capable). Absence of a row means not connected — there is no `not_connected` or `connecting` state. Every pre-platform row is a working `byo` connection, hence `ready`. A revoked connection keeps its row, payments, and events; only new provider operations stop. See ADR-013.
 
 **Follow-up** (`follow_up_status`): `pending` → `completed` | `skipped`. Requires `inquiryId` OR `quoteId`. Recurrence (`none`/`daily`/`weekly`/…) with termination condition.
 

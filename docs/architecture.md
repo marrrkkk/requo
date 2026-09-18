@@ -6,7 +6,7 @@ Related: `docs/domain.md` (business concepts), `docs/data.md` (database), `docs/
 
 ## System overview
 
-Requo is an owner-led SaaS for service businesses: capture inquiries → qualify → draft quotes → share/send → follow up → track responses → invoice accepted work (manual payment tracking only, no gateway).
+Requo is an owner-led SaaS for service businesses: capture inquiries → qualify → draft quotes → share/send → follow up → track responses → invoice accepted work (manual payment tracking plus online payments through the business's own PayMongo/Stripe/PayPal accounts — platform links or BYO keys, ADR-012 / ADR-013).
 
 Systems that compose it:
 
@@ -21,7 +21,7 @@ Systems that compose it:
 - Upstash Redis (rate limiting + AI cache only, cross-instance concerns).
 - Web Push (VAPID). Crisp chat widget (support-only).
 
-What Requo is **not**: no jobs product, no workflow-automation engine, no payment gateway, no live-chat product surface (see `AGENTS.md` Product Constraints).
+What Requo is **not**: no jobs product, no workflow-automation engine, no merchant-of-record billing (businesses use their own provider accounts; Polar remains the sole SaaS billing path), no live-chat product surface (see `AGENTS.md` Product Constraints).
 
 ## Repository structure
 

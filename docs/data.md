@@ -20,7 +20,8 @@ Source of truth: `lib/db/schema/index.ts` (barrel over 24 modules). Key modules:
 | `auth.ts` | `user`, `session`, `account`, `verification`, `rate_limit` | Better Auth tables via drizzle adapter |
 | `inquiries.ts` | `inquiries`, `inquiry_messages`, `inquiry_attachments`, `inquiry_notes`, `inquiry_duplicates` | Status enum; indexes on `(business, status)`, submitted dates; partial open-deadline index |
 | `quotes.ts` | `quotes`, `quote_items`, `quote_versions`, `quote_revision_requests` | `quoteNumber` unique per business; `publicTokenHash` unique; partial `sent_valid_until` / auto-follow-up indexes |
-| `invoices.ts` | `invoices`, `invoice_line_items`, `payments` | Unique partial `(businessId, quoteId)` for non-void; manual payments only |
+| `invoices.ts` | `invoices`, `invoice_line_items`, `payments` | Unique partial `(businessId, quoteId)` for non-void; `payments` is the single ledger (`source` manual/provider, provider IDs/status/cumulative refunds; partial uniques on checkout and money IDs) |
+| `payment-providers.ts` | `payment_provider_connections`, `provider_connection_attempts`, `payment_events` | Unique `(businessId, provider, environment)`; connection `status` (`onboarding/action_required/ready/revoked`, default `ready`), `auth_mode` (`byo/platform`, default `byo`), nullable `provider_account_id` with partial unique `(provider, environment, account)`; `provider_connection_attempts` are single-use 30-min flow pointers (hashed state, no secrets); connection-scoped event idempotency `UNIQUE(connection_id, provider_event_id)` |
 | `follow-ups.ts` | `follow_ups` | Check `inquiryId OR quoteId`; partial `pending_due` index |
 | `business-inquiry-forms.ts` | `business_inquiry_forms` | User-facing name "Service"; slug unique per business |
 | `quote-library.ts` | `quote_library_entries`, `quote_library_entry_items` | Kinds `block/package/template` |
@@ -57,6 +58,6 @@ Bucket names: `features/inquiries/mutations.ts` (attachments), `features/memory/
 
 ## Migrations
 
-29 SQL files (`drizzle/0000_init` → `0028_inquiry_first_viewed`; no `0019`; `0021` duplicated — see `docs/technical-debt.md`). Notable: `0012` removed jobs/automations, `0014` renamed pricing → product library, `0016` agent v1, `0018` owner assistant, `0021` invoice payment tracking.
+34 SQL files (`drizzle/0000_init` → `0033_connection_attempts`; no `0019`; `0021` duplicated — see `docs/technical-debt.md`). Notable: `0012` removed jobs/automations, `0014` renamed pricing → product library, `0016` agent v1, `0018` owner assistant, `0021` invoice payment tracking, `0031` payment-provider foundation (connections, events, `payments` provider columns), `0032` connection platform link (`provider_account_id`, `status`, `auth_mode`), `0033` connection attempts.
 
 Dev flow: edit `lib/db/schema/*` → `npm run db:generate -- --name descriptive_name` → `npm run db:migrate` → commit schema + SQL together. Prod: `vercel-build` applies only. Never `db:push`/`db:generate` against production; never edit a committed migration. Full procedure: `docs/database-migrations.md`.
