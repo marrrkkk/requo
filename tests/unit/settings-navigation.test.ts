@@ -34,6 +34,7 @@ describe("getUnifiedSettingsNavigation", () => {
       "Email templates",
       "Assistant",
       "Billing",
+      "Integrations",
       "Members",
       "Audit log",
     ]);
