@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 const defaultTriggerClass =
   "public-page-header-link font-mono text-xs font-medium uppercase tracking-wider";
 
-const productLinks = [
+export const productLinks = [
   {
     href: "/features/inquiries",
     label: "Inquiry",
@@ -69,7 +69,7 @@ const productLinks = [
   },
 ] as const;
 
-const resourceDetails: Record<string, { description: string; icon: typeof FileText }> = {
+export const resourceDetails: Record<string, { description: string; icon: typeof FileText }> = {
   "/about": {
     description: "What Requo is and who it fits.",
     icon: FileText,

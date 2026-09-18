@@ -54,8 +54,9 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
     expect(await background.boundingBox()).toEqual(initialBox);
 
+    // Dots stay off on mobile: the canvas is hidden below sm
     await page.setViewportSize({ width: 390, height: 844 });
-    expect(await background.boundingBox()).toEqual({ x: 0, y: 0, width: 390, height: 844 });
+    await expect(background).toBeHidden();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(391);
   });
 }
@@ -168,7 +169,7 @@ test("marketing homepage stays readable on a narrow viewport", async ({
   await expect(faqHeading).toBeVisible();
 });
 
-test("marketing mobile nav uses the shared backdrop without scroll locking", async ({
+test("marketing mobile nav opens fullscreen with grouped links", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -178,12 +179,27 @@ test("marketing mobile nav uses the shared backdrop without scroll locking", asy
   await page.getByRole("button", { name: "Open navigation" }).click();
 
   const overlay = page.locator('[data-slot="sheet-overlay"][data-state="open"]');
+  const panel = page.locator('[data-slot="sheet-content"]');
 
   await expect(page.getByRole("heading", { name: "Navigation" })).toBeVisible();
   await expect(overlay).toBeVisible();
   await expectBodyScrollUnlocked(page);
 
-  await overlay.click({ position: { x: 12, y: 12 } });
+  // Fullscreen takeover on mobile
+  await expect
+    .poll(() => panel.boundingBox(), { timeout: 10000 })
+    .toEqual({ x: 0, y: 0, width: 390, height: 844 });
+
+  // Desktop IA mirrored: grouped links plus Pricing
+  for (const name of ["Product", "Solutions", "Resources"]) {
+    await expect(panel.getByText(name, { exact: true })).toBeVisible();
+  }
+  await expect(
+    panel.getByRole("link", { name: /Capture requests from forms/ }),
+  ).toBeVisible();
+  await expect(panel.getByRole("link", { name: "Pricing" })).toBeVisible();
+
+  await page.keyboard.press("Escape");
 
   await expect(page.getByRole("heading", { name: "Navigation" })).toBeHidden();
 });
