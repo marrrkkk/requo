@@ -30,9 +30,9 @@ export default function BusinessSlugLoading() {
             </div>
             {/* Business switcher skeleton */}
             <div className="px-3 py-3">
-              <div className="w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5">
+              <div className="w-full rounded-xl border border-sidebar-border/90 bg-background/92 p-3.5">
                 <div className="flex items-start gap-3.5">
-                  <Skeleton className="size-14 shrink-0 rounded-[0.9rem]" />
+                  <Skeleton className="size-14 shrink-0 rounded-xl" />
                   <div className="min-w-0 flex-1 space-y-2">
                     <Skeleton className="h-3 w-14 rounded-md" />
                     <Skeleton className="h-4 w-28 rounded-md" />

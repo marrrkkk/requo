@@ -274,7 +274,7 @@ export function DashboardSettingsInquiryDetailSkeleton() {
               ))}
             </div>
 
-            <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
+            <div className="rounded-xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
               <div className="flex flex-col gap-4">
                 <Skeleton className="h-24 rounded-xl" />
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
@@ -285,7 +285,7 @@ export function DashboardSettingsInquiryDetailSkeleton() {
                       <FieldSkeleton />
                     </div>
                   </div>
-                  <Skeleton className="min-h-[12rem] rounded-3xl border border-border/70 bg-background/60" />
+                  <Skeleton className="min-h-[12rem] rounded-xl border border-border/70 bg-background/60" />
                 </div>
               </div>
             </div>

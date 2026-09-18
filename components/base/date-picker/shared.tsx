@@ -289,10 +289,9 @@ export const triggerButtonClassName = cx(
   "disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none",
 );
 
-/** Shared popover chrome (Figma's rounded/3xl, background/secondary/default
- *  "Calendar component" surface) for both pickers. */
+/** Shared popover chrome (single shared surface radius) for both pickers. */
 export const popoverClassName = cx(
-  "origin-top rounded-3xl border border-border bg-card shadow-[var(--overlay-surface-shadow)]",
+  "origin-top rounded-xl border border-border bg-card shadow-[var(--overlay-surface-shadow)]",
   "transition duration-150 ease-out",
   "data-[entering]:opacity-0 data-[entering]:scale-95 data-[entering]:blur-[2px]",
   "data-[exiting]:opacity-0 data-[exiting]:scale-95 data-[exiting]:blur-[2px]",

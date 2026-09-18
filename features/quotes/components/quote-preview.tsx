@@ -130,7 +130,7 @@ export function QuotePreview({
           </div>
         </div>
 
-        <div className="@container/qtable @2xl/qtable:overflow-hidden @2xl/qtable:rounded-[1.2rem] @2xl/qtable:border @2xl/qtable:border-border/75 @2xl/qtable:bg-background/94">
+        <div className="@container/qtable @2xl/qtable:overflow-hidden @2xl/qtable:rounded-xl @2xl/qtable:border @2xl/qtable:border-border/75 @2xl/qtable:bg-background/94">
           <div className="flex flex-col @2xl/qtable:hidden">
             {items.length ? (
               items.map((item) => (

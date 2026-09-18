@@ -217,7 +217,7 @@ export function SettingsModal({
           // by the inner scroller made the browser scroll-reveal it through
           // the panel too — shifting the whole modal content up with no way
           // back. clip forbids scrolling outright.
-          "overflow-clip rounded-3xl bg-background shadow-xs outline-none",
+          "overflow-clip rounded-xl bg-background shadow-xs outline-none",
         )}
       >
         {/* Nav rail — the board-team dropdown group/item recipe */}

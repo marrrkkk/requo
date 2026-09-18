@@ -246,12 +246,9 @@ async function main(): Promise<void> {
         }
 
         const radiusMatch = line.match(ARBITRARY_RADIUS);
-        // Product exception: the business switcher keeps its larger
-        // summary-block radii by explicit request.
-        if (
-          radiusMatch &&
-          !/rounded-\[(1\.1rem|0\.9rem)\]/.test(radiusMatch[0])
-        ) {
+        // No product exceptions: every surface uses the single shared
+        // radius (var(--radius)); micro-internals live in primitives.
+        if (radiusMatch) {
           offenders.push({
             file: rel,
             line: lineNumber,

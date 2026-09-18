@@ -38,7 +38,7 @@ Extended token groups:
 - `overlay-*`: dialog, sheet, select, and popover surfaces.
 - `table-*`: table header, footer, hover, and selected row states.
 - `sidebar-*`: sidebar background, text, border, accent, and ring tokens.
-- `radius-*`: derived from `--radius`; use the existing scale instead of hard-coded radii.
+- `radius-*`: all resolve to the single shared `--radius` (8px); use `rounded-lg` / `rounded-xl`, never hard-coded radii.
 - `motion-*`: shared durations, easing, and lift distance for subtle motion.
 
 State rules:
@@ -46,7 +46,9 @@ State rules:
 - Focus uses `ring`.
 - Error uses `destructive`.
 - Disabled uses lower emphasis, muted surfaces, and reduced opacity.
-- Success, warning, and info are not global product tokens yet. Use centralized component patterns only; do not introduce raw `emerald`, `amber`, `blue`, or similar utility colors in feature code.
+- Success, warning, and info are global product tokens (`--success`, `--warning`, `--info`), alongside `destructive`. Use them for semantic state; do not introduce raw `emerald`, `amber`, `blue`, or similar palette utilities in feature code.
+- Status colour has exactly one home: `components/shared/status-badge.tsx`. Feature code picks a `StatusTone` and renders `StatusBadge` — it never writes status colour itself. A per-domain `Record<Enum, StatusTone>` map is the only extension point, and keeping it exhaustive means a new enum member fails the typecheck.
+- Never reach for `!important` (`!bg-*`, `!text-*`, …) to win a colour conflict. Custom classes and Tailwind utilities both land in `@layer utilities`, so source order — not class order — decides the winner, and `tailwind-merge` cannot arbitrate a class it does not recognise. Use a variant or tone that carries no conflicting colour instead. Enforced by `scripts/audit-status-tokens.ts`.
 
 ### Typography Scale
 
@@ -126,12 +128,11 @@ Panel padding (see ADR 008):
   headers, floating bars, tighter option rows, document previews, and every
   out-of-scope surface) opt out with `data-padding="none"`.
 
-Radius rules:
+Radius rules (single shared radius):
 
-- Controls: `rounded-md`
-- Cards, tables, sections, empty states: `rounded-xl`
-- Large overlays: `rounded-2xl`
-- Avoid arbitrary radius values in feature code unless the value is promoted into tokens or shared classes.
+- One value everywhere: `--radius` (`0.5rem` / 8px). The `sm/md/lg/xl/2xl/3xl/4xl` tokens all resolve to it — use `rounded-lg` for controls and `rounded-xl` for cards, tables, sections, overlays, and empty states.
+- Exceptions: `rounded-full` for pills, badges, and avatars; `rounded-sm` for micro-internals (checkbox, tooltip arrow); `rounded-none` for flush edges.
+- Never use `rounded-2xl` / `rounded-3xl` / `rounded-4xl` or arbitrary `rounded-[...]` in new code (`rounded-2xl` still renders the shared 8px via the collapsed token — rename to `rounded-xl` on touch). Enforced by `audit:radius`.
 
 ### Motion
 
@@ -184,7 +185,8 @@ Do not invent new variant or size names in feature code. Add a new name only if 
 - Use full card composition: `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter`.
 - Use `DashboardSection` for standard dashboard content blocks instead of rebuilding card structure.
 - Use `Empty` for empty states, `Alert` for inline notice or error messaging, `Badge` for compact status/metadata, `Skeleton` for loading placeholders, and `Spinner` for active async work.
-- Keep badges semantic. Prefer `default`, `secondary`, `outline`, or `ghost` over raw status colors.
+- Keep badges semantic. `default`, `secondary`, `outline`, `ghost`, and `destructive` are the general-purpose variants — use them for non-status metadata such as plan names, counts, and tags.
+- For a *status*, use `StatusBadge` from `components/shared/status-badge.tsx` with a `StatusTone`. Never pair a variant with a hand-written colour class; the `status` variant exists only as `StatusBadge`'s colourless shell and should not be used directly.
 
 ### Dialogs, Sheets, and Tabs
 
@@ -234,10 +236,11 @@ Do not invent new variant or size names in feature code. Add a new name only if 
 
 ### Lists
 
-- Use `DashboardToolbar` for search, filters, result counts, and clear actions.
+- Use `DataListToolbar` for search, filters, result counts, and clear actions. `DashboardToolbar` is only the bare `toolbar-panel` shell underneath it — see *Tables and Lists*.
 - Keep filters in the toolbar on desktop and in a `Sheet` on mobile.
 - Wrap desktop tables in `DashboardTableContainer`.
 - For mobile list views, keep the same content hierarchy and token usage as the desktop table shell.
+- A route's `loading.tsx` must compose the same fallbacks the page's `Suspense` boundaries use — the `*ListControlsFallback` / `*ListContentFallback` pair, and the same `PageHeader` props including any responsive `className`. Hand-rolling a skeleton here drifts from the resolved page and shows up as a layout shift on every navigation.
 
 ### Auth and Public Surfaces
 
@@ -357,14 +360,17 @@ Accessibility is default behavior, not an enhancement pass:
 Established patterns above win for new work. These contradictions exist in the codebase — do not copy them into new code, and do not silently "fix" them outside a dedicated cleanup:
 
 - **BoardUI vs shadcn duality.** `components/base/*` (16 dirs) plus `components/application/`/`components/foundations/` exist alongside canonical `components/ui/*`; only 3 BoardUI compat tokens are mapped (`app/globals.css`). New UI builds on `components/ui/*` + `components/shared/*`. See `docs/technical-debt.md`.
-- **Legacy styling debt.** Remaining `space-y-*`/`space-x-*` stacks (use `flex`/`grid` + `gap-*`) and raw status-color utilities (use badge/alert/shared status patterns). Flagged by `audit:density`.
+- **Legacy styling debt.** Remaining `space-y-*`/`space-x-*` stacks (use `flex`/`grid` + `gap-*`). Flagged by `audit:density`.
+- **Raw palette on non-pill surfaces.** Status *pills* are tokenized — `components/shared/status-badge.tsx` owns them and `audit:status-tokens` enforces it — but raw palette still colours some semantic surfaces: the archived-record banner, the paywall accent, the quote-editor amber alerts, and the public quote option cards. Move them to `--warning`/`--success`/`--destructive` opportunistically. See `docs/technical-debt.md` §4.
+- **`!important` outside status.** `meta-label !text-primary` (marketing) and `!bg-sidebar-accent` (`dashboard-sidebar.tsx`) are the same cascade-order problem the status migration removed: a custom class in `@layer utilities` setting a colour a utility then cannot override. Fix by giving the custom class a variant that sets no colour, not by keeping the `!`.
 - **Quote editor grid class.** The quote editor `<form>` carries the raw `dashboard-detail-layout` grid class because the shared layout wrapper cannot wrap forms yet — migrate when the wrapper supports form elements.
 
 ## Cleanup Targets
 
 - Replace remaining `space-y-*` and `space-x-*` stacks with `flex`/`grid` plus `gap-*`.
-- Replace raw status color utilities with centralized badge, alert, or shared status patterns.
-- Reduce repeated arbitrary radii, shadows, and hard-coded visual values by promoting reusable classes or tokens when a pattern repeats.
+- Replace raw palette colours on non-pill semantic surfaces with `--warning`/`--success`/`--destructive`. Status pills are already done and enforced by `audit:status-tokens`.
+- Remove the remaining `!important` colour overrides by giving the underlying custom class a colourless variant — `meta-label` in marketing, and the flat variant in `dashboard-sidebar`.
+- Reduce repeated arbitrary shadows and hard-coded visual values by promoting reusable classes or tokens when a pattern repeats (radii are done: single shared `--radius`, enforced by `audit:radius`).
 - The quote editor `<form>` carries the raw `dashboard-detail-layout` grid
   class directly because the shared layout wrapper cannot currently be used
   there. Migrate it to the shared wrapper when the wrapper supports form

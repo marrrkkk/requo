@@ -88,7 +88,7 @@ export default function MarketingHomeLoading() {
       </section>
 
       {/* The Requo workspace section */}
-      <section className="relative left-1/2 mt-24 w-screen -translate-x-1/2 overflow-x-clip bg-muted/20 py-16 sm:mt-32 sm:py-20 lg:mt-40 lg:py-24">
+      <section className="relative left-1/2 mt-24 w-screen -translate-x-1/2 overflow-x-clip py-16 sm:mt-32 sm:py-20 lg:mt-40 lg:py-24">
         <div className="mx-auto grid w-full max-w-6xl gap-4 px-4 sm:gap-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end lg:px-8 xl:px-0">
           <div className="flex flex-col gap-3 sm:gap-4">
             <Skeleton className="h-4 w-48 rounded-md" />
@@ -114,7 +114,6 @@ export default function MarketingHomeLoading() {
         </div>
       </section>
 
-      {/* FAQ section */}
       <section className="mx-auto mt-24 w-full max-w-4xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0">
         <div className="flex flex-col items-start gap-3 sm:gap-4">
           <Skeleton className="h-4 w-16 rounded-md" />
@@ -152,30 +151,23 @@ export default function MarketingHomeLoading() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-primary text-primary-foreground">
-        <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-14 sm:py-16 lg:flex-row lg:gap-20">
-          <div className="flex flex-col gap-5">
-            <Skeleton className="h-6 w-24 rounded-md bg-primary-foreground/25" />
-            <div className="flex items-center gap-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton className="size-5 rounded-full bg-primary-foreground/25" key={i} />
-              ))}
-            </div>
-            <Skeleton className="h-9 w-44 rounded-md bg-primary-foreground/25" />
+      <footer className="w-full text-muted-foreground">
+        <div className="mx-auto flex max-w-6xl flex-col justify-between gap-12 px-4 py-16 sm:px-6 lg:flex-row lg:items-start lg:gap-16 lg:px-8 xl:px-0">
+          <div className="flex flex-col justify-between self-stretch">
+            <Skeleton className="h-7 w-24 rounded-md" />
+            <Skeleton className="mt-14 hidden h-3 w-48 rounded-md lg:block" />
           </div>
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:ml-auto lg:gap-12">
-            {Array.from({ length: 3 }).map((_, columnIndex) => (
-              <div className="flex flex-col gap-3" key={columnIndex}>
-                <Skeleton className="h-3 w-20 rounded-md bg-primary-foreground/25" />
-                {Array.from({ length: 4 }).map((_, linkIndex) => (
-                  <Skeleton className="h-3 w-28 rounded-md bg-primary-foreground/20" key={linkIndex} />
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4 sm:gap-10 lg:gap-12 xl:gap-16">
+            {Array.from({ length: 4 }).map((_, columnIndex) => (
+              <div className="flex flex-col gap-3.5" key={columnIndex}>
+                <Skeleton className="h-3 w-16 rounded-md" />
+                {Array.from({ length: 3 }).map((_, linkIndex) => (
+                  <Skeleton className="h-3.5 w-24 rounded-md" key={linkIndex} />
                 ))}
               </div>
             ))}
           </div>
-        </div>
-        <div className="mx-auto max-w-6xl border-t border-primary-foreground/20 px-6 py-5">
-          <Skeleton className="h-3 w-44 rounded-md bg-primary-foreground/25" />
+          <Skeleton className="h-3 w-48 rounded-md lg:hidden" />
         </div>
       </footer>
     </div>
