@@ -61,6 +61,9 @@ const envSchema = z.object({
 
   POLAR_ACCESS_TOKEN: emptyToUndefined(z.string().min(1)),
   POLAR_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
+  PAYMENT_CREDENTIALS_KEY: emptyToUndefined(z.string().min(44)),
+  STRIPE_PLATFORM_SECRET_KEY: emptyToUndefined(z.string().min(1)),
+  STRIPE_PLATFORM_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
   POLAR_SERVER: emptyToUndefined(z.enum(["sandbox", "production"])).default(
     "sandbox",
   ),
@@ -183,6 +186,10 @@ export const isRedisConfigured = Boolean(
 );
 export const isPushConfigured = Boolean(
   env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY,
+);
+
+export const isStripePlatformConfigured = Boolean(
+  env.STRIPE_PLATFORM_SECRET_KEY && env.STRIPE_PLATFORM_WEBHOOK_SECRET,
 );
 
 export const isPolarConfigured = Boolean(
