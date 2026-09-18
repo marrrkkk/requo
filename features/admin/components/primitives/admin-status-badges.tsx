@@ -10,22 +10,19 @@ import {
   RiTimeLine,
 } from "@remixicon/react";
 
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge, type StatusTone } from "@/components/shared/status-badge";
+import { checkStatusLabel } from "@/features/admin/components/system/system-status-shared";
 import type { AdminHealthCheckStatus } from "@/lib/admin/health-checks";
 import type { EmailOutboxStatus } from "@/lib/db/schema/email";
-import { cn } from "@/lib/utils";
 
 /**
  * Admin-console status badges for the domains that have no customer-facing
  * badge of their own (account status, email delivery, AI call outcome,
  * integration health).
  *
- * Deliberately follows the established per-domain convention used by
- * `QuoteStatusBadge` / `InquiryStatusBadge` / `InvoiceStatusBadge`: a class map
- * over the Tailwind palette, an icon, and an always-rendered text label — so
- * status is never communicated by colour alone. These are Tailwind palette
- * classes rather than CSS tokens because that is the convention the main app
- * already uses for status.
+ * All four compose the shared `StatusBadge`, so admin status colour comes from
+ * the same tone vocabulary as the customer-facing badges. Status is never
+ * communicated by colour alone — the label always renders.
  */
 
 /* ── Account status ─────────────────────────────────────────────────────── */
@@ -64,15 +61,13 @@ export function getAdminUserAccountStatus(user: {
   return "active";
 }
 
-const adminUserStatusClassNames: Record<AdminUserAccountStatus, string> = {
-  active:
-    "!border-emerald-500/30 !bg-emerald-500/15 !text-emerald-800 dark:!border-emerald-500/25 dark:!bg-emerald-500/12 dark:!text-emerald-200",
-  unverified:
-    "!border-amber-500/30 !bg-amber-500/15 !text-amber-800 dark:!border-amber-500/25 dark:!bg-amber-500/12 dark:!text-amber-200",
-  suspended:
-    "!border-red-500/30 !bg-red-500/15 !text-red-800 dark:!border-red-500/25 dark:!bg-red-500/12 dark:!text-red-200",
-  admin:
-    "!border-indigo-500/30 !bg-indigo-500/15 !text-indigo-800 dark:!border-indigo-500/25 dark:!bg-indigo-500/12 dark:!text-indigo-200",
+const adminUserStatusTones: Record<AdminUserAccountStatus, StatusTone> = {
+  active: "success",
+  unverified: "warning",
+  suspended: "danger",
+  // `progress` is a decorative hue, not a claim about progress — the admin role
+  // has no success/failure meaning, it just needs to be distinguishable.
+  admin: "progress",
 };
 
 const adminUserStatusLabels: Record<AdminUserAccountStatus, string> = {
@@ -96,35 +91,24 @@ export function AdminUserStatusBadge({
   status: AdminUserAccountStatus;
   className?: string;
 }) {
-  const Icon = adminUserStatusIcons[status];
-
   return (
-    <Badge
-      className={cn(
-        "shrink-0 rounded-full",
-        adminUserStatusClassNames[status],
-        className,
-      )}
-      variant="secondary"
-    >
-      <Icon data-icon="inline-start" aria-hidden />
-      {adminUserStatusLabels[status]}
-    </Badge>
+    <StatusBadge
+      tone={adminUserStatusTones[status]}
+      label={adminUserStatusLabels[status]}
+      icon={adminUserStatusIcons[status]}
+      className={className}
+    />
   );
 }
 
 /* ── Email delivery status ──────────────────────────────────────────────── */
 
-const emailStatusClassNames: Record<EmailOutboxStatus, string> = {
-  pending:
-    "!border-slate-500/25 !bg-slate-500/12 !text-slate-800 dark:!border-slate-500/25 dark:!bg-slate-500/12 dark:!text-slate-200",
-  sending:
-    "!border-cyan-500/30 !bg-cyan-500/15 !text-cyan-800 dark:!border-cyan-500/25 dark:!bg-cyan-500/12 dark:!text-cyan-200",
-  sent: "!border-emerald-500/30 !bg-emerald-500/15 !text-emerald-800 dark:!border-emerald-500/25 dark:!bg-emerald-500/12 dark:!text-emerald-200",
-  failed:
-    "!border-red-500/30 !bg-red-500/15 !text-red-800 dark:!border-red-500/25 dark:!bg-red-500/12 dark:!text-red-200",
-  unknown:
-    "!border-amber-500/30 !bg-amber-500/15 !text-amber-800 dark:!border-amber-500/25 dark:!bg-amber-500/12 dark:!text-amber-200",
+const emailStatusTones: Record<EmailOutboxStatus, StatusTone> = {
+  pending: "neutral",
+  sending: "active",
+  sent: "success",
+  failed: "danger",
+  unknown: "warning",
 };
 
 const emailStatusLabels: Record<EmailOutboxStatus, string> = {
@@ -150,20 +134,13 @@ export function AdminEmailStatusBadge({
   status: EmailOutboxStatus;
   className?: string;
 }) {
-  const Icon = emailStatusIcons[status];
-
   return (
-    <Badge
-      className={cn(
-        "shrink-0 rounded-full",
-        emailStatusClassNames[status],
-        className,
-      )}
-      variant="secondary"
-    >
-      <Icon data-icon="inline-start" aria-hidden />
-      {emailStatusLabels[status]}
-    </Badge>
+    <StatusBadge
+      tone={emailStatusTones[status]}
+      label={emailStatusLabels[status]}
+      icon={emailStatusIcons[status]}
+      className={className}
+    />
   );
 }
 
@@ -171,11 +148,9 @@ export function AdminEmailStatusBadge({
 
 export type AdminAiCallStatus = "success" | "error";
 
-const aiStatusClassNames: Record<AdminAiCallStatus, string> = {
-  success:
-    "!border-emerald-500/30 !bg-emerald-500/15 !text-emerald-800 dark:!border-emerald-500/25 dark:!bg-emerald-500/12 dark:!text-emerald-200",
-  error:
-    "!border-red-500/30 !bg-red-500/15 !text-red-800 dark:!border-red-500/25 dark:!bg-red-500/12 dark:!text-red-200",
+const aiStatusTones: Record<AdminAiCallStatus, StatusTone> = {
+  success: "success",
+  error: "danger",
 };
 
 const aiStatusLabels: Record<AdminAiCallStatus, string> = {
@@ -195,33 +170,23 @@ export function AdminAiStatusBadge({
   status: AdminAiCallStatus;
   className?: string;
 }) {
-  const Icon = aiStatusIcons[status];
-
   return (
-    <Badge
-      className={cn("shrink-0 rounded-full", aiStatusClassNames[status], className)}
-      variant="secondary"
-    >
-      <Icon data-icon="inline-start" aria-hidden />
-      {aiStatusLabels[status]}
-    </Badge>
+    <StatusBadge
+      tone={aiStatusTones[status]}
+      label={aiStatusLabels[status]}
+      icon={aiStatusIcons[status]}
+      className={className}
+    />
   );
 }
 
 /* ── Integration health ─────────────────────────────────────────────────── */
 
-const healthStatusClassNames: Record<AdminHealthCheckStatus, string> = {
-  pass: "!border-emerald-500/30 !bg-emerald-500/15 !text-emerald-800 dark:!border-emerald-500/25 dark:!bg-emerald-500/12 dark:!text-emerald-200",
-  warn: "!border-amber-500/30 !bg-amber-500/15 !text-amber-800 dark:!border-amber-500/25 dark:!bg-amber-500/12 dark:!text-amber-200",
-  fail: "!border-red-500/30 !bg-red-500/15 !text-red-800 dark:!border-red-500/25 dark:!bg-red-500/12 dark:!text-red-200",
-  skip: "!border-slate-500/25 !bg-slate-500/12 !text-slate-800 dark:!border-slate-500/25 dark:!bg-slate-500/12 dark:!text-slate-200",
-};
-
-const healthStatusLabels: Record<AdminHealthCheckStatus, string> = {
-  pass: "Passing",
-  warn: "Warning",
-  fail: "Failing",
-  skip: "Skipped",
+const healthStatusTones: Record<AdminHealthCheckStatus, StatusTone> = {
+  pass: "success",
+  warn: "warning",
+  fail: "danger",
+  skip: "neutral",
 };
 
 const healthStatusIcons = {
@@ -231,6 +196,10 @@ const healthStatusIcons = {
   skip: RiSubtractLine,
 } as const;
 
+/**
+ * Labels come from `checkStatusLabel` rather than a local map so the badge and
+ * the rest of the system page ("Healthy" / "Critical") cannot drift apart.
+ */
 export function AdminHealthStatusBadge({
   status,
   className,
@@ -238,19 +207,12 @@ export function AdminHealthStatusBadge({
   status: AdminHealthCheckStatus;
   className?: string;
 }) {
-  const Icon = healthStatusIcons[status];
-
   return (
-    <Badge
-      className={cn(
-        "shrink-0 rounded-full",
-        healthStatusClassNames[status],
-        className,
-      )}
-      variant="secondary"
-    >
-      <Icon data-icon="inline-start" aria-hidden />
-      {healthStatusLabels[status]}
-    </Badge>
+    <StatusBadge
+      tone={healthStatusTones[status]}
+      label={checkStatusLabel(status)}
+      icon={healthStatusIcons[status]}
+      className={className}
+    />
   );
 }

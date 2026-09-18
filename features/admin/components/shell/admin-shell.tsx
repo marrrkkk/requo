@@ -40,9 +40,13 @@ export function AdminShell({
   headerUserSlot,
   mobileNavUserSlot,
 }: AdminShellProps) {
+  // `data-admin-shell` on the outermost element is the "the admin chrome was
+  // painted" hook for `tests/e2e/admin-authorization.spec.ts`. The no-flash
+  // assertion watches for this attribute appearing in the DOM, so it must stay
+  // here — moving it inward would let a partial paint read as no paint.
   return (
     <SidebarProvider defaultOpen>
-      <div className="flex min-h-svh flex-1 bg-background">
+      <div className="flex min-h-svh flex-1 bg-background" data-admin-shell="">
         {/* Desktop rail — hidden below lg; mobile uses the topbar + bottom dock. */}
         <div className="sticky top-0 hidden h-svh shrink-0 lg:block">
           <BoarduiAdminSidebar userSlot={sidebarUserSlot} />

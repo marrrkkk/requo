@@ -88,6 +88,8 @@ const nextConfig: NextConfig = {
   // Ensure preview bots get full metadata in the initial HTML (see Next.js streaming metadata).
   htmlLimitedBots:
     /facebookexternalhit|Facebot|LinkedInBot|Twitterbot|Pinterest|Slackbot|Discordbot|vkShare|redditbot|Applebot|WhatsApp|TelegramBot|Googlebot|bingbot|Embedly|ChatGPT-User|GPTBot|OAI-SearchBot|anthropic-ai|ClaudeBot|Claude-Web|PerplexityBot|Bytespider|CCBot/i,
+  // Allow both localhost and 127.0.0.1 in development to prevent cross-origin dev resource blocks in E2E tests
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   cacheComponents: true,
   // Partial Prefetching: each visible <Link> prefetches its destination's
   // App Shell (static + cached content) instead of a full per-link render.
@@ -109,6 +111,29 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "7mb",
     },
+    // Lets `forbidden()` render `app/forbidden.tsx` instead of throwing a plain
+    // error. Required by `features/admin/access.ts` — see below.
+    //
+    // Why it is still needed even though `proxy.ts` answers non-admins with a
+    // real 403: the proxy's check reads Better Auth's session cookie cache,
+    // which can lag the database by up to `session.cookieCache.maxAge` (300s).
+    // A signed-in user with an allowlisted email and a stale `banned: false`
+    // therefore passes the proxy and is refused later by `requireAdminUser()`'s
+    // database re-check. Without this flag that refusal throws an unhandled
+    // error which escapes the child-only `app/admin/error.tsx` and lands in
+    // `app/global-error.tsx` — the crash this change set exists to fix.
+    //
+    // Caveats, deliberately recorded because this is an `experimental` flag
+    // (Next does not classify it as production-stable):
+    // - It is a **build-time define** (`build/define-env.js` inlines
+    //   `__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS`), so it is baked into both the
+    //   server and client bundles. Changing it needs a rebuild/redeploy, not an
+    //   env change.
+    // - Blast radius is `forbidden()` alone; nothing else reads the flag.
+    // - If it is ever dropped, the residual path degrades to `global-error`.
+    //   `proxy.ts` is the primary control and must not be removed on the
+    //   assumption that `forbidden()` covers this case.
+    authInterrupts: true,
     // Router cache freshness-vs-reuse (ref: bundled staleTimes.md, prefetching.md).
     // dynamic: RSC payloads gated on per-request data (session, business context)
     //   reuse for a short window so back/forward feels instant without serving

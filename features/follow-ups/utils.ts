@@ -1,3 +1,4 @@
+import type { StatusTone } from "@/components/shared/status-badge";
 import { prefixedId } from "@/lib/ids";
 import type {
   FollowUpChannel,
@@ -35,6 +36,28 @@ export const followUpDueBucketLabels: Record<FollowUpDueBucket, string> = {
   today: "Due today",
   upcoming: "Upcoming",
   done: "Done",
+};
+
+/**
+ * Semantic tone per follow-up state — the colour lives in
+ * `components/shared/status-badge`. Exhaustive `Record`s, so adding a member to
+ * either union fails the typecheck until a tone is chosen for it.
+ */
+export const followUpStatusTones: Record<FollowUpStatus, StatusTone> = {
+  pending: "info",
+  completed: "success",
+  skipped: "neutral",
+};
+
+/**
+ * `upcoming` and `done` are both deliberately quiet: neither needs the owner's
+ * attention, so they stay neutral and let `today` / `overdue` stand out.
+ */
+export const followUpDueBucketTones: Record<FollowUpDueBucket, StatusTone> = {
+  overdue: "danger",
+  today: "warning",
+  upcoming: "neutral",
+  done: "neutral",
 };
 
 export const followUpRecurrenceLabels: Record<FollowUpRecurrence, string> = {

@@ -125,9 +125,9 @@ const securitySections: LegalDocumentSection[] = [
             </>,
             <>
               <span className="text-foreground">Database and storage:</span>{" "}
-              {legalConfig.storageProvider} (Singapore region) hosts the
-              PostgreSQL database and file storage with automated backups and
-              point-in-time recovery.
+              {legalConfig.storageProvider} hosts the PostgreSQL database and
+              file storage in the configured project region, with automated
+              backups and point-in-time recovery.
             </>,
           ]}
         />

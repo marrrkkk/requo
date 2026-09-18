@@ -1,9 +1,8 @@
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { StatusBadge } from "@/components/shared/status-badge";
 import {
-  quoteRecordStateClassNames,
   quoteRecordStateIcons,
   quoteRecordStateLabels,
+  quoteRecordStateTones,
 } from "@/features/quotes/utils";
 
 type QuoteRecordStateBadgeProps = {
@@ -15,19 +14,12 @@ export function QuoteRecordStateBadge({
   state,
   className,
 }: QuoteRecordStateBadgeProps) {
-  const Icon = quoteRecordStateIcons[state];
-
   return (
-    <Badge
-      className={cn(
-        "shrink-0 rounded-full",
-        quoteRecordStateClassNames[state],
-        className,
-      )}
-      variant="secondary"
-    >
-      <Icon data-icon="inline-start" />
-      {quoteRecordStateLabels[state]}
-    </Badge>
+    <StatusBadge
+      tone={quoteRecordStateTones[state]}
+      label={quoteRecordStateLabels[state]}
+      icon={quoteRecordStateIcons[state]}
+      className={className}
+    />
   );
 }

@@ -176,9 +176,11 @@ const privacySections: LegalDocumentSection[] = [
         <LegalParagraph>
           We receive and store subscription-related records including plan
           selection, billing interval, subscription status, payment attempt
-          outcomes, transaction identifiers, and refund status. These records
-          are used to manage your subscription, enforce plan limits, process
-          refund requests, and maintain billing history.
+          outcomes, transaction identifiers, and refund status reflected from
+          the payment provider. These records are used to manage your
+          subscription, enforce plan limits, and maintain billing history.
+          Refunds themselves are handled through the payment
+          provider&apos;s customer portal, not through an in-app refund flow.
         </LegalParagraph>
       </>
     ),
@@ -228,9 +230,11 @@ const privacySections: LegalDocumentSection[] = [
         <LegalSubheading>A. Internal AI drafting</LegalSubheading>
         <LegalParagraph>
           If an authorized user uses AI-powered drafting features in the Service,
-          certain inputs may be processed through Groq, Gemini, or OpenRouter
-          and, depending on configuration, by the model provider used to
-          generate drafts, summaries, or suggestions.
+          certain inputs may be processed through our configured AI providers
+          (Groq, Cerebras, Google Gemini, Mistral, Cloudflare Workers AI,
+          NVIDIA NIM, or routed via OpenRouter) and, depending on
+          configuration, by the model provider used to generate drafts,
+          summaries, or suggestions.
         </LegalParagraph>
         <LegalParagraph>
           Based on the current Service, those inputs may include inquiry details,
@@ -303,12 +307,13 @@ const privacySections: LegalDocumentSection[] = [
         </LegalParagraph>
         <LegalList
           items={[
-            `${legalConfig.hostingProvider}, for hosting and application delivery.`,
+            `${legalConfig.hostingProvider}, for hosting and application delivery, including Vercel Analytics and Speed Insights for performance measurement.`,
             `${legalConfig.storageProvider}, for database, storage, and related backend infrastructure.`,
-            `${legalConfig.paymentProvider}, for subscription billing, payment processing, and refunds as the merchant of record.`,
-            "Resend, for transactional email delivery.",
-            "Groq, Gemini, and OpenRouter, for AI request routing when AI features are used.",
+            `${legalConfig.paymentProvider}, for subscription billing and payment processing as the merchant of record; subscription changes, cancellations, and refunds are handled through its customer portal.`,
+            "Resend (with Mailtrap and Brevo as fallback providers), for transactional email delivery.",
+            "Groq, Cerebras, Google Gemini, Mistral, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter, for AI request routing when AI features are used.",
             "Google, for optional OAuth sign-in when enabled, and transactional email providers for magic link sign-in when configured.",
+            "Crisp, for support chat when enabled; Inngest, for background jobs and scheduled tasks; Upstash Redis, for rate limiting and AI response caching.",
           ]}
         />
         <LegalParagraph>
@@ -333,14 +338,13 @@ const privacySections: LegalDocumentSection[] = [
         <LegalParagraph>
           The current Service also uses browser storage for product settings and
           interface preferences such as theme selection, active business
-          selection, and sidebar state. If we enable additional analytics,
-          performance, or advertising technologies, we will update this Privacy
-          Policy to describe those tools and related choices.
+          selection, and sidebar state.
         </LegalParagraph>
         <LegalParagraph>
           Requo also includes internal analytics features based on data stored
-          within the Service. We did not identify a dedicated third-party web
-          analytics or advertising SDK in the current app code.
+          within the Service, and uses Vercel Analytics and Speed Insights to
+          measure site performance. We do not use third-party advertising
+          trackers.
         </LegalParagraph>
       </>
     ),
@@ -500,82 +504,18 @@ const privacySections: LegalDocumentSection[] = [
           15. Data Retention Schedule
         </LegalSectionHeading>
         <LegalParagraph>
-          We retain different categories of data for different periods based on
-          their purpose and applicable legal requirements:
+          We keep account and business content for as long as the account or
+          business exists. Deleting an account removes the account and cascades
+          to data owned by it; deleting a business moves it to trash where it
+          can be restored, or permanently removes it on hard delete. We do not
+          promise a grace window after deletion.
         </LegalParagraph>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border/70">
-                <th className="pb-3 pr-4 text-left font-medium text-foreground">
-                  Data Category
-                </th>
-                <th className="pb-3 text-left font-medium text-foreground">
-                  Retention Period
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-border/40">
-                <td className="py-3 pr-4 font-medium text-foreground">
-                  Account data
-                </td>
-                <td className="py-3 text-muted-foreground">
-                  Duration of account plus 30 days after deletion
-                </td>
-              </tr>
-              <tr className="border-b border-border/40">
-                <td className="py-3 pr-4 font-medium text-foreground">
-                  Business content
-                </td>
-                <td className="py-3 text-muted-foreground">
-                  Duration of business plus 90 days
-                </td>
-              </tr>
-              <tr className="border-b border-border/40">
-                <td className="py-3 pr-4 font-medium text-foreground">
-                  AI token logs
-                </td>
-                <td className="py-3 text-muted-foreground">90 days</td>
-              </tr>
-              <tr className="border-b border-border/40">
-                <td className="py-3 pr-4 font-medium text-foreground">
-                  Billing records
-                </td>
-                <td className="py-3 text-muted-foreground">7 years</td>
-              </tr>
-              <tr className="border-b border-border/40">
-                <td className="py-3 pr-4 font-medium text-foreground">
-                  Session and security logs
-                </td>
-                <td className="py-3 text-muted-foreground">90 days</td>
-              </tr>
-              <tr className="border-b border-border/40">
-                <td className="py-3 pr-4 font-medium text-foreground">
-                  Webhook events
-                </td>
-                <td className="py-3 text-muted-foreground">1 year</td>
-              </tr>
-              <tr className="border-b border-border/40">
-                <td className="py-3 pr-4 font-medium text-foreground">
-                  Public action rate limit events
-                </td>
-                <td className="py-3 text-muted-foreground">30 days</td>
-              </tr>
-              <tr className="border-b border-border/40 last:border-b-0">
-                <td className="py-3 pr-4 font-medium text-foreground">
-                  Analytics events
-                </td>
-                <td className="py-3 text-muted-foreground">
-                  Duration of business
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
         <LegalParagraph>
-          After the applicable retention period expires, data is deleted or
-          anonymized in accordance with our data management procedures.
+          AI token usage logs are automatically purged after 90 days.
+          Subscription, billing-event, audit, and security records are kept as
+          long as needed to operate the Service, comply with legal
+          obligations, resolve disputes, and enforce our agreements. Contact us
+          if you have questions about a specific category.
         </LegalParagraph>
       </>
     ),
@@ -622,7 +562,9 @@ const privacySections: LegalDocumentSection[] = [
                 <td className="py-3 pr-4 font-medium text-foreground">
                   Supabase
                 </td>
-                <td className="py-3 pr-4 text-muted-foreground">Singapore</td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  Configured project region
+                </td>
                 <td className="py-3 text-muted-foreground">
                   Database and storage
                 </td>

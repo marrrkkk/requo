@@ -45,7 +45,7 @@ function DesktopActions() {
   return (
     <>
       <BookDemoDialog>
-        <Button size="sm" variant="outline" className="border-border/80 bg-background/50 font-mono text-xs uppercase tracking-wider hover:bg-accent">
+        <Button size="sm" variant="outline" className="border-border/80 bg-background font-mono text-xs uppercase tracking-wider hover:bg-accent">
           Book a demo
         </Button>
       </BookDemoDialog>

@@ -21,6 +21,7 @@ import type {
   AdminBusinessDetail,
   AdminBusinessDetailCore,
 } from "@/features/admin/types";
+import { BusinessStatusBadge } from "@/features/businesses/components/business-status-badge";
 import { businessMemberRoleMeta } from "@/lib/business-members";
 import { planMeta, type BusinessPlan } from "@/lib/plans";
 
@@ -312,20 +313,19 @@ function AdminBusinessPlanBadge({ plan }: { plan: BusinessPlan }) {
   );
 }
 
+/**
+ * The toolbar's status vocabulary says "deleted" where the shared lifecycle
+ * badge says "trash". Everything else lines up, labels included ("Deleted",
+ * "Archived", "Active"), so this only translates that one member.
+ */
 function AdminBusinessStatusBadge({
   status,
 }: {
   status: AdminBusinessToolbarStatus;
 }) {
-  if (status === "deleted") {
-    return <Badge variant="destructive">Deleted</Badge>;
-  }
-
-  if (status === "archived") {
-    return <Badge variant="outline">Archived</Badge>;
-  }
-
-  return <Badge variant="secondary">Active</Badge>;
+  return (
+    <BusinessStatusBadge status={status === "deleted" ? "trash" : status} />
+  );
 }
 
 function AdminStatBlock({

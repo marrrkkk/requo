@@ -8,6 +8,7 @@ import {
   Trophy,
 } from "lucide-react";
 
+import type { StatusTone } from "@/components/shared/status-badge";
 import type {
   InquiryRecordState,
   InquirySourceValue,
@@ -28,17 +29,20 @@ export const inquiryStatusLabels: Record<InquiryStatus, string> = {
   overdue: "Overdue",
 };
 
-export const inquiryStatusClassNames: Record<InquiryStatus, string> = {
-  new: "!border-sky-500/30 !bg-sky-500/15 !text-sky-800 dark:!border-sky-500/25 dark:!bg-sky-500/12 dark:!text-sky-200",
-  quoted:
-    "!border-violet-500/30 !bg-violet-500/15 !text-violet-800 dark:!border-violet-500/25 dark:!bg-violet-500/12 dark:!text-violet-200",
-  waiting:
-    "!border-amber-500/30 !bg-amber-500/15 !text-amber-800 dark:!border-amber-500/25 dark:!bg-amber-500/12 dark:!text-amber-200",
-  won: "!border-lime-500/30 !bg-lime-500/15 !text-lime-800 dark:!border-lime-500/25 dark:!bg-lime-500/12 dark:!text-lime-200",
-  lost: "!border-rose-500/30 !bg-rose-500/15 !text-rose-800 dark:!border-rose-500/25 dark:!bg-rose-500/12 dark:!text-rose-200",
-  archived:
-    "!border-slate-500/25 !bg-slate-500/12 !text-slate-800 dark:!border-slate-500/25 dark:!bg-slate-500/12 dark:!text-slate-200",
-  overdue: "!border-orange-500/30 !bg-orange-500/15 !text-orange-800 dark:!border-orange-500/25 dark:!bg-orange-500/12 dark:!text-orange-200",
+/**
+ * Semantic tone per status — the colour lives in `components/shared/status-badge`.
+ *
+ * Exhaustive `Record`, so adding an `InquiryStatus` member fails the typecheck
+ * until a tone is chosen for it.
+ */
+export const inquiryStatusTones: Record<InquiryStatus, StatusTone> = {
+  new: "info",
+  quoted: "highlight",
+  waiting: "warning",
+  won: "success",
+  lost: "danger",
+  archived: "neutral",
+  overdue: "attention",
 };
 
 export const inquiryStatusIcons = {
@@ -58,12 +62,11 @@ export const inquiryRecordStateLabels: Record<
   archived: "Archived",
 };
 
-export const inquiryRecordStateClassNames: Record<
+export const inquiryRecordStateTones: Record<
   Exclude<InquiryRecordState, "active">,
-  string
+  StatusTone
 > = {
-  archived:
-    "!border-slate-500/25 !bg-slate-500/12 !text-slate-800 dark:!border-slate-500/25 dark:!bg-slate-500/12 dark:!text-slate-200",
+  archived: "neutral",
 };
 
 export const inquiryRecordStateIcons = {

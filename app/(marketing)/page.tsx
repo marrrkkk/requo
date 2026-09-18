@@ -4,13 +4,11 @@ import { cacheLife } from "next/cache";
 import {
   faqItems,
   landingFeatureItems,
-  workflowSteps,
 } from "@/components/marketing/marketing-data";
 import { MarketingHero } from "@/components/marketing/marketing-hero";
 import { StructuredData } from "@/components/seo/structured-data";
 import {
   getFaqPageStructuredData,
-  getHowToStructuredData,
   getSoftwareApplicationStructuredData,
 } from "@/lib/seo/structured-data";
 import {
@@ -21,11 +19,11 @@ import {
 } from "@/lib/seo/site";
 
 const marketingDescription =
-  "Quote and inquiry management software for service businesses. Capture requests, draft professional quotes, track responses, and follow up before opportunities go cold.";
+  "Quote software for service businesses. Capture inquiries, draft professional quotes, track viewed and accepted status, and follow up before opportunities go cold.";
 
 export const metadata: Metadata = {
   ...createPageMetadata({
-    absoluteTitle: "Requo | Keep Every Opportunity Moving",
+    absoluteTitle: "Requo | Quote & Inquiry Management for Service Businesses",
     description: marketingDescription,
     pathname: "/",
   }),
@@ -51,25 +49,16 @@ export default async function MarketingPage() {
       description: marketingDescription,
       featureList: landingFeatureItems.map((item) => item.title),
       name: siteName,
-      offers: {
-        price: 0,
-        priceCurrency: "USD",
-        url: absoluteUrl("/pricing"),
-      },
+      offers: [
+        { price: 0, priceCurrency: "USD", url: absoluteUrl("/pricing") },
+        { price: 9, priceCurrency: "USD", url: absoluteUrl("/pricing") },
+        { price: 24, priceCurrency: "USD", url: absoluteUrl("/pricing") },
+      ],
       url: getSiteOrigin(),
     },
   );
   const faqPageStructuredData = getFaqPageStructuredData({
     items: faqItems,
-  });
-  const howToStructuredData = getHowToStructuredData({
-    name: "How to send a quote with Requo",
-    description:
-      "Capture an inquiry, draft a quote with AI, send it to your customer, and track the response.",
-    steps: workflowSteps.map((step) => ({
-      name: step.title,
-      text: step.description,
-    })),
   });
 
   return (
@@ -81,10 +70,6 @@ export default async function MarketingPage() {
       <StructuredData
         data={faqPageStructuredData}
         id="requo-faq-page-structured-data"
-      />
-      <StructuredData
-        data={howToStructuredData}
-        id="requo-how-to-structured-data"
       />
       <MarketingHero />
     </>

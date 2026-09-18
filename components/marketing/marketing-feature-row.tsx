@@ -14,6 +14,7 @@ const featureKickers: Record<LandingFeatureId, string> = {
   inquiries: "Capture",
   quotes: "Quote",
   ai: "Assist",
+  invoices: "Invoice",
   followUps: "Follow up",
   analytics: "Improve",
 };
@@ -22,6 +23,7 @@ const featureAnchorIds: Record<LandingFeatureId, string> = {
   inquiries: "inquiries",
   quotes: "quotes",
   ai: "ai",
+  invoices: "invoices",
   followUps: "follow-ups",
   analytics: "analytics",
 };
@@ -30,6 +32,7 @@ const featureAltAnchorIds: Record<LandingFeatureId, string[]> = {
   inquiries: ["inquiry"],
   quotes: ["quote"],
   ai: ["assist"],
+  invoices: ["invoice"],
   followUps: ["followUps", "follow-up", "followup"],
   analytics: ["improve"],
 };

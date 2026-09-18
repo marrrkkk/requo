@@ -86,7 +86,8 @@ drizzle snapshot plus these two new docs.
   `tests/README.md` note were reworded to stop pointing at it).
   (`features/businesses/components/business-status-badge.tsx` was in the
   sign-off batch but has since been restored — it is the shared badge for the
-  business lifecycle states, wiring to follow.)
+  business lifecycle states, and is now wired into
+  `features/admin/components/admin-business-detail.tsx`.)
 - **Unreferenced assets**: `public/{next,vercel,globe,file,window}.svg`,
   `public/{calendar,mastercard,qrph}.svg`.
 

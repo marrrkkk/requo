@@ -119,7 +119,7 @@ export function SelectBusinessDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg p-0 overflow-hidden">
-        <DialogHeader className="border-b border-border/70 p-6 pb-4">
+        <DialogHeader className="border-b border-border p-6 pb-4">
           <DialogTitle className="text-xl font-heading font-semibold">
             Choose a business to upgrade
           </DialogTitle>
@@ -169,7 +169,7 @@ export function SelectBusinessDialog({
                   return (
                     <div
                       key={business.id}
-                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-border/50 bg-muted/20 p-3.5 text-left opacity-75"
+                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-muted p-3.5 text-left"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <BusinessAvatar
@@ -192,12 +192,12 @@ export function SelectBusinessDialog({
 
                       <div className="shrink-0">
                         {isCurrentPlan ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground px-2.5 py-1 rounded-md bg-muted/60 border border-border/50">
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground px-2.5 py-1 rounded-md bg-muted border border-border">
                             <Check className="size-3 text-emerald-500" />
                             Current plan
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground px-2.5 py-1 rounded-md bg-muted/60 border border-border/50">
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground px-2.5 py-1 rounded-md bg-muted border border-border">
                             Business tier
                           </span>
                         )}
@@ -213,8 +213,8 @@ export function SelectBusinessDialog({
                     disabled={!isClickable}
                     onClick={() => handleSelectBusiness(business)}
                     className={cn(
-                      "group relative flex w-full items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/70 p-3.5 text-left transition-all",
-                      "hover:border-primary/50 hover:bg-primary/[0.04] hover:shadow-sm cursor-pointer active:scale-[0.99]",
+                      "group relative flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card p-3.5 text-left transition-all",
+                      "hover:border-primary hover:bg-muted hover:shadow-sm cursor-pointer active:scale-[0.99]",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       isStarting && "opacity-90 pointer-events-none",
                     )}
@@ -260,7 +260,7 @@ export function SelectBusinessDialog({
           )}
         </div>
 
-        <div className="border-t border-border/70 bg-muted/20 px-6 py-3.5 flex items-center justify-between text-xs text-muted-foreground">
+        <div className="border-t border-border bg-muted px-6 py-3.5 flex items-center justify-between text-xs text-muted-foreground">
           <span>Need a new business?</span>
           <Button
             asChild

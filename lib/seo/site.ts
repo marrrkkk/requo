@@ -12,6 +12,7 @@ export const siteSameAs = [
   "https://x.com/requoapp",
   "https://www.instagram.com/requoapp",
   "https://www.facebook.com/profile.php?id=61590244777923",
+  "https://github.com/marrrkkk/requo",
 ] as const;
 
 const defaultSocialImagePath = "/opengraph-image";

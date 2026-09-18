@@ -30,3 +30,17 @@ export const demoExpiredQuotePublicToken =
   process.env.DEMO_EXPIRED_QUOTE_PUBLIC_TOKEN ?? "demoquote1005expiredtoken";
 export const demoVoidedQuotePublicToken =
   process.env.DEMO_VOIDED_QUOTE_PUBLIC_TOKEN ?? "demoquote1006voidedtoken";
+
+/**
+ * Admin-console credentials for the `/admin` authorization specs.
+ *
+ * Hard-coded in `scripts/seed.ts` rather than env-driven: the owner email is a
+ * literal (`user@email.com`, seed.ts:62) and the admin role is a literal
+ * comparison against `marklouie.dev@gmail.com` (seed.ts:885). Because they
+ * cannot be overridden by `DEMO_*` env vars, they are exported separately from
+ * the `demo*` constants above — do not assume those cover this account.
+ */
+export const seededAdminEmail = "marklouie.dev@gmail.com";
+export const seededAdminPassword = "12345678";
+export const seededNonAdminEmail = "user@email.com";
+export const seededNonAdminPassword = "12345678";

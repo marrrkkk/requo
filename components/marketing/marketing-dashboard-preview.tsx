@@ -157,9 +157,9 @@ export function MarketingDashboardPreview() {
 
         {/* Business Switcher Card */}
         <div className="px-3 py-3">
-          <div className="w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <div className="w-full rounded-xl border border-sidebar-border/90 bg-background/92 p-3 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)]">
             <div className="flex items-start gap-3">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-[0.8rem] border border-sidebar-border bg-muted/80 text-xs font-bold tracking-wider text-sidebar-foreground shadow-xs">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-sidebar-border bg-muted/80 text-xs font-bold tracking-wider text-sidebar-foreground shadow-xs">
                 RC
               </div>
               <div className="min-w-0 flex-1">
@@ -271,9 +271,9 @@ export function MarketingDashboardPreview() {
           <div className="flex flex-col gap-4">
             {/* Greeting */}
             <div className="flex flex-col">
-              <h1 className="font-heading text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+              <p className="font-heading text-lg font-semibold tracking-tight text-foreground sm:text-xl">
                 Good morning, Jamie
-              </h1>
+              </p>
               <p className="text-xs text-muted-foreground">
                 2 urgent items and 3 new items since your last visit.
               </p>

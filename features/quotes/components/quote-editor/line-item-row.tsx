@@ -5,6 +5,7 @@ import { GripVertical, Trash2, Bookmark } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
+import { StatusBadge, type StatusTone } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -32,15 +33,10 @@ import {
 } from "./line-item-review";
 import type { EditorLineItem } from "./types";
 
-const REVIEW_BADGE_CLASS_NAMES: Record<
-  "matched" | "calculated",
-  string
-> = {
-  matched:
-    "border-emerald-500/30 bg-emerald-500/15 text-emerald-800 dark:border-emerald-500/25 dark:bg-emerald-500/12 dark:text-emerald-200",
-  calculated:
-    "border-blue-500/30 bg-blue-500/15 text-blue-800 dark:border-blue-500/25 dark:bg-blue-500/12 dark:text-blue-200",
-};
+const REVIEW_BADGE_TONES = {
+  matched: "success",
+  calculated: "info",
+} as const satisfies Record<"matched" | "calculated", StatusTone>;
 
 export function AiReviewBadge({ review }: { review: AiQuoteLineItemReview }) {
   const label = getLineItemReviewBadgeLabel(review);
@@ -49,19 +45,9 @@ export function AiReviewBadge({ review }: { review: AiQuoteLineItemReview }) {
     return null;
   }
 
-  const tone =
-    review.reviewStatus === "calculated" ? "calculated" : "matched";
+  const tone = review.reviewStatus === "calculated" ? "calculated" : "matched";
 
-  const badge = (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
-        REVIEW_BADGE_CLASS_NAMES[tone],
-      )}
-    >
-      {label}
-    </span>
-  );
+  const badge = <StatusBadge tone={REVIEW_BADGE_TONES[tone]} label={label} />;
 
   if (!review.reason) {
     return badge;

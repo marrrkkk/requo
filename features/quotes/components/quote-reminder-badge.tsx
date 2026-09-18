@@ -1,9 +1,8 @@
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { StatusBadge } from "@/components/shared/status-badge";
 import type { QuoteReminderKind } from "@/features/quotes/types";
 import {
   getQuoteReminderLabel,
-  quoteReminderClassNames,
+  quoteReminderTones,
 } from "@/features/quotes/utils";
 
 type QuoteReminderBadgeProps = {
@@ -16,15 +15,10 @@ export function QuoteReminderBadge({
   className,
 }: QuoteReminderBadgeProps) {
   return (
-    <Badge
-      className={cn(
-        "shrink-0 rounded-full",
-        quoteReminderClassNames[kind],
-        className,
-      )}
-      variant="secondary"
-    >
-      {getQuoteReminderLabel(kind)}
-    </Badge>
+    <StatusBadge
+      tone={quoteReminderTones[kind]}
+      label={getQuoteReminderLabel(kind)}
+      className={className}
+    />
   );
 }

@@ -72,7 +72,6 @@ export const planCatalog: Record<BusinessPlan, PlanCatalogEntry> = {
 
 /** "Two months free" annual-billing promo copy. */
 export const annualBillingPromoCopy = "Two months free";
-
 /**
  * Customer-facing AI drafting allowance labels. Values correspond to
  * `aiWeightedCreditsPerMonth` divided by the `quote_draft` weight (3).
@@ -86,6 +85,35 @@ export const aiDraftAllowanceLabels: Record<BusinessPlan, string> = {
 /** Short clarification shown near the pricing comparison table. */
 export const aiDraftingClarification =
   "AI drafting includes new drafts and revisions, so actual usage varies by the action performed.";
+
+/** Extractable pricing FAQs shared by the pricing page UI and its FAQ schema. */
+export const pricingFaqs = [
+  {
+    question: "What does a Requo subscription cost?",
+    answer:
+      "Free is $0. Pro is $9 per month or $90 per year. Business is $24 per month or $240 per year. Annual billing includes two months free, and paid subscriptions are billed per business.",
+  },
+  {
+    question: "Which currency am I billed in?",
+    answer:
+      "Subscriptions are billed in USD through Polar. This page may show approximate local pricing for reference, but checkout and invoices use USD.",
+  },
+  {
+    question: "Can I start free and upgrade later?",
+    answer:
+      "Yes. Start free with the core inquiry-to-quote workflow, then upgrade a business when you need automatic follow-ups, more live forms, more AI drafting, advanced analytics, or team access.",
+  },
+  {
+    question: "What is included in the free plan?",
+    answer:
+      "The core inquiry-to-quote workflow with unlimited inquiries and quotes, manual follow-up reminders, CSV exports, one live inquiry form, and about 10 AI quote drafts per month.",
+  },
+  {
+    question: "What happens after a customer accepts a quote?",
+    answer:
+      "The accepted quote converts into an invoice without retyping. You send it by email and record each manual payment until the invoice shows paid. Requo tracks payment status; it does not process cards.",
+  },
+] as const;
 
 /* ── Pricing comparison ───────────────────────────────────────────────────── */
 

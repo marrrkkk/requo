@@ -25,6 +25,8 @@ export function getMarketingNavKey(item: MarketingNavItem) {
 }
 
 export const resourceLinks = [
+  { label: "About", href: "/about" },
+  { label: "Security", href: "/security" },
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Terms of Service", href: "/terms" },
   { label: "Refund Policy", href: "/refund-policy" },
@@ -88,6 +90,7 @@ export type LandingFeatureId =
   | "inquiries"
   | "quotes"
   | "ai"
+  | "invoices"
   | "followUps"
   | "analytics";
 
@@ -119,6 +122,12 @@ export const landingFeatureItems: readonly {
     title: "AI drafts grounded in how you work.",
     description:
       "Use your pricing library, quote templates, past quotes, and business knowledge to create a draft you can review, edit, and send. Requo keeps you in control of scope and pricing.",
+  },
+  {
+    id: "invoices",
+    title: "Turn accepted quotes into invoices.",
+    description:
+      "Convert an accepted quote into an invoice in one step, send it by email, and track manual payments through to paid.",
   },
   {
     id: "analytics",

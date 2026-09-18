@@ -59,7 +59,7 @@ Rules: `app/` stays thin (routing, composition, loading). Product logic lives in
 - `next.config.ts`: `cacheComponents: true`, `partialPrefetching: true`, `staleTimes { dynamic: 30, static: 180 }`, security headers + per-surface cache headers, `/:businessSlug/forms/*` → `/services/*` redirects.
 - `vercel-build` runs `db:migrate:strict && next build` (apply migrations, never generate against prod).
 - DB connections: runtime uses `DATABASE_URL` (pooler, port 6543); migrations use `DATABASE_MIGRATION_URL` (direct, port 5432). See `lib/db/client.ts`, `lib/db/connection-options.ts`, `scripts/migrate.ts`, `drizzle.config.ts`.
-- `proxy.ts` (middleware) does routing/headers only — no auth checks: `X-Robots-Tag` for authenticated routes, `/` + `Accept: text/markdown` → `/api/public/markdown`, legacy `/account/*` → business settings, business-slug cookie.
+- `proxy.ts` (middleware) does routing/headers, plus the one auth check that cannot live anywhere else: the `/admin` gate. A real `403` status has to be produced before the response streams, and `app/admin/layout.tsx` cannot block (its pages export `instant = true`), so the proxy is the only layer that can reject a non-admin before the admin shell is flushed. It is an optimistic cookie-cache check, never the sole boundary — see `docs/authentication.md`. Everything else is routing/headers: `X-Robots-Tag` for authenticated routes, `/` + `Accept: text/markdown` → `/api/public/markdown`, legacy `/account/*` → business settings, business-slug cookie.
 
 ## Request lifecycle
 
@@ -97,7 +97,7 @@ There is no generic "service layer" or "repository layer" — `features/*/mutati
 
 ## Boundaries
 
-- **Authentication:** Better Auth session (`lib/auth/session.ts`) in layouts/actions/route handlers. Never in `proxy.ts`.
+- **Authentication:** Better Auth session (`lib/auth/session.ts`) in layouts/actions/route handlers, re-validated at every server entry. `proxy.ts` is not a substitute for that: its only auth is the optimistic `/admin` cookie-cache gate, which exists solely to produce a real `403` before the admin shell streams.
 - **Authorization:** `getBusinessActionContext` family at the action/handler boundary, then `businessId`-scoped Drizzle predicates. Public routes use opaque tokens (`publicToken` HMAC), never membership.
 - **Data:** every business-scoped table has `businessId` + composite indexes; private Storage access server-side only.
 - **AI:** all provider calls go through `lib/ai/router.ts` + `capacity-selector.ts`. Do not call providers directly.

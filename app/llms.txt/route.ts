@@ -24,7 +24,15 @@ Annual billing includes two months free. Paid subscriptions are billed per busin
 ## Key pages
 
 - Home: /
-- Pricing: /pricing
+- Pricing: /pricing (machine-readable: /pricing.md)
+- Solutions hub: /solutions
+- Solutions: /solutions/contractors-home-services, /solutions/professional-services, /solutions/creative-marketing, /solutions/events-production, /solutions/cleaning-outdoor-services, /solutions/print-custom-services
+- Features: /features/inquiries, /features/quotes, /features/follow-ups, /features/ai, /features/invoices, /features/analytics
+- About: /about
+- Compare: /compare/spreadsheets, /compare/job-management-software
+- Guide: /guides/inquiry-to-accepted-quote
+- Security: /security
+- Legal: /privacy, /terms, /refund-policy, /legal/dpa, /subprocessors
 - Public inquiry pages: /inquire/[slug]
 - Public customer Agent: /b/[slug]/chat
 `;

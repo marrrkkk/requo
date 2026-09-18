@@ -45,6 +45,7 @@ import {
 } from "@/features/inquiries/plan-rules";
 import { normalizeBusinessType } from "@/features/inquiries/business-types";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
+import { isInquirySitemapSlugExcluded } from "@/lib/seo/inquiry-slugs";
 import {
   getBusinessInquiryDetailCacheTags,
   getBusinessInquiryFormCacheTags,
@@ -1156,6 +1157,8 @@ export type PublicInquirySitemapEntry = {
 
 /**
  * Indexable public inquiry URLs for sitemap.xml (mirrors public page visibility).
+ *
+ * Filters internal/test slugs so placeholder forms never waste crawl budget.
  */
 export async function listPublicInquirySitemapEntries(): Promise<
   PublicInquirySitemapEntry[]
@@ -1185,16 +1188,18 @@ export async function listPublicInquirySitemapEntries(): Promise<
       ),
     );
 
-  return rows.map((row) => ({
-    lastModified:
-      row.formUpdatedAt.getTime() >= row.businessUpdatedAt.getTime()
-        ? row.formUpdatedAt
-        : row.businessUpdatedAt,
-    pathname: getBusinessPublicInquiryUrl(
-      row.businessSlug,
-      row.formIsDefault ? undefined : row.formSlug,
-    ),
-  }));
+  return rows
+    .filter((row) => !isInquirySitemapSlugExcluded(row.businessSlug))
+    .map((row) => ({
+      lastModified:
+        row.formUpdatedAt.getTime() >= row.businessUpdatedAt.getTime()
+          ? row.formUpdatedAt
+          : row.businessUpdatedAt,
+      pathname: getBusinessPublicInquiryUrl(
+        row.businessSlug,
+        row.formIsDefault ? undefined : row.formSlug,
+      ),
+    }));
 }
 
 export type InquiryDuplicateRecord = {

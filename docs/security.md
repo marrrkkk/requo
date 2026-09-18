@@ -9,7 +9,7 @@ Browser → Next.js server → Drizzle → Postgres. Public token holders → sc
 ## Authentication (Better Auth only)
 
 - Better Auth is the only auth system. Do not add Supabase Auth.
-- `proxy.ts` does routing/headers only — never auth. Every server entry re-validates via `lib/auth/session.ts` + `lib/db/business-access.ts`.
+- `proxy.ts` does routing/headers, plus one deliberately optimistic auth check: the `/admin` gate, which rejects a non-admin before the admin shell streams so the response can carry a real `403`. It reads Better Auth's cookie cache, so it can lag the database by up to `session.cookieCache.maxAge` (300s) and is **never** the only boundary. Every server entry re-validates via `lib/auth/session.ts` + `lib/db/business-access.ts`.
 - Sessions: 7d expiry, 1d updateAge, cookieCache enabled, `useSecureCookies` off `BETTER_AUTH_URL` protocol, cross-subdomain `.requo.app` in prod.
 - Verification required, `revokeSessionsOnPasswordReset:true`, magic-link 900s hashed, OAuth `storeStateStrategy:cookie`, admin impersonation 1h, no admin-on-admin.
 - API routes must return JSON 401 (`getOptionalSession` + explicit check), never throw `redirect()` — add `requireUserForApi()` if missing.

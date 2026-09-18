@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FollowUpDueBadge } from "@/features/follow-ups/components/follow-up-status-badge";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
+import { InvoiceStatusBadge } from "@/features/invoices/components/invoice-status-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ export function MarketingFeatureMock({
   if (featureId === "quotes") return <QuotePreviewMock />;
   if (featureId === "followUps") return <FollowUpsPreviewMock />;
   if (featureId === "ai") return <AIDraftPreviewMock />;
+  if (featureId === "invoices") return <InvoicesPreviewMock />;
   return <AnalyticsPreviewMock />;
 }
 
@@ -295,6 +297,57 @@ function AIDraftPreviewMock() {
           <ReceiptText data-icon="inline-start" />
           Apply draft
         </MockButton>
+      </div>
+    </MarketingMockFrame>
+  );
+}
+
+function InvoicesPreviewMock() {
+  const invoices = [
+    {
+      number: "INV-1042",
+      customer: "Sarah Jenkins · Kitchen remodel",
+      total: "$3,740",
+      status: "sent" as const,
+    },
+    {
+      number: "INV-1041",
+      customer: "Oakridge Property Management",
+      total: "$8,400",
+      status: "paid" as const,
+    },
+  ] as const;
+
+  return (
+    <MarketingMockFrame title="Invoices">
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        {invoices.map((invoice) => (
+          <div
+            className="flex min-h-0 flex-1 flex-col justify-center gap-3 rounded-xl border border-border/80 bg-card px-4 py-3"
+            key={invoice.number}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold tracking-tight text-foreground">
+                  {invoice.number}
+                </p>
+                <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                  {invoice.customer}
+                </p>
+              </div>
+              <InvoiceStatusBadge status={invoice.status} />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold tabular-nums text-foreground">
+                {invoice.total}
+              </p>
+              <MockButton variant="outline">
+                <CheckCircle2 data-icon="inline-start" />
+                Record payment
+              </MockButton>
+            </div>
+          </div>
+        ))}
       </div>
     </MarketingMockFrame>
   );

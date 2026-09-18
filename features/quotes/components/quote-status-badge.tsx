@@ -1,10 +1,9 @@
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { StatusBadge } from "@/components/shared/status-badge";
 import type { QuoteStatus } from "@/features/quotes/types";
 import {
   getQuoteStatusLabel,
-  quoteStatusClassNames,
   quoteStatusIcons,
+  quoteStatusTones,
 } from "@/features/quotes/utils";
 
 type QuoteStatusBadgeProps = {
@@ -12,23 +11,13 @@ type QuoteStatusBadgeProps = {
   className?: string;
 };
 
-export function QuoteStatusBadge({
-  status,
-  className,
-}: QuoteStatusBadgeProps) {
-  const Icon = quoteStatusIcons[status];
-
+export function QuoteStatusBadge({ status, className }: QuoteStatusBadgeProps) {
   return (
-    <Badge
-      className={cn(
-        "shrink-0 rounded-full",
-        quoteStatusClassNames[status],
-        className,
-      )}
-      variant="secondary"
-    >
-      <Icon data-icon="inline-start" />
-      {getQuoteStatusLabel(status)}
-    </Badge>
+    <StatusBadge
+      tone={quoteStatusTones[status]}
+      label={getQuoteStatusLabel(status)}
+      icon={quoteStatusIcons[status]}
+      className={className}
+    />
   );
 }

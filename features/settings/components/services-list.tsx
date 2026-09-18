@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MobileHeaderSlot, mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { DashboardTableContainer } from "@/components/shared/dashboard-layout";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -327,24 +328,10 @@ export function ServicesList({
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <Badge
-                    variant="outline"
-                    className={
-                      form.publicInquiryEnabled
-                        ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                        : "border-border text-muted-foreground"
-                    }
-                  >
-                    <span
-                      className={cn(
-                        "mr-1.5 inline-block size-1.5 rounded-full",
-                        form.publicInquiryEnabled
-                          ? "bg-emerald-500"
-                          : "bg-muted-foreground/50",
-                      )}
-                    />
-                    {form.publicInquiryEnabled ? "Active" : "Inactive"}
-                  </Badge>
+                  <StatusBadge
+                    tone={form.publicInquiryEnabled ? "success" : "neutral"}
+                    label={form.publicInquiryEnabled ? "Active" : "Inactive"}
+                  />
                 </div>
               </Link>
             ))}
@@ -393,24 +380,10 @@ export function ServicesList({
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={
-                          form.publicInquiryEnabled
-                            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                            : "border-border text-muted-foreground"
-                        }
-                      >
-                        <span
-                          className={cn(
-                            "mr-1.5 inline-block size-1.5 rounded-full",
-                            form.publicInquiryEnabled
-                              ? "bg-emerald-500"
-                              : "bg-muted-foreground/50",
-                          )}
-                        />
-                        {form.publicInquiryEnabled ? "Active" : "Inactive"}
-                      </Badge>
+                      <StatusBadge
+                        tone={form.publicInquiryEnabled ? "success" : "neutral"}
+                        label={form.publicInquiryEnabled ? "Active" : "Inactive"}
+                      />
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {form.submittedInquiryCount}

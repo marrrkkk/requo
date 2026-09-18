@@ -52,7 +52,7 @@ type SoftwareApplicationStructuredDataOptions = {
 
   name: string;
 
-  offers?: SoftwareApplicationOffer;
+  offers?: SoftwareApplicationOffer | ReadonlyArray<SoftwareApplicationOffer>;
 
   operatingSystem?: string;
 
@@ -388,9 +388,13 @@ export function getWebsiteStructuredData({
 
 
 
-export function getSoftwareApplicationStructuredData({
+function isOfferList(
+  offers: SoftwareApplicationOffer | ReadonlyArray<SoftwareApplicationOffer>,
+): offers is ReadonlyArray<SoftwareApplicationOffer> {
+  return Array.isArray(offers);
+}
 
-  applicationCategory = "BusinessApplication",
+export function getSoftwareApplicationStructuredData({  applicationCategory = "BusinessApplication",
 
   description,
 
@@ -432,7 +436,21 @@ export function getSoftwareApplicationStructuredData({
 
       ? {
 
-          offers: {
+          offers: isOfferList(offers)
+
+            ? offers.map((offer) => ({
+
+                "@type": "Offer",
+
+                price: offer.price,
+
+                priceCurrency: offer.priceCurrency,
+
+                url: offer.url,
+
+              }))
+
+            : {
 
             "@type": "Offer",
 
