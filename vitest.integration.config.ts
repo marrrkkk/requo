@@ -36,6 +36,13 @@ export default defineConfig({
     },
     env: {
       BETTER_AUTH_SECRET: 'test-secret-at-least-32-characters-long-so-zod-passes',
+      // Deterministic AES-256 key (base64 of 32 ASCII bytes) for provider
+      // credential encryption in payment tests. Never a real secret.
+      PAYMENT_CREDENTIALS_KEY: 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
+      // Stripe Connect platform config for connection-flow tests. Fake values;
+      // provider HTTP is stubbed per test. Never real secrets.
+      STRIPE_PLATFORM_SECRET_KEY: 'sk_test_platform_tests_only',
+      STRIPE_PLATFORM_WEBHOOK_SECRET: 'whsec_platform_tests_only',
       BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? 'http://localhost:3000',
       DATABASE_URL:
         process.env.TEST_DATABASE_URL ??

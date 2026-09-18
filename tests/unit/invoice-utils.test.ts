@@ -4,6 +4,7 @@ import { invoiceSchema } from "@/features/invoices/schemas";
 import {
   addDays,
   calculateInvoicePaymentState,
+  calculateOverpaidInCents,
   getInvoiceStatusLabel,
   parseMoneyToCents,
 } from "@/features/invoices/utils";
@@ -67,7 +68,7 @@ describe("features/invoices/utils", () => {
     ).toBe("unpaid");
   });
 
-  it("clamps paid amounts to the invoice total", () => {
+  it("reports overpayment without clamping or a new status", () => {
     const state = calculateInvoicePaymentState({
       totalInCents: 10000,
       paidInCents: 99999,
@@ -75,7 +76,10 @@ describe("features/invoices/utils", () => {
       lifecycleStatus: "sent",
       today: "2026-06-01",
     });
-    expect(state).toEqual({ paidInCents: 10000, balanceInCents: 0, status: "paid" });
+    expect(state).toEqual({ paidInCents: 99999, balanceInCents: 0, status: "paid" });
+    expect(calculateOverpaidInCents(10000, 99999)).toBe(89999);
+    expect(calculateOverpaidInCents(10000, 10000)).toBe(0);
+    expect(calculateOverpaidInCents(10000, 4000)).toBe(0);
   });
 
   it("labels every invoice status", () => {

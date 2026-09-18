@@ -11,7 +11,14 @@ import type { InvoiceStatus } from "@/lib/db/schema/invoices";
 import { calculateInvoicePaymentState } from "@/features/invoices/utils";
 import { getBusinessInvoiceDetailCacheTags, getBusinessInvoiceListCacheTags, hotBusinessCacheLife } from "@/lib/cache/business-tags";
 
-const paidAmountSql = (invoiceIdColumn = invoices.id) => sql<number>`coalesce((select sum(${payments.amountInCents}) from ${payments} where ${payments.invoiceId} = ${invoiceIdColumn} and ${payments.businessId} = ${invoices.businessId} and ${payments.voidedAt} is null), 0)`;
+/**
+ * Payments counted toward the invoice net paid: non-voided manual rows plus
+ * provider rows in money states. Pending/processing/failed/canceled provider
+ * rows never count; refunds reduce the net via `refunded_amount_in_cents`.
+ */
+export const countedPaymentSql = sql`(${payments.voidedAt} is null and (${payments.source} = 'manual' or ${payments.status} in ('succeeded', 'partially_refunded', 'refunded')))`;
+
+const paidAmountSql = (invoiceIdColumn = invoices.id) => sql<number>`coalesce((select sum(${payments.amountInCents} - ${payments.refundedAmountInCents}) from ${payments} where ${payments.invoiceId} = ${invoiceIdColumn} and ${payments.businessId} = ${invoices.businessId} and ${countedPaymentSql}), 0)`;
 
 export const effectiveInvoiceStatusSql = sql<InvoiceStatus>`case
   when ${invoices.status} = 'draft' then 'draft'::invoice_status
@@ -189,7 +196,7 @@ const getCachedInvoicePayments = cache(
     "use cache";
     cacheLife(hotBusinessCacheLife);
     cacheTag(...getBusinessInvoiceDetailCacheTags(businessId, invoiceId));
-    const paymentRows = await db.select({ id: payments.id, amountInCents: payments.amountInCents, paymentDate: payments.paymentDate, method: payments.method, reference: payments.reference, notes: payments.notes, createdAt: payments.createdAt, voidedAt: payments.voidedAt, createdByName: user.name }).from(payments).leftJoin(user, eq(payments.createdBy, user.id)).where(and(eq(payments.invoiceId, invoiceId), eq(payments.businessId, businessId))).orderBy(desc(payments.paymentDate), desc(payments.createdAt));
+    const paymentRows = await db.select({ id: payments.id, amountInCents: payments.amountInCents, paymentDate: payments.paymentDate, method: payments.method, reference: payments.reference, notes: payments.notes, createdAt: payments.createdAt, voidedAt: payments.voidedAt, source: payments.source, provider: payments.provider, status: payments.status, refundedAmountInCents: payments.refundedAmountInCents, checkoutUrl: payments.checkoutUrl, createdByName: user.name }).from(payments).leftJoin(user, eq(payments.createdBy, user.id)).where(and(eq(payments.invoiceId, invoiceId), eq(payments.businessId, businessId))).orderBy(desc(payments.paymentDate), desc(payments.createdAt));
     return paymentRows as PaymentView[];
   },
 );

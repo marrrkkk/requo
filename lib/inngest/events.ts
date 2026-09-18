@@ -8,6 +8,7 @@ export const inngestEvents = {
   pushInvoiceOverdue: "requo/push.invoice-overdue",
   enableQuoteAutoFollowUp: "requo/quotes.enable-auto-follow-up",
   knowledgeFileUploaded: "requo/knowledge.file-uploaded",
+  paymentEventReceived: "requo/payment.event-received",
 } as const;
 
 export type InngestEventName =
@@ -77,4 +78,8 @@ export type EnableQuoteAutoFollowUpEventData = {
 export type KnowledgeFileUploadedEventData = {
   businessId: string;
   fileId: string;
+};
+
+export type PaymentEventReceivedEventData = {
+  eventId: string;
 };

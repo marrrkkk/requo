@@ -16,6 +16,7 @@ export const auditEntityLabels: Record<AuditEntityType, string> = {
   account: "Account",
   invoice: "Invoice",
   payment: "Payment",
+  connection: "Connection",
 };
 
 export const auditEntityOptions = auditEntityTypes.map((value) => ({
