@@ -54,7 +54,8 @@ A vertical CSS gradient mask smoothly fades the pixel density downwards. It supp
 interactive mouse excitation ripples that diffuse through neighboring cells, adapts to
 light (`#1e7d62` shade of primary emerald with bright highlights) and dark (`dark:opacity-45 sm:dark:opacity-50` with subtle `#1b8266` emerald and white sparkles)
 themes, throttles to ~15fps for minimal CPU overhead, freezes on reduced motion, pauses
-when the tab is hidden, and hides for print. Keep this layer outside scrolling/clipping
+when the tab is hidden, hides below `sm` (`hidden sm:block` — no dots on mobile),
+and hides for print. Keep this layer outside scrolling/clipping
 content wrappers, and do not add transforms to the marketing layout (they would change
 the fixed containing block).
 

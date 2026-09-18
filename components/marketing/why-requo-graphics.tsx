@@ -14,7 +14,7 @@ function GraphicFrame({ children }: { children: React.ReactNode }) {
       aria-hidden="true"
       className="relative isolate h-56 overflow-hidden border-b border-border/60 bg-muted/40"
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,var(--color-border)_1px,transparent_1px)] [background-size:16px_16px] opacity-50" />
+      <div className="pointer-events-none absolute inset-0 hidden bg-[radial-gradient(circle,var(--color-border)_1px,transparent_1px)] [background-size:16px_16px] opacity-50 sm:block" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-[var(--surface-elevated-bg)]/80 to-transparent" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-[var(--surface-elevated-bg)] to-transparent" />
       <div className="relative flex h-full items-center justify-center px-5 py-5">
