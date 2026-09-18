@@ -42,6 +42,10 @@ export function addDays(dateString: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
+export function calculateOverpaidInCents(totalInCents: number, paidInCents: number): number {
+  return Math.max(0, paidInCents - Math.max(0, totalInCents));
+}
+
 export function calculateInvoicePaymentState({
   totalInCents,
   paidInCents,
@@ -55,8 +59,9 @@ export function calculateInvoicePaymentState({
   lifecycleStatus: InvoiceStatus;
   today?: string;
 }): { paidInCents: number; balanceInCents: number; status: InvoiceStatus } {
-  const paid = Math.min(Math.max(0, paidInCents), Math.max(0, totalInCents));
-  const balance = Math.max(0, totalInCents - paid);
+  const paid = Math.max(0, paidInCents);
+  const total = Math.max(0, totalInCents);
+  const balance = Math.max(0, total - paid);
   if (lifecycleStatus === "draft" || lifecycleStatus === "voided") {
     return { paidInCents: paid, balanceInCents: balance, status: lifecycleStatus };
   }

@@ -7,6 +7,7 @@ export const auditEntityTypes = [
   "account",
   "invoice",
   "payment",
+  "connection",
 ] as const;
 
 export const auditSources = ["app", "webhook", "system", "admin"] as const;
@@ -59,6 +60,11 @@ export const auditActionLabels = {
   "invoice.voided": "Invoice voided",
   "payment.recorded": "Payment recorded",
   "payment.voided": "Payment voided",
+  "payment.refunded": "Provider payment refunded",
+  "payment.refreshed": "Provider payment refreshed",
+  "connection.connected": "Provider connection established",
+  "connection.updated": "Provider connection updated",
+  "connection.disconnected": "Provider connection removed",
 } as const;
 
 export type AuditEntityType = (typeof auditEntityTypes)[number];

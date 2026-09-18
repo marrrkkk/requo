@@ -32,13 +32,30 @@ import {
 import { InvoiceStatusBadge } from "@/features/invoices/components/invoice-status-badge";
 import { RecordPaymentDialog } from "@/features/invoices/components/record-payment-dialog";
 import { SendInvoiceDialog } from "@/features/invoices/components/send-invoice-dialog";
+import {
+  createCheckoutAction,
+  refreshProviderPaymentAction,
+  refundProviderPaymentAction,
+} from "@/features/payment-providers/actions";
+import {
+  CreatePaymentLinkForm,
+  RefreshProviderPaymentButton,
+  RefundProviderPaymentForm,
+} from "@/features/payment-providers/components/invoice-provider-payments";
+import {
+  getInvoiceProviderPaymentsForBusiness,
+  isOperableConnection,
+  listProviderConnectionsForBusiness,
+  type InvoiceProviderPaymentView,
+} from "@/features/payment-providers/queries";
+import { getBusinessSettingsPath } from "@/features/businesses/routes";
 import { isEmailConfigured } from "@/lib/env";
 import {
   getInvoiceDetailCoreForBusiness,
   getInvoiceItemsForBusiness,
   getInvoicePaymentsForBusiness,
 } from "@/features/invoices/queries";
-import { formatQuoteMoney } from "@/features/invoices/utils";
+import { calculateOverpaidInCents, formatQuoteMoney } from "@/features/invoices/utils";
 import type {
   InvoiceLineItemView,
   PaymentMethod,
@@ -96,6 +113,12 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
         <RegionErrorBoundary fallback={<DetailSectionFallback rows={3} />}>
           <Suspense fallback={<DetailSectionFallback rows={3} />}>
             <InvoicePaymentsRegion params={params} />
+          </Suspense>
+        </RegionErrorBoundary>
+
+        <RegionErrorBoundary fallback={<DetailSectionFallback rows={3} />}>
+          <Suspense fallback={<DetailSectionFallback rows={3} />}>
+            <InvoiceProviderPaymentsRegion params={params} />
           </Suspense>
         </RegionErrorBoundary>
       </div>
@@ -229,6 +252,7 @@ async function InvoiceStatusRegion({ params }: InvoiceDetailPageProps) {
 
   const canManageFinancials = hasOperationalBusinessAccess(businessContext.role);
   const amount = (cents: number) => money(cents, invoice.currency);
+  const overpaidInCents = calculateOverpaidInCents(invoice.totalInCents, invoice.paidInCents);
 
   return (
     <DashboardSection title="Status">
@@ -241,6 +265,15 @@ async function InvoiceStatusRegion({ params }: InvoiceDetailPageProps) {
           value={<span className="font-semibold tabular-nums">{amount(invoice.balanceInCents)}</span>}
         />
       </div>
+      {overpaidInCents > 0 ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <InfoTile
+            label="Overpaid"
+            value={<span className="tabular-nums">{amount(overpaidInCents)}</span>}
+            description="Paid above the invoice total."
+          />
+        </div>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <InfoTile label="Subtotal" value={<span className="tabular-nums">{amount(invoice.subtotalInCents)}</span>} />
         <InfoTile label="Discount" value={<span className="tabular-nums">{amount(invoice.discountInCents)}</span>} />
@@ -389,7 +422,7 @@ function InvoicePaymentsSection({
     <DashboardSection
       description={
         activePayments.length
-          ? "Manually recorded receipts against this invoice."
+          ? "Receipts against this invoice."
           : "No payments recorded yet."
       }
       title="Payments"
@@ -410,22 +443,29 @@ function InvoicePaymentsSection({
               {activePayments.map((payment) => (
                 <TableRow key={payment.id}>
                   <TableCell>{payment.paymentDate}</TableCell>
-                  <TableCell>{paymentMethodLabels[payment.method]}</TableCell>
+                  <TableCell>
+                    {paymentMethodLabels[payment.method]}
+                    {payment.source === "provider" ? (
+                      <span className="text-muted-foreground"> · Online</span>
+                    ) : null}
+                  </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
                     {amount(payment.amountInCents)}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{payment.reference ?? "—"}</TableCell>
                   {canManageFinancials ? (
                     <TableCell className="text-right">
-                      <ServerActionConfirmDialog
-                        action={voidPaymentAction.bind(null, payment.id, invoiceId)}
-                        confirmLabel="Void payment"
-                        confirmPendingLabel="Voiding..."
-                        description="Voiding keeps the payment record for audit history but excludes it from the balance."
-                        title="Void this payment?"
-                        triggerLabel="Void"
-                        triggerVariant="ghost"
-                      />
+                      {payment.source === "manual" ? (
+                        <ServerActionConfirmDialog
+                          action={voidPaymentAction.bind(null, payment.id, invoiceId)}
+                          confirmLabel="Void payment"
+                          confirmPendingLabel="Voiding..."
+                          description="Voiding keeps the payment record for audit history but excludes it from the balance."
+                          title="Void this payment?"
+                          triggerLabel="Void"
+                          triggerVariant="ghost"
+                        />
+                      ) : null}
                     </TableCell>
                   ) : null}
                 </TableRow>
@@ -445,5 +485,170 @@ function InvoicePaymentsSection({
         </div>
       ) : null}
     </DashboardSection>
+  );
+}
+
+const providerLabels: Record<string, string> = {
+  paymongo: "PayMongo",
+  stripe: "Stripe",
+  paypal: "PayPal",
+};
+
+const providerStatusLabels: Record<string, string> = {
+  pending: "Pending",
+  processing: "Processing",
+  succeeded: "Paid",
+  failed: "Failed",
+  canceled: "Canceled",
+  partially_refunded: "Partially refunded",
+  refunded: "Refunded",
+};
+
+async function InvoiceProviderPaymentsRegion({ params }: InvoiceDetailPageProps) {
+  const { businessSlug, invoiceId } = await params;
+  const { businessContext } = await getAppShellContext(businessSlug);
+  const businessId = businessContext.business.id;
+  const [invoice, providerPayments, connections] = await Promise.all([
+    getInvoiceDetailCoreForBusiness({ businessId, invoiceId }),
+    getInvoiceProviderPaymentsForBusiness({ businessId, invoiceId }),
+    listProviderConnectionsForBusiness(businessId),
+  ]);
+
+  if (!invoice) {
+    notFound();
+  }
+
+  const canManageFinancials = hasOperationalBusinessAccess(businessContext.role);
+  const isPayable = invoice.status !== "draft" && invoice.status !== "voided";
+  const checkoutConnections = connections.filter(isOperableConnection);
+  const showCreate = canManageFinancials && isPayable && invoice.balanceInCents > 0;
+
+  return (
+    <DashboardSection
+      description={
+        providerPayments.length
+          ? "Online payments processed through a connected provider."
+          : "No online payments yet."
+      }
+      title="Online payments"
+    >
+      {showCreate ? (
+        checkoutConnections.length ? (
+          <CreatePaymentLinkForm
+            action={createCheckoutAction.bind(null, invoice.id)}
+            balanceInCents={invoice.balanceInCents}
+            connections={checkoutConnections}
+            currency={invoice.currency}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            <Link
+              className="font-medium underline underline-offset-4"
+              href={getBusinessSettingsPath(businessSlug, "integrations")}
+            >
+              Connect a payment provider
+            </Link>{" "}
+            to accept online payments for this invoice.
+          </p>
+        )
+      ) : null}
+      {providerPayments.length ? (
+        <DashboardTableContainer>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Provider</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-right">Refunded</TableHead>
+                <TableHead className="text-right">Net</TableHead>
+                {canManageFinancials ? <TableHead className="text-right">Actions</TableHead> : null}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {providerPayments.map((payment) => (
+                <ProviderPaymentRow
+                  key={payment.id}
+                  canManageFinancials={canManageFinancials}
+                  currency={invoice.currency}
+                  invoiceId={invoice.id}
+                  payment={payment}
+                />
+              ))}
+            </TableBody>
+          </Table>
+        </DashboardTableContainer>
+      ) : null}
+    </DashboardSection>
+  );
+}
+
+function ProviderPaymentRow({
+  canManageFinancials,
+  currency,
+  invoiceId,
+  payment,
+}: {
+  canManageFinancials: boolean;
+  currency: string;
+  invoiceId: string;
+  payment: InvoiceProviderPaymentView;
+}) {
+  const net = payment.amountInCents - payment.refundedAmountInCents;
+  const canRefresh =
+    canManageFinancials && (payment.providerPaymentId ?? payment.providerCheckoutId);
+  const canRefund =
+    canManageFinancials &&
+    payment.providerPaymentId &&
+    (payment.status === "succeeded" || payment.status === "partially_refunded") &&
+    net > 0;
+  return (
+    <TableRow>
+      <TableCell>
+        {providerLabels[payment.provider ?? ""] ?? payment.provider ?? "—"}
+        <span className="text-muted-foreground">
+          {" "}
+          · {payment.environment ?? "—"}
+          {payment.connectionHint ? ` · ${payment.connectionHint}` : ""}
+        </span>
+        <span className="block text-xs text-muted-foreground">
+          {payment.paymentDate}
+          {payment.checkoutUrl && (payment.status === "pending" || payment.status === "processing") ? (
+            <>
+              {" · "}
+              <a className="underline underline-offset-4" href={payment.checkoutUrl} target="_blank" rel="noreferrer">
+                Open checkout
+              </a>
+            </>
+          ) : null}
+        </span>
+      </TableCell>
+      <TableCell>{providerStatusLabels[payment.status ?? ""] ?? payment.status ?? "—"}</TableCell>
+      <TableCell className="text-right font-medium tabular-nums">
+        {money(payment.amountInCents, currency)}
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {payment.refundedAmountInCents > 0 ? money(payment.refundedAmountInCents, currency) : "—"}
+      </TableCell>
+      <TableCell className="text-right tabular-nums">{money(net, currency)}</TableCell>
+      {canManageFinancials ? (
+        <TableCell className="text-right">
+          <div className="flex flex-col items-end gap-2">
+            {canRefresh ? (
+              <RefreshProviderPaymentButton
+                action={refreshProviderPaymentAction.bind(null, payment.id, invoiceId)}
+              />
+            ) : null}
+            {canRefund ? (
+              <RefundProviderPaymentForm
+                action={refundProviderPaymentAction.bind(null, payment.id, invoiceId)}
+                currency={currency}
+                maxInCents={net}
+              />
+            ) : null}
+          </div>
+        </TableCell>
+      ) : null}
+    </TableRow>
   );
 }

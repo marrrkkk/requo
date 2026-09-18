@@ -67,6 +67,11 @@ export function getUnifiedSettingsNavigation(
           icon: "receipt",
         },
         {
+          href: `/${slug}/settings/integrations`,
+          label: "Integrations",
+          icon: "plug",
+        },
+        {
           href: `/${slug}/settings/members`,
           label: "Members",
           icon: "users",

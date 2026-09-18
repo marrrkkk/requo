@@ -16,6 +16,7 @@ import {
 } from "@/lib/db/schema";
 import type { PaymentMethod } from "@/lib/db/schema/invoices";
 import { getTodayUtcDateString } from "@/features/quotes/utils";
+import { countedPaymentSql } from "@/features/invoices/queries";
 import { calculateInvoicePaymentState } from "@/features/invoices/utils";
 
 function nextInvoiceNumber(sequence: number | null | undefined) {
@@ -176,7 +177,7 @@ export async function recordPaymentForBusiness({ businessId, invoiceId, actorUse
     if (invoice.status === "voided") return { error: "Void invoices cannot receive payments." } as const;
     if (paymentDate > getTodayUtcDateString()) return { error: "Payment date cannot be in the future." } as const;
 
-    const [paid] = await tx.select({ total: sql<number>`coalesce(sum(${payments.amountInCents}), 0)` }).from(payments).where(and(eq(payments.invoiceId, invoiceId), eq(payments.businessId, businessId), isNull(payments.voidedAt)));
+    const [paid] = await tx.select({ total: sql<number>`coalesce(sum(${payments.amountInCents} - ${payments.refundedAmountInCents}), 0)` }).from(payments).where(and(eq(payments.invoiceId, invoiceId), eq(payments.businessId, businessId), sql`${countedPaymentSql}`));
     const current = calculateInvoicePaymentState({ totalInCents: invoice.totalInCents, paidInCents: Number(paid?.total ?? 0), dueDate: invoice.dueDate, lifecycleStatus: invoice.status });
     if (amountInCents > current.balanceInCents) return { error: "Payment amount cannot exceed the remaining balance." } as const;
 
@@ -217,7 +218,7 @@ export async function voidPaymentForBusiness({ businessId, paymentId, actorUserI
     if (!invoice || invoice.status === "voided") return null;
     const now = new Date();
     await tx.update(payments).set({ voidedAt: now, voidedBy: actorUserId, voidReason: reason?.trim() || null, updatedAt: now }).where(and(eq(payments.id, paymentId), eq(payments.businessId, businessId)));
-    const [paid] = await tx.select({ total: sql<number>`coalesce(sum(${payments.amountInCents}), 0)` }).from(payments).where(and(eq(payments.invoiceId, invoice.id), eq(payments.businessId, businessId), isNull(payments.voidedAt)));
+    const [paid] = await tx.select({ total: sql<number>`coalesce(sum(${payments.amountInCents} - ${payments.refundedAmountInCents}), 0)` }).from(payments).where(and(eq(payments.invoiceId, invoice.id), eq(payments.businessId, businessId), sql`${countedPaymentSql}`));
     const next = calculateInvoicePaymentState({ totalInCents: invoice.totalInCents, paidInCents: Number(paid?.total ?? 0), dueDate: invoice.dueDate, lifecycleStatus: invoice.status });
     await tx.update(invoices).set({ status: next.status, updatedAt: now }).where(and(eq(invoices.id, invoice.id), eq(invoices.businessId, businessId)));
     await insertInvoiceActivity(tx, { businessId, invoiceId: invoice.id, actorUserId, type: "payment.voided", summary: `Payment voided on ${invoice.invoiceNumber}.`, metadata: { paymentId, reason: reason?.trim() || null } });
@@ -230,7 +231,7 @@ export async function voidInvoiceForBusiness({ businessId, invoiceId, actorUserI
   return db.transaction(async (tx) => {
     const [invoice] = await tx.select().from(invoices).where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId), isNull(invoices.deletedAt))).for("update");
     if (!invoice || invoice.status === "voided") return null;
-    const [paid] = await tx.select({ total: sql<number>`coalesce(sum(${payments.amountInCents}), 0)` }).from(payments).where(and(eq(payments.invoiceId, invoiceId), eq(payments.businessId, businessId), isNull(payments.voidedAt)));
+    const [paid] = await tx.select({ total: sql<number>`coalesce(sum(${payments.amountInCents} - ${payments.refundedAmountInCents}), 0)` }).from(payments).where(and(eq(payments.invoiceId, invoiceId), eq(payments.businessId, businessId), sql`${countedPaymentSql}`));
     if (Number(paid?.total ?? 0) > 0) return { error: "Void all recorded payments before voiding this invoice." } as const;
     const now = new Date();
     await tx.update(invoices).set({ status: "voided", voidedAt: now, voidedBy: actorUserId, voidReason: reason?.trim() || null, updatedAt: now }).where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId)));

@@ -106,8 +106,9 @@ function renderCtaBlockHtml(block: EmailTemplateBlock, label: string) {
     : emailBrand.primaryTextColor;
   const margin = resolveSpacingMargin(block.style?.spacing);
   const alignAttr = align === "center" ? "center" : align === "right" ? "right" : "left";
-  // Invoices have no public link by design (manual payment tracking only),
-  // so the optional CTA renders as a styled non-linked badge.
+  // Invoices have no Requo-hosted public link by design (payments are recorded
+  // manually or reconciled from the business's connected provider), so the
+  // optional CTA renders as a styled non-linked badge.
   return `
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: ${margin};">
       <tr>

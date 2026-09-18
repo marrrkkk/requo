@@ -73,12 +73,38 @@ Invoice creation is gated on `status = accepted` (`app/(business)/[businessSlug]
 Owner on accepted quote (or standalone) → create invoice (draft)
 → send (invoice email template, no public pay page by design)
 → status sent → unpaid | partially_paid | paid | overdue (derived from
-   non-void payments vs total + due date; draft/void take precedence)
-→ recordPaymentForBusiness (amount > 0, method cash/bank_transfer/gcash/maya/check/other)
+   net paid vs total + due date; draft/void take precedence)
+→ recordPaymentForBusiness (amount > 0, amount <= remaining balance,
+   method cash/bank_transfer/gcash/maya/check/other)
 → voided payments excluded; invoice void terminal; one non-void invoice per quote
 ```
 
-No gateway, no customer payment page, no tax-compliance claims (ADR 010).
+No tax-compliance claims (ADR 010, amended by ADR-012 and ADR-013 for provider payments below).
+
+## Invoice → online provider payment (platform link / BYO keys)
+
+```text
+Owner connects provider account (Settings → Integrations, owner-only)
+  either platform link: attempt row (30 min, single-use, no secrets in URL)
+    → Stripe connected account + hosted onboarding
+    → return/refresh callback → re-read account → derived status
+      (ready only when capable: charges_enabled + details_submitted +
+       empty currently_required)
+  or BYO keys: credentials AES-256-GCM encrypted server-side, status ready
+→ owner/manager creates payment link on invoice (pending provider row +
+   idempotency key persisted first, then provider-hosted checkout created)
+→ customer pays on the provider page → provider redirects to /pay/return
+   (informational only, never writes)
+→ provider webhook → raw-body signature verify (platform secret when linked)
+   + account match → atomic payment_events insert
+   → fast 2xx → Inngest requo/payment.event-received worker reconciles
+   (SELECT ... FOR UPDATE, monotonic state, cumulative refunds, net-paid
+   invoice recalc, paid-transition notification + push)
+→ owner/manager can Refresh (provider truth, same write path) or Refund
+   (idempotent attempt, webhook confirms)
+```
+
+Money states that count: `succeeded`, `partially_refunded`, `refunded` (net of refunds). Pending/processing/failed/canceled never count. Async/unpaid completions and order approvals never count as paid. Only `ready` connections appear in the invoice checkout picker, and a platform link and pasted keys are mutually exclusive per environment. Setup + test → live: `docs/setup/payments.md`. Full rules: ADR-012, ADR-013.
 
 ## Email send with fallback
 

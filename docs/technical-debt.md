@@ -4,7 +4,7 @@ Architectural inconsistencies found during the documentation reset. Documented o
 
 ## 1. Duplicated `0021` migration prefix
 
-- Evidence: `drizzle/0021_invoice_payment_tracking.sql` + `drizzle/0021_invoice_notifications.sql` (30 files total; no `0019`).
+- Evidence: `drizzle/0021_invoice_payment_tracking.sql` + `drizzle/0021_invoice_notifications.sql` (34 files total; no `0019`).
 - Affected: migration ordering / history readability.
 - Impact: low today (Drizzle applies journal order), but the next `db:generate` numbering needs care to avoid a third collision.
 - Direction: leave history untouched (never edit committed migrations); verify the next generated prefix sequences correctly.
@@ -30,3 +30,17 @@ Architectural inconsistencies found during the documentation reset. Documented o
 - **Resolved — status colour.** `components/shared/status-badge.tsx` now owns the single tone → class map. The eight per-domain class maps and their 222 `!important` tokens are gone; quotes, inquiries, invoices, follow-ups, businesses, the admin console, the assistant tool-result cards, and the settings service pills all compose `StatusBadge`. `scripts/audit-status-tokens.ts` (wired into `check:seo`) enforces it.
 - **Remaining — raw palette on non-pill surfaces.** Status *pills* are tokenized, but raw palette still colours semantic surfaces: `components/shared/archived-record-banner.tsx` (amber), `components/shared/paywall.tsx` (violet brand accent), `features/quotes/components/ai-pricing-review-panel.tsx` and `send-quote-dialog.tsx` (amber alerts), and `features/quotes/components/public-quote-interactive-column.tsx` + `public-quote-preview-interactive-column.tsx` (emerald/red/amber option cards). Move these to `--warning` / `--success` / `--destructive` opportunistically.
 - **Remaining — the same cascade-order bug outside status.** `meta-label !text-primary` (`components/marketing/marketing-hero.tsx`, `marketing-feature-row.tsx`, `solutions/solutions-shared.tsx`, `solutions/solution-detail.tsx`) and `!bg-sidebar-accent` (`components/application/dashboard/dashboard-sidebar.tsx`) are the identical failure mode the status migration removed: a custom class in `@layer utilities` setting a colour that a utility then cannot override. Fix by giving the custom class a variant that does not set colour (as `Badge variant="status"` does), not by keeping the `!`.
+
+## 5. `revoked` connection status has no write path
+
+- Evidence: `connectionStatuses` includes `revoked` (`lib/db/schema/payment-providers.ts`), `providerOperationBlocked` and the settings card both handle it, and `tests/unit/connection-status.test.ts` asserts the vocabulary — but nothing in `lib/`, `features/`, or `app/` ever sets it. ADR-013 describes consent withdrawal flipping the row to `revoked` and keeping it drawable for a Reconnect flow.
+- Affected: `features/payment-providers/mutations.ts` (disconnect deletes the row instead), Stripe Connect webhook handling (`account.application.deauthorized` is not consumed).
+- Impact: low today. A business that revokes Requo's access at Stripe keeps a row stuck at its last derived status, so operations fail at the provider rather than being blocked up front with the "revoked — reconnect" message. Deleting the row (the current disconnect) is a working escape hatch.
+- Direction: when Stripe revocation handling is built, consume the deauthorization event to set `revoked` instead of leaving the row stale; decide then whether owner-initiated Disconnect should also revoke rather than delete.
+
+## 6. Disconnecting a connection deletes its `payment_events`
+
+- Evidence: `paymentEvents.connectionId` is `.notNull()` with `onDelete: "cascade"`, so `disconnectProviderForBusiness` removes the webhook delivery log along with the row. `payments.providerConnectionId` is `onDelete: "set null"`, so the ledger and invoice math are unaffected.
+- Affected: webhook history / dispute forensics for a disconnected provider.
+- Impact: low — `payments` keeps the money trail and the audit log keeps the connect/disconnect trail. What is lost is the raw delivery log (`payload`, `error`, processed state) that made a failed reconcile diagnosable after the fact.
+- Direction: if post-disconnect forensics matter, switch to soft-delete or keep events with a nullable `connectionId`; do not change the cascade without also re-checking the `UNIQUE(connection_id, provider_event_id)` idempotency guarantee.

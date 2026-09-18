@@ -46,6 +46,19 @@ export type PaymentView = {
   createdByName: string | null;
   createdAt: Date;
   voidedAt: Date | null;
+  source: "manual" | "provider";
+  provider: "paymongo" | "stripe" | "paypal" | null;
+  status:
+    | "pending"
+    | "processing"
+    | "succeeded"
+    | "failed"
+    | "canceled"
+    | "partially_refunded"
+    | "refunded"
+    | null;
+  refundedAmountInCents: number;
+  checkoutUrl: string | null;
 };
 
 export type InvoiceListItem = {

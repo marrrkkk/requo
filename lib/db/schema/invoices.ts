@@ -4,6 +4,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -14,6 +15,12 @@ import {
 import { businesses } from "@/lib/db/schema/businesses";
 import { quotes } from "@/lib/db/schema/quotes";
 import { user } from "@/lib/db/schema/auth";
+import {
+  paymentProviderConnections,
+  paymentProviderEnum,
+  paymentSourceEnum,
+  providerPaymentStatusEnum,
+} from "@/lib/db/schema/payment-providers";
 
 export const invoiceStatusEnum = pgEnum("invoice_status", [
   "draft",
@@ -143,6 +150,22 @@ export const payments = pgTable(
     voidedAt: timestamp("voided_at", { withTimezone: true }),
     voidedBy: text("voided_by").references(() => user.id, { onDelete: "set null" }),
     voidReason: text("void_reason"),
+    source: paymentSourceEnum("source").notNull().default("manual"),
+    provider: paymentProviderEnum("provider"),
+    providerConnectionId: text("provider_connection_id").references(
+      () => paymentProviderConnections.id,
+      { onDelete: "set null" },
+    ),
+    providerCheckoutId: text("provider_checkout_id"),
+    providerPaymentId: text("provider_payment_id"),
+    status: providerPaymentStatusEnum("status"),
+    refundedAmountInCents: integer("refunded_amount_in_cents")
+      .notNull()
+      .default(0),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    checkoutUrl: text("checkout_url"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    checkoutIdempotencyKey: text("checkout_idempotency_key"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -150,7 +173,22 @@ export const payments = pgTable(
     index("payments_business_id_idx").on(table.businessId),
     index("payments_invoice_id_idx").on(table.invoiceId),
     index("payments_payment_date_idx").on(table.businessId, table.paymentDate),
+    index("payments_provider_connection_id_idx").on(table.providerConnectionId),
+    uniqueIndex("payments_connection_checkout_unique")
+      .on(table.providerConnectionId, table.providerCheckoutId)
+      .where(sql`${table.providerCheckoutId} is not null`),
+    uniqueIndex("payments_provider_payment_unique")
+      .on(table.provider, table.providerPaymentId)
+      .where(sql`${table.providerPaymentId} is not null`),
     check("payments_amount_valid", sql`${table.amountInCents} > 0`),
+    check(
+      "payments_refunded_valid",
+      sql`${table.refundedAmountInCents} >= 0 and ${table.refundedAmountInCents} <= ${table.amountInCents}`,
+    ),
+    check(
+      "payments_source_valid",
+      sql`(${table.source} = 'manual' and ${table.provider} is null) or (${table.source} = 'provider' and ${table.provider} is not null and ${table.status} is not null)`,
+    ),
   ],
 );
 

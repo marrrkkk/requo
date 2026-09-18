@@ -218,6 +218,27 @@
       "when": 1789425628380,
       "tag": "0030_omniscient_cassandra_nova",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1789719992969,
+      "tag": "0031_payment_providers",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1789732476601,
+      "tag": "0032_connection_platform_link",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1789733357613,
+      "tag": "0033_connection_attempts",
+      "breakpoints": true
     }
   ]
 }

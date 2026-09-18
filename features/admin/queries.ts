@@ -130,7 +130,7 @@ import type {
 import { inquiryStatuses, type InquiryStatus } from "@/features/inquiries/types";
 import { quoteStatuses, type QuoteStatus } from "@/features/quotes/types";
 import { calculateInvoicePaymentState } from "@/features/invoices/utils";
-import { effectiveInvoiceStatusSql } from "@/features/invoices/queries";
+import { countedPaymentSql, effectiveInvoiceStatusSql } from "@/features/invoices/queries";
 import type {
   InvoiceStatus,
   PaymentMethod,
@@ -1871,8 +1871,8 @@ export const getAdminQuoteEmails = cache(
 
 /* ── Invoices ────────────────────────────────────────────────────────────── */
 
-/** Non-voided payments summed per invoice (mirrors the business queries). */
-const adminInvoicePaidSql = sql<number>`coalesce((select sum(${payments.amountInCents}) from ${payments} where ${payments.invoiceId} = ${invoices.id} and ${payments.businessId} = ${invoices.businessId} and ${payments.voidedAt} is null), 0)`;
+/** Net paid per invoice (mirrors the business queries). */
+const adminInvoicePaidSql = sql<number>`coalesce((select sum(${payments.amountInCents} - ${payments.refundedAmountInCents}) from ${payments} where ${payments.invoiceId} = ${invoices.id} and ${payments.businessId} = ${invoices.businessId} and ${countedPaymentSql}), 0)`;
 
 function buildInvoiceSearchCondition(search: string) {
   const pattern = likePattern(search);
