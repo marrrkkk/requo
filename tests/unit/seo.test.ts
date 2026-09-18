@@ -824,3 +824,262 @@ More text here.
     expect(classifyMetric(0.3, clsThresholds)).toBe("critical");
   });
 });
+
+// ---------------------------------------------------------------------------
+// 14. PR1 indexation: public registry covers indexable marketing pages
+// ---------------------------------------------------------------------------
+describe("Marketing indexation registry (PR1)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it("trust pages are public, not private", async () => {
+    vi.resetModules();
+    process.env.BETTER_AUTH_URL = "https://example.com";
+
+    const { isPublicRoutePrefix, isPrivateRoutePrefix } = await import(
+      "@/lib/seo/route-registry"
+    );
+
+    for (const pathname of [
+      "/security",
+      "/legal/dpa",
+      "/subprocessors",
+      "/solutions/contractors-home-services",
+    ]) {
+      expect(isPublicRoutePrefix(pathname)).toBe(true);
+      expect(isPrivateRoutePrefix(pathname)).toBe(false);
+    }
+  });
+
+  it("trust top-level segments are reserved business slugs", async () => {
+    const { isReservedRouteSegment } = await import(
+      "@/lib/routing/reserved-segments"
+    );
+
+    for (const segment of ["security", "solutions", "subprocessors", "legal"]) {
+      expect(isReservedRouteSegment(segment)).toBe(true);
+    }
+  });
+
+  it("sitemap static entries are all public and include trust pages", async () => {
+    vi.resetModules();
+    process.env.BETTER_AUTH_URL = "https://example.com";
+
+    const { listPublicInquirySitemapEntries } = await import(
+      "@/features/inquiries/queries"
+    );
+    vi.mocked(listPublicInquirySitemapEntries).mockResolvedValue([]);
+
+    const { isPublicRoutePrefix } = await import("@/lib/seo/route-registry");
+    const sitemapModule = await import("@/app/sitemap");
+    const entries = await sitemapModule.default();
+
+    const paths = entries.map((e) => new URL(e.url).pathname);
+    for (const pathname of [
+      "/security",
+      "/legal/dpa",
+      "/subprocessors",
+    ]) {
+      expect(paths).toContain(pathname);
+    }
+    for (const pathname of paths.filter((p) => !p.startsWith("/inquire"))) {
+      expect(isPublicRoutePrefix(pathname)).toBe(true);
+    }
+  });
+
+  it("markdown is preferred only when it outranks html", async () => {
+    const { prefersMarkdownOverHtml } = await import("@/proxy");
+
+    expect(prefersMarkdownOverHtml(null)).toBe(false);
+    expect(prefersMarkdownOverHtml("text/html")).toBe(false);
+    expect(prefersMarkdownOverHtml("text/html, text/markdown")).toBe(false);
+    expect(
+      prefersMarkdownOverHtml("text/html;q=0.9, text/markdown;q=0.5"),
+    ).toBe(false);
+    expect(prefersMarkdownOverHtml("text/markdown")).toBe(true);
+    expect(
+      prefersMarkdownOverHtml("text/markdown;q=0.9, text/html;q=0.5"),
+    ).toBe(true);
+  });
+
+  it("inquiry sitemap excludes test/internal slugs", async () => {
+    const { isInquirySitemapSlugExcluded } = await import(
+      "@/lib/seo/inquiry-slugs"
+    );
+
+    for (const slug of [
+      "testcom",
+      "test-co",
+      "demo-shop",
+      "requo",
+      "requo-studio",
+      "requo-app",
+      "acme-test",
+    ]) {
+      expect(isInquirySitemapSlugExcluded(slug)).toBe(true);
+    }
+    for (const slug of ["acme-plumbing", "lucena-cleaning-co"]) {
+      expect(isInquirySitemapSlugExcluded(slug)).toBe(false);
+    }
+  });
+
+  it("404 metadata is noindex", async () => {
+    const notFoundModule = await import("@/app/not-found");
+    const robots = (
+      notFoundModule.metadata as { robots?: Record<string, unknown> }
+    ).robots;
+    expect(robots).toMatchObject({ index: false, follow: false });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 15. PR2/PR3: marketing IA — features, hub, about, compare, guides
+// ---------------------------------------------------------------------------
+describe("Marketing IA registry (PR2/PR3)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it("new marketing prefixes are public and reserved", async () => {
+    const { isPublicRoutePrefix } = await import("@/lib/seo/route-registry");
+    const { isReservedRouteSegment } = await import(
+      "@/lib/routing/reserved-segments"
+    );
+
+    for (const pathname of [
+      "/features/quotes",
+      "/compare/spreadsheets",
+      "/guides/inquiry-to-accepted-quote",
+      "/about",
+      "/solutions",
+      "/pricing.md",
+    ]) {
+      expect(isPublicRoutePrefix(pathname)).toBe(true);
+    }
+    for (const segment of ["features", "compare", "guides", "about"]) {
+      expect(isReservedRouteSegment(segment)).toBe(true);
+    }
+  });
+
+  it("sitemap includes hub, about, features, compare, and guide", async () => {
+    vi.resetModules();
+    process.env.BETTER_AUTH_URL = "https://example.com";
+
+    const { listPublicInquirySitemapEntries } = await import(
+      "@/features/inquiries/queries"
+    );
+    vi.mocked(listPublicInquirySitemapEntries).mockResolvedValue([]);
+
+    const { isPublicRoutePrefix } = await import("@/lib/seo/route-registry");
+    const sitemapModule = await import("@/app/sitemap");
+    const entries = await sitemapModule.default();
+
+    const paths = entries.map((e) => new URL(e.url).pathname);
+    for (const pathname of [
+      "/solutions",
+      "/about",
+      "/features/inquiries",
+      "/features/quotes",
+      "/features/follow-ups",
+      "/features/ai",
+      "/features/invoices",
+      "/features/analytics",
+      "/compare/spreadsheets",
+      "/compare/job-management-software",
+      "/guides/inquiry-to-accepted-quote",
+    ]) {
+      expect(paths).toContain(pathname);
+    }
+    for (const pathname of paths.filter((p) => !p.startsWith("/inquire"))) {
+      expect(isPublicRoutePrefix(pathname)).toBe(true);
+    }
+  });
+
+  it("feature pages have unique query-led titles, definitions, and FAQs", async () => {
+    const { featureDetails } = await import(
+      "@/components/marketing/features-data"
+    );
+
+    const entries = Object.values(featureDetails);
+    expect(entries).toHaveLength(6);
+
+    const titles = entries.map((e) => e.seoTitle);
+    expect(new Set(titles).size).toBe(6);
+    for (const entry of entries) {
+      expect(entry.seoTitle.length).toBeLessThanOrEqual(60);
+      expect(entry.headline.toLowerCase()).toContain(
+        entry.query.split(" ")[0]!.toLowerCase(),
+      );
+      const words = entry.definition.trim().split(/\s+/).length;
+      expect(words).toBeGreaterThanOrEqual(35);
+      expect(words).toBeLessThanOrEqual(70);
+      expect(entry.faqs.length).toBeGreaterThanOrEqual(3);
+      expect(entry.points.length).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("solution pages have extractable definitions and short titles", async () => {
+    const { solutionDetails } = await import(
+      "@/components/marketing/solutions-data"
+    );
+
+    const entries = Object.values(solutionDetails);
+    expect(entries).toHaveLength(6);
+    for (const entry of entries) {
+      expect(entry.seoTitle.length).toBeLessThanOrEqual(60);
+      const words = entry.definition.trim().split(/\s+/).length;
+      expect(words).toBeGreaterThanOrEqual(35);
+      expect(words).toBeLessThanOrEqual(70);
+      expect(entry.faqs.length).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("pricing FAQs are shared between page UI and schema", async () => {
+    const { pricingFaqs } = await import("@/lib/plans/catalog");
+    expect(pricingFaqs.length).toBeGreaterThanOrEqual(4);
+
+    const { getFaqPageStructuredData } = await import(
+      "@/lib/seo/structured-data"
+    );
+    const schema = getFaqPageStructuredData({ items: [...pricingFaqs] }) as {
+      mainEntity: unknown[];
+    };
+    expect(schema.mainEntity).toHaveLength(pricingFaqs.length);
+  });
+
+  it("SoftwareApplication schema emits all plan offers", async () => {
+    vi.resetModules();
+    process.env.BETTER_AUTH_URL = "https://example.com";
+
+    const { getSoftwareApplicationStructuredData } = await import(
+      "@/lib/seo/structured-data"
+    );
+    const data = getSoftwareApplicationStructuredData({
+      description: "test",
+      name: "Requo",
+      offers: [
+        { price: 0, priceCurrency: "USD", url: "https://example.com/pricing" },
+        { price: 9, priceCurrency: "USD", url: "https://example.com/pricing" },
+        { price: 24, priceCurrency: "USD", url: "https://example.com/pricing" },
+      ],
+      url: "https://example.com",
+    }) as { offers: { price: number }[] };
+
+    expect(Array.isArray(data.offers)).toBe(true);
+    expect(data.offers.map((o) => o.price)).toEqual([0, 9, 24]);
+  });
+
+  it("pricing.md mirrors catalog prices, not hand copies", async () => {
+    const { GET } = await import("@/app/pricing.md/route");
+    const response = GET();
+    const body = await response.text();
+
+    const { getPlanPriceLabel } = await import("@/lib/billing/plans");
+    expect(body).toContain(getPlanPriceLabel("pro", "USD", "monthly"));
+    expect(body).toContain(getPlanPriceLabel("business", "USD", "yearly"));
+    expect(response.headers.get("Content-Type")).toContain("text/plain");
+  });
+});

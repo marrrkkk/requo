@@ -19,8 +19,8 @@ import {
 /**
  * Public business profile at `/b/[slug]`.
  *
- * This is the public, indexable surface for a business. The authenticated
- * dashboard lives under the `(business)` route group at
+ * Placeholder surface that stays noindex until a rich public profile ships.
+ * The authenticated dashboard lives under the `(business)` route group at
  * `/<slug>/home`, so this page is reachable without a session.
  */
 export async function generateMetadata({

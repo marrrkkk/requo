@@ -14,9 +14,19 @@ export const PUBLIC_ROUTE_PREFIXES = [
   "/",
   "/inquire",
   "/pricing",
+  "/pricing.md",
+  "/llms.txt",
   "/privacy",
   "/terms",
   "/refund-policy",
+  "/solutions",
+  "/features",
+  "/compare",
+  "/guides",
+  "/about",
+  "/security",
+  "/legal",
+  "/subprocessors",
 ] as const;
 
 export const PRIVATE_ROUTE_PREFIXES = [

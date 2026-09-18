@@ -34,6 +34,206 @@ const staticPages = [
 
   {
 
+    changeFrequency: "monthly" as const,
+
+    path: "/solutions",
+
+    priority: 0.7,
+
+  },
+
+  {
+
+    changeFrequency: "monthly" as const,
+
+    path: "/features/inquiries",
+
+    priority: 0.6,
+
+  },
+
+  {
+
+    changeFrequency: "monthly" as const,
+
+    path: "/features/quotes",
+
+    priority: 0.6,
+
+  },
+
+  {
+
+    changeFrequency: "monthly" as const,
+
+    path: "/features/follow-ups",
+
+    priority: 0.6,
+
+  },
+
+  {
+
+    changeFrequency: "monthly" as const,
+
+    path: "/features/ai",
+
+    priority: 0.6,
+
+  },
+
+  {
+
+    changeFrequency: "monthly" as const,
+
+    path: "/features/invoices",
+
+    priority: 0.6,
+
+  },
+
+  {
+
+    changeFrequency: "monthly" as const,
+
+    path: "/features/analytics",
+
+    priority: 0.6,
+
+  },
+
+  {
+
+    changeFrequency: "monthly" as const,
+
+    path: "/solutions/contractors-home-services",
+
+    priority: 0.6,
+
+  },
+
+  {
+
+    changeFrequency: "monthly" as const,
+
+    path: "/solutions/professional-services",
+
+    priority: 0.6,
+
+  },
+
+  {
+
+    changeFrequency: "monthly" as const,
+
+    path: "/solutions/creative-marketing",
+
+    priority: 0.6,
+
+  },
+
+  {
+
+    changeFrequency: "monthly" as const,
+
+    path: "/solutions/events-production",
+
+    priority: 0.6,
+
+  },
+
+  {
+
+    changeFrequency: "monthly" as const,
+
+    path: "/solutions/cleaning-outdoor-services",
+
+    priority: 0.6,
+
+  },
+
+  {
+
+    changeFrequency: "monthly" as const,
+
+    path: "/solutions/print-custom-services",
+
+    priority: 0.6,
+
+  },
+
+  {
+
+    changeFrequency: "monthly" as const,
+
+    path: "/about",
+
+    priority: 0.5,
+
+  },
+
+  {
+
+    changeFrequency: "monthly" as const,
+
+    path: "/compare/spreadsheets",
+
+    priority: 0.5,
+
+  },
+
+  {
+
+    changeFrequency: "monthly" as const,
+
+    path: "/compare/job-management-software",
+
+    priority: 0.5,
+
+  },
+
+  {
+
+    changeFrequency: "monthly" as const,
+
+    path: "/guides/inquiry-to-accepted-quote",
+
+    priority: 0.5,
+
+  },
+
+  {
+
+    changeFrequency: "yearly" as const,
+
+    path: "/security",
+
+    priority: 0.3,
+
+  },
+
+  {
+
+    changeFrequency: "yearly" as const,
+
+    path: "/legal/dpa",
+
+    priority: 0.2,
+
+  },
+
+  {
+
+    changeFrequency: "yearly" as const,
+
+    path: "/subprocessors",
+
+    priority: 0.2,
+
+  },
+
+  {
+
     changeFrequency: "yearly" as const,
 
     path: "/privacy",
