@@ -8,6 +8,7 @@ import {
   Send,
 } from "lucide-react";
 
+import type { StatusTone } from "@/components/shared/status-badge";
 import type {
   DashboardQuoteLibraryItem,
   DashboardQuoteDetailCore,
@@ -30,20 +31,20 @@ export const quoteStatusLabels: Record<QuoteStatus, string> = {
   voided: "Voided",
 };
 
-export const quoteStatusClassNames: Record<QuoteStatus, string> = {
-  draft:
-    "!border-indigo-500/30 !bg-indigo-500/15 !text-indigo-800 dark:!border-indigo-500/25 dark:!bg-indigo-500/12 dark:!text-indigo-200",
-  sent: "!border-cyan-500/30 !bg-cyan-500/15 !text-cyan-800 dark:!border-cyan-500/25 dark:!bg-cyan-500/12 dark:!text-cyan-200",
-  revision_requested:
-    "!border-amber-500/30 !bg-amber-500/15 !text-amber-800 dark:!border-amber-500/25 dark:!bg-amber-500/12 dark:!text-amber-200",
-  accepted:
-    "!border-emerald-500/30 !bg-emerald-500/15 !text-emerald-800 dark:!border-emerald-500/25 dark:!bg-emerald-500/12 dark:!text-emerald-200",
-  rejected:
-    "!border-red-500/30 !bg-red-500/15 !text-red-800 dark:!border-red-500/25 dark:!bg-red-500/12 dark:!text-red-200",
-  expired:
-    "!border-orange-500/30 !bg-orange-500/15 !text-orange-800 dark:!border-orange-500/25 dark:!bg-orange-500/12 dark:!text-orange-200",
-  voided:
-    "!border-slate-500/25 !bg-slate-500/12 !text-slate-800 dark:!border-slate-500/25 dark:!bg-slate-500/12 dark:!text-slate-200",
+/**
+ * Semantic tone per status — the colour lives in `components/shared/status-badge`.
+ *
+ * Exhaustive `Record`, so adding a `QuoteStatus` member fails the typecheck
+ * until a tone is chosen for it.
+ */
+export const quoteStatusTones: Record<QuoteStatus, StatusTone> = {
+  draft: "progress",
+  sent: "active",
+  revision_requested: "warning",
+  accepted: "success",
+  rejected: "danger",
+  expired: "attention",
+  voided: "neutral",
 };
 
 export const quoteStatusIcons = {
@@ -60,10 +61,9 @@ export const quoteRecordStateLabels = {
   archived: "Archived",
 } as const;
 
-export const quoteRecordStateClassNames = {
-  archived:
-    "!border-slate-500/25 !bg-slate-500/12 !text-slate-800 dark:!border-slate-500/25 dark:!bg-slate-500/12 dark:!text-slate-200",
-} as const;
+export const quoteRecordStateTones = {
+  archived: "neutral",
+} as const satisfies Record<"archived", StatusTone>;
 
 export const quoteRecordStateIcons = {
   archived: Archive,
@@ -80,11 +80,9 @@ export const quoteReminderLabels: Record<QuoteReminderKind, string> = {
   expiring_soon: "Expiring soon",
 };
 
-export const quoteReminderClassNames: Record<QuoteReminderKind, string> = {
-  follow_up_due:
-    "!border-orange-500/30 !bg-orange-500/15 !text-orange-800 dark:!border-orange-500/25 dark:!bg-orange-500/12 dark:!text-orange-200",
-  expiring_soon:
-    "!border-amber-500/30 !bg-amber-500/15 !text-amber-800 dark:!border-amber-500/25 dark:!bg-amber-500/12 dark:!text-amber-200",
+export const quoteReminderTones: Record<QuoteReminderKind, StatusTone> = {
+  follow_up_due: "attention",
+  expiring_soon: "warning",
 };
 
 export const quoteFollowUpReminderDays = 3;

@@ -2,55 +2,27 @@ import type { LucideIcon } from "lucide-react";
 
 import { HelpTooltip } from "@/components/shared/help-tooltip";
 import { Card, CardContent } from "@/components/ui/card";
-import type { PeriodDelta, PeriodDeltaDirection } from "@/features/analytics/types";
 
-function DeltaBadge({
-  label,
-  direction,
-  inverted,
-}: {
-  label: string;
-  direction: PeriodDeltaDirection;
-  inverted?: boolean;
-}) {
-  if (direction === "flat") {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
-        — {label}
-      </span>
-    );
-  }
-
-  const isPositive = inverted ? direction === "down" : direction === "up";
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1 text-xs font-medium ${isPositive
-          ? "text-emerald-600 dark:text-emerald-400"
-          : "text-red-500 dark:text-red-400"
-        }`}
-    >
-      {direction === "up" ? "▲" : "▼"} {label}
-    </span>
-  );
-}
-
+/**
+ * Delta-less metric card for the business analytics panel.
+ *
+ * Cards that show a period-over-period change use `AnalyticsKpiCard`, which
+ * renders `AnalyticsDeltaPill`. This one deliberately has no delta: every call
+ * site omits it, and a second, unreachable delta implementation living here
+ * would be a third way to draw the same pill.
+ */
 export function AnalyticsMetricCard({
   title,
   value,
   description,
   tooltip,
   icon: Icon,
-  delta,
-  sparkline,
 }: {
   title: string;
   value: string;
   description?: string;
   tooltip?: string;
   icon: LucideIcon;
-  delta?: { label: string; direction: PeriodDeltaDirection; inverted?: boolean } | null;
-  sparkline?: React.ReactNode;
 }) {
   return (
     <Card className="h-full border-border/75 bg-card/97" size="sm">
@@ -64,11 +36,6 @@ export function AnalyticsMetricCard({
             <p className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
               {value}
             </p>
-            {delta ? (
-              <div className="mt-1.5">
-                <DeltaBadge {...delta} />
-              </div>
-            ) : null}
             {description ? (
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 {description}
@@ -79,7 +46,6 @@ export function AnalyticsMetricCard({
             <Icon className="size-4 shrink-0" />
           </div>
         </div>
-        {sparkline ? <div className="mt-auto pt-3">{sparkline}</div> : null}
       </CardContent>
     </Card>
   );

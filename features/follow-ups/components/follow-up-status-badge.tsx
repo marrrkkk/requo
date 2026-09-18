@@ -1,48 +1,43 @@
-import { Badge } from "@/components/ui/badge";
-import type { FollowUpDueBucket, FollowUpStatus } from "@/features/follow-ups/types";
+import { StatusBadge } from "@/components/shared/status-badge";
+import type {
+  FollowUpDueBucket,
+  FollowUpStatus,
+} from "@/features/follow-ups/types";
 import {
+  followUpDueBucketTones,
+  followUpStatusTones,
   getFollowUpDueBucketLabel,
   getFollowUpStatusLabel,
 } from "@/features/follow-ups/utils";
 
 export function FollowUpStatusBadge({
   status,
+  className,
 }: {
   status: FollowUpStatus;
+  className?: string;
 }) {
   return (
-    <Badge
-      className="shrink-0 rounded-full"
-      variant={
-        status === "completed"
-          ? "default"
-          : status === "skipped"
-            ? "outline"
-            : "secondary"
-      }
-    >
-      {getFollowUpStatusLabel(status)}
-    </Badge>
+    <StatusBadge
+      tone={followUpStatusTones[status]}
+      label={getFollowUpStatusLabel(status)}
+      className={className}
+    />
   );
 }
 
 export function FollowUpDueBadge({
   bucket,
+  className,
 }: {
   bucket: FollowUpDueBucket;
+  className?: string;
 }) {
   return (
-    <Badge
-      className="shrink-0 rounded-full"
-      variant={
-        bucket === "overdue"
-          ? "destructive"
-          : bucket === "today"
-            ? "default"
-            : "outline"
-      }
-    >
-      {getFollowUpDueBucketLabel(bucket)}
-    </Badge>
+    <StatusBadge
+      tone={followUpDueBucketTones[bucket]}
+      label={getFollowUpDueBucketLabel(bucket)}
+      className={className}
+    />
   );
 }

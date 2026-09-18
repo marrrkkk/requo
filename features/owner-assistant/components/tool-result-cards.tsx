@@ -18,7 +18,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge, type StatusTone } from "@/components/shared/status-badge";
 import {
   Card,
   CardContent,
@@ -27,6 +27,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import {
+  inquiryStatusLabels,
+  inquiryStatusTones,
+} from "@/features/inquiries/utils";
+import { quoteStatusLabels, quoteStatusTones } from "@/features/quotes/utils";
 import type {
   BaseToolResult,
   ConfirmationRequiredResult,
@@ -58,51 +63,44 @@ function formatRelativeDate(date: string | Date) {
 }
 
 // ---------------------------------------------------------------------------
-// Inquiry status badge
+// Status badges
 // ---------------------------------------------------------------------------
 
-const INQUIRY_STATUS_STYLES: Record<
-  string,
-  { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
-> = {
-  new: { label: "New", variant: "default" },
-  quoted: { label: "Quoted", variant: "secondary" },
-  waiting: { label: "Waiting", variant: "outline" },
-  won: { label: "Won", variant: "default" },
-  lost: { label: "Lost", variant: "destructive" },
-  archived: { label: "Archived", variant: "outline" },
-};
-
-function InquiryStatusBadge({ status }: { status: string }) {
-  const style = INQUIRY_STATUS_STYLES[status] ?? {
-    label: status,
-    variant: "outline" as const,
-  };
-  return <Badge variant={style.variant}>{style.label}</Badge>;
+/**
+ * Assistant tool payloads type `status` as an unvalidated `string`, so these
+ * adapters narrow it against the canonical status maps and degrade to a
+ * neutral tone for anything unrecognized. The colour vocabulary lives in
+ * `components/shared/status-badge` — do not re-declare it here.
+ *
+ * `Object.hasOwn` rather than `in`: `in` walks the prototype chain, so a value
+ * like `"constructor"` would resolve to a function instead of falling back.
+ */
+function resolveStatus<T extends string>(
+  value: string,
+  tones: Record<T, StatusTone>,
+  labels: Record<T, string>,
+): { tone: StatusTone; label: string } {
+  return Object.hasOwn(tones, value)
+    ? { tone: tones[value as T], label: labels[value as T] }
+    : { tone: "neutral", label: value };
 }
 
-// ---------------------------------------------------------------------------
-// Quote status badge
-// ---------------------------------------------------------------------------
-
-const QUOTE_STATUS_STYLES: Record<
-  string,
-  { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
-> = {
-  draft: { label: "Draft", variant: "outline" },
-  sent: { label: "Sent", variant: "secondary" },
-  viewed: { label: "Viewed", variant: "secondary" },
-  accepted: { label: "Accepted", variant: "default" },
-  rejected: { label: "Rejected", variant: "destructive" },
-  expired: { label: "Expired", variant: "outline" },
-};
+function InquiryStatusBadge({ status }: { status: string }) {
+  const { tone, label } = resolveStatus(
+    status,
+    inquiryStatusTones,
+    inquiryStatusLabels,
+  );
+  return <StatusBadge tone={tone} label={label} />;
+}
 
 function QuoteStatusBadge({ status }: { status: string }) {
-  const style = QUOTE_STATUS_STYLES[status] ?? {
-    label: status,
-    variant: "outline" as const,
-  };
-  return <Badge variant={style.variant}>{style.label}</Badge>;
+  const { tone, label } = resolveStatus(
+    status,
+    quoteStatusTones,
+    quoteStatusLabels,
+  );
+  return <StatusBadge tone={tone} label={label} />;
 }
 
 // ---------------------------------------------------------------------------

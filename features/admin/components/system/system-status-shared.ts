@@ -91,10 +91,9 @@ export const systemOverallStatusConfig: Record<
     label: "Needs attention",
     description: "Some integrations reported warnings. Review checks below.",
     icon: AlertTriangle,
-    borderClass: "border-l-amber-500/80",
-    iconClass: "text-amber-600 dark:text-amber-400",
-    badgeClass:
-      "border-amber-500/25 bg-amber-500/10 text-amber-800 dark:text-amber-300",
+    borderClass: "border-l-warning/80",
+    iconClass: "text-warning",
+    badgeClass: "border-warning/25 bg-warning/10 text-warning",
   },
   critical: {
     label: "Critical issues",
@@ -126,7 +125,7 @@ export function checkStatusBorderClass(status: AdminHealthCheckStatus): string {
     case "fail":
       return "border-l-destructive";
     case "warn":
-      return "border-l-amber-500/80";
+      return "border-l-warning/80";
     default:
       return "border-l-border";
   }
@@ -134,7 +133,7 @@ export function checkStatusBorderClass(status: AdminHealthCheckStatus): string {
 
 export function checkStatusDotClass(status: AdminHealthCheckStatus | string): string {
   if (status === "fail") return "bg-destructive";
-  if (status === "warn" || status === "mixed") return "bg-amber-500";
+  if (status === "warn" || status === "mixed") return "bg-warning";
   if (status === "pass") return "bg-primary";
   return "bg-muted-foreground/40";
 }

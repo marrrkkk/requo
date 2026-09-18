@@ -1,7 +1,24 @@
+import type { StatusTone } from "@/components/shared/status-badge";
 import { formatQuoteMoney, getTodayUtcDateString } from "@/features/quotes/utils";
 import type { InvoiceStatus } from "@/features/invoices/types";
 
 export { formatQuoteMoney };
+
+/**
+ * Semantic tone per status — the colour lives in `components/shared/status-badge`.
+ *
+ * Exhaustive `Record`, so adding an `InvoiceStatus` member fails the typecheck
+ * until a tone is chosen for it.
+ */
+export const invoiceStatusTones: Record<InvoiceStatus, StatusTone> = {
+  draft: "neutral",
+  sent: "info",
+  unpaid: "warning",
+  partially_paid: "attention",
+  paid: "success",
+  overdue: "danger",
+  voided: "neutral",
+};
 
 export function parseMoneyToCents(value: unknown): number {
   if (typeof value === "number") {

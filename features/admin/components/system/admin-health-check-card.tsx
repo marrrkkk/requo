@@ -1,7 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { Clock } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type {
   AdminHealthCheckCategory,
@@ -9,26 +8,11 @@ import type {
 } from "@/lib/admin/health-checks";
 import { cn } from "@/lib/utils";
 
+import { AdminHealthStatusBadge } from "@/features/admin/components/primitives/admin-status-badges";
 import {
   checkStatusBorderClass,
-  checkStatusLabel,
   systemCategoryIcons,
 } from "@/features/admin/components/system/system-status-shared";
-
-function checkStatusBadgeVariant(
-  status: AdminHealthCheckResult["status"],
-): "default" | "secondary" | "destructive" | "outline" {
-  switch (status) {
-    case "pass":
-      return "default";
-    case "fail":
-      return "destructive";
-    case "warn":
-      return "secondary";
-    default:
-      return "outline";
-  }
-}
 
 type AdminHealthCheckCardProps = {
   check: AdminHealthCheckResult;
@@ -57,9 +41,7 @@ export function AdminHealthCheckCard({
         >
           <Icon className="size-4" />
         </div>
-        <Badge variant={checkStatusBadgeVariant(check.status)}>
-          {checkStatusLabel(check.status)}
-        </Badge>
+        <AdminHealthStatusBadge status={check.status} />
       </div>
 
       <div className="min-w-0">

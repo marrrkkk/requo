@@ -1,10 +1,9 @@
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { StatusBadge } from "@/components/shared/status-badge";
 import type { InquiryRecordState } from "@/features/inquiries/types";
 import {
   getInquiryRecordStateLabel,
-  inquiryRecordStateClassNames,
   inquiryRecordStateIcons,
+  inquiryRecordStateTones,
 } from "@/features/inquiries/utils";
 
 type InquiryRecordStateBadgeProps = {
@@ -16,19 +15,12 @@ export function InquiryRecordStateBadge({
   state,
   className,
 }: InquiryRecordStateBadgeProps) {
-  const Icon = inquiryRecordStateIcons[state];
-
   return (
-    <Badge
-      className={cn(
-        "shrink-0 rounded-full",
-        inquiryRecordStateClassNames[state],
-        className,
-      )}
-      variant="secondary"
-    >
-      <Icon data-icon="inline-start" />
-      {getInquiryRecordStateLabel(state)}
-    </Badge>
+    <StatusBadge
+      tone={inquiryRecordStateTones[state]}
+      label={getInquiryRecordStateLabel(state)}
+      icon={inquiryRecordStateIcons[state]}
+      className={className}
+    />
   );
 }
