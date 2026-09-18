@@ -6,8 +6,8 @@ import Link from "next/link";
 import { Menu } from "lucide-react";
 
 import { resourceLinks } from "@/components/marketing/marketing-data";
-import { MarketingPlatformNav } from "@/components/marketing/marketing-platform-nav";
-import { MarketingResourcesNav } from "@/components/marketing/marketing-resources-nav";
+import { MarketingMainNav } from "@/components/marketing/marketing-main-nav";
+import { solutionLinks } from "@/components/marketing/solutions-data";
 import { MarketingThemeToggle } from "@/components/marketing/marketing-theme-toggle";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { Button } from "@/components/ui/button";
@@ -40,15 +40,14 @@ export function MarketingHeaderShell({
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-[#ffffff]/90 backdrop-blur-md dark:bg-[#161616]/90">
+    <header className="sticky top-0 z-50 w-full border-none bg-[#fdfdfd] transition-colors duration-200 dark:bg-[#161616]">
       <div className="relative mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
         {/* Left side: Brand + Nav items */}
         <div className="flex items-center gap-6 lg:gap-8">
           <BrandMark subtitle={null} size="default" />
 
           <nav className="hidden items-center gap-1 lg:flex">
-            <MarketingPlatformNav triggerClassName={navLinkClass} />
-            <MarketingResourcesNav triggerClassName={navLinkClass} />
+            <MarketingMainNav triggerClassName={navLinkClass} />
             <Link className={navLinkClass} href="/pricing">
               Pricing
               <span className="nav-underline" aria-hidden="true" />
@@ -88,11 +87,11 @@ export function MarketingHeaderShell({
 
                 <SheetBody className="gap-1">
                   <div className="flex flex-col gap-0.5">
-                    <p className="meta-label px-3 pb-1">Platform</p>
+                    <p className="meta-label px-3 pb-1">Product</p>
                     <SheetClose asChild>
                       <Link
                         className="rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                        href="/#inquiries"
+                        href="/features/inquiries"
                       >
                         Inquiry
                       </Link>
@@ -100,7 +99,7 @@ export function MarketingHeaderShell({
                     <SheetClose asChild>
                       <Link
                         className="rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                        href="/#quotes"
+                        href="/features/quotes"
                       >
                         Quote
                       </Link>
@@ -108,9 +107,33 @@ export function MarketingHeaderShell({
                     <SheetClose asChild>
                       <Link
                         className="rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                        href="/#follow-ups"
+                        href="/features/follow-ups"
                       >
                         Follow-up
+                      </Link>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Link
+                        className="rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                        href="/features/ai"
+                      >
+                        AI
+                      </Link>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Link
+                        className="rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                        href="/features/invoices"
+                      >
+                        Invoice
+                      </Link>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Link
+                        className="rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                        href="/features/analytics"
+                      >
+                        Analytics
                       </Link>
                     </SheetClose>
                     <SheetClose asChild>
@@ -121,6 +144,20 @@ export function MarketingHeaderShell({
                         Pricing
                       </Link>
                     </SheetClose>
+                  </div>
+
+                  <div className="mt-4 flex flex-col gap-0.5">
+                    <p className="meta-label px-3 pb-1">Solutions</p>
+                    {solutionLinks.map((solution) => (
+                      <SheetClose asChild key={solution.slug}>
+                        <Link
+                          className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                          href={`/solutions/${solution.slug}`}
+                        >
+                          {solution.title}
+                        </Link>
+                      </SheetClose>
+                    ))}
                   </div>
 
                   <div className="mt-4 flex flex-col gap-0.5">

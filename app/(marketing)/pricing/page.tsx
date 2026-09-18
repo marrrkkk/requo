@@ -10,14 +10,16 @@ import { absoluteUrl, createPageMetadata } from "@/lib/seo/site";
 import {
   buildBreadcrumbsForPathname,
   getBreadcrumbListStructuredData,
+  getFaqPageStructuredData,
   getProductPricingStructuredData,
 } from "@/lib/seo/structured-data";
+import { pricingFaqs } from "@/lib/plans/catalog";
 
 export const metadata: Metadata = createPageMetadata({
   description:
-    "Transparent Requo pricing for service businesses. Start free, upgrade when you need faster responses, more AI credits, and auto follow-ups to keep deals moving.",
+    "Requo pricing: Free $0, Pro $9/mo, Business $24/mo for quote software. Annual billing includes two months free. Start free, upgrade per business when you need more.",
   pathname: "/pricing",
-  title: "Pricing",
+  title: "Requo Pricing: Free, Pro, and Business Plans",
 });
 
 const INTERVAL_TO_INCREMENT: Record<BillingInterval, "month" | "year"> = {
@@ -90,12 +92,18 @@ export default function PricingRoute() {
   });
   const breadcrumbStructuredData = breadcrumbItems.length
     ? getBreadcrumbListStructuredData({
-        items: breadcrumbItems.map((item) => ({
-          ...item,
-          url: absoluteUrl(item.url),
-        })),
+        items: [
+          { name: "Home", url: absoluteUrl("/") },
+          ...breadcrumbItems.map((item) => ({
+            ...item,
+            url: absoluteUrl(item.url),
+          })),
+        ],
       })
     : null;
+  const faqStructuredData = getFaqPageStructuredData({
+    items: [...pricingFaqs],
+  });
 
   return (
     <>
@@ -109,6 +117,10 @@ export default function PricingRoute() {
           id="breadcrumb-structured-data"
         />
       ) : null}
+      <StructuredData
+        data={faqStructuredData}
+        id="pricing-faq-structured-data"
+      />
       <Suspense fallback={<PricingPage currency={defaultCurrency} />}>
         <PricingPageDynamic />
       </Suspense>

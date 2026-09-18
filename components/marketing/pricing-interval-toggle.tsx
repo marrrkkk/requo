@@ -144,7 +144,7 @@ function PricingPlans({
     <>
       {/* Toggle */}
       <div className="mb-8 flex justify-center">
-        <div className="inline-flex rounded-full border border-border/70 bg-muted/25 p-1">
+        <div className="inline-flex rounded-full border border-border bg-muted p-1">
           <button
             className={cn(
               "rounded-full px-5 py-2 text-sm font-medium transition-colors",
@@ -176,9 +176,9 @@ function PricingPlans({
       </div>
 
       {/* Cards */}
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid items-stretch gap-5 lg:grid-cols-3">
         {/* Free */}
-        <div className="flex flex-col rounded-2xl border border-border/70 bg-card/70 p-6 sm:p-7">
+        <div className="flex h-full flex-col rounded-xl border border-border bg-card p-6 sm:p-7">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Free
           </p>
@@ -188,7 +188,7 @@ function PricingPlans({
           <p className="mt-1 text-xs text-muted-foreground">
             No card required
           </p>
-          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-4 min-h-12 text-sm leading-relaxed text-muted-foreground lg:min-h-18">
             The full inquiry-to-quote loop for a single business. No time limit.
           </p>
 
@@ -198,7 +198,7 @@ function PricingPlans({
             </Link>
           </Button>
 
-          <ul className="mt-7 flex flex-col gap-2.5 border-t border-border/50 pt-6">
+          <ul className="mt-7 flex flex-col gap-2.5 border-t border-border pt-6">
             <Feature>Complete inquiry-to-quote workflow</Feature>
             <Feature>Unlimited inquiries, quotes, and manual sharing</Feature>
             <Feature>About 10 AI quote drafts per month</Feature>
@@ -209,7 +209,7 @@ function PricingPlans({
         </div>
 
         {/* Pro */}
-        <div className="relative flex flex-col rounded-2xl border border-primary/25 bg-card p-6 shadow-[0_2px_20px_-4px_hsl(var(--primary)/0.08)] ring-1 ring-primary/[0.06] sm:p-7">
+        <div className="relative flex h-full flex-col rounded-xl border border-primary/25 bg-card p-6 shadow-[0_2px_20px_-4px_hsl(var(--primary)/0.08)] ring-1 ring-primary/[0.06] sm:p-7">
           <Badge className="absolute top-5 right-6 sm:right-7">
             Popular
           </Badge>
@@ -227,7 +227,7 @@ function PricingPlans({
               ? `${proMonthly} billed monthly`
               : "Cancel anytime"}
           </p>
-          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-4 min-h-12 text-sm leading-relaxed text-muted-foreground lg:min-h-18">
             Automatic follow-ups, more AI drafts, multiple forms, and custom branding for growing operators.
           </p>
 
@@ -248,7 +248,7 @@ function PricingPlans({
             )}
           </Button>
 
-          <ul className="mt-7 flex flex-col gap-2.5 border-t border-border/50 pt-6">
+          <ul className="mt-7 flex flex-col gap-2.5 border-t border-border pt-6">
             <Feature>Automatic follow-ups</Feature>
             <Feature>Custom email templates and Requo branding removal</Feature>
             <Feature>About 50 AI quote drafts per month</Feature>
@@ -259,7 +259,7 @@ function PricingPlans({
         </div>
 
         {/* Business */}
-        <div className="flex flex-col rounded-2xl border border-border/70 bg-card/70 p-6 sm:p-7">
+        <div className="flex h-full flex-col rounded-xl border border-border bg-card p-6 sm:p-7">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Business
           </p>
@@ -274,7 +274,7 @@ function PricingPlans({
               ? `${businessMonthly} billed monthly`
               : "Cancel anytime"}
           </p>
-          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-4 min-h-12 text-sm leading-relaxed text-muted-foreground lg:min-h-18">
             Team roles, higher AI and email caps, and audit logs.
           </p>
 
@@ -296,7 +296,7 @@ function PricingPlans({
             )}
           </Button>
 
-          <ul className="mt-7 flex flex-col gap-2.5 border-t border-border/50 pt-6">
+          <ul className="mt-7 flex flex-col gap-2.5 border-t border-border pt-6">
             <Feature>Everything in Pro</Feature>
             <Feature>Up to 5 members with roles</Feature>
             <Feature>About 165 AI quote drafts per month</Feature>

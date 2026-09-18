@@ -17,9 +17,16 @@ import { PricingIntervalToggle } from "@/components/marketing/pricing-interval-t
 import {
   pricingComparison,
   aiDraftingClarification,
+  pricingFaqs,
 } from "@/lib/plans/catalog";
 import { authClient } from "@/lib/auth/client";
 import { dashboardPath } from "@/features/businesses/routes";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 /*──────────────────────────────────────────────────────────────────────────────
  * Component
@@ -39,15 +46,21 @@ export function PricingPage({
     >
       {/* Hero */}
       <div className="mx-auto flex w-full max-w-3xl flex-col items-center px-5 pb-0 pt-10 text-center sm:px-6 sm:pb-0 sm:pt-14 lg:px-8">
-        <h1 className="whitespace-nowrap font-heading text-4xl font-semibold leading-[0.94] tracking-tighter sm:text-5xl xl:text-[3.5rem]">
-          Simple pricing. No surprises.
+        <h1 className="font-heading text-4xl font-semibold leading-[1.02] tracking-tighter text-balance sm:text-5xl xl:text-[3.5rem]">
+          Requo pricing: free, Pro, and Business plans
         </h1>
+        <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base sm:leading-7">
+          Requo pricing is per business: start free with the full
+          inquiry-to-quote workflow, then upgrade for automatic follow-ups,
+          more forms and AI drafts, and team access. Subscriptions are billed
+          in USD.
+        </p>
       </div>
 
       {/* Plan cards with toggle */}
       <PricingIntervalToggle currency={currency} />
 
-      <section className="mx-auto w-full max-w-[76rem] rounded-2xl border border-border/70 bg-card/40 overflow-hidden">
+      <section className="mx-auto w-full max-w-[76rem] rounded-xl border border-border bg-card overflow-hidden">
         <div className="flex flex-col gap-2 px-5 py-6 sm:px-8 sm:py-7">
           <h2 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
             Compare plans
@@ -61,7 +74,7 @@ export function PricingPage({
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-y border-border/50 bg-muted/20">
+              <tr className="border-y border-border bg-muted">
                 <th className="w-[40%] px-8 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Feature
                 </th>
@@ -79,7 +92,7 @@ export function PricingPage({
             <tbody>
               {pricingComparison.map((category) => (
                 <Fragment key={category.category}>
-                  <tr className="border-t border-border/50">
+                  <tr className="border-t border-border">
                     <td
                       colSpan={4}
                       className="px-8 pb-2 pt-6 text-xs font-semibold uppercase tracking-wider text-primary"
@@ -89,7 +102,7 @@ export function PricingPage({
                   </tr>
                   {category.features.map((row) => (
                     <tr
-                      className="border-b border-border/20 last:border-b-0"
+                      className="border-b border-border last:border-b-0"
                       key={row.label}
                     >
                       <td className="px-8 py-3.5 text-sm text-foreground">
@@ -109,7 +122,7 @@ export function PricingPage({
         {/* Mobile stacked view */}
         <div className="flex flex-col gap-0 md:hidden">
           {pricingComparison.map((category) => (
-            <div key={category.category} className="border-t border-border/50">
+            <div key={category.category} className="border-t border-border">
               <p className="px-5 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-primary">
                 {category.category}
               </p>
@@ -117,7 +130,7 @@ export function PricingPage({
                 {category.features.map((row) => (
                   <div
                     key={row.label}
-                    className="border-b border-border/20 px-5 py-3.5 last:border-b-0"
+                    className="border-b border-border px-5 py-3.5 last:border-b-0"
                   >
                     <p className="text-sm font-medium text-foreground">
                       {row.label}
@@ -156,8 +169,42 @@ export function PricingPage({
         </div>
       </section>
 
+      {/* FAQ */}
+      <section
+        aria-labelledby="pricing-faq-heading"
+        className="mx-auto mt-10 w-full max-w-3xl px-5 sm:px-6 lg:mt-14 lg:px-8"
+      >
+        <h2
+          className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl"
+          id="pricing-faq-heading"
+        >
+          Pricing questions, answered.
+        </h2>
+        <Accordion
+          className="mt-4 w-full border-t border-border/40"
+          collapsible
+          defaultValue="pricing-faq-0"
+          type="single"
+        >
+          {pricingFaqs.map((item, index) => (
+            <AccordionItem
+              className="border-b border-border/40"
+              key={item.question}
+              value={`pricing-faq-${index}`}
+            >
+              <AccordionTrigger className="py-3.5 text-left text-sm font-medium tracking-tight text-foreground transition-colors hover:text-foreground/80 sm:py-4 sm:text-base">
+                {item.question}
+              </AccordionTrigger>
+              <AccordionContent className="pb-4 text-xs leading-normal text-muted-foreground sm:pb-5 sm:text-sm sm:leading-6">
+                {item.answer}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </section>
+
       {/* CTA */}
-      <section className="mx-auto mt-10 w-full max-w-[76rem] rounded-2xl border border-border/70 bg-accent/10 overflow-hidden lg:mt-14">
+      <section className="mx-auto mt-10 w-full max-w-[76rem] rounded-xl border border-border bg-card overflow-hidden lg:mt-14">
         <div className="flex flex-col gap-6 px-6 py-8 sm:px-8 sm:py-10 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex max-w-xl flex-col gap-3">
             <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
@@ -174,7 +221,7 @@ export function PricingPage({
           </div>
         </div>
 
-        <Separator className="bg-border/50" />
+        <Separator className="bg-border" />
 
         <div className="flex flex-col gap-4 px-6 py-4 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
           <BrandMark subtitle="Never lose a job to a slow response" />
@@ -213,14 +260,14 @@ function PricingCell({
     <td
       className={cn(
         "px-4 py-3.5 text-center",
-        highlighted ? "bg-primary/[0.03]" : "",
+        highlighted ? "bg-muted" : "",
       )}
     >
       {typeof value === "boolean" ? (
         value ? (
           <Check className="mx-auto size-4 text-primary" />
         ) : (
-          <Minus className="mx-auto size-3.5 text-muted-foreground/40" />
+          <Minus className="mx-auto size-3.5 text-muted-foreground" />
         )
       ) : (
         <span className="text-sm font-medium tabular-nums text-foreground">
@@ -236,7 +283,7 @@ function MobileCell({ value }: { value: string | boolean | number }) {
     return value ? (
       <Check className="mx-auto size-3.5 text-primary" />
     ) : (
-      <Minus className="mx-auto size-3 text-muted-foreground/40" />
+      <Minus className="mx-auto size-3 text-muted-foreground" />
     );
   }
 

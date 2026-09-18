@@ -73,7 +73,7 @@ export function BrandMark({
   );
 }
 
-function BrandLogoIcon({ className }: { className?: string }) {
+export function BrandLogoIcon({ className }: { className?: string }) {
   return (
     <svg
       className={className}
