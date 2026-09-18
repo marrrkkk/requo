@@ -81,7 +81,7 @@ const subprocessors: Subprocessor[] = [
   {
     name: "Supabase",
     purpose: "Database and storage",
-    dataLocation: "Singapore",
+    dataLocation: "Configured project region",
     policyUrl: "https://supabase.com/privacy",
     policyLabel: "Privacy Policy",
   },

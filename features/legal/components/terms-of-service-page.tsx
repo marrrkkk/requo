@@ -213,7 +213,7 @@ const termsSections: LegalDocumentSection[] = [
           be able to access the corresponding quote page while the link remains
           active, so you should treat public quote links as sensitive.
         </LegalParagraph>
-        <LegalSubheading>D. Underlying business relationship</LegalSubheading>
+        <LegalSubheading>C. Underlying business relationship</LegalSubheading>
         <LegalParagraph>
           Requo is not a party to the underlying transaction or service
           relationship between a business using Requo and that business&rsquo;s
@@ -242,9 +242,9 @@ const termsSections: LegalDocumentSection[] = [
           items={[
             `${legalConfig.hostingProvider}, for hosting and application delivery.`,
             `${legalConfig.storageProvider}, for database, storage, and related backend infrastructure.`,
-            `${legalConfig.paymentProvider}, for subscription billing, payment processing, and refunds as the merchant of record.`,
-            "Resend, for transactional email delivery.",
-            "Groq, Gemini, and OpenRouter, for AI request routing when AI features are used.",
+            `${legalConfig.paymentProvider}, for subscription billing and payment processing as the merchant of record; subscription changes, cancellations, and refunds are handled through its customer portal.`,
+            "Resend (with Mailtrap and Brevo as fallback providers), for transactional email delivery.",
+            "Groq, Cerebras, Google Gemini, Mistral, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter, for AI request routing when AI features are used.",
             "Google, for optional OAuth sign-in when enabled; transactional email carries magic-link sign-in when configured.",
           ]}
         />
@@ -266,7 +266,9 @@ const termsSections: LegalDocumentSection[] = [
         <LegalParagraph>
           Requo includes AI-assisted drafting features intended for internal use
           by authorized business users. These features may send
-          prompts and related business content through Groq, Gemini, or OpenRouter and,
+          prompts and related business content through our configured AI
+          providers (Groq, Cerebras, Google Gemini, Mistral, Cloudflare
+          Workers AI, NVIDIA NIM, or routed via OpenRouter) and,
           depending on configuration, to the model provider used
           to generate drafts, summaries, and suggestions.
         </LegalParagraph>
@@ -299,9 +301,9 @@ const termsSections: LegalDocumentSection[] = [
         <LegalSubheading>A. Payment processing</LegalSubheading>
         <LegalParagraph>
           Subscription payments are processed by {legalConfig.paymentProvider},
-          our merchant of record. All plans are priced in USD. Depending on your
-          location, an approximate local currency amount may be displayed at
-          checkout for convenience, but the authoritative charge is in USD.
+          our merchant of record. USD is the base billing currency;{" "}
+          {legalConfig.paymentProvider} may display a local-currency amount at
+          checkout for convenience.
         </LegalParagraph>
         <LegalSubheading>B. Recurring billing</LegalSubheading>
         <LegalParagraph>
@@ -312,10 +314,11 @@ const termsSections: LegalDocumentSection[] = [
         </LegalParagraph>
         <LegalSubheading>C. Cancellation</LegalSubheading>
         <LegalParagraph>
-          You may cancel your subscription at any time from your account billing
-          page. After cancellation, you retain access to paid features until the
-          end of the current billing period, after which your account reverts to
-          the free plan.
+          You may cancel your subscription at any time through the{" "}
+          {legalConfig.paymentProvider} customer portal linked from your
+          billing settings. After cancellation, you retain access to paid
+          features until the end of the current billing period, after which
+          your business reverts to the free plan.
         </LegalParagraph>
         <LegalSubheading>D. Refunds</LegalSubheading>
         <LegalParagraph>
@@ -413,30 +416,18 @@ const termsSections: LegalDocumentSection[] = [
   },
   {
     id: "data-export-commitment",
-    title: "15. Data Export Commitment",
+    title: "15. Data Export",
     content: (
       <>
-        <LegalSectionHeading>
-          15. Data Export Commitment
-        </LegalSectionHeading>
+        <LegalSectionHeading>15. Data Export</LegalSectionHeading>
         <LegalParagraph>
-          Upon termination or cancellation of your account, Requo will provide a
-          30-day window during which you may export your data from the Service.
+          While your account is active, you can export inquiries and quotes to
+          CSV from within the Service. Export before deleting an account or
+          business: deletion removes data through cascading deletes, and we do
+          not promise a post-termination export window.
         </LegalParagraph>
         <LegalParagraph>
-          Data available for export during this window includes:
-        </LegalParagraph>
-        <LegalList
-          items={[
-            "Inquiries and inquiry submissions received through your businesses.",
-            "Quotes created, sent, or associated with your businesses.",
-            "Contacts and customer information stored within your businesses.",
-            "Files uploaded to or associated with your businesses.",
-          ]}
-        />
-        <LegalParagraph>
-          After the 30-day export window, Requo may permanently delete your data
-          in accordance with its data retention practices described in the{" "}
+          If you need help exporting, contact us using the details in the{" "}
           <Link
             className="text-foreground underline-offset-4 hover:underline"
             href="/privacy"
@@ -449,87 +440,12 @@ const termsSections: LegalDocumentSection[] = [
     ),
   },
   {
-    id: "cure-period",
-    title: "16. Cure Period",
-    content: (
-      <>
-        <LegalSectionHeading>16. Cure Period</LegalSectionHeading>
-        <LegalParagraph>
-          For violations of these Terms that do not pose an immediate security
-          risk, Requo will provide 14 days written notice describing the
-          violation before suspending your account. You may cure the violation
-          within the 14-day notice period to avoid suspension.
-        </LegalParagraph>
-        <LegalParagraph>
-          If the violation poses an immediate security risk to the Service, its
-          users, or others, Requo reserves the right to immediately suspend your
-          access without prior notice. In such cases, Requo will provide notice
-          of the suspension and the reason for it as soon as reasonably
-          practicable.
-        </LegalParagraph>
-      </>
-    ),
-  },
-  {
-    id: "modification-notice",
-    title: "17. Modification Notice",
-    content: (
-      <>
-        <LegalSectionHeading>17. Modification Notice</LegalSectionHeading>
-        <LegalParagraph>
-          When we make material changes to these Terms, Requo will provide at
-          least 30 days advance notice to affected users before the changes take
-          effect.
-        </LegalParagraph>
-        <LegalParagraph>
-          Modification notices will be delivered via email to the address
-          associated with your account and through an in-app notification within
-          the Service. It is your responsibility to keep your email address
-          current. Continued use of the Service after the effective date of
-          modified Terms constitutes acceptance of the changes.
-        </LegalParagraph>
-      </>
-    ),
-  },
-  {
-    id: "sla",
-    title: "18. Service Level Commitment",
-    content: (
-      <>
-        <LegalSectionHeading>
-          18. Service Level Commitment
-        </LegalSectionHeading>
-        <LegalParagraph>
-          Requo targets a monthly uptime of 99.9% for the Service, measured as
-          the percentage of minutes in a calendar month during which the Service
-          is available and operational.
-        </LegalParagraph>
-        <LegalParagraph>
-          Scheduled maintenance windows, force majeure events, and outages
-          caused by third-party services outside Requo&rsquo;s control are
-          excluded from uptime calculations.
-        </LegalParagraph>
-        <LegalParagraph>
-          Current and historical service availability can be monitored on our
-          public status page at{" "}
-          <a
-            className="text-foreground underline-offset-4 hover:underline"
-            href="https://status.requo.app"
-          >
-            status.requo.app
-          </a>
-          .
-        </LegalParagraph>
-      </>
-    ),
-  },
-  {
     id: "ownership",
-    title: "19. Ownership Of The Service And Limited License",
+    title: "16. Ownership Of The Service And Limited License",
     content: (
       <>
         <LegalSectionHeading>
-          19. Ownership Of The Service And Limited License
+          16. Ownership Of The Service And Limited License
         </LegalSectionHeading>
         <LegalParagraph>
           The Service, including its software, design, trademarks, and related
@@ -545,10 +461,10 @@ const termsSections: LegalDocumentSection[] = [
   },
   {
     id: "feedback",
-    title: "20. Feedback",
+    title: "17. Feedback",
     content: (
       <>
-        <LegalSectionHeading>20. Feedback</LegalSectionHeading>
+        <LegalSectionHeading>17. Feedback</LegalSectionHeading>
         <LegalParagraph>
           If you provide suggestions, ideas, or feedback about the Service, you
           grant Requo a non-exclusive, royalty-free right to use that feedback
@@ -559,10 +475,10 @@ const termsSections: LegalDocumentSection[] = [
   },
   {
     id: "disclaimers",
-    title: "21. Disclaimers",
+    title: "18. Disclaimers",
     content: (
       <>
-        <LegalSectionHeading>21. Disclaimers</LegalSectionHeading>
+        <LegalSectionHeading>18. Disclaimers</LegalSectionHeading>
         <LegalParagraph>
           To the maximum extent permitted by applicable law, the Service is
           provided &quot;as is&quot; and &quot;as available.&quot; Requo
@@ -581,11 +497,11 @@ const termsSections: LegalDocumentSection[] = [
   },
   {
     id: "liability",
-    title: "22. Limitation Of Liability",
+    title: "19. Limitation Of Liability",
     content: (
       <>
         <LegalSectionHeading>
-          22. Limitation Of Liability
+          19. Limitation Of Liability
         </LegalSectionHeading>
         <LegalParagraph>
           To the maximum extent permitted by applicable law, Requo and its
@@ -609,10 +525,10 @@ const termsSections: LegalDocumentSection[] = [
   },
   {
     id: "indemnity",
-    title: "23. Indemnity",
+    title: "20. Indemnity",
     content: (
       <>
-        <LegalSectionHeading>23. Indemnity</LegalSectionHeading>
+        <LegalSectionHeading>20. Indemnity</LegalSectionHeading>
         <LegalParagraph>
           You agree to defend, indemnify, and hold harmless Requo, its
           affiliates, and their respective officers, directors, employees,
@@ -627,11 +543,11 @@ const termsSections: LegalDocumentSection[] = [
   },
   {
     id: "governing-law",
-    title: "24. Governing Law And Venue",
+    title: "21. Governing Law And Venue",
     content: (
       <>
         <LegalSectionHeading>
-          24. Governing Law And Venue
+          21. Governing Law And Venue
         </LegalSectionHeading>
         <LegalParagraph>
           These Terms and any dispute arising out of or relating to these Terms
@@ -650,11 +566,11 @@ const termsSections: LegalDocumentSection[] = [
   },
   {
     id: "changes-and-contact",
-    title: "25. Changes To These Terms And Contact Information",
+    title: "22. Changes To These Terms And Contact Information",
     content: (
       <>
         <LegalSectionHeading>
-          25. Changes To These Terms And Contact Information
+          22. Changes To These Terms And Contact Information
         </LegalSectionHeading>
         <LegalParagraph>
           We may update these Terms from time to time. If we make material

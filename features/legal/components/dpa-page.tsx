@@ -216,7 +216,7 @@ const dpaSections: LegalDocumentSection[] = [
           items={[
             "Processing limited to what is necessary for providing the Service",
             "Defined retention periods per data category (see Privacy Policy)",
-            "Secure deletion of data upon account termination after the export window",
+            "Secure deletion of data upon account or business deletion (export beforehand; no post-termination export window is promised)",
             "AI provider data processed with zero-data-retention policies where available",
           ]}
         />
@@ -306,8 +306,8 @@ const dpaSections: LegalDocumentSection[] = [
           retention is required by applicable law.
         </LegalParagraph>
         <LegalParagraph>
-          The Controller may export their data using the data export feature
-          during the 30-day post-termination window.
+          The Controller may export inquiries and quotes to CSV while the
+          account is active, and should do so before termination.
         </LegalParagraph>
       </>
     ),

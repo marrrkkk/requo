@@ -24,10 +24,13 @@ export default async function SecurityRoutePage() {
   });
   const breadcrumbStructuredData = breadcrumbItems.length
     ? getBreadcrumbListStructuredData({
-        items: breadcrumbItems.map((item) => ({
-          ...item,
-          url: absoluteUrl(item.url),
-        })),
+        items: [
+          { name: "Home", url: absoluteUrl("/") },
+          ...breadcrumbItems.map((item) => ({
+            ...item,
+            url: absoluteUrl(item.url),
+          })),
+        ],
       })
     : null;
 
