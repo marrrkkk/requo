@@ -358,6 +358,7 @@ export function MarketingPixelBackground({
       className={cn(
         fixed ? "fixed inset-0 w-full h-full" : "absolute inset-0 w-full h-full",
         "pointer-events-none z-[-1] print:hidden",
+        "hidden sm:block",
         "opacity-28 sm:opacity-32 dark:opacity-28 sm:dark:opacity-32",
         className,
       )}
