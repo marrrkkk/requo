@@ -34,18 +34,20 @@ test("customer can accept a sent quote from the public quote page @smoke", async
   await expect(
     page.getByRole("heading", { level: 1, name: "Foundry Labs booth kit" }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Accept" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Accept & Sign" })).toBeVisible();
 
+  await page.getByLabel("Your name").fill("Maria Santos");
+  await page.getByRole("checkbox").check();
   await page
     .getByLabel("Message (optional)")
     .fill("Looks good. Please move ahead and confirm the production timeline.");
-  await page.getByRole("button", { name: "Accept" }).click();
+  await page.getByRole("button", { name: "Accept & Sign" }).click();
 
   await expect(page.getByText("Quote accepted")).toBeVisible({
     timeout: 60_000,
   });
   await expect(
-    page.getByText("You accepted this quote. The business has been notified."),
+    page.getByText("Accepted by Maria Santos. The business has been notified."),
   ).toBeVisible({ timeout: 60_000 });
   await expect(
     page.getByText("Looks good. Please move ahead and confirm the production timeline."),
@@ -57,7 +59,7 @@ test("expired public quote links stay read-only", async ({ page }) => {
   await page.waitForLoadState("networkidle");
 
   await expect(page.getByText("Quote no longer active")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Accept" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Accept & Sign" })).toHaveCount(0);
 });
 
 test("voided public quote links stay readable but non-actionable", async ({
@@ -70,7 +72,7 @@ test("voided public quote links stay readable but non-actionable", async ({
   await expect(
     page.getByText("This quote was voided by the business and is no longer active."),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Accept" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Accept & Sign" })).toHaveCount(0);
 });
 
 test("invalid public quote links show the public not-found state", async ({

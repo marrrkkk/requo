@@ -11,10 +11,19 @@ import {
   activityLogs,
   followUps,
   inquiries,
+  quoteAcceptances,
   quoteItems,
   quotes,
   businesses,
   } from "@/lib/db/schema";
+import {
+  QUOTE_ACCEPTANCE_METHOD_TYPED_NAME,
+  QUOTE_ACCEPTANCE_TEXT,
+  QUOTE_ACCEPTANCE_TEXT_VERSION,
+  buildAcceptanceSnapshot,
+  hashAcceptanceSnapshot,
+  validateSignerName,
+} from "@/features/quotes/acceptance";
 import type { QuoteEditorInput } from "@/features/quotes/schemas";
 import type { AiQuoteMissingInfoItem } from "@/lib/db/schema/quotes";
 import type { QuoteDeliveryMethod, QuoteStatus } from "@/features/quotes/types";
@@ -116,20 +125,21 @@ function calculateQuoteTotals(input: QuoteEditorInput) {
 }
 
 function isRetryableUniqueConflict(error: unknown) {
-  return (
-      typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "23505" &&
-    (("constraint_name" in error &&
-      (error.constraint_name === "quotes_business_quote_number_unique" ||
-        error.constraint_name === "quotes_public_token_unique" ||
-        error.constraint_name === "quotes_public_token_hash_unique")) ||
-      ("constraint" in error &&
-        (error.constraint === "quotes_business_quote_number_unique" ||
-          error.constraint === "quotes_public_token_unique" ||
-          error.constraint === "quotes_public_token_hash_unique")))
-  );
+  const retryableConstraints = new Set([
+    "quotes_business_quote_number_unique",
+    "quotes_public_token_unique",
+    "quotes_public_token_hash_unique",
+    "quote_acceptances_quote_version_unique",
+  ]);
+  if (typeof error !== "object" || error === null || !("code" in error)) {
+    return false;
+  }
+  if ((error as { code?: unknown }).code !== "23505") return false;
+  const names = [
+    (error as Record<string, unknown>).constraint_name,
+    (error as Record<string, unknown>).constraint,
+  ];
+  return names.some((name) => typeof name === "string" && retryableConstraints.has(name));
 }
 
 function truncateNotificationMessage(
@@ -1366,13 +1376,28 @@ type RespondToPublicQuoteByTokenInput = {
   token: string;
   response: "accepted" | "rejected";
   message?: string;
+  signerName?: string;
+  confirmed?: boolean;
+  expectedVersion?: number;
 };
 
 export async function respondToPublicQuoteByToken({
   token,
   response,
   message,
+  signerName,
+  confirmed,
+  expectedVersion,
 }: RespondToPublicQuoteByTokenInput) {
+  if (response === "accepted") {
+    const validName = validateSignerName(signerName);
+    if (!validName) {
+      throw new Error("Enter your name to accept this quote.");
+    }
+    if (confirmed !== true) {
+      throw new Error("Confirm that you agree to the scope, pricing, and terms.");
+    }
+  }
   const today = getTodayUtcDateString();
   const now = new Date();
   const nextStatus = response;
@@ -1392,6 +1417,14 @@ export async function respondToPublicQuoteByToken({
         customerEmail: quotes.customerEmail,
         publicToken: quotes.publicToken,
         status: quotes.status,
+        version: quotes.version,
+        currency: quotes.currency,
+        notes: quotes.notes,
+        terms: quotes.terms,
+        subtotalInCents: quotes.subtotalInCents,
+        discountInCents: quotes.discountInCents,
+        taxInCents: quotes.taxInCents,
+        taxLabel: quotes.taxLabel,
         validUntil: quotes.validUntil,
         sentAt: quotes.sentAt,
         totalInCents: quotes.totalInCents,
@@ -1407,6 +1440,35 @@ export async function respondToPublicQuoteByToken({
     if (!existingQuote) {
       return null;
     }
+
+    if (
+      response === "accepted" &&
+      typeof expectedVersion === "number" &&
+      expectedVersion !== existingQuote.version
+    ) {
+      return {
+        updated: false,
+        businessId: existingQuote.businessId,
+        inquiryId: existingQuote.inquiryId,
+        quoteId: existingQuote.id,
+        businessSlug: existingQuote.businessSlug,
+        quoteNumber: existingQuote.quoteNumber,
+        status: existingQuote.status,
+        versionMismatch: true as const,
+        version: existingQuote.version,
+      };
+    }
+
+    const [existingAcceptance] = await tx
+      .select({
+        id: quoteAcceptances.id,
+        signerName: quoteAcceptances.signerName,
+        acceptedAt: quoteAcceptances.acceptedAt,
+        quoteVersion: quoteAcceptances.quoteVersion,
+      })
+      .from(quoteAcceptances)
+      .where(eq(quoteAcceptances.quoteId, existingQuote.id))
+      .limit(1);
 
     if (existingQuote.status === "sent" && existingQuote.validUntil < today) {
       await expireQuoteRows(tx, [
@@ -1440,6 +1502,9 @@ export async function respondToPublicQuoteByToken({
           businessSlug: existingQuote.businessSlug,
           quoteNumber: existingQuote.quoteNumber,
           status: "accepted" as const,
+          signerName: existingAcceptance?.signerName ?? null,
+          acceptedAt: existingAcceptance?.acceptedAt ?? null,
+          version: existingAcceptance?.quoteVersion ?? existingQuote.version,
         };
       }
 
@@ -1452,6 +1517,112 @@ export async function respondToPublicQuoteByToken({
         quoteNumber: existingQuote.quoteNumber,
         status: existingQuote.status,
       };
+    }
+
+    /* Retry idempotency: acceptance already recorded for this version. */
+    if (nextStatus === "accepted" && existingAcceptance) {
+      return {
+        updated: false,
+        businessId: existingQuote.businessId,
+        inquiryId: existingQuote.inquiryId,
+        quoteId: existingQuote.id,
+        businessSlug: existingQuote.businessSlug,
+        quoteNumber: existingQuote.quoteNumber,
+        status: "accepted" as const,
+        signerName: existingAcceptance.signerName,
+        acceptedAt: existingAcceptance.acceptedAt,
+        version: existingAcceptance.quoteVersion,
+      };
+    }
+
+    let acceptanceId: string | null = null;
+    let snapshotHash: string | null = null;
+    let validSignerName: string | null = null;
+
+    if (nextStatus === "accepted") {
+      validSignerName = validateSignerName(signerName);
+      if (!validSignerName) {
+        throw new Error("Enter your name to accept this quote.");
+      }
+
+      /* Server-authoritative snapshot: never trust client totals. */
+      const sourceItems = await tx
+        .select({
+          description: quoteItems.description,
+          quantity: quoteItems.quantity,
+          unitPriceInCents: quoteItems.unitPriceInCents,
+          lineTotalInCents: quoteItems.lineTotalInCents,
+          position: quoteItems.position,
+        })
+        .from(quoteItems)
+        .where(eq(quoteItems.quoteId, existingQuote.id));
+
+      const snapshot = buildAcceptanceSnapshot({
+        quoteNumber: existingQuote.quoteNumber,
+        quoteVersion: existingQuote.version,
+        title: existingQuote.title,
+        businessName: existingQuote.businessName,
+        customerName: existingQuote.customerName,
+        customerEmail: existingQuote.customerEmail,
+        currency: existingQuote.currency,
+        notes: existingQuote.notes,
+        terms: existingQuote.terms,
+        validUntil: existingQuote.validUntil,
+        subtotalInCents: existingQuote.subtotalInCents,
+        discountInCents: existingQuote.discountInCents,
+        taxInCents: existingQuote.taxInCents,
+        taxLabel: existingQuote.taxLabel,
+        totalInCents: existingQuote.totalInCents,
+        items: sourceItems,
+      });
+      snapshotHash = hashAcceptanceSnapshot(snapshot);
+      acceptanceId = createId("qa");
+
+      try {
+        await tx.insert(quoteAcceptances).values({
+          id: acceptanceId,
+          businessId: existingQuote.businessId,
+          quoteId: existingQuote.id,
+          quoteVersion: existingQuote.version,
+          signerName: validSignerName,
+          signerEmail: existingQuote.customerEmail,
+          acceptanceMethod: QUOTE_ACCEPTANCE_METHOD_TYPED_NAME,
+          acceptanceText: QUOTE_ACCEPTANCE_TEXT,
+          acceptanceTextVersion: QUOTE_ACCEPTANCE_TEXT_VERSION,
+          snapshot,
+          snapshotHash,
+          acceptedAt: now,
+        });
+      } catch (error) {
+        /* Concurrent accept won the race: return the winner idempotently. */
+        if (isRetryableUniqueConflict(error)) {
+          const [winner] = await tx
+            .select({
+              id: quoteAcceptances.id,
+              signerName: quoteAcceptances.signerName,
+              acceptedAt: quoteAcceptances.acceptedAt,
+              quoteVersion: quoteAcceptances.quoteVersion,
+            })
+            .from(quoteAcceptances)
+            .where(eq(quoteAcceptances.quoteId, existingQuote.id))
+            .limit(1);
+          if (winner) {
+            return {
+              updated: false,
+              businessId: existingQuote.businessId,
+              inquiryId: existingQuote.inquiryId,
+              quoteId: existingQuote.id,
+              businessSlug: existingQuote.businessSlug,
+              quoteNumber: existingQuote.quoteNumber,
+              status: "accepted" as const,
+              signerName: winner.signerName,
+              acceptedAt: winner.acceptedAt,
+              version: winner.quoteVersion,
+            };
+          }
+        }
+        throw error;
+      }
     }
 
     await tx
@@ -1502,9 +1673,36 @@ export async function respondToPublicQuoteByToken({
         quoteNumber: existingQuote.quoteNumber,
         response: nextStatus,
         customerMessage: message?.trim() || null,
+        ...(nextStatus === "accepted"
+          ? {
+              signerName: validSignerName,
+              quoteVersion: existingQuote.version,
+              acceptanceId,
+              snapshotHash,
+            }
+          : null),
       },
       now,
     });
+
+    if (nextStatus === "accepted") {
+      await writeAuditLog(tx, {
+        businessId: existingQuote.businessId,
+        actorUserId: null,
+        actorName: validSignerName,
+        entityType: "quote",
+        entityId: existingQuote.id,
+        action: "quote.accepted",
+        metadata: {
+          quoteNumber: existingQuote.quoteNumber,
+          quoteVersion: existingQuote.version,
+          acceptanceId,
+          signerName: validSignerName,
+          snapshotHash,
+        },
+        createdAt: now,
+      });
+    }
 
     if (existingQuote.notifyInAppOnQuoteResponse) {
       await insertBusinessNotification(tx, {
@@ -1527,6 +1725,9 @@ export async function respondToPublicQuoteByToken({
           quoteNumber: existingQuote.quoteNumber,
           response: nextStatus,
           title: existingQuote.title,
+          ...(nextStatus === "accepted"
+            ? { signerName: validSignerName, quoteVersion: existingQuote.version }
+            : null),
         },
         now,
       });
@@ -1551,6 +1752,10 @@ export async function respondToPublicQuoteByToken({
       title: existingQuote.title,
       totalInCents: existingQuote.totalInCents,
       updatedAt: now,
+      signerName: nextStatus === "accepted" ? validSignerName : null,
+      acceptanceId,
+      version: existingQuote.version,
+      acceptedAt: nextStatus === "accepted" ? now : null,
     };
   });
 

@@ -23,6 +23,7 @@ import {
   activityLogs,
   followUps,
   inquiries,
+  quoteAcceptances,
   quoteItems,
   quotes,
   user,
@@ -902,6 +903,22 @@ async function getPublicQuoteByTokenImpl(
     .where(eq(quoteItems.quoteId, quote.id))
     .orderBy(asc(quoteItems.position), asc(quoteItems.createdAt));
 
+  const [acceptance] = await db
+    .select({
+      id: quoteAcceptances.id,
+      quoteVersion: quoteAcceptances.quoteVersion,
+      signerName: quoteAcceptances.signerName,
+      signerEmail: quoteAcceptances.signerEmail,
+      acceptanceMethod: quoteAcceptances.acceptanceMethod,
+      acceptanceText: quoteAcceptances.acceptanceText,
+      acceptanceTextVersion: quoteAcceptances.acceptanceTextVersion,
+      snapshotHash: quoteAcceptances.snapshotHash,
+      acceptedAt: quoteAcceptances.acceptedAt,
+    })
+    .from(quoteAcceptances)
+    .where(eq(quoteAcceptances.quoteId, quote.id))
+    .limit(1);
+
   return {
     acceptedAt: quote.acceptedAt,
     businessId: quote.businessId,
@@ -935,6 +952,7 @@ async function getPublicQuoteByTokenImpl(
     totalInCents: quote.totalInCents,
     validUntil: quote.validUntil,
     items,
+    acceptance: acceptance ?? null,
   };
 }
 
@@ -1002,6 +1020,8 @@ export async function getQuoteVersionsForBusiness(
       terms: quoteVersions.terms,
       subtotalInCents: quoteVersions.subtotalInCents,
       discountInCents: quoteVersions.discountInCents,
+      taxInCents: quoteVersions.taxInCents,
+      taxLabel: quoteVersions.taxLabel,
       totalInCents: quoteVersions.totalInCents,
       validUntil: quoteVersions.validUntil,
       items: quoteVersions.items,
@@ -1076,6 +1096,8 @@ export async function getPublicQuoteVersionsByToken(
       terms: quoteVersions.terms,
       subtotalInCents: quoteVersions.subtotalInCents,
       discountInCents: quoteVersions.discountInCents,
+      taxInCents: quoteVersions.taxInCents,
+      taxLabel: quoteVersions.taxLabel,
       totalInCents: quoteVersions.totalInCents,
       validUntil: quoteVersions.validUntil,
       items: quoteVersions.items,
@@ -1087,6 +1109,37 @@ export async function getPublicQuoteVersionsByToken(
     .orderBy(desc(quoteVersions.version));
 
   return versions;
+}
+
+export async function getAcceptanceForBusiness({
+  businessId,
+  quoteId,
+}: {
+  businessId: string;
+  quoteId: string;
+}) {
+  const [row] = await db
+    .select({
+      id: quoteAcceptances.id,
+      quoteVersion: quoteAcceptances.quoteVersion,
+      signerName: quoteAcceptances.signerName,
+      signerEmail: quoteAcceptances.signerEmail,
+      acceptanceMethod: quoteAcceptances.acceptanceMethod,
+      acceptanceText: quoteAcceptances.acceptanceText,
+      acceptanceTextVersion: quoteAcceptances.acceptanceTextVersion,
+      snapshot: quoteAcceptances.snapshot,
+      snapshotHash: quoteAcceptances.snapshotHash,
+      acceptedAt: quoteAcceptances.acceptedAt,
+    })
+    .from(quoteAcceptances)
+    .where(
+      and(
+        eq(quoteAcceptances.businessId, businessId),
+        eq(quoteAcceptances.quoteId, quoteId),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
 }
 
 // ---------------------------------------------------------------------------

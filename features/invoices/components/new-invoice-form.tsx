@@ -22,6 +22,9 @@ export type NewInvoiceQuoteSnapshot = {
   customerContactMethod: string;
   customerContactHandle: string;
   items: Array<{ description: string; quantity: number; unitPriceInCents: number }>;
+  discountInCents: number;
+  taxInCents: number;
+  taxLabel: string | null;
 };
 
 type NewInvoiceFormProps = {
@@ -41,6 +44,10 @@ const initialState: InvoiceActionState = {};
 
 function formatMoney(cents: number, currency: string) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(cents / 100);
+}
+
+function centsToInput(cents: number) {
+  return (cents / 100).toFixed(2);
 }
 
 export function NewInvoiceForm({
@@ -237,34 +244,57 @@ export function NewInvoiceForm({
           </p>
         ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field data-invalid={Boolean(state.fieldErrors?.discountInCents) || undefined}>
-            <FieldLabel htmlFor="invoice-discount">Discount</FieldLabel>
-            <FieldContent>
-              <Input
-                aria-invalid={Boolean(state.fieldErrors?.discountInCents) || undefined}
-                defaultValue="0"
-                disabled={isPending}
-                id="invoice-discount"
-                inputMode="decimal"
-                name="discount"
-              />
-              <FieldError errors={state.fieldErrors?.discountInCents?.map((message) => ({ message }))} />
-            </FieldContent>
-          </Field>
-          <Field data-invalid={Boolean(state.fieldErrors?.taxInCents) || undefined}>
-            <FieldLabel htmlFor="invoice-tax">Tax</FieldLabel>
-            <FieldContent>
-              <Input
-                aria-invalid={Boolean(state.fieldErrors?.taxInCents) || undefined}
-                defaultValue="0"
-                disabled={isPending}
-                id="invoice-tax"
-                inputMode="decimal"
-                name="tax"
-              />
-              <FieldError errors={state.fieldErrors?.taxInCents?.map((message) => ({ message }))} />
-            </FieldContent>
-          </Field>
+          {quote ? (
+            <>
+              <input type="hidden" name="discount" value={centsToInput(quote.discountInCents)} />
+              <input type="hidden" name="tax" value={centsToInput(quote.taxInCents)} />
+              <div className="grid gap-1.5">
+                <span className="text-sm font-medium">Discount</span>
+                <p className="text-sm tabular-nums text-muted-foreground">
+                  {formatMoney(quote.discountInCents, currency)} · inherited from {quote.quoteNumber}
+                </p>
+              </div>
+              <div className="grid gap-1.5">
+                <span className="text-sm font-medium">
+                  {quote.taxLabel ? `Tax (${quote.taxLabel})` : "Tax"}
+                </span>
+                <p className="text-sm tabular-nums text-muted-foreground">
+                  {formatMoney(quote.taxInCents, currency)} · inherited from {quote.quoteNumber}
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <Field data-invalid={Boolean(state.fieldErrors?.discountInCents) || undefined}>
+                <FieldLabel htmlFor="invoice-discount">Discount</FieldLabel>
+                <FieldContent>
+                  <Input
+                    aria-invalid={Boolean(state.fieldErrors?.discountInCents) || undefined}
+                    defaultValue="0"
+                    disabled={isPending}
+                    id="invoice-discount"
+                    inputMode="decimal"
+                    name="discount"
+                  />
+                  <FieldError errors={state.fieldErrors?.discountInCents?.map((message) => ({ message }))} />
+                </FieldContent>
+              </Field>
+              <Field data-invalid={Boolean(state.fieldErrors?.taxInCents) || undefined}>
+                <FieldLabel htmlFor="invoice-tax">Tax</FieldLabel>
+                <FieldContent>
+                  <Input
+                    aria-invalid={Boolean(state.fieldErrors?.taxInCents) || undefined}
+                    defaultValue="0"
+                    disabled={isPending}
+                    id="invoice-tax"
+                    inputMode="decimal"
+                    name="tax"
+                  />
+                  <FieldError errors={state.fieldErrors?.taxInCents?.map((message) => ({ message }))} />
+                </FieldContent>
+              </Field>
+            </>
+          )}
         </div>
       </DashboardSection>
 

@@ -5,12 +5,15 @@ import { Check, CircleSlash } from "lucide-react";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { getFieldError } from "@/lib/action-state";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import type {
   PublicQuoteResolvedSnapshot,
   PublicQuoteResponseActionState,
 } from "@/features/quotes/types";
+import { QUOTE_ACCEPTANCE_TEXT } from "@/features/quotes/acceptance";
 
 type PublicQuoteResponseFormProps = {
   action: (
@@ -18,6 +21,7 @@ type PublicQuoteResponseFormProps = {
     formData: FormData,
   ) => Promise<PublicQuoteResponseActionState>;
   onResolved?: (snapshot: PublicQuoteResolvedSnapshot) => void;
+  expectedVersion?: number;
 };
 
 const initialState: PublicQuoteResponseActionState = {};
@@ -25,14 +29,19 @@ const initialState: PublicQuoteResponseActionState = {};
 export function PublicQuoteResponseForm({
   action,
   onResolved,
+  expectedVersion,
 }: PublicQuoteResponseFormProps) {
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
   );
   const messageError = getFieldError(state.fieldErrors, "message");
+  const signerError = getFieldError(state.fieldErrors, "signerName");
+  const confirmedError = getFieldError(state.fieldErrors, "confirmed");
   const lastResolvedKeyRef = useRef<string | null>(null);
   const [submittedResponse, setSubmittedResponse] = useState<"accepted" | "rejected" | null>(null);
+  const [signerName, setSignerName] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
     if (!state.resolvedQuote) {
@@ -51,14 +60,55 @@ export function PublicQuoteResponseForm({
 
   const pendingAccept = isPending && submittedResponse === "accepted";
   const pendingDecline = isPending && submittedResponse === "rejected";
+  const canAccept = signerName.trim().length >= 2 && confirmed && !isPending;
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
-      {/* Action buttons first — most important on mobile */}
+      {expectedVersion != null ? (
+        <input type="hidden" name="expectedVersion" value={expectedVersion} />
+      ) : null}
+      {/* Accept & Sign */}
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="public-quote-signer" className="text-sm font-medium">
+          Your name
+        </label>
+        <Input
+          id="public-quote-signer"
+          name="signerName"
+          autoComplete="name"
+          maxLength={120}
+          placeholder="Maria Santos"
+          value={signerName}
+          onChange={(event) => setSignerName(event.target.value)}
+          aria-invalid={Boolean(signerError) || undefined}
+          disabled={isPending}
+          className="text-sm"
+        />
+        {signerError ? (
+          <p className="text-xs text-destructive">{signerError}</p>
+        ) : null}
+      </div>
+
+      <label className="flex cursor-pointer items-start gap-2.5 text-sm leading-relaxed">
+        <Checkbox
+          checked={confirmed}
+          onCheckedChange={(value) => setConfirmed(value === true)}
+          disabled={isPending}
+          aria-invalid={Boolean(confirmedError) || undefined}
+          className="mt-0.5"
+        />
+        <input type="hidden" name="confirmed" value={confirmed ? "true" : ""} />
+        <span>{QUOTE_ACCEPTANCE_TEXT}</span>
+      </label>
+      {confirmedError ? (
+        <p className="-mt-2 text-xs text-destructive">{confirmedError}</p>
+      ) : null}
+
+      {/* Action buttons */}
       <div className="flex gap-3">
         <Button
           className="flex-1"
-          disabled={isPending}
+          disabled={!canAccept}
           name="response"
           size="lg"
           type="submit"
@@ -70,7 +120,7 @@ export function PublicQuoteResponseForm({
           ) : (
             <Check data-icon="inline-start" />
           )}
-          Accept
+          Accept &amp; Sign
         </Button>
         <Button
           className="flex-1"

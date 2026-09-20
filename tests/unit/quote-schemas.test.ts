@@ -128,14 +128,37 @@ describe("quote validation schemas", () => {
       publicQuoteResponseSchema.safeParse({
         response: "accepted",
         message: "a".repeat(1200),
+        signerName: "Maria Santos",
+        confirmed: true,
       }).success,
     ).toBe(true);
     expect(
       publicQuoteResponseSchema.safeParse({
         response: "accepted",
         message: "a".repeat(1201),
+        signerName: "Maria Santos",
+        confirmed: true,
       }).success,
     ).toBe(false);
+    expect(
+      publicQuoteResponseSchema.safeParse({
+        response: "accepted",
+        message: "ok",
+      }).success,
+    ).toBe(false);
+    expect(
+      publicQuoteResponseSchema.safeParse({
+        response: "accepted",
+        message: "ok",
+        signerName: "Maria Santos",
+      }).success,
+    ).toBe(false);
+    expect(
+      publicQuoteResponseSchema.safeParse({
+        response: "rejected",
+        message: "no thanks",
+      }).success,
+    ).toBe(true);
     expect(quotePublicTokenSchema.safeParse("abc").success).toBe(false);
     expect(
       quotePublicTokenSchema.safeParse("public_token-123456").success,

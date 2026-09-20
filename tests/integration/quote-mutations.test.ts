@@ -194,6 +194,8 @@ describe("features/quotes/mutations workflow", () => {
       token: sent!.publicToken!,
       response: "accepted",
       message: "Approved. Please schedule production.",
+      signerName: "Taylor Nguyen",
+      confirmed: true,
     });
 
     expect(accepted).toEqual(

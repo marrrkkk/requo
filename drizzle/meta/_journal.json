@@ -218,6 +218,20 @@
       "when": 1789425628380,
       "tag": "0030_omniscient_cassandra_nova",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1789886861438,
+      "tag": "0031_manual_payment_upgrade",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790000000000,
+      "tag": "0032_quote_acceptances",
+      "breakpoints": true
     }
   ]
 }

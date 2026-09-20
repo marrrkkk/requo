@@ -26,10 +26,10 @@ Related: `docs/architecture.md`, `docs/data.md` (tables), `docs/workflows.md` (e
 | Service | Offering + intake form + public page | `businessId` | `business_inquiry_forms` |
 | Inquiry | Qualified customer request | `businessId` (+ optional `businessInquiryFormId`) | `inquiries`, `inquiry_notes`, `inquiry_attachments`, `inquiry_messages`, `inquiry_duplicates` |
 | Proposed Inquiry | Agent-staged result awaiting visitor approval; commits nothing | session state on `ai_agent_sessions` | no table (session `state` JSONB) |
-| Quote | Priced proposal with line items, versions, delivery state | `businessId` (+ optional `inquiryId`) | `quotes`, `quote_items`, `quote_versions`, `quote_revision_requests` |
+| Quote | Priced proposal with line items, versions, delivery state | `businessId` (+ optional `inquiryId`) | `quotes`, `quote_items`, `quote_versions`, `quote_revision_requests`, `quote_acceptances` |
 | Quote library entry | Reusable block/package/template + items | `businessId` | `quote_library_entries`, `quote_library_entry_items` |
 | Invoice | Payment request from accepted quote or standalone; snapshot on send | `businessId` (+ optional `quoteId`) | `invoices`, `invoice_line_items` |
-| Payment | Manually recorded amount against one invoice | `businessId` → invoice | `payments` |
+| Payment | Manually recorded amount against one invoice; human number `PAY-YYYY-NNNN` per business/year, idempotency-key replay, void-only corrections | `businessId` → invoice | `payments`, `business_payment_counters` |
 | Follow-up | Owner reminder task linked to inquiry and/or quote | `businessId` | `follow_ups` |
 | Business Memory | Owner-maintained knowledge for RAG grounding | `businessId` | `business_memories`, `business_knowledge_files`, `business_knowledge_chunks` |
 | Notification | In-app event for a business | `businessId` | `business_notifications`, `..._states`, `..._reads` |
@@ -45,9 +45,9 @@ Related: `docs/architecture.md`, `docs/data.md` (tables), `docs/workflows.md` (e
 
 **Assistant Session:** long-lived, per member (`businessId` + `userId`), retained indefinitely. No completed state.
 
-**Quote** (`quote_status`): `draft` → `sent` → `accepted` | `rejected` | `revision_requested` → (new version) → `sent` … → `expired` | `voided`. `publicToken` gates the public page. `autoFollowUp*` fields drive the unattended nudge sequence. `aiReadiness` (`ready` | `needs_confirmation` | `scope_only`) + `aiMissingInfo` describe AI-draft confidence — display only, never price authority.
+**Quote** (`quote_status`): `draft` → `sent` → `accepted` | `rejected` | `revision_requested` → (new version) → `sent` … → `expired` | `voided`. `publicToken` gates the public page. Accepting records one immutable `quote_acceptances` row (signer, version, snapshot + hash of server-side quote state); accepted quotes are not editable. `autoFollowUp*` fields drive the unattended nudge sequence. `aiReadiness` (`ready` | `needs_confirmation` | `scope_only`) + `aiMissingInfo` describe AI-draft confidence — display only, never price authority.
 
-**Invoice** (`invoice_status`): `draft` → `sent` → `unpaid` | `partially_paid` → `paid` | `overdue`; `voided` terminal. One non-void invoice per quote (`businessId, quoteId` unique partial). Payments are manual records; voided payments excluded from balances.
+**Invoice** (`invoice_status`): `draft` → `sent` → `unpaid` | `partially_paid` → `paid` | `overdue`; `voided` terminal. One non-void invoice per quote (`businessId, quoteId` unique partial). Payments are manual records; voided payments excluded from balances. Recording a payment is an attestation of money received outside Requo, never processing. Voiding a payment keeps the row with an enum reason (`duplicate_entry`, `wrong_amount`, `wrong_invoice`, `not_received`, `entered_by_mistake`, `other`) plus optional details.
 
 **Follow-up** (`follow_up_status`): `pending` → `completed` | `skipped`. Requires `inquiryId` OR `quoteId`. Recurrence (`none`/`daily`/`weekly`/…) with termination condition.
 
