@@ -62,13 +62,25 @@ export function PublicQuoteInteractiveColumn({
         : null;
   const customerResponseMessage =
     resolved?.customerResponseMessage ?? quote.customerResponseMessage;
+  const acceptanceSigner =
+    resolved?.signerName ?? quote.acceptance?.signerName ?? null;
+  const acceptanceVersion =
+    resolved?.version ?? quote.acceptance?.quoteVersion ?? quote.version;
+  const acceptanceAt =
+    resolved?.acceptedAt != null
+      ? new Date(resolved.acceptedAt)
+      : quote.acceptance?.acceptedAt
+        ? new Date(quote.acceptance.acceptedAt as unknown as string | Date)
+        : customerRespondedAt;
 
   const statusInfo = useMemo(() => {
     if (displayStatus === "accepted") {
       return {
         bgColor: "border-emerald-500/20 bg-emerald-500/5",
         title: "Quote accepted",
-        description: "You accepted this quote. The business has been notified.",
+        description: acceptanceSigner
+          ? `Accepted by ${acceptanceSigner}. The business has been notified.`
+          : "You accepted this quote. The business has been notified.",
       };
     }
     if (displayStatus === "rejected") {
@@ -105,7 +117,7 @@ export function PublicQuoteInteractiveColumn({
       title: "Quote closed",
       description: "This quote is no longer accepting responses.",
     };
-  }, [displayStatus, quote.validUntil]);
+  }, [displayStatus, quote.validUntil, acceptanceSigner]);
 
   const handleRevisionSuccess = useCallback(() => {
     setRevisionDialogOpen(false);
@@ -135,11 +147,12 @@ export function PublicQuoteInteractiveColumn({
             className="rounded-xl border border-border/60 bg-background/95 px-4 py-5 shadow-sm sm:p-6"
           >
             <p className="mb-4 text-sm font-medium text-muted-foreground">
-              Ready to respond?
+              Review the quote above, then accept and sign below.
             </p>
             <PublicQuoteResponseForm
               action={respondAction}
               onResolved={handleResolved}
+              expectedVersion={quote.version}
             />
 
             {revisionAction ? (
@@ -194,7 +207,17 @@ export function PublicQuoteInteractiveColumn({
               >
                 {statusInfo.description}
               </motion.p>
-              {customerRespondedAt ? (
+              {displayStatus === "accepted" ? (
+                <motion.p
+                  className="mt-2 text-xs text-muted-foreground/80"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4, duration: 0.3 }}
+                >
+                  Quote {quote.quoteNumber} · Version v{acceptanceVersion}
+                  {acceptanceAt ? ` · Accepted ${formatQuoteDateTime(acceptanceAt)}` : null}
+                </motion.p>
+              ) : customerRespondedAt ? (
                 <motion.p
                   className="mt-2 text-xs text-muted-foreground/80"
                   initial={{ opacity: 0 }}

@@ -284,6 +284,7 @@ export type PublicQuoteView = {
   customerRespondedAt: Date | null;
   customerResponseMessage: string | null;
   items: DashboardQuoteItem[];
+  acceptance?: QuoteAcceptanceView | null;
 };
 
 export type QuoteEditorLineItemValue = {
@@ -421,13 +422,28 @@ export type QuoteSendActionState = {
 };
 
 export type PublicQuoteResponseFieldErrors = Partial<
-  Record<"response" | "message", string[] | undefined>
+  Record<"response" | "message" | "signerName" | "confirmed" | "expectedVersion", string[] | undefined>
 >;
 
 export type PublicQuoteResolvedSnapshot = {
   status: QuoteStatus;
   customerRespondedAt: string;
   customerResponseMessage: string | null;
+  signerName?: string | null;
+  acceptedAt?: string | null;
+  version?: number;
+};
+
+export type QuoteAcceptanceView = {
+  id: string;
+  quoteVersion: number;
+  signerName: string;
+  signerEmail: string | null;
+  acceptanceMethod: string;
+  acceptanceText: string;
+  acceptanceTextVersion: number;
+  snapshotHash: string;
+  acceptedAt: Date;
 };
 
 export type PublicQuoteResponseActionState = {
@@ -465,6 +481,8 @@ export type QuoteVersionSnapshot = {
   terms: string | null;
   subtotalInCents: number;
   discountInCents: number;
+  taxInCents: number;
+  taxLabel: string | null;
   totalInCents: number;
   validUntil: string;
   items: {

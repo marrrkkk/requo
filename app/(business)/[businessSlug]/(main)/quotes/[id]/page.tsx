@@ -57,6 +57,7 @@ import {
   type InquiryContactMethod,
 } from "@/features/inquiries/form-config";
 import { getCustomerHistoryForBusiness } from "@/features/customers/queries";
+import { CompleteAcceptedQuoteButton } from "@/features/quotes/components/complete-accepted-quote-button";
 import { CopyQuoteLinkButton } from "@/features/quotes/components/copy-quote-link-button";
 import { QuoteWorkflowSteps } from "@/features/businesses/components/workflow-steps";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
@@ -79,6 +80,7 @@ import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badg
 import { getFollowUpsForQuote } from "@/features/follow-ups/queries";
 import { getQuoteLibraryForBusiness } from "@/features/quotes/quote-library-queries";
 import {
+  getAcceptanceForBusiness,
   getBusinessContactEmailForPreview,
   getQuoteActivitiesForBusiness,
   getQuoteDetailCoreForBusiness,
@@ -170,11 +172,15 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
   const businessId = businessContext.business.id;
   const quoteId = parsedParams.data.id;
 
-  const [quote, businessContactEmail, linkedInvoice] = await Promise.all([
+  const [quote, businessContactEmail, linkedInvoice, acceptance] = await Promise.all([
     getQuoteDetailCoreForBusiness({ businessId, quoteId }),
     getBusinessContactEmailForPreview(businessId),
     getInvoiceIdByQuoteId({ businessId, quoteId }).catch((error) => {
       console.error("Failed to load linked invoice.", { quoteId }, error);
+      return null;
+    }),
+    getAcceptanceForBusiness({ businessId, quoteId }).catch((error) => {
+      console.error("Failed to load quote acceptance.", { quoteId }, error);
       return null;
     }),
   ]);
@@ -325,6 +331,9 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
                 </Link>
               </Button>
             ) : null}
+            {quote.status === "accepted" && !quote.completedAt && !quote.canceledAt ? (
+              <CompleteAcceptedQuoteButton completeAction={completeAction} />
+            ) : null}
           </div>
         }
       />
@@ -441,6 +450,10 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
               quote={quote}
               visibleQuoteReminders={visibleQuoteReminders}
             />
+
+            {quote.status === "accepted" ? (
+              <QuoteAcceptanceSection acceptance={acceptance} quote={quote} />
+            ) : null}
 
             <QuoteContactSection
               quote={quote}
@@ -966,6 +979,62 @@ function QuoteCustomerViewSection({
           </AlertDescription>
         </Alert>
       )}
+    </DashboardSection>
+  );
+}
+
+function QuoteAcceptanceSection({
+  acceptance,
+  quote,
+}: {
+  acceptance: {
+    signerName: string;
+    signerEmail: string | null;
+    acceptanceMethod: string;
+    acceptanceText: string;
+    quoteVersion: number;
+    snapshotHash: string;
+    acceptedAt: Date;
+  } | null;
+  quote: DashboardQuoteDetailCore;
+}) {
+  if (!acceptance) {
+    return (
+      <DashboardSection
+        contentClassName="flex flex-col gap-3"
+        description="Acceptance record for this quote."
+        title="Acceptance"
+      >
+        <p className="text-sm text-muted-foreground">
+          Accepted{quote.acceptedAt ? ` ${formatQuoteDateTime(quote.acceptedAt)}` : ""} (legacy
+          record — signer details were not captured).
+        </p>
+      </DashboardSection>
+    );
+  }
+
+  return (
+    <DashboardSection
+      contentClassName="grid gap-3 sm:grid-cols-2"
+      description="Immutable record of what the customer accepted."
+      title="Acceptance"
+    >
+      <InfoTile label="Accepted by" value={acceptance.signerName} />
+      <InfoTile label="Accepted on" value={formatQuoteDateTime(acceptance.acceptedAt)} />
+      <InfoTile label="Accepted version" value={`v${acceptance.quoteVersion}`} />
+      {quote.completedAt ? (
+        <InfoTile
+          className="sm:col-span-2"
+          label="Work completed"
+          value={formatQuoteDateTime(quote.completedAt)}
+        />
+      ) : null}
+      {acceptance.signerEmail ? (
+        <InfoTile className="sm:col-span-2" label="Signer email" value={acceptance.signerEmail} valueClassName="break-all" />
+      ) : null}
+      <div className="sm:col-span-2">
+        <InfoTile label="Snapshot hash" value={`${acceptance.snapshotHash.slice(0, 16)}…`} valueClassName="break-all font-mono text-xs" />
+      </div>
     </DashboardSection>
   );
 }

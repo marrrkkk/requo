@@ -130,7 +130,8 @@ import type {
 import { inquiryStatuses, type InquiryStatus } from "@/features/inquiries/types";
 import { quoteStatuses, type QuoteStatus } from "@/features/quotes/types";
 import { calculateInvoicePaymentState } from "@/features/invoices/utils";
-import { effectiveInvoiceStatusSql } from "@/features/invoices/queries";
+import { getEffectiveInvoiceStatusSql, paidAmountSql } from "@/features/invoices/queries";
+import { getTodayUtcDateString } from "@/features/quotes/utils";
 import type {
   InvoiceStatus,
   PaymentMethod,
@@ -1871,8 +1872,8 @@ export const getAdminQuoteEmails = cache(
 
 /* ── Invoices ────────────────────────────────────────────────────────────── */
 
-/** Non-voided payments summed per invoice (mirrors the business queries). */
-const adminInvoicePaidSql = sql<number>`coalesce((select sum(${payments.amountInCents}) from ${payments} where ${payments.invoiceId} = ${invoices.id} and ${payments.businessId} = ${invoices.businessId} and ${payments.voidedAt} is null), 0)`;
+/** Non-voided payments summed per invoice (canonical definition in business queries). */
+const adminInvoicePaidSql = paidAmountSql();
 
 function buildInvoiceSearchCondition(search: string) {
   const pattern = likePattern(search);
@@ -1904,7 +1905,7 @@ async function listAdminInvoicesInner(
   if (status) {
     // Match the effective status (payments + due date applied), not the
     // stored row — the same expression the business invoice list uses.
-    conditions.push(sql`${effectiveInvoiceStatusSql} = ${status}::invoice_status`);
+    conditions.push(sql`${getEffectiveInvoiceStatusSql(getTodayUtcDateString())} = ${status}::invoice_status`);
   }
 
   const where = and(...conditions);

@@ -379,19 +379,56 @@ export const quoteCancellationSchema = z.object({
   ),
 });
 
-export const publicQuoteResponseSchema = z.object({
-  response: z.enum(["accepted", "rejected"], {
-    error: () => "Choose whether to accept or decline this quote.",
-  }),
-  message: z.preprocess(
-    emptyToUndefined,
-    z
-      .string()
-      .trim()
-      .max(1200, "Customer response messages must be 1,200 characters or fewer.")
-      .optional(),
-  ),
-});
+export const publicQuoteResponseSchema = z
+  .object({
+    response: z.enum(["accepted", "rejected"], {
+      error: () => "Choose whether to accept or decline this quote.",
+    }),
+    message: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .trim()
+        .max(1200, "Customer response messages must be 1,200 characters or fewer.")
+        .optional(),
+    ),
+    signerName: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .trim()
+        .max(120, "Name must be 120 characters or fewer.")
+        .optional(),
+    ),
+    confirmed: z.preprocess((value) => {
+      if (value === true || value === "true" || value === "on" || value === "1") return true;
+      return emptyToUndefined(value) === undefined ? undefined : false;
+    }, z.boolean().optional()),
+    expectedVersion: z.preprocess((value) => {
+      const first = firstString(value);
+      if (first == null || String(first).trim() === "") return undefined;
+      const parsed = Number(String(first).trim());
+      return Number.isFinite(parsed) ? parsed : value;
+    }, z.number().int().min(1).optional()),
+  })
+  .superRefine((data, ctx) => {
+    if (data.response !== "accepted") return;
+    const name = data.signerName?.trim() ?? "";
+    if (name.length < 2) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["signerName"],
+        message: "Enter your name to accept this quote.",
+      });
+    }
+    if (data.confirmed !== true) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["confirmed"],
+        message: "Confirm that you agree to the scope, pricing, and terms.",
+      });
+    }
+  });
 
 export type QuoteEditorInput = z.infer<typeof quoteEditorSchema>;
 export type PublicQuoteResponseInput = z.infer<typeof publicQuoteResponseSchema>;

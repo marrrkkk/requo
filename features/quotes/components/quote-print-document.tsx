@@ -1,14 +1,20 @@
-import { formatQuoteDate, formatQuoteMoney } from "@/features/quotes/utils";
+import { formatQuoteDate, formatQuoteDateTime, formatQuoteMoney } from "@/features/quotes/utils";
 import type { DashboardQuoteDetail } from "@/features/quotes/types";
 
 type QuotePrintDocumentProps = {
   businessName: string;
   quote: DashboardQuoteDetail;
+  acceptance?: {
+    signerName: string;
+    acceptedAt: Date | string;
+    quoteVersion: number;
+  } | null;
 };
 
 export function QuotePrintDocument({
   businessName,
   quote,
+  acceptance,
 }: QuotePrintDocumentProps) {
 
   return (
@@ -159,6 +165,16 @@ export function QuotePrintDocument({
                 value={formatQuoteDate(quote.validUntil)}
               />
               <DetailRow label="Status" value={quote.status} />
+              {quote.status === "accepted" && acceptance ? (
+                <>
+                  <DetailRow label="Accepted by" value={acceptance.signerName} />
+                  <DetailRow
+                    label="Accepted on"
+                    value={formatQuoteDateTime(new Date(acceptance.acceptedAt))}
+                  />
+                  <DetailRow label="Accepted version" value={`v${acceptance.quoteVersion}`} />
+                </>
+              ) : null}
             </div>
           </section>
         </aside>

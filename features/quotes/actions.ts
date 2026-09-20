@@ -827,6 +827,9 @@ export async function respondToPublicQuoteAction(
   const validationResult = publicQuoteResponseSchema.safeParse({
     response: formData.get("response"),
     message: formData.get("message"),
+    signerName: formData.get("signerName"),
+    confirmed: formData.get("confirmed"),
+    expectedVersion: formData.get("expectedVersion"),
   });
 
   if (!validationResult.success) {
@@ -851,6 +854,9 @@ export async function respondToPublicQuoteAction(
       token,
       response: validationResult.data.response,
       message: validationResult.data.message,
+      signerName: validationResult.data.signerName,
+      confirmed: validationResult.data.confirmed,
+      expectedVersion: validationResult.data.expectedVersion,
     });
 
     if (!result) {
@@ -867,10 +873,26 @@ export async function respondToPublicQuoteAction(
       ),
     );
 
+    if ("versionMismatch" in result && result.versionMismatch) {
+      return {
+        error: "This quote was updated. Please review the latest version before accepting.",
+      };
+    }
+
     if (!result.updated) {
       if (result.status === "accepted") {
         return {
           success: `Quote ${result.quoteNumber} has already been accepted.`,
+          resolvedQuote: {
+            status: result.status,
+            customerRespondedAt: ("acceptedAt" in result && result.acceptedAt
+              ? new Date(result.acceptedAt as unknown as string | Date)
+              : new Date()
+            ).toISOString(),
+            customerResponseMessage: null,
+            signerName: ("signerName" in result ? (result.signerName as string | null) : null) ?? null,
+            version: ("version" in result ? (result.version as number | undefined) : undefined) ?? undefined,
+          },
         };
       }
 
@@ -930,10 +952,18 @@ export async function respondToPublicQuoteAction(
         status: result.status,
         customerRespondedAt: respondedAt.toISOString(),
         customerResponseMessage: result.customerResponseMessage ?? null,
+        signerName: ("signerName" in result ? (result.signerName as string | null) : null) ?? null,
+        acceptedAt: ("acceptedAt" in result && result.acceptedAt
+          ? new Date(result.acceptedAt as unknown as string | Date).toISOString()
+          : null) ?? null,
+        version: ("version" in result ? (result.version as number | undefined) : undefined) ?? undefined,
       },
     };
   } catch (error) {
     console.error("Failed to record public quote response.", error);
+    if (error instanceof Error && /Enter your name|Confirm that you agree/i.test(error.message)) {
+      return { error: error.message };
+    }
 
     return {
       error: "We couldn't save that response right now. Please try again.",

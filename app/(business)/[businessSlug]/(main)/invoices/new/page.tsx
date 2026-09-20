@@ -95,6 +95,9 @@ async function NewInvoiceContent({ params, searchParams }: NewInvoicePageProps) 
                   quantity: item.quantity,
                   unitPriceInCents: item.unitPriceInCents,
                 })),
+                discountInCents: quote.discountInCents,
+                taxInCents: quote.taxInCents,
+                taxLabel: quote.taxLabel,
               }
             : null
         }

@@ -133,6 +133,22 @@ export function getBusinessInvoiceEditPath(slug: string, invoiceId: string) {
   return `${getBusinessInvoicesPath(slug)}/${invoiceId}/edit`;
 }
 
+export function getBusinessPaymentsPath(slug: string) {
+  return `${getBusinessPath(slug)}/payments`;
+}
+
+export function getBusinessPaymentPath(slug: string, paymentId: string) {
+  return `${getBusinessPaymentsPath(slug)}/${paymentId}`;
+}
+
+export function getBusinessPaymentReceiptPath(slug: string, paymentId: string) {
+  return `${getBusinessPaymentPath(slug, paymentId)}/receipt`;
+}
+
+export function getBusinessPaymentReceiptExportPath(slug: string, paymentId: string) {
+  return `/api/business/${slug}/payments/${paymentId}/receipt`;
+}
+
 export function getBusinessInvoicePrintPath(slug: string, invoiceId: string) {
   return `${getBusinessPath(slug)}/print/invoices/${invoiceId}`;
 }

@@ -27,13 +27,12 @@ import {
   recordPaymentAction,
   sendInvoiceAction,
   voidInvoiceAction,
-  voidPaymentAction,
 } from "@/features/invoices/actions";
-import { InvoiceStatusBadge } from "@/features/invoices/components/invoice-status-badge";
-import { RecordPaymentDialog } from "@/features/invoices/components/record-payment-dialog";
+import { InvoicePaymentPanel } from "@/features/invoices/components/invoice-payment-panel";
 import { SendInvoiceDialog } from "@/features/invoices/components/send-invoice-dialog";
 import { isEmailConfigured } from "@/lib/env";
 import {
+  getInvoiceActivityForBusiness,
   getInvoiceDetailCoreForBusiness,
   getInvoiceItemsForBusiness,
   getInvoicePaymentsForBusiness,
@@ -41,8 +40,6 @@ import {
 import { formatQuoteMoney } from "@/features/invoices/utils";
 import type {
   InvoiceLineItemView,
-  PaymentMethod,
-  PaymentView,
 } from "@/features/invoices/types";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { hasOperationalBusinessAccess } from "@/lib/db/business-access";
@@ -98,6 +95,12 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
             <InvoicePaymentsRegion params={params} />
           </Suspense>
         </RegionErrorBoundary>
+
+        <RegionErrorBoundary fallback={<DetailSectionFallback rows={3} />}>
+          <Suspense fallback={<DetailSectionFallback rows={3} />}>
+            <InvoiceActivityRegion params={params} />
+          </Suspense>
+        </RegionErrorBoundary>
       </div>
     </DashboardPage>
   );
@@ -105,7 +108,7 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
 
 function InvoiceStatusSkeleton() {
   return (
-    <DashboardSection title="Status">
+    <DashboardSection title="Details">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
           <Skeleton className="h-20 w-full rounded-lg" key={index} />
@@ -114,15 +117,6 @@ function InvoiceStatusSkeleton() {
     </DashboardSection>
   );
 }
-
-const paymentMethodLabels: Record<PaymentMethod, string> = {
-  cash: "Cash",
-  bank_transfer: "Bank transfer",
-  gcash: "GCash",
-  maya: "Maya",
-  check: "Check",
-  other: "Other",
-};
 
 function money(cents: number, currency: string) {
   return formatQuoteMoney(cents, currency);
@@ -150,7 +144,6 @@ async function InvoiceHeaderRegion({ params }: InvoiceDetailPageProps) {
   const canEditDraft = canManageFinancials && isDraft;
   const canMarkSent = canManageFinancials && isDraft;
   const canExportData = hasFeatureAccess(businessContext.business.plan, "exports");
-  const canRecordPayment = canManageFinancials && !isDraft && !isVoided && invoice.balanceInCents > 0;
   const canVoidInvoice = canManageFinancials && !isVoided && invoice.paidInCents === 0;
 
   return (
@@ -191,13 +184,6 @@ async function InvoiceHeaderRegion({ params }: InvoiceDetailPageProps) {
               isRequoEmailAvailable={isEmailConfigured}
             />
           ) : null}
-          {canRecordPayment ? (
-            <RecordPaymentDialog
-              action={recordPaymentAction.bind(null, invoice.id)}
-              balanceInCents={invoice.balanceInCents}
-              currency={invoice.currency}
-            />
-          ) : null}
           {canVoidInvoice ? (
             <ServerActionConfirmDialog
               action={voidInvoiceAction.bind(null, invoice.id)}
@@ -231,23 +217,17 @@ async function InvoiceStatusRegion({ params }: InvoiceDetailPageProps) {
   const amount = (cents: number) => money(cents, invoice.currency);
 
   return (
-    <DashboardSection title="Status">
+    <DashboardSection title="Details">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <InfoTile label="Status" value={<InvoiceStatusBadge status={invoice.status} />} />
-        <InfoTile label="Total" value={<span className="tabular-nums">{amount(invoice.totalInCents)}</span>} />
-        <InfoTile label="Paid" value={<span className="tabular-nums">{amount(invoice.paidInCents)}</span>} />
-        <InfoTile
-          label="Balance due"
-          value={<span className="font-semibold tabular-nums">{amount(invoice.balanceInCents)}</span>}
-        />
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <InfoTile label="Total" value={<span className="font-semibold tabular-nums">{amount(invoice.totalInCents)}</span>} />
         <InfoTile label="Subtotal" value={<span className="tabular-nums">{amount(invoice.subtotalInCents)}</span>} />
         <InfoTile label="Discount" value={<span className="tabular-nums">{amount(invoice.discountInCents)}</span>} />
         <InfoTile
           label={invoice.taxLabel ? `Tax (${invoice.taxLabel})` : "Tax"}
           value={<span className="tabular-nums">{amount(invoice.taxInCents)}</span>}
         />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <InfoTile
           label="Customer"
           value={invoice.customerName}
@@ -317,14 +297,40 @@ async function InvoicePaymentsRegion({ params }: InvoiceDetailPageProps) {
     notFound();
   }
 
+  const canManageFinancials = hasOperationalBusinessAccess(businessContext.role);
+  const canRecordPayment = canManageFinancials && invoice.status !== "draft" && invoice.status !== "voided" && invoice.balanceInCents > 0;
+
   return (
-    <InvoicePaymentsSection
-      canManageFinancials={hasOperationalBusinessAccess(businessContext.role)}
+    <InvoicePaymentPanel
+      businessSlug={businessSlug}
+      canManageFinancials={canManageFinancials}
+      canRecordPayment={canRecordPayment}
       currency={invoice.currency}
+      customerName={invoice.customerName}
+      dueDate={invoice.dueDate}
       invoiceId={invoice.id}
-      payments={payments}
+      invoiceNumber={invoice.invoiceNumber}
+      initialPayments={payments}
+      lifecycleStatus={invoice.status}
+      recordAction={recordPaymentAction.bind(null, invoice.id)}
+      totalInCents={invoice.totalInCents}
     />
   );
+}
+
+async function InvoiceActivityRegion({ params }: InvoiceDetailPageProps) {
+  const { businessSlug, invoiceId } = await params;
+  const { businessContext } = await getAppShellContext(businessSlug);
+  const [invoice, activity] = await Promise.all([
+    getInvoiceDetailCoreForBusiness({ businessId: businessContext.business.id, invoiceId }),
+    getInvoiceActivityForBusiness({ businessId: businessContext.business.id, invoiceId }),
+  ]);
+
+  if (!invoice) {
+    notFound();
+  }
+
+  return <InvoiceActivitySection activity={activity} />;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -370,80 +376,27 @@ function InvoiceLineItemsSection({
   );
 }
 
-function InvoicePaymentsSection({
-  canManageFinancials,
-  currency,
-  invoiceId,
-  payments,
+function InvoiceActivitySection({
+  activity,
 }: {
-  canManageFinancials: boolean;
-  currency: string;
-  invoiceId: string;
-  payments: PaymentView[];
+  activity: Array<{ id: string; type: string; summary: string; createdAt: Date }>;
 }) {
-  const activePayments = payments.filter((payment) => !payment.voidedAt);
-  const voidedPayments = payments.filter((payment) => payment.voidedAt);
-  const amount = (cents: number) => money(cents, currency);
-
+  const paymentEvents = activity.filter((item) =>
+    ["invoice.payment_recorded", "payment.voided", "invoice.payment_voided", "invoice.paid", "invoice.sent", "invoice.created", "invoice.voided", "invoice.overdue"].includes(item.type),
+  );
+  if (!paymentEvents.length) return null;
   return (
-    <DashboardSection
-      description={
-        activePayments.length
-          ? "Manually recorded receipts against this invoice."
-          : "No payments recorded yet."
-      }
-      title="Payments"
-    >
-      {activePayments.length ? (
-        <DashboardTableContainer>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Method</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Reference</TableHead>
-                {canManageFinancials ? <TableHead className="text-right">Actions</TableHead> : null}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {activePayments.map((payment) => (
-                <TableRow key={payment.id}>
-                  <TableCell>{payment.paymentDate}</TableCell>
-                  <TableCell>{paymentMethodLabels[payment.method]}</TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">
-                    {amount(payment.amountInCents)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{payment.reference ?? "—"}</TableCell>
-                  {canManageFinancials ? (
-                    <TableCell className="text-right">
-                      <ServerActionConfirmDialog
-                        action={voidPaymentAction.bind(null, payment.id, invoiceId)}
-                        confirmLabel="Void payment"
-                        confirmPendingLabel="Voiding..."
-                        description="Voiding keeps the payment record for audit history but excludes it from the balance."
-                        title="Void this payment?"
-                        triggerLabel="Void"
-                        triggerVariant="ghost"
-                      />
-                    </TableCell>
-                  ) : null}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </DashboardTableContainer>
-      ) : null}
-      {voidedPayments.length ? (
-        <div className="flex flex-col gap-2">
-          <p className="meta-label">Voided payments</p>
-          {voidedPayments.map((payment) => (
-            <p className="text-sm text-muted-foreground" key={payment.id}>
-              {amount(payment.amountInCents)} · {paymentMethodLabels[payment.method]} · {payment.paymentDate} · voided
+    <DashboardSection description="Every payment recorded or voided on this invoice." title="Activity">
+      <div className="flex flex-col gap-3">
+        {paymentEvents.map((item) => (
+          <div className="flex flex-col gap-0.5 border-b border-border/60 pb-3 last:border-0 last:pb-0" key={item.id}>
+            <p className="text-sm font-medium">{item.summary}</p>
+            <p className="text-xs text-muted-foreground">
+              {new Date(item.createdAt).toLocaleString()}
             </p>
-          ))}
-        </div>
-      ) : null}
+          </div>
+        ))}
+      </div>
     </DashboardSection>
   );
 }

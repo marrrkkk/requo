@@ -9,6 +9,7 @@ import {
   Inbox,
   Package,
   PencilRuler,
+  Wallet,
 } from "lucide-react";
 
 
@@ -31,6 +32,7 @@ import {
   getBusinessProductsPath,
   getBusinessQuotesPath,
   getBusinessInvoicesPath,
+  getBusinessPaymentsPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 
@@ -74,6 +76,12 @@ export function getDashboardNavigation(
       label: "Invoices",
       description: "Track invoices, payments, and balances.",
       icon: Receipt,
+    },
+    {
+      href: getBusinessPaymentsPath(slug),
+      label: "Payments",
+      description: "Review payments recorded against invoices.",
+      icon: Wallet,
     },
     {
       href: getBusinessFollowUpsPath(slug),

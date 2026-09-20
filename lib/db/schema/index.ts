@@ -14,6 +14,7 @@ export * from "./notifications";
 export * from "./public-actions";
 export * from "./quote-library";
 export * from "./quotes";
+export * from "./quote-acceptances";
 export * from "./reply-snippets";
 export * from "./business-inquiry-forms";
 export * from "./businesses";

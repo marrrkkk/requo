@@ -349,6 +349,8 @@ describe("quote actions", () => {
     const formData = new FormData();
     formData.set("response", "accepted");
     formData.set("message", "Please proceed.");
+    formData.set("signerName", "Taylor Nguyen");
+    formData.set("confirmed", "true");
 
     const result = await respondToPublicQuoteAction("quote_token_123", {}, formData);
 
@@ -362,6 +364,8 @@ describe("quote actions", () => {
     const formData = new FormData();
     formData.set("response", "accepted");
     formData.set("message", "Please move ahead.");
+    formData.set("signerName", "Taylor Nguyen");
+    formData.set("confirmed", "true");
 
     const result = await respondToPublicQuoteAction("quote_token_123", {}, formData);
 
@@ -369,6 +373,9 @@ describe("quote actions", () => {
       token: "quote_token_123",
       response: "accepted",
       message: "Please move ahead.",
+      signerName: "Taylor Nguyen",
+      confirmed: true,
+      expectedVersion: undefined,
     });
     expect(result).toEqual(
       expect.objectContaining({

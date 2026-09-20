@@ -22,6 +22,7 @@ export const auditActionLabels = {
   "request.escalated": "Inquiry escalated to human",
   "quote.created": "Quote created",
   "quote.sent": "Quote sent",
+  "quote.accepted": "Quote accepted",
   "quote.voided": "Quote voided",
   "quote.draft_deleted": "Draft quote deleted",
   "quote.canceled_after_acceptance": "Quote canceled after acceptance",

@@ -6,6 +6,7 @@ import {
   integer,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -33,6 +34,8 @@ export const paymentMethodEnum = pgEnum("payment_method", [
   "check",
   "other",
 ]);
+
+export const paymentSourceEnum = pgEnum("payment_source", ["manual"]);
 
 export const invoices = pgTable(
   "invoices",
@@ -134,6 +137,9 @@ export const payments = pgTable(
     invoiceId: text("invoice_id")
       .notNull()
       .references(() => invoices.id, { onDelete: "cascade" }),
+    paymentNumber: text("payment_number").notNull(),
+    idempotencyKey: text("idempotency_key"),
+    source: paymentSourceEnum("source").notNull().default("manual"),
     amountInCents: integer("amount_in_cents").notNull(),
     paymentDate: date("payment_date", { mode: "string" }).notNull(),
     method: paymentMethodEnum("method").notNull(),
@@ -150,9 +156,30 @@ export const payments = pgTable(
     index("payments_business_id_idx").on(table.businessId),
     index("payments_invoice_id_idx").on(table.invoiceId),
     index("payments_payment_date_idx").on(table.businessId, table.paymentDate),
+    uniqueIndex("payments_business_payment_number_unique").on(table.businessId, table.paymentNumber),
+    uniqueIndex("payments_business_idempotency_unique").on(table.businessId, table.idempotencyKey).where(sql`${table.idempotencyKey} is not null`),
     check("payments_amount_valid", sql`${table.amountInCents} > 0`),
+  ],
+);
+
+export const businessPaymentCounters = pgTable(
+  "business_payment_counters",
+  {
+    businessId: text("business_id")
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    year: integer("year").notNull(),
+    lastSequence: integer("last_sequence").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.businessId, table.year] }),
+    check("business_payment_counters_year_valid", sql`${table.year} >= 2000 and ${table.year} <= 2100`),
+    check("business_payment_counters_sequence_valid", sql`${table.lastSequence} >= 0`),
   ],
 );
 
 export type InvoiceStatus = (typeof invoiceStatusEnum.enumValues)[number];
 export type PaymentMethod = (typeof paymentMethodEnum.enumValues)[number];
+export type PaymentSource = (typeof paymentSourceEnum.enumValues)[number];

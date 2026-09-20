@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { PrintPageShell } from "@/components/shared/print-page-shell";
 import { QuotePrintDocument } from "@/features/quotes/components/quote-print-document";
-import { getQuoteDetailForBusiness } from "@/features/quotes/queries";
+import { getAcceptanceForBusiness, getQuoteDetailForBusiness } from "@/features/quotes/queries";
 import { quoteRouteParamsSchema } from "@/features/quotes/schemas";
 import { getBusinessQuotePath } from "@/features/businesses/routes";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
@@ -47,10 +47,16 @@ export default async function QuotePrintPage({
     notFound();
   }
 
-  const quote = await getQuoteDetailForBusiness({
-    businessId: requestContext.businessContext.business.id,
-    quoteId: parsedParams.data.id,
-  });
+  const [quote, acceptance] = await Promise.all([
+    getQuoteDetailForBusiness({
+      businessId: requestContext.businessContext.business.id,
+      quoteId: parsedParams.data.id,
+    }),
+    getAcceptanceForBusiness({
+      businessId: requestContext.businessContext.business.id,
+      quoteId: parsedParams.data.id,
+    }).catch(() => null),
+  ]);
 
   if (!quote) {
     notFound();
@@ -66,6 +72,7 @@ export default async function QuotePrintPage({
       <QuotePrintDocument
         businessName={requestContext.businessContext.business.name}
         quote={quote}
+        acceptance={acceptance}
       />
     </PrintPageShell>
   );

@@ -63,6 +63,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       { header: "due_date", render: (row) => row.dueDate },
       { header: "total_amount", render: (row) => formatCentsForExport(row.totalInCents) },
       { header: "paid_amount", render: (row) => formatCentsForExport(row.paidInCents) },
+      { header: "balance_amount", render: (row) => formatCentsForExport(row.balanceInCents) },
       { header: "currency", render: (row) => row.currency },
       { header: "created_at", render: (row) => row.createdAt.toISOString() },
       { header: "sent_at", render: (row) => row.sentAt?.toISOString() },
