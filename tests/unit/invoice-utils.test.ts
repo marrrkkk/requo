@@ -78,6 +78,36 @@ describe("features/invoices/utils", () => {
     expect(state).toEqual({ paidInCents: 10000, balanceInCents: 0, status: "paid" });
   });
 
+  it("keeps overdue precedence over partial payment", () => {
+    const state = calculateInvoicePaymentState({
+      totalInCents: 10000,
+      paidInCents: 4000,
+      dueDate: "2026-05-01",
+      lifecycleStatus: "unpaid",
+      today: "2026-06-01",
+    });
+    expect(state).toEqual({ paidInCents: 4000, balanceInCents: 6000, status: "overdue" });
+  });
+
+  it("maps sent with no payment to unpaid and void-to-zero stays unpaid", () => {
+    const sent = calculateInvoicePaymentState({
+      totalInCents: 10000,
+      paidInCents: 0,
+      dueDate: "2026-07-01",
+      lifecycleStatus: "sent",
+      today: "2026-06-01",
+    });
+    expect(sent.status).toBe("unpaid");
+    const voidedToZero = calculateInvoicePaymentState({
+      totalInCents: 10000,
+      paidInCents: 0,
+      dueDate: "2026-07-01",
+      lifecycleStatus: "partially_paid",
+      today: "2026-06-01",
+    });
+    expect(voidedToZero).toEqual({ paidInCents: 0, balanceInCents: 10000, status: "unpaid" });
+  });
+
   it("labels every invoice status", () => {
     expect(getInvoiceStatusLabel("draft")).toBe("Draft");
     expect(getInvoiceStatusLabel("partially_paid")).toBe("Partially paid");

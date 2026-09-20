@@ -183,6 +183,7 @@ describe("features/admin invoice queries", () => {
       id: `${prefix}_pay`,
       businessId,
       invoiceId: `${prefix}_paid`,
+      paymentNumber: "PAY-2026-0001",
       amountInCents: 5000,
       paymentDate: "2026-09-05",
       method: "cash",

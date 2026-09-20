@@ -11,6 +11,7 @@ vi.mock("next/cache", () => ({
   cacheLife: vi.fn(),
   cacheTag: vi.fn(),
   revalidateTag: vi.fn(),
+  updateTag: vi.fn(),
 }));
 
 import {
@@ -131,6 +132,43 @@ describe("features/invoices/mutations", () => {
 
     const outsider = await getInvoiceIdByQuoteId({ businessId: ids.otherBusinessId, quoteId });
     expect(outsider).toBeNull();
+  });
+
+  it("inherits quote discount, tax, and tax label on conversion", async () => {
+    const created = await createQuoteForBusiness({
+      businessId: ids.businessId,
+      actorUserId: ids.ownerUserId,
+      currency: "USD",
+      inquiryId: ids.inquiryId,
+      quote: {
+        title: "Taxed work",
+        customerName: "Jane Doe",
+        customerEmail: "jane@example.com",
+        customerContactMethod: "email",
+        customerContactHandle: "jane@example.com",
+        notes: "",
+        validUntil: "2099-12-31",
+        discountInCents: 1000,
+        taxInCents: 500,
+        taxLabel: "VAT",
+        items: [{ id: "line-1", description: "Work", quantity: 1, unitPriceInCents: 10000 }],
+      },
+    });
+    const quoteId = created!.id;
+    await testDb.update(quotes).set({ status: "accepted", acceptedAt: new Date() }).where(eq(quotes.id, quoteId));
+
+    const converted = (await createInvoiceForBusiness({
+      ...manualInvoiceInput(),
+      quoteId,
+      discountInCents: 9999,
+      taxInCents: 9999,
+      taxLabel: "IGNORED",
+    })) as { id: string };
+
+    const [stored] = await testDb.select().from(invoices).where(eq(invoices.id, converted.id));
+    expect(stored).toEqual(
+      expect.objectContaining({ discountInCents: 1000, taxInCents: 500, taxLabel: "VAT", totalInCents: 9500 }),
+    );
   });
 
   it("rejects conversion of non-accepted quotes", async () => {

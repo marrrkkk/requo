@@ -14,6 +14,15 @@ export const invoiceStatuses = [
 
 export const paymentMethods = ["cash", "bank_transfer", "gcash", "maya", "check", "other"] as const;
 
+export const voidReasonValues = [
+  "duplicate_entry",
+  "wrong_amount",
+  "wrong_invoice",
+  "not_received",
+  "entered_by_mistake",
+  "other",
+] as const;
+
 export const invoiceStatusFilterValues = ["all", ...invoiceStatuses] as const;
 
 export type InvoiceStatusFilterValue = (typeof invoiceStatusFilterValues)[number];
@@ -38,6 +47,7 @@ export type InvoiceLineItemView = {
 
 export type PaymentView = {
   id: string;
+  paymentNumber: string;
   amountInCents: number;
   paymentDate: string;
   method: PaymentMethod;
@@ -46,6 +56,54 @@ export type PaymentView = {
   createdByName: string | null;
   createdAt: Date;
   voidedAt: Date | null;
+  voidReason: string | null;
+  source: string;
+};
+
+export type OptimisticPayment = PaymentView & { pending?: boolean; optimisticKey?: string };
+
+export type PaymentDetailView = PaymentView & {
+  invoiceId: string;
+  invoiceNumber: string;
+  invoiceTitle: string;
+  customerName: string;
+  customerEmail: string | null;
+  currency: string;
+  invoiceTotalInCents: number;
+  invoicePaidInCents: number;
+  invoiceBalanceInCents: number;
+  invoiceStatus: InvoiceStatus;
+  recordedByName: string | null;
+};
+
+export const paymentStatusFilterValues = ["all", "recorded", "voided"] as const;
+
+export type PaymentStatusFilterValue = (typeof paymentStatusFilterValues)[number];
+
+export type PaymentListFilters = {
+  q?: string;
+  status: PaymentStatusFilterValue;
+  method: "all" | PaymentMethod;
+  from?: string;
+  to?: string;
+  invoiceId?: string;
+  page: number;
+};
+
+export type PaymentListItem = {
+  id: string;
+  paymentNumber: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  customerName: string;
+  currency: string;
+  amountInCents: number;
+  paymentDate: string;
+  method: PaymentMethod;
+  reference: string | null;
+  status: "recorded" | "voided";
+  recordedByName: string | null;
+  createdAt: Date;
 };
 
 export type InvoiceListItem = {

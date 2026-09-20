@@ -3,7 +3,8 @@ import "server-only";
 import { and, eq, isNull, notExists, sql } from "drizzle-orm";
 
 import { insertBusinessNotification } from "@/features/notifications/mutations";
-import { effectiveInvoiceStatusSql } from "@/features/invoices/queries";
+import { getEffectiveInvoiceStatusSql } from "@/features/invoices/queries";
+import { getTodayUtcDateString } from "@/features/quotes/utils";
 import { db } from "@/lib/db/client";
 import { activityLogs, businesses, invoices } from "@/lib/db/schema";
 import { sendPushInvoiceOverdueEvent } from "@/lib/inngest/send";
@@ -21,6 +22,8 @@ export type InvoiceOverdueSummary = {
  */
 export async function processInvoiceOverdue(): Promise<InvoiceOverdueSummary> {
   const now = new Date();
+  const today = getTodayUtcDateString();
+  const effectiveStatus = getEffectiveInvoiceStatusSql(today);
   let processed = 0;
   let notified = 0;
 
@@ -39,7 +42,7 @@ export async function processInvoiceOverdue(): Promise<InvoiceOverdueSummary> {
     .where(
       and(
         isNull(invoices.deletedAt),
-        sql`${effectiveInvoiceStatusSql} = 'overdue'::invoice_status`,
+        sql`${effectiveStatus} = 'overdue'::invoice_status`,
         notExists(
           db
             .select({ id: activityLogs.id })

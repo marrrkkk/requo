@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { invoiceStatusFilterValues, paymentMethods } from "@/features/invoices/types";
+import { invoiceStatusFilterValues, paymentMethods, paymentStatusFilterValues } from "@/features/invoices/types";
 import { parseMoneyToCents } from "@/features/invoices/utils";
 
 function emptyToUndefined(value: unknown) {
@@ -93,6 +93,45 @@ export const paymentSchema = z.object({
   method: z.enum(paymentMethods),
   reference: optionalText(200),
   notes: optionalText(2000),
+  idempotencyKey: z.preprocess(
+    (value) => emptyToUndefined(firstString(value)),
+    z.string().trim().min(8).max(64).optional(),
+  ),
+  currency: z.preprocess(
+    (value) => emptyToUndefined(firstString(value)),
+    z.string().trim().min(1).max(8).optional(),
+  ),
+}).superRefine((value, ctx) => {
+  if (value.method === "other" && !value.notes?.trim()) {
+    ctx.addIssue({ code: "custom", path: ["notes"], message: "Add a note describing this payment method." });
+  }
+});
+
+export const voidPaymentSchema = z.object({
+  reason: z.string().trim().min(1, "Choose a reason for voiding this payment.").max(500),
+  reasonDetail: optionalText(400),
+});
+
+export const paymentListFiltersSchema = z.object({
+  q: z
+    .preprocess(
+      (value) => emptyToUndefined(firstString(value)),
+      z.string().trim().max(120, "Search must be 120 characters or fewer.").optional(),
+    )
+    .catch(undefined),
+  status: z
+    .preprocess((value) => firstString(value) ?? "all", z.enum(paymentStatusFilterValues))
+    .catch("all"),
+  method: z
+    .preprocess((value) => firstString(value) ?? "all", z.enum(["all", ...paymentMethods]))
+    .catch("all"),
+  from: z
+    .preprocess((value) => emptyToUndefined(firstString(value)), dateValue.optional())
+    .catch(undefined),
+  to: z
+    .preprocess((value) => emptyToUndefined(firstString(value)), dateValue.optional())
+    .catch(undefined),
+  page: coercePositiveInteger("Page").catch(1),
 });
 
 export const invoiceListFiltersSchema = z.object({

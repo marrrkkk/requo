@@ -1,14 +1,14 @@
 "use server";
 
-import { revalidateTag } from "next/cache";
+import { revalidateTag, updateTag } from "next/cache";
 
 import { getValidationActionState, getUserSafeErrorMessage } from "@/lib/action-state";
 import { getBusinessMessagingSettings, getBusinessOwnerEmails, getOperationalBusinessActionContext } from "@/lib/db/business-access";
 import { isEmailConfigured } from "@/lib/env";
-import { getBusinessInvoiceDetailCacheTags, getBusinessInvoiceListCacheTags } from "@/lib/cache/business-tags";
+import { getBusinessInvoiceDetailCacheTags, getBusinessInvoiceListCacheTags, getBusinessOverviewCacheTags, uniqueCacheTags } from "@/lib/cache/business-tags";
 import { createInvoiceForBusiness, markInvoiceSentForBusiness, recordPaymentForBusiness, updateInvoiceDraftForBusiness, voidInvoiceForBusiness, voidPaymentForBusiness } from "@/features/invoices/mutations";
 import { getInvoiceForBusiness } from "@/features/invoices/queries";
-import { invoiceSchema, paymentSchema } from "@/features/invoices/schemas";
+import { invoiceSchema, paymentSchema, voidPaymentSchema } from "@/features/invoices/schemas";
 import type { InvoiceActionState, PaymentActionState } from "@/features/invoices/types";
 import { sendPushInvoicePaidEvent, sendPushInvoiceSentEvent } from "@/lib/inngest/send";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
@@ -21,8 +21,15 @@ function text(formData: FormData, key: string) {
 }
 
 function invalidate(businessId: string, invoiceId?: string) {
-  for (const tag of getBusinessInvoiceListCacheTags(businessId)) revalidateTag(tag, "max");
-  if (invoiceId) for (const tag of getBusinessInvoiceDetailCacheTags(businessId, invoiceId)) revalidateTag(tag, "max");
+  const tags = uniqueCacheTags([
+    ...getBusinessInvoiceListCacheTags(businessId),
+    ...getBusinessOverviewCacheTags(businessId),
+    ...(invoiceId ? getBusinessInvoiceDetailCacheTags(businessId, invoiceId) : []),
+  ]);
+  // updateTag purges "use cache" reads (list, detail, payments, activity);
+  // revalidateTag converges the route/fetch cache. Quotes uses the same pair.
+  for (const tag of tags) updateTag(tag);
+  for (const tag of tags) revalidateTag(tag, "max");
 }
 
 export async function createInvoiceAction(quoteId: string | null, _prev: InvoiceActionState, formData: FormData): Promise<InvoiceActionState> {
@@ -171,13 +178,13 @@ export async function markInvoiceSentAction(invoiceId: string, _prev: InvoiceAct
 export async function recordPaymentAction(invoiceId: string, _prev: PaymentActionState, formData: FormData): Promise<PaymentActionState> {
   const access = await getOperationalBusinessActionContext();
   if (!access.ok) return { error: access.error };
-  const parsed = paymentSchema.safeParse({ amountInCents: text(formData, "amount"), paymentDate: text(formData, "paymentDate"), method: text(formData, "method"), reference: text(formData, "reference"), notes: text(formData, "notes") });
+  const parsed = paymentSchema.safeParse({ amountInCents: text(formData, "amount"), paymentDate: text(formData, "paymentDate"), method: text(formData, "method"), reference: text(formData, "reference"), notes: text(formData, "notes"), idempotencyKey: text(formData, "idempotencyKey"), currency: text(formData, "currency") });
   if (!parsed.success) return getValidationActionState(parsed.error, "Check the highlighted fields and try again.");
   try {
     const invoice = await getInvoiceForBusiness({ businessId: access.businessContext.business.id, invoiceId });
     const result = await recordPaymentForBusiness({ ...parsed.data, invoiceId, businessId: access.businessContext.business.id, actorUserId: access.user.id });
     if ("error" in result) return { error: result.error };
-    if (result.status === "paid" && invoice) {
+    if (result.status === "paid" && invoice && !("duplicate" in result && result.duplicate)) {
       void sendPushInvoicePaidEvent({
         businessId: access.businessContext.business.id,
         businessSlug: access.businessContext.business.slug,
@@ -189,19 +196,27 @@ export async function recordPaymentAction(invoiceId: string, _prev: PaymentActio
       });
     }
     invalidate(access.businessContext.business.id, invoiceId);
-    return { success: "Payment recorded." };
+    return { success: "duplicate" in result && result.duplicate ? `Payment ${result.paymentNumber} already recorded.` : `Payment ${result.paymentNumber} recorded.` };
   } catch (error) {
-    return { error: getUserSafeErrorMessage(error, "Unable to record payment. Please try again.") };
+    return { error: getUserSafeErrorMessage(error, "This payment could not be recorded because the invoice balance has changed. Please review the remaining balance and try again.") };
   }
 }
 
 export async function voidPaymentAction(paymentId: string, invoiceId: string, _prev: PaymentActionState, formData: FormData): Promise<PaymentActionState> {
   const access = await getOperationalBusinessActionContext();
   if (!access.ok) return { error: access.error };
-  const result = await voidPaymentForBusiness({ businessId: access.businessContext.business.id, paymentId, actorUserId: access.user.id, reason: text(formData, "reason") });
-  if (!result) return { error: "Payment not found or already voided." };
-  invalidate(access.businessContext.business.id, invoiceId);
-  return { success: "Payment voided." };
+  const parsed = voidPaymentSchema.safeParse({ reason: text(formData, "reason"), reasonDetail: text(formData, "reasonDetail") });
+  if (!parsed.success) return getValidationActionState(parsed.error, "Choose a reason for voiding this payment.");
+  const reason = parsed.data.reasonDetail ? `${parsed.data.reason}|${parsed.data.reasonDetail}` : parsed.data.reason;
+  try {
+    const result = await voidPaymentForBusiness({ businessId: access.businessContext.business.id, paymentId, actorUserId: access.user.id, reason });
+    if (!result) return { error: "Payment not found or already voided." };
+    if ("error" in result) return { error: result.error };
+    invalidate(access.businessContext.business.id, invoiceId);
+    return { success: "Payment voided." };
+  } catch (error) {
+    return { error: getUserSafeErrorMessage(error, "Unable to void payment. Please try again.") };
+  }
 }
 
 export async function voidInvoiceAction(invoiceId: string, _prev: InvoiceActionState, formData: FormData): Promise<InvoiceActionState> {

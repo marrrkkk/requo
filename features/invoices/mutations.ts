@@ -8,15 +8,45 @@ import { db } from "@/lib/db/client";
 import { prefixedId as createId } from "@/lib/ids";
 import {
   activityLogs,
+  businessPaymentCounters,
   invoiceLineItems,
   invoices,
   payments,
   quoteItems,
   quotes,
 } from "@/lib/db/schema";
-import type { PaymentMethod } from "@/lib/db/schema/invoices";
-import { getTodayUtcDateString } from "@/features/quotes/utils";
+import type { InvoiceStatus, PaymentMethod } from "@/lib/db/schema/invoices";
+import { formatQuoteMoney, getTodayUtcDateString } from "@/features/quotes/utils";
 import { calculateInvoicePaymentState } from "@/features/invoices/utils";
+import { getVoidReasonLabel, normalizeVoidReason, voidReasonValues, type VoidReasonValue } from "@/features/invoices/void-reasons";
+
+export { getVoidReasonLabel, normalizeVoidReason, voidReasonValues, type VoidReasonValue };
+
+function nextPaymentNumber(year: number, sequence: number) {
+  return `PAY-${year}-${String(sequence).padStart(4, "0")}`;
+}
+
+async function allocatePaymentNumber(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  businessId: string,
+  paymentDate: string,
+): Promise<{ error: string } | { paymentNumber: string }> {
+  const year = Number(paymentDate.slice(0, 4));
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+    return { error: "Payment date year is out of range." } as const;
+  }
+  const now = new Date();
+  const [counter] = await tx
+    .insert(businessPaymentCounters)
+    .values({ businessId, year, lastSequence: 1, createdAt: now, updatedAt: now })
+    .onConflictDoUpdate({
+      target: [businessPaymentCounters.businessId, businessPaymentCounters.year],
+      set: { lastSequence: sql`${businessPaymentCounters.lastSequence} + 1`, updatedAt: now },
+    })
+    .returning({ lastSequence: businessPaymentCounters.lastSequence });
+  if (!counter) return { error: "Could not allocate a payment number. Please try again." } as const;
+  return { paymentNumber: nextPaymentNumber(year, counter.lastSequence) } as const;
+}
 
 function nextInvoiceNumber(sequence: number | null | undefined) {
   const safe = typeof sequence === "number" && Number.isFinite(sequence) ? Math.max(0, Math.trunc(sequence)) : 0;
@@ -107,6 +137,7 @@ export async function createInvoiceForBusiness(input: CreateInvoiceInput) {
           : input.items;
         const discountInCents = input.quoteId && sourceQuote ? sourceQuote.discountInCents : input.discountInCents;
         const taxInCents = input.quoteId && sourceQuote ? sourceQuote.taxInCents : input.taxInCents;
+        const taxLabel = input.quoteId && sourceQuote ? sourceQuote.taxLabel : (input.taxLabel ?? null);
         const totals = calculateTotals(items, discountInCents, taxInCents);
         const [latest] = await tx.select({ latest: sql<number>`coalesce(max((nullif(substring(${invoices.invoiceNumber} from '[0-9]+$'), ''))::integer), 0)` }).from(invoices).where(eq(invoices.businessId, input.businessId));
         const invoiceNumber = nextInvoiceNumber(latest?.latest);
@@ -132,7 +163,7 @@ export async function createInvoiceForBusiness(input: CreateInvoiceInput) {
           subtotalInCents: totals.subtotalInCents,
           discountInCents: totals.discountInCents,
           taxInCents: totals.taxInCents,
-          taxLabel: input.taxLabel ?? null,
+          taxLabel,
           totalInCents: totals.totalInCents,
           createdBy: input.actorUserId,
           createdAt: now,
@@ -168,24 +199,62 @@ export async function markInvoiceSentForBusiness({ businessId, invoiceId, actorU
   });
 }
 
-export async function recordPaymentForBusiness({ businessId, invoiceId, actorUserId, amountInCents, paymentDate, method, reference, notes }: { businessId: string; invoiceId: string; actorUserId: string; amountInCents: number; paymentDate: string; method: PaymentMethod; reference?: string | null; notes?: string | null }) {
+export type RecordPaymentResult =
+  | { error: string }
+  | { paymentId: string; paymentNumber: string; status: InvoiceStatus; paidInCents: number; balanceInCents: number; duplicate?: boolean };
+
+export async function recordPaymentForBusiness({ businessId, invoiceId, actorUserId, amountInCents, paymentDate, method, reference, notes, idempotencyKey, currency }: { businessId: string; invoiceId: string; actorUserId: string; amountInCents: number; paymentDate: string; method: PaymentMethod; reference?: string | null; notes?: string | null; idempotencyKey?: string | null; currency?: string | null }): Promise<RecordPaymentResult> {
+  const trimmedKey = idempotencyKey?.trim() || null;
+  if (trimmedKey && !/^[0-9a-fA-F-]{8,64}$/.test(trimmedKey)) return { error: "Invalid idempotency key." } as const;
   return db.transaction(async (tx) => {
+    if (trimmedKey) {
+      const [existing] = await tx.select().from(payments).where(and(eq(payments.businessId, businessId), eq(payments.idempotencyKey, trimmedKey))).limit(1);
+      if (existing) {
+        const [inv] = await tx.select().from(invoices).where(and(eq(invoices.id, existing.invoiceId), eq(invoices.businessId, businessId), isNull(invoices.deletedAt))).limit(1);
+        if (!inv) return { error: "Invoice not found." } as const;
+        const [paid] = await tx.select({ total: sql<number>`coalesce(sum(${payments.amountInCents}), 0)` }).from(payments).where(and(eq(payments.invoiceId, inv.id), eq(payments.businessId, businessId), isNull(payments.voidedAt)));
+        const state = calculateInvoicePaymentState({ totalInCents: inv.totalInCents, paidInCents: Number(paid?.total ?? 0), dueDate: inv.dueDate, lifecycleStatus: inv.status });
+        return { paymentId: existing.id, paymentNumber: existing.paymentNumber, status: state.status, paidInCents: state.paidInCents, balanceInCents: state.balanceInCents, duplicate: true } as const;
+      }
+    }
     const [invoice] = await tx.select().from(invoices).where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId), isNull(invoices.deletedAt))).for("update");
     if (!invoice) return { error: "Invoice not found." } as const;
     if (invoice.status === "draft") return { error: "Mark the invoice as sent before recording a payment." } as const;
     if (invoice.status === "voided") return { error: "Void invoices cannot receive payments." } as const;
+    if (currency && currency !== invoice.currency) return { error: `Payment currency (${currency}) does not match the invoice currency (${invoice.currency}).` } as const;
+    if (!Number.isInteger(amountInCents) || amountInCents <= 0) return { error: "Payment amount must be greater than zero." } as const;
     if (paymentDate > getTodayUtcDateString()) return { error: "Payment date cannot be in the future." } as const;
+    if (method === "other" && !notes?.trim()) return { error: "Add a note describing this payment method." } as const;
 
     const [paid] = await tx.select({ total: sql<number>`coalesce(sum(${payments.amountInCents}), 0)` }).from(payments).where(and(eq(payments.invoiceId, invoiceId), eq(payments.businessId, businessId), isNull(payments.voidedAt)));
     const current = calculateInvoicePaymentState({ totalInCents: invoice.totalInCents, paidInCents: Number(paid?.total ?? 0), dueDate: invoice.dueDate, lifecycleStatus: invoice.status });
-    if (amountInCents > current.balanceInCents) return { error: "Payment amount cannot exceed the remaining balance." } as const;
+    if (amountInCents > current.balanceInCents) {
+      return {
+        error: `Payment exceeds the remaining invoice balance. Remaining balance: ${formatQuoteMoney(current.balanceInCents, invoice.currency)}. Payment entered: ${formatQuoteMoney(amountInCents, invoice.currency)}.`,
+      } as const;
+    }
+
+    const allocated = await allocatePaymentNumber(tx, businessId, paymentDate);
+    if ("error" in allocated) return allocated;
 
     const now = new Date();
     const paymentId = createId("pay");
-    await tx.insert(payments).values({ id: paymentId, businessId, invoiceId, amountInCents, paymentDate, method, reference: reference ?? null, notes: notes ?? null, createdBy: actorUserId, createdAt: now, updatedAt: now });
+    try {
+      await tx.insert(payments).values({ id: paymentId, businessId, invoiceId, paymentNumber: allocated.paymentNumber, idempotencyKey: trimmedKey, source: "manual", amountInCents, paymentDate, method, reference: reference?.trim() || null, notes: notes?.trim() || null, createdBy: actorUserId, createdAt: now, updatedAt: now });
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && error.code === "23505" && trimmedKey) {
+        const [replay] = await tx.select().from(payments).where(and(eq(payments.businessId, businessId), eq(payments.idempotencyKey, trimmedKey))).limit(1);
+        if (replay) {
+          const [paidAfter] = await tx.select({ total: sql<number>`coalesce(sum(${payments.amountInCents}), 0)` }).from(payments).where(and(eq(payments.invoiceId, replay.invoiceId), eq(payments.businessId, businessId), isNull(payments.voidedAt)));
+          const replayState = calculateInvoicePaymentState({ totalInCents: invoice.totalInCents, paidInCents: Number(paidAfter?.total ?? 0), dueDate: invoice.dueDate, lifecycleStatus: invoice.status });
+          return { paymentId: replay.id, paymentNumber: replay.paymentNumber, status: replayState.status, paidInCents: replayState.paidInCents, balanceInCents: replayState.balanceInCents, duplicate: true } as const;
+        }
+      }
+      throw error;
+    }
     const next = calculateInvoicePaymentState({ totalInCents: invoice.totalInCents, paidInCents: current.paidInCents + amountInCents, dueDate: invoice.dueDate, lifecycleStatus: invoice.status });
     await tx.update(invoices).set({ status: next.status, updatedAt: now }).where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId)));
-    await insertInvoiceActivity(tx, { businessId, invoiceId, actorUserId, type: "invoice.payment_recorded", summary: `Payment recorded on ${invoice.invoiceNumber}.`, metadata: { paymentId, amountInCents, method, status: next.status } });
+    await insertInvoiceActivity(tx, { businessId, invoiceId, actorUserId, type: "invoice.payment_recorded", summary: `Payment ${allocated.paymentNumber} recorded: ${formatQuoteMoney(amountInCents, invoice.currency)} via ${method}.`, metadata: { paymentId, paymentNumber: allocated.paymentNumber, amountInCents, method, status: next.status } });
     if (next.status === "paid") {
       await insertInvoiceActivity(tx, { businessId, invoiceId, actorUserId, type: "invoice.paid", summary: `Invoice ${invoice.invoiceNumber} is paid in full.`, metadata: { invoiceNumber: invoice.invoiceNumber } });
       await insertBusinessNotification(tx, {
@@ -203,26 +272,31 @@ export async function recordPaymentForBusiness({ businessId, invoiceId, actorUse
         now,
       });
     }
-    await writeAuditLog(tx, { businessId, actorUserId, entityType: "payment", entityId: paymentId, action: "payment.recorded", metadata: { invoiceId, invoiceNumber: invoice.invoiceNumber, amountInCents, method }, createdAt: now });
+    await writeAuditLog(tx, { businessId, actorUserId, entityType: "payment", entityId: paymentId, action: "payment.recorded", metadata: { invoiceId, invoiceNumber: invoice.invoiceNumber, paymentNumber: allocated.paymentNumber, amountInCents, method, idempotencyKey: trimmedKey }, createdAt: now });
     if (next.status === "paid") await writeAuditLog(tx, { businessId, actorUserId, entityType: "invoice", entityId: invoiceId, action: "invoice.paid", metadata: { invoiceNumber: invoice.invoiceNumber }, createdAt: now });
-    return { paymentId, status: next.status, paidInCents: next.paidInCents, balanceInCents: next.balanceInCents } as const;
+    return { paymentId, paymentNumber: allocated.paymentNumber, status: next.status, paidInCents: next.paidInCents, balanceInCents: next.balanceInCents } as const;
   });
 }
 
-export async function voidPaymentForBusiness({ businessId, paymentId, actorUserId, reason }: { businessId: string; paymentId: string; actorUserId: string; reason?: string | null }) {
+export type VoidPaymentResult = null | { error: string } | { status: InvoiceStatus; paymentNumber: string };
+
+export async function voidPaymentForBusiness({ businessId, paymentId, actorUserId, reason }: { businessId: string; paymentId: string; actorUserId: string; reason?: string | null }): Promise<VoidPaymentResult> {
+  const normalized = normalizeVoidReason(reason);
+  if (!normalized) return { error: "A void reason is required." } as const;
   return db.transaction(async (tx) => {
     const [payment] = await tx.select().from(payments).where(and(eq(payments.id, paymentId), eq(payments.businessId, businessId), isNull(payments.voidedAt))).for("update");
     if (!payment) return null;
     const [invoice] = await tx.select().from(invoices).where(and(eq(invoices.id, payment.invoiceId), eq(invoices.businessId, businessId), isNull(invoices.deletedAt))).for("update");
     if (!invoice || invoice.status === "voided") return null;
     const now = new Date();
-    await tx.update(payments).set({ voidedAt: now, voidedBy: actorUserId, voidReason: reason?.trim() || null, updatedAt: now }).where(and(eq(payments.id, paymentId), eq(payments.businessId, businessId)));
+    await tx.update(payments).set({ voidedAt: now, voidedBy: actorUserId, voidReason: normalized, updatedAt: now }).where(and(eq(payments.id, paymentId), eq(payments.businessId, businessId)));
     const [paid] = await tx.select({ total: sql<number>`coalesce(sum(${payments.amountInCents}), 0)` }).from(payments).where(and(eq(payments.invoiceId, invoice.id), eq(payments.businessId, businessId), isNull(payments.voidedAt)));
     const next = calculateInvoicePaymentState({ totalInCents: invoice.totalInCents, paidInCents: Number(paid?.total ?? 0), dueDate: invoice.dueDate, lifecycleStatus: invoice.status });
     await tx.update(invoices).set({ status: next.status, updatedAt: now }).where(and(eq(invoices.id, invoice.id), eq(invoices.businessId, businessId)));
-    await insertInvoiceActivity(tx, { businessId, invoiceId: invoice.id, actorUserId, type: "payment.voided", summary: `Payment voided on ${invoice.invoiceNumber}.`, metadata: { paymentId, reason: reason?.trim() || null } });
-    await writeAuditLog(tx, { businessId, actorUserId, entityType: "payment", entityId: paymentId, action: "payment.voided", metadata: { invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, reason: reason?.trim() || null }, createdAt: now });
-    return { status: next.status } as const;
+    await insertInvoiceActivity(tx, { businessId, invoiceId: invoice.id, actorUserId, type: "payment.voided", summary: `Payment ${payment.paymentNumber} voided: ${formatQuoteMoney(payment.amountInCents, invoice.currency)} via ${payment.method}. Reason: ${getVoidReasonLabel(normalized)}.`, metadata: { paymentId, paymentNumber: payment.paymentNumber, amountInCents: payment.amountInCents, reason: normalized } });
+    await insertInvoiceActivity(tx, { businessId, invoiceId: invoice.id, actorUserId, type: "invoice.payment_voided", summary: `Payment ${payment.paymentNumber} voided on ${invoice.invoiceNumber}.`, metadata: { paymentId, paymentNumber: payment.paymentNumber, reason: normalized, status: next.status } });
+    await writeAuditLog(tx, { businessId, actorUserId, entityType: "payment", entityId: paymentId, action: "payment.voided", metadata: { invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, paymentNumber: payment.paymentNumber, reason: normalized }, createdAt: now });
+    return { status: next.status, paymentNumber: payment.paymentNumber } as const;
   });
 }
 
