@@ -143,6 +143,8 @@ for the code-level inventory):
   with `notifyOnFollowUpReminder`).
 - Disabled: quote auto-follow-up processing (feature code retained; the job
   early-returns in low-email mode).
+- Disabled: automatic follow-up sends (manual follow-ups and in-app
+  reminders unaffected; the job early-returns in low-email mode).
 - Disabled: weekly analytics digest emails (dashboard analytics unaffected).
 - Disabled: analytics scheduled report emails (set report records to
   `enabled = false` for defense in depth; the job also early-returns).

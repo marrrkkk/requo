@@ -128,7 +128,7 @@ export function FollowUpBulkActions({
                 <Button disabled={isCompletePending} type="submit">
                   <OptimisticPendingIndicator pending={isCompletePending} />
                   <CheckCircle2 data-icon="inline-start" />
-                  Mark contacted ({pendingFollowUps.length})
+                  Mark done ({pendingFollowUps.length})
                 </Button>
               </ResponsiveOverlayFooter>
             </form>

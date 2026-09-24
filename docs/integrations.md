@@ -33,7 +33,7 @@ Every external integration actually used: purpose, package, where, auth, env, fa
 ## Inngest (background jobs)
 
 - Package: `inngest`. Client/events/send/batch: `lib/inngest/*`; functions: `lib/inngest/functions/{cron,events,knowledge,index}.ts`; feature jobs: `features/*/jobs/*`; webhook: `app/api/inngest/route.ts`. Dev: `npm run dev:inngest` + `INNGEST_DEV=1`.
-- Events (`lib/inngest/events.ts`): `requo/inquiry.qualified` → AI draft; `requo/knowledge.file-uploaded` → chunk+embed (concurrency 5/business, 2 retries); push events (inquiry-received, quote-sent, quote-response, invoice-*); `requo/quotes.enable-auto-follow-up`. Cron: follow-up reminders, auto-follow-ups, quote-viewed/expiring, auto-archive, expire quotes/subscriptions, analytics rollup/digest/reports/benchmarks, session expiry, token-log cleanup, embedding backfill (`cron-embedding-backfill`, hourly, `concurrency: limit 1` — repairs `embedding IS NULL` rows).
+- Events (`lib/inngest/events.ts`): `requo/inquiry.qualified` → AI draft; `requo/knowledge.file-uploaded` → chunk+embed (concurrency 5/business, 2 retries); push events (inquiry-received, quote-sent, quote-response, invoice-*); `requo/quotes.enable-auto-follow-up`. Cron: follow-up reminders, follow-up auto-send, auto-follow-ups, quote-viewed/expiring, auto-archive, expire quotes/subscriptions, analytics rollup/digest/reports/benchmarks, session expiry, token-log cleanup, embedding backfill (`cron-embedding-backfill`, hourly, `concurrency: limit 1` — repairs `embedding IS NULL` rows).
 - Env: `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `INNGEST_DEV`. Vercel cron (`vercel.json` + `CRON_SECRET`): `expire-quotes`, `expire-subscriptions`, `token-log-cleanup` only.
 
 ## Upstash Redis (rate limits + AI cache)

@@ -18,6 +18,38 @@ describe("features/follow-ups/schemas", () => {
     expect(result.success).toBe(true);
   });
 
+  it("defaults send mode to manual and accepts automatic", () => {
+    expect(
+      followUpCreateSchema.safeParse({
+        title: "Follow up with Taylor",
+        reason: "Ask if they have the missing measurements.",
+        channel: "email",
+        dueDate: "2026-04-21",
+      }).success,
+    ).toBe(true);
+
+    const automatic = followUpCreateSchema.safeParse({
+      title: "Follow up with Taylor",
+      reason: "Ask if they have the missing measurements.",
+      channel: "email",
+      sendMode: "automatic",
+      dueDate: "2026-04-21",
+    });
+
+    expect(automatic.success).toBe(true);
+    expect(automatic.success && automatic.data.sendMode).toBe("automatic");
+
+    const invalid = followUpCreateSchema.safeParse({
+      title: "Follow up with Taylor",
+      reason: "Ask if they have the missing measurements.",
+      channel: "email",
+      sendMode: "scheduled",
+      dueDate: "2026-04-21",
+    });
+
+    expect(invalid.success).toBe(false);
+  });
+
   it("rejects invalid channels and invalid due dates", () => {
     const result = followUpCreateSchema.safeParse({
       title: "Follow up with Taylor",

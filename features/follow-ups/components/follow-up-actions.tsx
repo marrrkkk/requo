@@ -130,12 +130,12 @@ function FollowUpCompleteDialog({
       <ResponsiveOverlayTrigger asChild>
         <Button disabled={disabled} type="button" variant="default">
           <CheckCircle2 data-icon="inline-start" />
-          Mark contacted
+          Done
         </Button>
       </ResponsiveOverlayTrigger>
       <ResponsiveOverlayContent className="sm:max-w-md">
         <ResponsiveOverlayHeader>
-          <ResponsiveOverlayTitle>Record action</ResponsiveOverlayTitle>
+          <ResponsiveOverlayTitle>Mark follow-up as done</ResponsiveOverlayTitle>
           <ResponsiveOverlayDescription>
             Note what happened with the customer (e.g. &ldquo;sent message&rdquo;, &ldquo;left voicemail&rdquo;, &ldquo;customer replied&rdquo;).
           </ResponsiveOverlayDescription>
@@ -146,7 +146,7 @@ function FollowUpCompleteDialog({
               <FieldLabel htmlFor="follow-up-completion-note">
                 What happened?
               </FieldLabel>
-              <FieldDescription>Optional — leave blank to just record the contact.</FieldDescription>
+              <FieldDescription>Optional — leave blank to just mark it done.</FieldDescription>
               <FieldContent>
                 <Textarea
                   id="follow-up-completion-note"
@@ -169,7 +169,7 @@ function FollowUpCompleteDialog({
             <Button disabled={isPending} type="submit">
               <OptimisticPendingIndicator pending={isPending} />
               <CheckCircle2 data-icon="inline-start" />
-              Mark contacted
+              Mark done
             </Button>
           </ResponsiveOverlayFooter>
         </form>

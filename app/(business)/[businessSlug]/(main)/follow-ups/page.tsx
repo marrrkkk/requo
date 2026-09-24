@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
-import { ArrowLeft, History } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import {
+  getFollowUpHistoryForBusiness,
   getFollowUpOverviewForBusiness,
   getFollowUpListCountForBusiness,
   getFollowUpListPageForBusiness,
@@ -25,7 +23,7 @@ import {
   FollowUpListControlsFallback,
 } from "@/features/follow-ups/components/follow-up-list-page-sections";
 import { CreateFollowUpButton } from "@/features/follow-ups/components/create-follow-up-button";
-import { MobileHeaderSlot, mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
+import { MobileHeaderSlot } from "@/components/shell/mobile-header-slot";
 import { LockedAction } from "@/features/paywall";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { FirstVisitTip } from "@/features/onboarding/components/first-visit-tip";
@@ -95,7 +93,7 @@ async function FollowUpsContentRegion({
     searchParams,
   ]);
 
-  // If a status filter is present (e.g. from the History tab),
+  // If a status filter is present (e.g. from the All follow-ups tab),
   // show the filterable list view instead of the board.
   const hasStatusFilter =
     resolvedSearchParams.status &&
@@ -119,14 +117,11 @@ async function StreamedFollowUpBoard({ businessSlug }: { businessSlug: string })
     getFollowUpOverviewForBusiness(businessContext.business.id),
     getRecentRecordsForFollowUpCreate(businessContext.business.id),
   ]);
-  const [summaryCounts, autoSequences] = await Promise.all([
+  const [summaryCounts, autoSequences, history] = await Promise.all([
     getFollowUpSummaryCountsForBusiness(businessContext.business.id, overview),
     getActiveAutoFollowUpSequencesForBusiness(businessContext.business.id),
+    getFollowUpHistoryForBusiness({ businessId: businessContext.business.id }),
   ]);
-
-  const historyHref = `${getBusinessFollowUpsPath(businessSlug)}?status=all`;
-  const historyLabel =
-    summaryCounts.history > 0 ? `History (${summaryCounts.history})` : "History";
 
   return (
     <div className="flex flex-col gap-4">
@@ -136,21 +131,10 @@ async function StreamedFollowUpBoard({ businessSlug }: { businessSlug: string })
         upcoming={overview.upcoming}
         businessSlug={businessSlug}
         autoSequences={autoSequences}
+        history={history}
+        historyCount={summaryCounts.history}
         createButton={
           <MobileHeaderSlot desktopClassName="flex items-center gap-2">
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              aria-label={historyLabel}
-              title={historyLabel}
-              className={mobileNavbarIconButtonClassName}
-            >
-              <Link href={historyHref} prefetch={true}>
-                <History data-icon="inline-start" />
-                <span className="hidden lg:inline">{historyLabel}</span>
-              </Link>
-            </Button>
             <LockedAction feature="followUps" plan={businessContext.business.plan}>
               <CreateFollowUpButton businessSlug={businessSlug} records={recentRecords} />
             </LockedAction>
@@ -216,14 +200,6 @@ async function StreamedFollowUpList({
 
   return (
     <>
-      <div className="flex items-center gap-2">
-        <Button asChild variant="outline" size="sm">
-          <Link href={getBusinessFollowUpsPath(businessSlug)} prefetch={true}>
-            <ArrowLeft data-icon="inline-start" />
-            Back to To do
-          </Link>
-        </Button>
-      </div>
       <Suspense fallback={<FollowUpListControlsFallback />}>
         <FollowUpListControlsSection filters={filters} totalItemsPromise={totalItemsPromise} />
       </Suspense>
