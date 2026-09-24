@@ -45,7 +45,7 @@ import { appendRandomSlugSuffix } from "@/lib/slugs";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId, prefixedId } from "@/lib/ids";
 
 type UpdateBusinessGeneralSettingsInput = {
   businessId: string;
@@ -331,7 +331,7 @@ export async function updateBusinessSettings({
     : null;
   const nextLogoStoragePath =
     logoFile && storageClient
-      ? `${businessId}/logo/${createId("asset")}-${sanitizeBusinessLogoFileName(
+      ? `${businessId}/logo/${prefixedId("asset")}-${sanitizeBusinessLogoFileName(
           logoFile.name,
         )}`
       : null;
@@ -412,7 +412,7 @@ export async function updateBusinessSettings({
       }
 
       await tx.insert(activityLogs).values({
-        id: createId("act"),
+        id: newEntityId(),
         businessId,
         actorUserId,
         type: "business.settings_updated",
@@ -508,7 +508,7 @@ export async function updateBusinessQuoteSettings({
       .where(eq(businesses.id, businessId));
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.quote_settings_updated",
@@ -603,7 +603,7 @@ export async function updateBusinessEmailTemplateSettings({
       .where(eq(businesses.id, businessId));
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.email_template_updated",
@@ -670,7 +670,7 @@ export async function updateBusinessNotificationSettings({
       .where(eq(businesses.id, businessId));
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.notification_settings_updated",
@@ -740,7 +740,7 @@ export async function updateBusinessAiAgentSettings({
       .where(eq(businesses.id, businessId));
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.ai_agent_settings_updated",
@@ -923,7 +923,7 @@ export async function updateBusinessInquiryPageSettings({
       );
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.inquiry_form_page_updated",
@@ -1020,7 +1020,7 @@ export async function updateBusinessInquiryFormSettings({
       );
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.inquiry_form_updated",
@@ -1120,7 +1120,7 @@ export async function applyBusinessInquiryFormPreset({
       );
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.inquiry_form_preset_applied",
@@ -1174,7 +1174,7 @@ export async function createBusinessInquiryForm({
   }
 
   const now = new Date();
-  const formId = createId("ifm");
+  const formId = newEntityId();
   const formSeed = createInquiryFormSeedValues({
     businessType: values.businessType,
     name: values.name,
@@ -1202,7 +1202,7 @@ export async function createBusinessInquiryForm({
     });
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.inquiry_form_created",
@@ -1281,7 +1281,7 @@ export async function duplicateBusinessInquiryForm({
 
   const now = new Date();
   const nextName = createDuplicateInquiryFormName(sourceForm.name);
-  const formId = createId("ifm");
+  const formId = newEntityId();
   const sourceFormBusinessType = normalizeBusinessType(sourceForm.businessType);
   const sourceInquiryFormConfig = getNormalizedInquiryFormConfig(
     sourceForm.inquiryFormConfig,
@@ -1313,7 +1313,7 @@ export async function duplicateBusinessInquiryForm({
     });
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.inquiry_form_duplicated",
@@ -1400,7 +1400,7 @@ export async function setDefaultBusinessInquiryForm({
       );
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.inquiry_form_default_changed",
@@ -1505,7 +1505,7 @@ export async function archiveBusinessInquiryForm({
       );
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.inquiry_form_archived",
@@ -1616,7 +1616,7 @@ export async function deleteBusinessInquiryForm({
       );
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.inquiry_form_deleted",
@@ -1714,7 +1714,7 @@ export async function setBusinessInquiryFormPublicState({
       );
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.inquiry_form_page_updated",
@@ -1806,7 +1806,7 @@ export async function unarchiveBusinessInquiryForm({
       );
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.inquiry_form_updated",

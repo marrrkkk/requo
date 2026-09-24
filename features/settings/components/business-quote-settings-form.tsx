@@ -447,7 +447,7 @@ export function BusinessQuoteSettingsForm({
           message="You have unsaved quote settings."
           onCancel={handleCancelChanges}
           state={floatingActionsState}
-          submitLabel="Save quote settings"
+          submitLabel="Save"
           submitPendingLabel="Saving..."
           visible={shouldRenderFloatingActions}
         />

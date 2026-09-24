@@ -18,16 +18,7 @@ import {
   ResponsiveOverlayHeader,
   ResponsiveOverlayTitle,
 } from "@/components/ui/responsive-overlay";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -137,7 +128,7 @@ export function QuoteTemplatesManager({
             type="button"
           >
             <Plus data-icon="inline-start" />
-            New template
+            New
           </Button>
         </div>
 
@@ -419,34 +410,23 @@ function DeleteConfirmDialogInner({
   }
 
   return (
-    <AlertDialog
+    <ConfirmationDialog
       open={Boolean(entry)}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-    >
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete template?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This permanently removes &ldquo;{entry.name}&rdquo; from your
-            library. Quotes already created from this template are not
-            affected.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel asChild>
-            <Button type="button" variant="outline">
-              Cancel
-            </Button>
-          </AlertDialogCancel>
-          <AlertDialogAction asChild>
-            <Button onClick={handleDelete} type="button" variant="destructive">
-              Delete template
-            </Button>
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      title="Delete template?"
+      description={
+        <>
+          This permanently removes &ldquo;{entry.name}&rdquo; from your
+          library. Quotes already created from this template are not
+          affected.
+        </>
+      }
+      confirmLabel="Delete"
+      onConfirm={handleDelete}
+      tone="destructive"
+      icon={Trash2}
+    />
   );
 }

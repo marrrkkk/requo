@@ -16,13 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Field,
-  FieldContent,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { ImagePlus, Trash2, Upload } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
+import { ImagePlus, RotateCcw, Trash2, Upload, ZoomIn, ZoomOut } from "lucide-react";
 import { businessLogoAccept } from "@/features/settings/utils";
 import {
   createCroppedLogoFile,
@@ -62,6 +57,7 @@ export function BusinessLogoField({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [isApplying, setIsApplying] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -166,11 +162,12 @@ export function BusinessLogoField({
   }
 
   async function applyCrop() {
-    if (!draftAsset || !croppedAreaPixels || !inputRef.current) {
+    if (!draftAsset || !croppedAreaPixels || !inputRef.current || isApplying) {
       return;
     }
 
     setLocalError(null);
+    setIsApplying(true);
 
     try {
       const croppedFile = await createCroppedLogoFile(
@@ -208,7 +205,14 @@ export function BusinessLogoField({
           ? error.message
           : "We couldn't crop that logo right now.",
       );
+    } finally {
+      setIsApplying(false);
     }
+  }
+
+  function resetCrop() {
+    setCrop({ x: 0, y: 0 });
+    setZoom(draftAsset ? getLogoCoverZoom(draftAsset) : 1);
   }
 
   function clearPendingLogo() {
@@ -313,80 +317,152 @@ export function BusinessLogoField({
           }
         }}
       >
-        <DialogContent className="sm:max-w-5xl" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent className="sm:max-w-lg" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Crop logo</DialogTitle>
-            <DialogDescription>Fit your logo to the business frame.</DialogDescription>
+            <DialogDescription>
+              Drag to reposition. Scroll or pinch to zoom — your logo appears
+              as a rounded square across Requo.
+            </DialogDescription>
           </DialogHeader>
 
-          <DialogBody className="grid min-h-0 flex-1 gap-6 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_18rem]">
-            <div className="flex flex-col gap-4">
-              <div className="soft-panel relative min-h-[26rem] overflow-hidden bg-muted/25">
-                {draftAsset ? (
-                  <LazyCropper
-                    aspect={1}
-                    crop={crop}
-                    cropShape="rect"
-                    image={draftAsset.url}
-                    objectFit="contain"
-                    onCropChange={setCrop}
-                    onCropComplete={(_, areaPixels) =>
-                      setCroppedAreaPixels(areaPixels)
-                    }
-                    onZoomChange={setZoom}
-                    showGrid={false}
-                    style={{
-                      cropAreaStyle: {
-                        borderRadius: "1.5rem",
-                      },
-                    }}
-                    zoom={zoom}
-                  />
-                ) : null}
-              </div>
-
-              <p className="text-sm text-muted-foreground">Drag and zoom to fit.</p>
-            </div>
-
-            <div className="flex flex-col gap-5">
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="logo-crop-zoom">Zoom</FieldLabel>
-                  <FieldContent>
-                    <input
-                      className="h-8 w-full accent-primary"
-                      id="logo-crop-zoom"
-                      max="4"
-                      min="1"
-                      onChange={(event) => setZoom(Number(event.currentTarget.value))}
-                      step="0.01"
-                      type="range"
-                      value={zoom}
-                    />
-                  </FieldContent>
-                </Field>
-              </FieldGroup>
-
+          <DialogBody className="gap-4">
+            <div
+              data-padding="none"
+              className="soft-panel relative mx-auto aspect-square w-full max-w-[20rem] overflow-hidden rounded-xl bg-muted/40 sm:max-w-[22rem]"
+            >
               {draftAsset ? (
-                <div className="soft-panel flex items-start gap-3 text-sm">
-                  <div className="space-y-1">
-                    <p className="font-medium text-foreground">{draftAsset.file.name}</p>
-                    <p className="text-muted-foreground">Replaces the upload.</p>
-                  </div>
-                </div>
+                <LazyCropper
+                  aspect={1}
+                  crop={crop}
+                  cropShape="rect"
+                  image={draftAsset.url}
+                  objectFit="contain"
+                  onCropChange={setCrop}
+                  onCropComplete={(_, areaPixels) =>
+                    setCroppedAreaPixels(areaPixels)
+                  }
+                  onZoomChange={setZoom}
+                  showGrid={false}
+                  style={{
+                    cropAreaStyle: {
+                      borderRadius: "1.5rem",
+                    },
+                  }}
+                  zoom={zoom}
+                />
               ) : null}
             </div>
+
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                Drag to reposition • Scroll or pinch to zoom
+              </p>
+              <Button
+                onClick={resetCrop}
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
+                <RotateCcw data-icon="inline-start" aria-hidden="true" />
+                Reset
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                aria-label="Zoom out"
+                disabled={zoom <= 1}
+                onClick={() => setZoom((current) => Math.max(1, Math.round((current - 0.25) * 100) / 100))}
+                size="icon"
+                type="button"
+                variant="outline"
+              >
+                <ZoomOut aria-hidden="true" />
+              </Button>
+              <label className="sr-only" htmlFor="logo-crop-zoom">
+                Zoom
+              </label>
+              <input
+                aria-valuetext={`${Math.round(zoom * 100)} percent`}
+                className="h-11 flex-1 accent-primary"
+                id="logo-crop-zoom"
+                max="4"
+                min="1"
+                onChange={(event) => setZoom(Number(event.currentTarget.value))}
+                step="0.01"
+                type="range"
+                value={zoom}
+              />
+              <Button
+                aria-label="Zoom in"
+                disabled={zoom >= 4}
+                onClick={() => setZoom((current) => Math.min(4, Math.round((current + 0.25) * 100) / 100))}
+                size="icon"
+                type="button"
+                variant="outline"
+              >
+                <ZoomIn aria-hidden="true" />
+              </Button>
+              <span className="w-12 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+                {Math.round(zoom * 100)}%
+              </span>
+            </div>
+
+            {draftAsset ? (
+              <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-muted/30 px-3 py-2.5">
+                <div className="flex shrink-0 items-center gap-2" aria-hidden="true">
+                  <span className="size-11 overflow-hidden rounded-lg border border-border/70 bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      alt=""
+                      className="h-full w-full object-cover"
+                      src={draftAsset.url}
+                    />
+                  </span>
+                  <span className="size-7 overflow-hidden rounded-lg border border-border/70 bg-muted opacity-80">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      alt=""
+                      className="h-full w-full object-cover"
+                      src={draftAsset.url}
+                    />
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {draftAsset.file.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {draftAsset.width} × {draftAsset.height} • Square preview
+                  </p>
+                </div>
+                <Button
+                  onClick={() => inputRef.current?.click()}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  Change
+                </Button>
+              </div>
+            ) : null}
           </DialogBody>
 
           <DialogFooter>
-            <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
-              <Button onClick={closeCropper} type="button" variant="outline">
-                Cancel
-              </Button>
-              <Button onClick={applyCrop} type="button">
-                Use cropped logo
-              </Button>
-            </div>
+            <Button disabled={isApplying} onClick={closeCropper} type="button" variant="outline">
+              Cancel
+            </Button>
+            <Button disabled={!croppedAreaPixels || isApplying} onClick={applyCrop} type="button">
+              {isApplying ? (
+                <>
+                  <Spinner data-icon="inline-start" aria-hidden="true" />
+                  Applying...
+                </>
+              ) : (
+                "Use logo"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -57,6 +57,7 @@ export type BusinessContext = {
     slug: string;
     businessType: BusinessType;
     logoStoragePath: string | null;
+    updatedAt: Date;
     defaultCurrency: string;
     timezone: string;
     publicInquiryEnabled: boolean;
@@ -153,6 +154,7 @@ async function getCachedBusinessMemberships(
           businessSlug: businesses.slug,
           businessType: businesses.businessType,
           businessLogoStoragePath: businesses.logoStoragePath,
+          businessUpdatedAt: businesses.updatedAt,
           defaultCurrency: businesses.defaultCurrency,
           businessTimezone: businesses.timezone,
           publicInquiryEnabled: publicInquiryEnabledSelection,
@@ -189,6 +191,7 @@ async function getCachedBusinessMemberships(
       slug: membership.businessSlug,
       businessType: membership.businessType,
       logoStoragePath: membership.businessLogoStoragePath,
+      updatedAt: membership.businessUpdatedAt,
       defaultCurrency: membership.defaultCurrency,
       timezone: membership.businessTimezone,
       publicInquiryEnabled: membership.publicInquiryEnabled,
@@ -242,6 +245,7 @@ async function getCachedBusinessContextForMembershipSlug(
           businessSlug: businesses.slug,
           businessType: businesses.businessType,
           businessLogoStoragePath: businesses.logoStoragePath,
+          businessUpdatedAt: businesses.updatedAt,
           defaultCurrency: businesses.defaultCurrency,
           businessTimezone: businesses.timezone,
           publicInquiryEnabled: publicInquiryEnabledSelection,
@@ -279,6 +283,7 @@ async function getCachedBusinessContextForMembershipSlug(
       slug: context.businessSlug,
       businessType: context.businessType,
       logoStoragePath: context.businessLogoStoragePath,
+      updatedAt: context.businessUpdatedAt,
       defaultCurrency: context.defaultCurrency,
       timezone: context.businessTimezone,
       publicInquiryEnabled: context.publicInquiryEnabled,

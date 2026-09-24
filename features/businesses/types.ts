@@ -91,6 +91,8 @@ export type CreateBusinessActionState = {
   error?: string;
   fieldErrors?: {
     name?: string[] | undefined;
+    slug?: string[] | undefined;
+    countryCode?: string[] | undefined;
     businessType?: string[] | undefined;
     defaultCurrency?: string[] | undefined;
     businessId?: string[] | undefined;

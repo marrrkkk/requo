@@ -14,15 +14,13 @@ import {
 } from "lucide-react";
 
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  ResponsiveOverlay,
+  ResponsiveOverlayBody,
+  ResponsiveOverlayClose,
+  ResponsiveOverlayContent,
+  ResponsiveOverlayFooter,
+} from "@/components/ui/responsive-overlay";
+import { ConfirmationHeader } from "@/components/shared/confirmation-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -791,7 +789,7 @@ function MemberActionsMenu({
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
 
-  const actionLabel = isCurrentUser ? "Leave business" : "Remove member";
+  const actionLabel = isCurrentUser ? "Leave" : "Remove";
   const disabled = isCurrentUser ? !canLeave : !canRemove;
 
   function handleAction() {
@@ -997,7 +995,7 @@ function RemoveMemberDialog({
   const isSelf = member?.isCurrentUser ?? false;
 
   return (
-    <AlertDialog
+    <ResponsiveOverlay
       open={Boolean(member)}
       onOpenChange={(open) => {
         if (!open) {
@@ -1005,50 +1003,52 @@ function RemoveMemberDialog({
         }
       }}
     >
-      <AlertDialogContent>
+      <ResponsiveOverlayContent className="sm:max-w-md">
         {member ? (
-          <form
-            action={async (formData) => {
-              formData.set("membershipId", member.membershipId);
-              formData.set("userId", member.userId);
-              await onSubmit(formData);
-              onMemberChange(null);
-            }}
-          >
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {isSelf ? "Leave this business?" : "Remove member?"}
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {isSelf
+          <>
+            <ConfirmationHeader
+              tone="destructive"
+              icon={UserMinus}
+              title={isSelf ? "Leave this business?" : "Remove member?"}
+              description={
+                isSelf
                   ? "You will lose access to this business, including inquiries, quotes, follow-ups, and settings."
-                  : `${member.name} will lose access to this business, including inquiries, quotes, follow-ups, and settings.`}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="rounded-xl border border-border bg-muted/20 p-4">
-              <p className="truncate text-sm font-medium text-foreground">
-                {member.email}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Current role: {businessMemberRoleMeta[member.role].label}
-              </p>
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogCancel asChild>
-                <Button disabled={submitting} type="button" variant="outline">
-                  Cancel
-                </Button>
-              </AlertDialogCancel>
-              <AlertDialogAction asChild>
+                  : `${member.name} will lose access to this business, including inquiries, quotes, follow-ups, and settings.`
+              }
+            />
+            <form
+              action={async (formData) => {
+                formData.set("membershipId", member.membershipId);
+                formData.set("userId", member.userId);
+                await onSubmit(formData);
+                onMemberChange(null);
+              }}
+            >
+              <ResponsiveOverlayBody>
+                <div className="rounded-xl border border-border bg-muted/20 p-4">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {member.email}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Current role: {businessMemberRoleMeta[member.role].label}
+                  </p>
+                </div>
+              </ResponsiveOverlayBody>
+              <ResponsiveOverlayFooter>
+                <ResponsiveOverlayClose asChild>
+                  <Button disabled={submitting} type="button" variant="outline">
+                    Cancel
+                  </Button>
+                </ResponsiveOverlayClose>
                 <Button disabled={submitting} type="submit" variant="destructive">
-                  {isSelf ? "Leave business" : "Remove member"}
+                  {isSelf ? "Leave" : "Remove"}
                 </Button>
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </form>
+              </ResponsiveOverlayFooter>
+            </form>
+          </>
         ) : null}
-      </AlertDialogContent>
-    </AlertDialog>
+      </ResponsiveOverlayContent>
+    </ResponsiveOverlay>
   );
 }
 

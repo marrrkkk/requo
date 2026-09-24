@@ -72,7 +72,7 @@ export function AddBlock({
           className="rounded-full"
         >
           <Plus className="size-3.5" aria-hidden="true" />
-          {open ? "Close" : "Add block"}
+          {open ? "Close" : "Add"}
         </Button>
         <p className="text-xs text-muted-foreground" aria-live="polite">
           {atLimit

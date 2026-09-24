@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 
 import { getValidationActionState } from "@/lib/action-state";
 import { requireUser } from "@/lib/auth/session";
-import { prefixedId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import {
   getBusinessAnalyticsCacheTags,
   getBusinessInquiryFormsCacheTags,
@@ -174,6 +174,8 @@ export async function createBusinessAction(
   const user = await requireUser();
   const validationResult = createBusinessSchema.safeParse({
     name: formData.get("name"),
+    slug: formData.get("slug"),
+    countryCode: formData.get("countryCode"),
     businessType: formData.get("businessType"),
     defaultCurrency: formData.get("defaultCurrency"),
     // Accepted for backward compatibility with existing forms but never
@@ -204,9 +206,11 @@ export async function createBusinessAction(
   try {
     const business = await createBusinessForUser({
       user,
-      businessId: prefixedId("biz"),
+      businessId: newEntityId(),
       defaultCurrency: validationResult.data.defaultCurrency,
       name: validationResult.data.name,
+      preferredSlug: validationResult.data.slug,
+      countryCode: validationResult.data.countryCode,
       businessType: validationResult.data.businessType,
       onboardingServices: parseBusinessServiceNames(formData.get("services")),
     });
