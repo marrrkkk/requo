@@ -12,7 +12,7 @@ import { cacheLife, cacheTag } from "next/cache";
 
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema/businesses";
-import { prefixedId as generateId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import {
   billingShellCacheLife,
   getBusinessBillingCacheTags,
@@ -206,7 +206,7 @@ export async function activateSubscription(
     const [created] = await db
       .insert(businessSubscriptions)
       .values({
-        id: generateId("sub"),
+        id: newEntityId(),
         businessId: params.businessId,
         status: params.status ?? "active",
         plan: params.plan,

@@ -86,7 +86,9 @@ describe("features/quotes/mutations workflow", () => {
       quote: quoteInput(),
     });
 
-    expect(created?.id).toMatch(/^qt_/);
+    expect(created?.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
 
     const storedQuote = await getStoredQuote(created!.id);
     const storedItems = await testDb

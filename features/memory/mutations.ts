@@ -5,7 +5,7 @@ import { updateTag } from "next/cache";
 
 import { getBusinessMemoryCacheTags } from "@/lib/cache/business-tags";
 import { memoryEmbeddingText } from "@/features/memory/embedding-text";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import type {
   MemoryEntryInput,
   MemoryEntryUpdate,
@@ -35,7 +35,7 @@ export async function createBusinessMemory({
     .from(businessMemories)
     .where(eq(businessMemories.businessId, businessId));
 
-  const id = createId("mem");
+  const id = newEntityId();
 
   // Embedding generation is best-effort: a null embedding is stored and
   // retrieval falls back to lexical matching. The entry itself must persist.

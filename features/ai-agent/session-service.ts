@@ -9,7 +9,7 @@ import "server-only";
 import { and, eq, isNull, lt } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { aiAgentSessions, businesses } from "@/lib/db/schema";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import type {
   SessionCreateResult,
   QualificationState,
@@ -38,7 +38,7 @@ export async function createAgentSession({
   businessId: string;
   metadata?: SessionMetadata;
 }): Promise<SessionCreateResult> {
-  const sessionId = createId("ags");
+  const sessionId = newEntityId();
   const publicToken = generateSessionToken();
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours

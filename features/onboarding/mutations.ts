@@ -12,7 +12,7 @@ import { db } from "@/lib/db/client";
 import { businessMembers, businesses, profiles } from "@/lib/db/schema";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 
 type CompleteOnboardingForUserInput = {
   user: {
@@ -108,7 +108,7 @@ export async function completeOnboardingForUser({
 
     return createBusinessRecordForUser({
       tx,
-      businessId: createId("biz"),
+      businessId: newEntityId(),
       defaultCurrency,
       countryCode,
       user,

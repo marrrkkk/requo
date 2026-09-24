@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 
 import type { BusinessNotificationType } from "@/features/notifications/types";
 import { db } from "@/lib/db/client";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import {
   businessNotificationReads,
   businessNotificationStates,
@@ -40,7 +40,7 @@ export async function insertBusinessNotification(
   }: InsertBusinessNotificationInput,
 ) {
   await tx.insert(businessNotifications).values({
-    id: createId("ntf"),
+    id: newEntityId(),
     businessId,
     inquiryId,
     quoteId,
@@ -99,7 +99,7 @@ export async function markBusinessNotificationsReadForUser({
   const now = new Date();
 
   await db.insert(businessNotificationStates).values({
-    id: createId("nts"),
+    id: newEntityId(),
     businessId,
     userId,
     lastReadAt: throughCreatedAt,
@@ -135,7 +135,7 @@ export async function markBusinessNotificationReadForUser({
   await db
     .insert(businessNotificationReads)
     .values({
-      id: createId("ntr"),
+      id: newEntityId(),
       businessId,
       notificationId,
       userId,

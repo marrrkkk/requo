@@ -55,10 +55,12 @@ describe("session token generation", () => {
     expect(result.publicToken).not.toMatch(/[^a-zA-Z0-9_\-.~]/);
   });
 
-  it("generates a prefixed session ID (ags_<hex>)", async () => {
+  it("generates a UUIDv7 session ID (ADR-014)", async () => {
     const result = await createAgentSession({ businessId: "biz_test" });
 
-    expect(result.sessionId).toMatch(/^ags_[0-9a-f]+$/);
+    expect(result.sessionId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
   });
 
   it("generates tokens with sufficient entropy (50 consecutive tokens are unique)", async () => {

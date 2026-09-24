@@ -36,9 +36,51 @@ _Avoid_: Remaining (in copy), outstanding (in code for per-invoice balance)
 The human-readable per-business yearly identifier of a payment record (`PAY-YYYY-NNNN`).
 _Avoid_: Database id, payment id
 
+**Quote number**:
+The human-readable per-business sequential identifier of a quote (`Q-NNNN`).
+_Avoid_: Database id, quote id
+
+**Invoice number**:
+The human-readable per-business sequential identifier of an invoice (`INV-NNNNNN`).
+_Avoid_: Database id, invoice id
+
+**Entity ID**:
+The opaque internal database identity of a Requo-owned row (UUIDv7 for new rows; older `prefix_hex`/UUIDv4 values preserved). Never displayed; never parsed.
+_Avoid_: Quote/invoice/payment number
+
 **Payment source**:
 Where a payment record originated. Only `manual` exists: money received outside Requo and recorded by an authorized user.
 _Avoid_: Processor, gateway, provider payment
+
+### Follow-ups
+
+**Follow-up**:
+An owner reminder to act on a specific inquiry or quote.
+_Avoid_: Follow-up Email, generic task
+
+**Follow-up Email**:
+An unattended email sequence Requo sends automatically for a sent quote.
+_Avoid_: Follow-up
+
+**Suggested Message**:
+Copy-paste draft text for contacting a customer; it never sends by itself.
+_Avoid_: Automatic send
+
+**Done**:
+Marking a follow-up as finished.
+_Avoid_: Contacted
+
+**Dismiss**:
+Intentionally clearing a follow-up without acting on it.
+_Avoid_: Delete
+
+**Snooze**:
+Temporarily hiding a follow-up until a later time without finishing it.
+_Avoid_: Reschedule
+
+**Reschedule**:
+Changing when a follow-up is due.
+_Avoid_: Snooze
 
 ### Quote acceptance
 

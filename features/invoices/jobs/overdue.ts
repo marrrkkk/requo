@@ -8,7 +8,7 @@ import { getTodayUtcDateString } from "@/features/quotes/utils";
 import { db } from "@/lib/db/client";
 import { activityLogs, businesses, invoices } from "@/lib/db/schema";
 import { sendPushInvoiceOverdueEvent } from "@/lib/inngest/send";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 
 export type InvoiceOverdueSummary = {
   processed: number;
@@ -80,7 +80,7 @@ export async function processInvoiceOverdue(): Promise<InvoiceOverdueSummary> {
           now,
         });
         await tx.insert(activityLogs).values({
-          id: createId("act"),
+          id: newEntityId(),
           businessId: row.businessId,
           actorUserId: null,
           type: "invoice.overdue",

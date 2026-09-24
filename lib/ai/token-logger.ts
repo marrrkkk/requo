@@ -3,7 +3,7 @@ import "server-only";
 import { db } from "@/lib/db/client";
 import { aiTokenLogs } from "@/lib/db/schema";
 import { getDerivedCostTable } from "@/lib/ai/catalog";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 
 // ---------------------------------------------------------------------------
 // Token Logger — records every AI invocation for cost monitoring and debugging
@@ -138,7 +138,7 @@ export async function logAiInvocation(
     ? errorMessage.slice(0, 1024)
     : null;
 
-  const id = createId("atl");
+  const id = newEntityId();
 
   const entry: TokenLogEntry = {
     id,

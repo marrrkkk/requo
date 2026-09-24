@@ -10,7 +10,7 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { aiAgentMessages } from "@/lib/db/schema";
 import type { AgentMessage, MessageRole, MessageMetadata } from "@/features/ai-agent/types";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 
 /**
  * Add a message to a session.
@@ -55,7 +55,7 @@ export async function addAgentMessage({
     } as AgentMessage;
   }
 
-  const messageId = createId("agm");
+  const messageId = newEntityId();
   const now = new Date();
 
   const [message] = await db

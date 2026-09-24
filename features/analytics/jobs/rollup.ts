@@ -3,7 +3,7 @@ import "server-only";
 import { and, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import {
   analyticsDailyRollups,
   analyticsEvents,
@@ -327,7 +327,7 @@ async function upsertRollupForBusiness(
   await db
     .insert(analyticsDailyRollups)
     .values({
-      id: createId("adr"),
+      id: newEntityId(),
       businessId,
       date: targetDate,
       ...metrics,

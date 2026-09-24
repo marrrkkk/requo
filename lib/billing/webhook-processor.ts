@@ -14,7 +14,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
-import { prefixedId as generateId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import {
   billingEvents,
   paymentAttempts,
@@ -52,7 +52,7 @@ export async function recordWebhookEvent(params: {
     return { isNew: false, eventId: existing.id };
   }
 
-  const eventId = generateId("evt");
+  const eventId = newEntityId();
 
   await db.insert(billingEvents).values({
     id: eventId,
@@ -128,7 +128,7 @@ type RecordPaymentAttemptParams = {
 export async function recordPaymentAttempt(
   params: RecordPaymentAttemptParams,
 ): Promise<string> {
-  const id = generateId("pay");
+  const id = newEntityId();
 
   await db.insert(paymentAttempts).values({
     id,

@@ -6,7 +6,7 @@ How data is stored and accessed. See `docs/database-migrations.md` for the migra
 
 - **Postgres hosted on Supabase**, accessed only via **Drizzle ORM 0.45** + `postgres-js` (`lib/db/client.ts`). Singleton via `globalThis` in non-prod.
 - **Connection:** runtime `DATABASE_URL` (pooler, port 6543, `prepare: false`, small pool); migrations `DATABASE_MIGRATION_URL` (direct, port 5432, `max: 1`). Strict migrate rejects pooler URLs (`scripts/migrate.ts`, `drizzle.config.ts`: `dialect: postgresql`, `strict: true`, schema `./lib/db/schema/index.ts`, out `./drizzle`).
-- **IDs** are `text` PKs (nanoid-style with prefixes, e.g. `oas_`, `oam_`). Timestamps `timestamptz defaultNow()`. Money in integer cents with `CHECK` constraints (e.g. `total = subtotal - discount + tax`).
+- **IDs** are `text` PKs. New Requo-owned rows get UUIDv7 via `newEntityId()` (`lib/ids.ts`); existing IDs stay stable (mixed historical formats). Human document numbers (`Q-NNNN`, `INV-NNNNNN`, `PAY-YYYY-NNNN`) are separate fields, never identity. Authoritative rule: `docs/architecture/adr-014-entity-id-standard.md`. Timestamps `timestamptz defaultNow()`. Money in integer cents with `CHECK` constraints (e.g. `total = subtotal - discount + tax`).
 - **No pgvector.** `business_memories.embedding` and `business_knowledge_chunks.embedding` are `jsonb number[]`; cosine similarity computed app-side (`features/memory/retrieval.ts`). Works because per-business memory counts are small — retrieval caps candidates by recency (`KNOWLEDGE_CANDIDATE_LIMIT_MEMORIES = 200`, `KNOWLEDGE_CANDIDATE_LIMIT_CHUNKS = 500`) rather than loading the whole corpus. Still no full-text search and no Postgres extension: lexical matching is whole-token in application code (`lib/ai/text-terms.ts`). Null embeddings are repaired by the hourly `cron-embedding-backfill`, so no schema change was needed for that either.
 - **RLS default-deny** (`drizzle/0007_*`) exists only to silence the Supabase linter — the app connects directly via Drizzle and bypasses RLS. Tenant isolation is enforced in application code, not policies.
 
@@ -21,7 +21,7 @@ Source of truth: `lib/db/schema/index.ts` (barrel over 24 modules). Key modules:
 | `inquiries.ts` | `inquiries`, `inquiry_messages`, `inquiry_attachments`, `inquiry_notes`, `inquiry_duplicates` | Status enum; indexes on `(business, status)`, submitted dates; partial open-deadline index |
 | `quotes.ts` | `quotes`, `quote_items`, `quote_versions`, `quote_revision_requests` | `quoteNumber` unique per business; `publicTokenHash` unique; partial `sent_valid_until` / auto-follow-up indexes |
 | `invoices.ts` | `invoices`, `invoice_line_items`, `payments` | Unique partial `(businessId, quoteId)` for non-void; manual payments only |
-| `follow-ups.ts` | `follow_ups` | Check `inquiryId OR quoteId`; partial `pending_due` index |
+| `follow-ups.ts` | `follow_ups` | Check `inquiryId OR quoteId`; partial `pending_due` index; `send_mode` enum `manual/automatic` |
 | `business-inquiry-forms.ts` | `business_inquiry_forms` | User-facing name "Service"; slug unique per business |
 | `quote-library.ts` | `quote_library_entries`, `quote_library_entry_items` | Kinds `block/package/template` |
 | `memories.ts` / `knowledge-files.ts` | `business_memories`, `business_knowledge_files`, `business_knowledge_chunks` | Categories incl. `pricing_knowledge` (context only); file status enum |
