@@ -68,8 +68,8 @@ Use role-based typography instead of ad hoc text sizes. Full spec lives in
 | Section title | `font-heading text-base leading-tight font-semibold tracking-tight` | `CardTitle`, `DashboardSection` |
 | Form section title | `.form-section-title` (`text-[0.9375rem] font-semibold tracking-tight`, 15px) | `FormSection` titles |
 | Body | `text-sm leading-6` | Default UI copy (14px at Default scale) |
-| Supporting body | `text-sm leading-6 text-muted-foreground` | Descriptions and help text |
-| Long-form supporting | `text-sm leading-6 text-muted-foreground` | Page descriptions and detail copy |
+| Supporting body | `text-sm leading-5 text-muted-foreground` | Descriptions and help text |
+| Long-form supporting | `text-sm leading-5 text-muted-foreground` | Page descriptions and detail copy |
 | Small supporting | `text-xs` (12px) | Timestamps, counts, badges, menus — meta only |
 | Field label | `text-sm leading-[1.35] font-medium` | `FieldLabel` |
 | Meta label | `meta-label` (`text-[0.6875rem] font-medium uppercase tracking-[0.14em] text-muted-foreground`, 11px) | Filters, eyebrow labels, meta chips |
@@ -131,7 +131,7 @@ Panel padding (see ADR 008):
 Radius rules (single shared radius):
 
 - One value everywhere: `--radius` (`0.5rem` / 8px). The `sm/md/lg/xl/2xl/3xl/4xl` tokens all resolve to it — use `rounded-lg` for controls and `rounded-xl` for cards, tables, sections, overlays, and empty states.
-- Exceptions: `rounded-full` for pills, badges, and avatars; `rounded-sm` for micro-internals (checkbox, tooltip arrow); `rounded-none` for flush edges.
+- Exceptions: `rounded-full` for pills, badges, and avatars; `rounded-sm` for micro-internals (checkbox, tooltip arrow); `rounded-none` for flush edges; `chat-bubble` (`app/globals.css`, 20px) for AI chat user turns only.
 - Never use `rounded-2xl` / `rounded-3xl` / `rounded-4xl` or arbitrary `rounded-[...]` in new code (`rounded-2xl` still renders the shared 8px via the collapsed token — rename to `rounded-xl` on touch). Enforced by `audit:radius`.
 
 ### Motion
@@ -359,7 +359,11 @@ Accessibility is default behavior, not an enhancement pass:
 
 Established patterns above win for new work. These contradictions exist in the codebase — do not copy them into new code, and do not silently "fix" them outside a dedicated cleanup:
 
-- **BoardUI vs shadcn duality.** `components/base/*` (16 dirs) plus `components/application/`/`components/foundations/` exist alongside canonical `components/ui/*`; only 3 BoardUI compat tokens are mapped (`app/globals.css`). New UI builds on `components/ui/*` + `components/shared/*`. See `docs/technical-debt.md`.
+- **BoardUI vs shadcn duality (frozen compat, see table below).** `components/base/*` (15 dirs) plus `components/application/`/`components/foundations/` exist alongside canonical `components/ui/*` (40 files); BoardUI compat in `app/globals.css` is frozen (tone aliases, composite type ramp, agent-thinking + chart-card blocks — do not expand). New UI builds only on `components/ui/*` + `components/shared/*`. See `docs/technical-debt.md` §3 and `docs/architecture/adr-015-boardui-compat-freeze.md`.
+- **BoardUI compat inventory (issue #73).** Kept as frozen shims — reachable, no new uses:
+  - `base/notification` (app-wide `toast` + `Toaster` via `ui/sonner`), `base/breadcrumb` (shell + settings + admin header; no `ui/` equivalent), `base/tabs` (settings tabs; migrate to `ui/tabs` only as a dedicated refactor).
+  - `application/dashboard/*` (sidebar shell, team/user menus, stat-cards), `application/agent-thinking` (chat status line), `application/theme/theme-toggle`, `application/settings/*` (via `SettingsModal` from sidebar), `foundations/icons` (shared chevrons).
+  - Transitive-only `base/*` (`avatar`, `badges`, `buttons`, `switch`, `dropdown`, `select`, `input`, `checkbox`, `date-picker`, `file-upload`, `pagination`, `tooltip`): kept only because the items above import them. No direct product imports for new UI.
 - **Legacy styling debt.** Remaining `space-y-*`/`space-x-*` stacks (use `flex`/`grid` + `gap-*`). Flagged by `audit:density`.
 - **Raw palette on non-pill surfaces.** Status *pills* are tokenized — `components/shared/status-badge.tsx` owns them and `audit:status-tokens` enforces it — but raw palette still colours some semantic surfaces: the archived-record banner, the paywall accent, the quote-editor amber alerts, and the public quote option cards. Move them to `--warning`/`--success`/`--destructive` opportunistically. See `docs/technical-debt.md` §4.
 - **`!important` outside status.** `meta-label !text-primary` (marketing) and `!bg-sidebar-accent` (`dashboard-sidebar.tsx`) are the same cascade-order problem the status migration removed: a custom class in `@layer utilities` setting a colour a utility then cannot override. Fix by giving the custom class a variant that sets no colour, not by keeping the `!`.

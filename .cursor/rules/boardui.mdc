@@ -7,11 +7,11 @@ alwaysApply: true
 
 This project uses BoardUI (React + Tailwind CSS v4, source-owned components under `components/`). These rules always apply when writing UI code. MCP tools are on demand; these rules are not optional context.
 
-## Components first
+## Components first (frozen compat — see DESIGN.md, issue #73)
 
-- Before hand-building any UI element, check for an installed BoardUI component under `components/base/` and `components/application/`, and prefer it.
-- Missing a component? Install it (BoardUI MCP `install_components`, or `npx boardui@latest add <name>`) instead of writing a lookalike.
-- Import through the `@/` alias, e.g. `import { Button } from "@/components/base/buttons/button"`.
+- Canonical UI is Requo UI (`DESIGN.md` + `components/ui/*` + `components/shared/*`). Build all new UI there.
+- `components/base/` (15 dirs) + `components/application/` + `components/foundations/` are frozen compat shims (sidebar shell, notification/toast, breadcrumb, settings tabs, stat-cards, agent-thinking). Do not use them for new UI; do not install new BoardUI components.
+- Import through the `@/` alias, e.g. `import { Button } from "@/components/ui/button"` for new code. `base/*` imports remain only inside the frozen shims listed in `DESIGN.md`.
 
 ## Color: semantic tokens only
 
