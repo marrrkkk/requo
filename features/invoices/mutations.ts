@@ -1,11 +1,11 @@
 import "server-only";
 
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { writeAuditLog } from "@/features/audit/mutations";
 import { insertBusinessNotification } from "@/features/notifications/mutations";
 import { db } from "@/lib/db/client";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import {
   activityLogs,
   businessPaymentCounters,
@@ -60,7 +60,7 @@ function isUniqueInvoiceConflict(error: unknown) {
 
 function calculateTotals(items: Array<{ description: string; quantity: number; unitPriceInCents: number }>, discountInCents: number, taxInCents: number) {
   const snapshotItems = items.map((item, position) => ({
-    id: createId("ilit"),
+    id: newEntityId(),
     description: item.description.trim(),
     quantity: item.quantity,
     unitPriceInCents: item.unitPriceInCents,
@@ -83,7 +83,7 @@ async function insertInvoiceActivity(
 ) {
   const now = new Date();
   await tx.insert(activityLogs).values({
-    id: createId("act"),
+    id: newEntityId(),
     businessId: input.businessId,
     actorUserId: input.actorUserId ?? null,
     type: input.type,
@@ -141,7 +141,7 @@ export async function createInvoiceForBusiness(input: CreateInvoiceInput) {
         const totals = calculateTotals(items, discountInCents, taxInCents);
         const [latest] = await tx.select({ latest: sql<number>`coalesce(max((nullif(substring(${invoices.invoiceNumber} from '[0-9]+$'), ''))::integer), 0)` }).from(invoices).where(eq(invoices.businessId, input.businessId));
         const invoiceNumber = nextInvoiceNumber(latest?.latest);
-        const id = createId("inv");
+        const id = newEntityId();
         const now = new Date();
 
         await tx.insert(invoices).values({
@@ -238,7 +238,7 @@ export async function recordPaymentForBusiness({ businessId, invoiceId, actorUse
     if ("error" in allocated) return allocated;
 
     const now = new Date();
-    const paymentId = createId("pay");
+    const paymentId = newEntityId();
     try {
       await tx.insert(payments).values({ id: paymentId, businessId, invoiceId, paymentNumber: allocated.paymentNumber, idempotencyKey: trimmedKey, source: "manual", amountInCents, paymentDate, method, reference: reference?.trim() || null, notes: notes?.trim() || null, createdBy: actorUserId, createdAt: now, updatedAt: now });
     } catch (error) {
@@ -300,8 +300,7 @@ export async function voidPaymentForBusiness({ businessId, paymentId, actorUserI
   });
 }
 
-export async function voidInvoiceForBusiness({ businessId, invoiceId, actorUserId, reason }: { businessId: string; invoiceId: string; actorUserId: string; reason?: string | null }) {
-  return db.transaction(async (tx) => {
+export async function voidInvoiceForBusiness({ businessId, invoiceId, actorUserId, reason }: { businessId: string; invoiceId: string; actorUserId: string; reason?: string | null }) {  return db.transaction(async (tx) => {
     const [invoice] = await tx.select().from(invoices).where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId), isNull(invoices.deletedAt))).for("update");
     if (!invoice || invoice.status === "voided") return null;
     const [paid] = await tx.select({ total: sql<number>`coalesce(sum(${payments.amountInCents}), 0)` }).from(payments).where(and(eq(payments.invoiceId, invoiceId), eq(payments.businessId, businessId), isNull(payments.voidedAt)));
@@ -400,4 +399,88 @@ export async function updateInvoiceDraftForBusiness(input: UpdateInvoiceDraftInp
     });
     return { changed: true, invoiceNumber: invoice.invoiceNumber } as const;
   });
+}
+
+// ---------------------------------------------------------------------------
+// Bulk mutations for invoice list actions
+// ---------------------------------------------------------------------------
+
+export async function bulkVoidInvoicesForBusiness({
+  businessId,
+  invoiceIds,
+  actorUserId,
+}: {
+  businessId: string;
+  invoiceIds: string[];
+  actorUserId: string;
+}): Promise<{ affected: number; skipped: number }> {
+  const candidates = await db
+    .select({ id: invoices.id, status: invoices.status })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.businessId, businessId),
+        inArray(invoices.id, invoiceIds),
+        isNull(invoices.deletedAt),
+      ),
+    );
+
+  const voidableIds = candidates
+    .filter((invoice) => invoice.status !== "voided")
+    .map((invoice) => invoice.id);
+
+  if (voidableIds.length === 0) {
+    return { affected: 0, skipped: invoiceIds.length };
+  }
+
+  // Voiding requires zero recorded (non-voided) payments, mirroring
+  // `voidInvoiceForBusiness`. Skip invoices that carry a balance.
+  const paidTotals = await db
+    .select({
+      invoiceId: payments.invoiceId,
+      total: sql<number>`coalesce(sum(${payments.amountInCents}), 0)`,
+    })
+    .from(payments)
+    .where(
+      and(
+        eq(payments.businessId, businessId),
+        inArray(payments.invoiceId, voidableIds),
+        isNull(payments.voidedAt),
+      ),
+    )
+    .groupBy(payments.invoiceId);
+
+  const paidByInvoiceId = new Map(
+    paidTotals.map((row) => [row.invoiceId, Number(row.total ?? 0)]),
+  );
+  const eligibleIds = voidableIds.filter(
+    (id) => (paidByInvoiceId.get(id) ?? 0) <= 0,
+  );
+
+  if (eligibleIds.length === 0) {
+    return { affected: 0, skipped: invoiceIds.length };
+  }
+
+  const now = new Date();
+  const result = await db
+    .update(invoices)
+    .set({
+      status: "voided",
+      voidedAt: now,
+      voidedBy: actorUserId,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(invoices.businessId, businessId),
+        inArray(invoices.id, eligibleIds),
+        isNull(invoices.deletedAt),
+      ),
+    )
+    .returning({ id: invoices.id });
+
+  return {
+    affected: result.length,
+    skipped: invoiceIds.length - result.length,
+  };
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ReceiptText } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { DashboardListResultsSkeleton } from "@/components/shared/dashboard-list-results-skeleton";
 import {
@@ -61,8 +61,8 @@ export async function InvoiceListHeaderActions({
         className={mobileNavbarIconButtonClassName}
       >
         <Link href={getBusinessNewInvoicePath(businessSlug)} prefetch={true}>
-          <ReceiptText data-icon="inline-start" />
-          <span className="hidden lg:inline">New invoice</span>
+          <Plus data-icon="inline-start" />
+          <span className="hidden lg:inline">New</span>
         </Link>
       </Button>
     </MobileHeaderSlot>
@@ -130,8 +130,8 @@ export async function InvoiceListContentSection({
         ) : (
           <Button asChild>
             <Link href={getBusinessNewInvoicePath(businessSlug)} prefetch={true}>
-              <ReceiptText data-icon="inline-start" />
-              Create first invoice
+          <Plus data-icon="inline-start" />
+              New
             </Link>
           </Button>
         )
@@ -141,7 +141,7 @@ export async function InvoiceListContentSection({
           ? "Try another search or status."
           : "Create an invoice from an accepted quote to start tracking payments."
       }
-      icon={ReceiptText}
+      icon={Plus}
       title={
         hasNonViewFilters
           ? "No invoices match these filters."

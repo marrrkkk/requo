@@ -58,6 +58,8 @@ export default async function InvoicePrintPage({ params }: InvoicePrintPageProps
     >
       <InvoicePrintDocument
         businessName={requestContext.businessContext.business.name}
+        businessLogoStoragePath={requestContext.businessContext.business.logoStoragePath}
+        businessSlug={resolvedParams.businessSlug}
         invoice={invoice}
       />
     </PrintPageShell>

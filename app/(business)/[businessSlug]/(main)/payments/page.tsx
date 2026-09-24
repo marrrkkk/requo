@@ -1,19 +1,22 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 
-import { DashboardPage, DashboardSection, DashboardTableContainer } from "@/components/shared/dashboard-layout";
-import { DataListPagination } from "@/components/shared/data-list-pagination";
+import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
-import { DetailSectionFallback } from "@/components/shared/detail-section-fallback";
-import { RegionErrorBoundary } from "@/components/shared/region-error-boundary";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getBusinessInvoicePath, getBusinessPaymentPath, getBusinessPaymentsPath } from "@/features/businesses/routes";
-import { PaymentListFilters } from "@/features/invoices/components/payment-list-filters";
-import { getPaymentListForBusiness } from "@/features/invoices/queries";
+import {
+  PaymentListContentFallback,
+  PaymentListContentSection,
+  PaymentListControlsFallback,
+  PaymentListControlsSection,
+} from "@/features/invoices/components/payment-list-page-sections";
+import {
+  getPaymentListCountForBusiness,
+  getPaymentListPageForBusiness,
+} from "@/features/invoices/queries";
 import { paymentListFiltersSchema } from "@/features/invoices/schemas";
-import { formatQuoteMoney } from "@/features/invoices/utils";
-import type { PaymentMethod } from "@/features/invoices/types";
+import {
+  getBusinessPaymentsPath,
+} from "@/features/businesses/routes";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
@@ -22,129 +25,199 @@ type PaymentsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 10;
+const FULL_PAGE_CACHE_MAX_PAGES = 5;
+const FORWARD_PAGE_CACHE_WINDOW = 1;
+const BACKWARD_PAGE_CACHE_WINDOW = 0;
 
-const methodLabels: Record<PaymentMethod, string> = {
-  cash: "Cash",
-  bank_transfer: "Bank Transfer",
-  gcash: "GCash",
-  maya: "Maya",
-  check: "Check",
-  other: "Other",
-};
+function getCachedPageWindow(currentPage: number, totalPages: number) {
+  if (totalPages <= FULL_PAGE_CACHE_MAX_PAGES) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const pages = new Set<number>([currentPage]);
+
+  for (let offset = 1; offset <= BACKWARD_PAGE_CACHE_WINDOW; offset += 1) {
+    const page = currentPage - offset;
+
+    if (page >= 1) {
+      pages.add(page);
+    }
+  }
+
+  for (let offset = 1; offset <= FORWARD_PAGE_CACHE_WINDOW; offset += 1) {
+    const page = currentPage + offset;
+
+    if (page <= totalPages) {
+      pages.add(page);
+    }
+  }
+
+  return Array.from(pages).sort((left, right) => left - right);
+}
 
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Payments",
-  description: "Review payments recorded against invoices.",
+  description: "List, filter, and manage payments for this business.",
 });
 
 export const instant = true;
 
-export default function PaymentsPage({ params, searchParams }: PaymentsPageProps) {
+/**
+ * Payments list page — non-blocking structural shell.
+ *
+ * Returns the DashboardPage shell and skeleton fallbacks synchronously.
+ * All dynamic reads (params, searchParams, getAppShellContext, queries)
+ * are resolved inside Suspense-wrapped child server components.
+ */
+export default function PaymentsPage({
+  params,
+  searchParams,
+}: PaymentsPageProps) {
   return (
     <DashboardPage>
-      <PageHeader title="Payments" description="Payments you record against invoices will appear here." />
+      <PageHeader title="Payments" />
+
       <div className="dashboard-table-shell" data-list-card>
-        <RegionErrorBoundary fallback={<DetailSectionFallback rows={2} />}>
-          <Suspense fallback={<DetailSectionFallback rows={2} />}>
-            <PaymentsControlsRegion params={params} searchParams={searchParams} />
-          </Suspense>
-        </RegionErrorBoundary>
-        <RegionErrorBoundary fallback={<DetailSectionFallback rows={4} />}>
-          <Suspense fallback={<DetailSectionFallback rows={4} />}>
-            <PaymentsListRegion params={params} searchParams={searchParams} />
-          </Suspense>
-        </RegionErrorBoundary>
+        <Suspense fallback={<PaymentListControlsFallback />}>
+          <PaymentsControlsRegion params={params} searchParams={searchParams} />
+        </Suspense>
+
+        <Suspense fallback={<PaymentListContentFallback />}>
+          <PaymentsListRegion params={params} searchParams={searchParams} />
+        </Suspense>
       </div>
     </DashboardPage>
   );
 }
 
-async function PaymentsControlsRegion({ params, searchParams }: PaymentsPageProps) {
-  const { businessSlug } = await params;
+// ---------------------------------------------------------------------------
+// Controls region — resolves context and passes data to controls section
+// ---------------------------------------------------------------------------
+
+async function PaymentsControlsRegion({
+  params,
+  searchParams,
+}: PaymentsPageProps) {
+  const [{ businessSlug }, resolvedSearchParams] = await Promise.all([
+    params,
+    searchParams,
+  ]);
   const { businessContext } = await getAppShellContext(businessSlug);
-  const parsed = paymentListFiltersSchema.safeParse(await searchParams);
-  const filters = parsed.success
-    ? { q: parsed.data.q, status: parsed.data.status, method: parsed.data.method, from: parsed.data.from, to: parsed.data.to, page: parsed.data.page }
-    : { q: undefined, status: "all" as const, method: "all" as const, from: undefined, to: undefined, page: 1 };
-  const { total } = await getPaymentListForBusiness({ businessId: businessContext.business.id, filters, page: 1, pageSize: 1 });
-  return <PaymentListFilters filters={filters} resultCount={total} />;
-}
 
-async function PaymentsListRegion({ params, searchParams }: PaymentsPageProps) {
-  const { businessSlug } = await params;
-  const query = await searchParams;
-  const { businessContext } = await getAppShellContext(businessSlug);
-  const parsed = paymentListFiltersSchema.safeParse(query);
-  const filters = parsed.success
-    ? { q: parsed.data.q, status: parsed.data.status, method: parsed.data.method, from: parsed.data.from, to: parsed.data.to, page: parsed.data.page }
-    : { q: undefined, status: "all" as const, method: "all" as const, from: undefined, to: undefined, page: 1 };
-  const page = Math.max(1, filters.page);
-  const { items, total } = await getPaymentListForBusiness({ businessId: businessContext.business.id, filters, page, pageSize: ITEMS_PER_PAGE });
+  const parsedFilters = paymentListFiltersSchema.safeParse(resolvedSearchParams);
+  const filters = parsedFilters.success
+    ? parsedFilters.data
+    : {
+        q: undefined,
+        status: "all" as const,
+        method: "all" as const,
+        from: undefined,
+        to: undefined,
+        page: 1,
+      };
+  const baseFilters = {
+    q: filters.q,
+    status: filters.status,
+    method: filters.method,
+    from: filters.from,
+    to: filters.to,
+  };
 
-  if (!items.length) {
-    return (
-      <DashboardSection title="No payments recorded yet.">
-        <p className="text-sm text-muted-foreground">
-          Payments you record against invoices will appear here.
-        </p>
-      </DashboardSection>
-    );
-  }
-
-  const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+  const paymentCountPromise = getPaymentListCountForBusiness({
+    businessId: businessContext.business.id,
+    filters: baseFilters,
+  });
 
   return (
-    <div className="flex flex-col gap-4">
-      <DashboardTableContainer>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Payment</TableHead>
-              <TableHead>Invoice</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead>Method</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Recorded by</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>
-                  <Link className="font-medium underline underline-offset-4" href={getBusinessPaymentPath(businessSlug, item.id)}>
-                    {item.paymentNumber}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <Link className="underline underline-offset-4" href={getBusinessInvoicePath(businessSlug, item.invoiceId)}>
-                    {item.invoiceNumber}
-                  </Link>
-                </TableCell>
-                <TableCell>{item.customerName}</TableCell>
-                <TableCell className="text-right font-medium tabular-nums">
-                  {formatQuoteMoney(item.amountInCents, item.currency)}
-                </TableCell>
-                <TableCell>{methodLabels[item.method]}</TableCell>
-                <TableCell>{item.paymentDate}</TableCell>
-                <TableCell>{item.status === "recorded" ? "Recorded" : "Voided"}</TableCell>
-                <TableCell className="text-muted-foreground">{item.recordedByName ?? "—"}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DashboardTableContainer>
-      {totalPages > 1 ? (
-        <DataListPagination
-          currentPage={page}
-          pathname={getBusinessPaymentsPath(businessSlug)}
-          searchParams={query as Record<string, string | string[] | undefined>}
-          totalItems={total}
-          totalPages={totalPages}
-        />
-      ) : null}
-    </div>
+    <PaymentListControlsSection
+      businessSlug={businessSlug}
+      filters={filters}
+      searchParams={resolvedSearchParams}
+      totalItemsPromise={paymentCountPromise}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// List region — resolves context and passes page data to content section
+// ---------------------------------------------------------------------------
+
+async function PaymentsListRegion({
+  params,
+  searchParams,
+}: PaymentsPageProps) {
+  const [{ businessSlug }, resolvedSearchParams] = await Promise.all([
+    params,
+    searchParams,
+  ]);
+  const { businessContext } = await getAppShellContext(businessSlug);
+
+  const parsedFilters = paymentListFiltersSchema.safeParse(resolvedSearchParams);
+  const filters = parsedFilters.success
+    ? parsedFilters.data
+    : {
+        q: undefined,
+        status: "all" as const,
+        method: "all" as const,
+        from: undefined,
+        to: undefined,
+        page: 1,
+      };
+  const baseFilters = {
+    q: filters.q,
+    status: filters.status,
+    method: filters.method,
+    from: filters.from,
+    to: filters.to,
+  };
+
+  const paymentCountPromise = getPaymentListCountForBusiness({
+    businessId: businessContext.business.id,
+    filters: baseFilters,
+  });
+  const paymentPageDataPromise = paymentCountPromise.then(async (totalItems) => {
+    const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+    const currentPage = Math.min(Math.max(1, filters.page), totalPages);
+    const cachedPageNumbers = totalItems
+      ? getCachedPageWindow(currentPage, totalPages)
+      : [];
+    const cachedPageEntries = await Promise.all(
+      cachedPageNumbers.map(async (page) => [
+        page,
+        await getPaymentListPageForBusiness({
+          businessId: businessContext.business.id,
+          filters: baseFilters,
+          page,
+          pageSize: ITEMS_PER_PAGE,
+        }),
+      ] as const),
+    );
+    const cachedPages = Object.fromEntries(cachedPageEntries);
+
+    return {
+      cachedPages,
+      currentPage,
+      filterKey: JSON.stringify(baseFilters),
+      totalItems,
+      totalPages,
+    };
+  });
+
+  const hasNonViewFilters = Boolean(
+    baseFilters.q || baseFilters.status !== "all" || baseFilters.method !== "all" || baseFilters.from || baseFilters.to,
+  );
+  const clearFiltersPath = getBusinessPaymentsPath(businessSlug);
+
+  return (
+    <PaymentListContentSection
+      businessSlug={businessSlug}
+      clearFiltersPath={clearFiltersPath}
+      filters={filters}
+      hasNonViewFilters={hasNonViewFilters}
+      pageDataPromise={paymentPageDataPromise}
+      searchParams={resolvedSearchParams}
+      totalItemsPromise={paymentCountPromise}
+    />
   );
 }

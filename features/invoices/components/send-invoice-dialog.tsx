@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { SendHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -56,9 +57,16 @@ export function SendInvoiceDialog({
 
   return (
     <ResponsiveOverlay open={open} onOpenChange={setOpen}>
-      <Button type="button" onClick={() => setOpen(true)}>
+      <Button
+        type="button"
+        onClick={() => setOpen(true)}
+        size="sm"
+        className={mobileNavbarIconButtonClassName}
+        aria-label="Send invoice"
+        title="Send invoice"
+      >
         <SendHorizontal data-icon="inline-start" />
-        Send invoice
+        <span className="hidden lg:inline">Send</span>
       </Button>
       <ResponsiveOverlayContent className="sm:max-w-lg">
         <ResponsiveOverlayHeader>

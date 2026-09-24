@@ -1,12 +1,19 @@
+import { BusinessAvatar } from "@/components/shared/business-avatar";
 import { formatQuoteDate, formatQuoteMoney } from "@/features/quotes/utils";
 import type { InvoiceDetail } from "@/features/invoices/types";
 
 type InvoicePrintDocumentProps = {
   businessName: string;
+  businessLogoStoragePath?: string | null;
+  businessSlug?: string;
   invoice: InvoiceDetail;
 };
 
-export function InvoicePrintDocument({ businessName, invoice }: InvoicePrintDocumentProps) {
+export function InvoicePrintDocument({ businessName, businessLogoStoragePath, businessSlug, invoice }: InvoicePrintDocumentProps) {
+  const logoUrl =
+    businessLogoStoragePath && businessSlug
+      ? `/api/business/${businessSlug}/logo`
+      : null;
   return (
     <article
       data-padding="none"
@@ -21,9 +28,12 @@ export function InvoicePrintDocument({ businessName, invoice }: InvoicePrintDocu
               <h2 className="font-heading text-3xl font-semibold tracking-tight text-balance">
                 {invoice.title}
               </h2>
-              <p className="text-sm leading-6 text-muted-foreground">
-                Prepared by {businessName}
-              </p>
+              <div className="flex items-center gap-2.5">
+                <BusinessAvatar name={businessName} logoUrl={logoUrl} size="sm" />
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Prepared by {businessName}
+                </p>
+              </div>
             </div>
           </div>
 

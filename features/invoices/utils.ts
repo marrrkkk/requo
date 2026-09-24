@@ -1,6 +1,6 @@
 import type { StatusTone } from "@/components/shared/status-badge";
 import { formatQuoteMoney, getTodayUtcDateString } from "@/features/quotes/utils";
-import type { InvoiceStatus } from "@/features/invoices/types";
+import type { InvoiceStatus, PaymentMethod } from "@/features/invoices/types";
 
 export { formatQuoteMoney };
 
@@ -76,4 +76,37 @@ export function getInvoiceStatusLabel(status: InvoiceStatus) {
     overdue: "Overdue",
     voided: "Void",
   }[status];
+}
+
+/**
+ * Display labels for payment methods — single home so the list filters,
+ * table, and cards agree (previously duplicated across files).
+ */
+export const paymentMethodLabels: Record<PaymentMethod, string> = {
+  cash: "Cash",
+  bank_transfer: "Bank transfer",
+  gcash: "GCash",
+  maya: "Maya",
+  check: "Check",
+  other: "Other",
+};
+
+export function getPaymentMethodLabel(method: PaymentMethod) {
+  return paymentMethodLabels[method];
+}
+
+export type PaymentListStatus = "recorded" | "voided";
+
+/**
+ * Semantic tone per payment status — the colour lives in
+ * `components/shared/status-badge`. Exhaustive `Record`, so a new status
+ * fails the typecheck until a tone is chosen for it.
+ */
+export const paymentStatusTones: Record<PaymentListStatus, StatusTone> = {
+  recorded: "success",
+  voided: "neutral",
+};
+
+export function getPaymentStatusLabel(status: PaymentListStatus) {
+  return status === "recorded" ? "Recorded" : "Voided";
 }

@@ -7,7 +7,6 @@ import { DashboardSection, DashboardTableContainer } from "@/components/shared/d
 import { InfoTile } from "@/components/shared/info-tile";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getBusinessPaymentPath, getBusinessPaymentReceiptPath } from "@/features/businesses/routes";
-import { InvoiceStatusBadge } from "@/features/invoices/components/invoice-status-badge";
 import { RecordPaymentDialog } from "@/features/invoices/components/record-payment-dialog";
 import { VoidPaymentDialog } from "@/features/invoices/components/void-payment-dialog";
 import { voidPaymentAction } from "@/features/invoices/actions";
@@ -82,7 +81,6 @@ export function InvoicePaymentPanel({
   const amount = (cents: number) => formatQuoteMoney(cents, currency);
 
   return (
-    <div className="flex flex-col gap-6">
       <DashboardSection
         title="Payments"
         description={
@@ -102,9 +100,8 @@ export function InvoicePaymentPanel({
           />
         ) : undefined}
       >
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <InfoTile label="Status" value={<InvoiceStatusBadge status={state.status} />} />
-          <InfoTile label="Total" value={<span className="tabular-nums">{amount(totalInCents)}</span>} />
+        <div className="grid gap-3 sm:grid-cols-3">
+          <InfoTile label="Invoice total" value={<span className="tabular-nums">{amount(totalInCents)}</span>} />
           <InfoTile label="Paid" value={<span className="tabular-nums">{amount(state.paidInCents)}</span>} />
           <InfoTile
             label="Balance due"
@@ -193,6 +190,5 @@ export function InvoicePaymentPanel({
           </div>
         ) : null}
       </DashboardSection>
-    </div>
   );
 }
