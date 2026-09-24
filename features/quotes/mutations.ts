@@ -1,12 +1,12 @@
 import "server-only";
 
-import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 
 import { writeAuditLog } from "@/features/audit/mutations";
 import { autoCloseFollowUpsForQuote } from "@/features/follow-ups/mutations";
 import { notifyOwnerQuoteViewed } from "@/features/quotes/defaults";
 import { db } from "@/lib/db/client";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import {
   activityLogs,
   followUps,
@@ -100,7 +100,7 @@ function resolveQuoteAiMissingInfo(
 
 function calculateQuoteTotals(input: QuoteEditorInput) {
   const items = input.items.map((item, index) => ({
-    id: createId("qit"),
+    id: newEntityId(),
     description: item.description,
     quantity: item.quantity,
     unitPriceInCents: item.unitPriceInCents,
@@ -249,7 +249,7 @@ async function insertQuoteActivity(
   },
 ) {
   await tx.insert(activityLogs).values({
-    id: createId("act"),
+    id: newEntityId(),
     businessId,
     inquiryId: inquiryId ?? null,
     quoteId,
@@ -287,7 +287,7 @@ async function expireQuoteRows(
 
   await tx.insert(activityLogs).values(
     rows.map((row) => ({
-      id: createId("act"),
+      id: newEntityId(),
       businessId: row.businessId,
       inquiryId: row.inquiryId,
       quoteId: row.id,
@@ -433,7 +433,7 @@ export async function createQuoteForBusiness({
   inquiryId = null,
   quote,
 }: CreateQuoteForBusinessInput) {
-  const quoteId = createId("qt");
+  const quoteId = newEntityId();
   const totals = calculateQuoteTotals(quote);
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -1576,7 +1576,7 @@ export async function respondToPublicQuoteByToken({
         items: sourceItems,
       });
       snapshotHash = hashAcceptanceSnapshot(snapshot);
-      acceptanceId = createId("qa");
+      acceptanceId = newEntityId();
 
       try {
         await tx.insert(quoteAcceptances).values({
@@ -2207,7 +2207,7 @@ export async function requestQuoteRevisionByToken({
     }
 
     // Create the revision request
-    const revisionId = createId("rev");
+    const revisionId = newEntityId();
     await tx.insert(quoteRevisionRequests).values({
       id: revisionId,
       businessId: existingQuote.businessId,
@@ -2349,7 +2349,7 @@ export async function archiveQuoteVersionAndRevise({
 
     // Archive current version
     await tx.insert(quoteVersions).values({
-      id: createId("qv"),
+      id: newEntityId(),
       businessId,
       quoteId,
       version: existingQuote.version,
@@ -2564,6 +2564,39 @@ export async function bulkDeleteDraftQuotesForBusiness({
         inArray(quotes.id, quoteIds),
         eq(quotes.status, "draft"),
         isNull(quotes.archivedAt),
+        isNull(quotes.deletedAt),
+      ),
+    )
+    .returning({ id: quotes.id });
+
+  return {
+    affected: result.length,
+    skipped: quoteIds.length - result.length,
+  };
+}
+
+export async function bulkRestoreQuotesForBusiness({
+  businessId,
+  quoteIds,
+}: {
+  businessId: string;
+  quoteIds: string[];
+  actorUserId: string;
+}): Promise<{ affected: number; skipped: number }> {
+  const now = new Date();
+
+  const result = await db
+    .update(quotes)
+    .set({
+      archivedAt: null,
+      archivedBy: null,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(quotes.businessId, businessId),
+        inArray(quotes.id, quoteIds),
+        isNotNull(quotes.archivedAt),
         isNull(quotes.deletedAt),
       ),
     )

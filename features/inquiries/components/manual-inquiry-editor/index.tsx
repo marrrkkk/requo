@@ -399,7 +399,7 @@ export function ManualInquiryEditor({
                   Creating inquiry...
                 </>
               ) : (
-                "Create inquiry"
+                "Create"
               )}
             </Button>
           }

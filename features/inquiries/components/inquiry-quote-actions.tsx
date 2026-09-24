@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, Plus, ReceiptText } from "lucide-react";
+import { ChevronDown, Eye, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,38 +38,23 @@ export function InquiryQuoteActions({
   currency,
 }: InquiryQuoteActionsProps) {
   if (relatedQuotes.count === 1) {
-    // Single quote: primary "View quote" button + dropdown chevron for "Create new quote"
+    // Single quote: single "View quote" primary. "Generate quote" renders as
+    // the header secondary / lives in "More actions", so no split chevron.
     return (
-      <div className="flex items-center">
-        <Button asChild className="rounded-r-none border-r-0">
-          <Link
-            href={getBusinessQuotePath(businessSlug, relatedQuotes.latest.id)}
-          >
-            <ReceiptText data-icon="inline-start" />
-            View quote
-          </Link>
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              className="rounded-l-none border-l-border/40 px-2"
-              aria-label="More quote actions"
-            >
-              <ChevronDown className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {canGenerateQuote ? (
-              <DropdownMenuItem asChild>
-                <Link href={getBusinessNewQuotePath(businessSlug, inquiryId)}>
-                  <Plus className="size-4" />
-                  Create new quote
-                </Link>
-              </DropdownMenuItem>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      <Button
+        asChild
+        aria-label="View quote"
+        title="View quote"
+        size="sm"
+        className={mobileNavbarIconButtonClassName}
+      >
+        <Link
+          href={getBusinessQuotePath(businessSlug, relatedQuotes.latest.id)}
+        >
+          <Eye data-icon="inline-start" />
+          <span className="hidden lg:inline">View quote</span>
+        </Link>
+      </Button>
     );
   }
 
@@ -76,10 +62,20 @@ export function InquiryQuoteActions({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button>
-          <ReceiptText data-icon="inline-start" />
-          View quotes ({relatedQuotes.count})
-          <ChevronDown className="ml-1 size-3.5" />
+        <Button
+          aria-label={`View quotes (${relatedQuotes.count})`}
+          title={`View quotes (${relatedQuotes.count})`}
+          size="sm"
+          className={mobileNavbarIconButtonClassName}
+        >
+          <Eye data-icon="inline-start" />
+          <span className="hidden lg:inline">
+            View quotes ({relatedQuotes.count})
+          </span>
+          <ChevronDown
+            className="ml-1 size-3.5 max-lg:hidden"
+            data-icon="inline-end"
+          />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-56">

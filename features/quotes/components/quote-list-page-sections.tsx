@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ReceiptText } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { DashboardListResultsSkeleton } from "@/components/shared/dashboard-list-results-skeleton";
 import {
@@ -81,8 +81,8 @@ export async function QuoteListHeaderActions({
         className={mobileNavbarIconButtonClassName}
       >
         <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>
-          <ReceiptText data-icon="inline-start" />
-          <span className="hidden lg:inline">Create quote</span>
+          <Plus data-icon="inline-start" />
+          <span className="hidden lg:inline">Create</span>
         </Link>
       </Button>
     </MobileHeaderSlot>
@@ -159,8 +159,8 @@ export async function QuoteListContentSection({
         ) : (
           <Button asChild>
             <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>
-              <ReceiptText data-icon="inline-start" />
-              Create first quote
+          <Plus data-icon="inline-start" />
+              Create
             </Link>
           </Button>
         )
@@ -172,7 +172,7 @@ export async function QuoteListContentSection({
             ? "Archived quotes stay here until you restore them."
             : "Create a quote manually or send one from an inquiry."
       }
-      icon={ReceiptText}
+      icon={Plus}
       title={
         hasNonViewFilters
           ? "No quotes match these filters."

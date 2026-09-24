@@ -71,6 +71,8 @@ export default async function QuotePrintPage({
     >
       <QuotePrintDocument
         businessName={requestContext.businessContext.business.name}
+        businessLogoStoragePath={requestContext.businessContext.business.logoStoragePath}
+        businessSlug={resolvedParams.businessSlug}
         quote={quote}
         acceptance={acceptance}
       />

@@ -101,7 +101,7 @@ export async function InquiryListHeaderActions({
       >
         <Link href={getBusinessNewInquiryPath(businessSlug)} prefetch={true}>
           <Plus data-icon="inline-start" />
-          <span className="hidden lg:inline">Quick-add inquiry</span>
+          <span className="hidden lg:inline">Quick-add</span>
         </Link>
       </Button>
     </MobileHeaderSlot>
@@ -194,7 +194,7 @@ export async function InquiryListContentSection({
           <Button asChild>
             <Link href={getBusinessNewInquiryPath(businessSlug)} prefetch={true}>
               <Plus data-icon="inline-start" />
-              Quick-add first inquiry
+              Quick-add
             </Link>
           </Button>
         )

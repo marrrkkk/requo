@@ -1,16 +1,8 @@
 "use client";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import { FileText } from "lucide-react";
+
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 
 type ApplyTemplateConfirmDialogProps = {
   open: boolean;
@@ -26,29 +18,23 @@ export function ApplyTemplateConfirmDialog({
   onCancel,
 }: ApplyTemplateConfirmDialogProps) {
   return (
-    <AlertDialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onCancel(); }}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Apply template?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Applying &ldquo;{templateName}&rdquo; will replace your current
-            title, notes, terms, validity date, and all line items. Customer
-            details are kept.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel asChild>
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Cancel
-            </Button>
-          </AlertDialogCancel>
-          <AlertDialogAction asChild>
-            <Button type="button" onClick={onConfirm}>
-              Apply template
-            </Button>
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmationDialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) onCancel();
+      }}
+      title="Apply template?"
+      description={
+        <>
+          Applying &ldquo;{templateName}&rdquo; will replace your current
+          title, notes, terms, validity date, and all line items. Customer
+          details are kept.
+        </>
+      }
+      confirmLabel="Apply template"
+      onConfirm={onConfirm}
+      tone="neutral"
+      icon={FileText}
+    />
   );
 }

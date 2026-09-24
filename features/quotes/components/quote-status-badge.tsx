@@ -8,15 +8,17 @@ import {
 
 type QuoteStatusBadgeProps = {
   status: QuoteStatus;
+  size?: "default" | "sm";
   className?: string;
 };
 
-export function QuoteStatusBadge({ status, className }: QuoteStatusBadgeProps) {
+export function QuoteStatusBadge({ status, size, className }: QuoteStatusBadgeProps) {
   return (
     <StatusBadge
       tone={quoteStatusTones[status]}
       label={getQuoteStatusLabel(status)}
       icon={quoteStatusIcons[status]}
+      size={size}
       className={className}
     />
   );

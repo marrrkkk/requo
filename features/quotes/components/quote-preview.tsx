@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { BusinessAvatar } from "@/components/shared/business-avatar";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { cn } from "@/lib/utils";
 import { formatQuoteDate, formatQuoteMoney } from "@/features/quotes/utils";
@@ -59,6 +59,10 @@ export function QuotePreview({
   variant = "default",
 }: QuotePreviewProps) {
   const TitleTag = titleLevel === 1 ? "h1" : "h2";
+  const logoUrl =
+    businessLogoStoragePath && businessSlug
+      ? `/api/business/${businessSlug}/logo`
+      : null;
 
   return (
     <article
@@ -74,16 +78,7 @@ export function QuotePreview({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-3">
-                {businessLogoStoragePath && businessSlug ? (
-                  <Image
-                    src={`/api/business/${businessSlug}/logo`}
-                    alt={`${businessName} logo`}
-                    width={40}
-                    height={40}
-                    unoptimized
-                    className="size-10 rounded-md border border-border/60 bg-background/50 object-cover shadow-sm"
-                  />
-                ) : null}
+                <BusinessAvatar name={businessName} logoUrl={logoUrl} />
                 <span className="font-semibold text-foreground text-lg tracking-tight">
                   <TruncatedTextWithTooltip text={businessName} />
                 </span>
@@ -103,30 +98,18 @@ export function QuotePreview({
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="info-tile min-w-0 h-full shadow-none">
-              <p className="meta-label">Prepared for</p>
+          <div className="info-tile min-w-0 h-full shadow-none">
+            <p className="meta-label">Prepared for</p>
+            <TruncatedTextWithTooltip
+              className="mt-2 font-medium text-foreground"
+              text={customerName}
+            />
+            {customerEmail ? (
               <TruncatedTextWithTooltip
-                className="mt-2 font-medium text-foreground"
-                text={customerName}
+                className="mt-1 text-sm text-muted-foreground"
+                text={customerEmail}
               />
-              {customerEmail ? (
-                <TruncatedTextWithTooltip
-                  className="mt-1 text-sm text-muted-foreground"
-                  text={customerEmail}
-                />
-              ) : null}
-            </div>
-
-            <div className="info-tile min-w-0 h-full shadow-none">
-              <p className="meta-label">Summary</p>
-              <p className="mt-2 font-medium text-foreground">
-                {items.length} {items.length === 1 ? "line item" : "line items"}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Total {formatQuoteMoney(totalInCents, currency)}
-              </p>
-            </div>
+            ) : null}
           </div>
         </div>
 
@@ -228,7 +211,7 @@ export function QuotePreview({
             value={`-${formatQuoteMoney(discountInCents, currency)}`}
           />
           <SummaryRow
-            label="Tax"
+            label={taxLabel ? `Tax (${taxLabel})` : "Tax"}
             value={formatQuoteMoney(taxInCents, currency)}
           />
           <div className="border-t pt-3">
@@ -247,6 +230,17 @@ export function QuotePreview({
               className="mt-3 whitespace-pre-wrap text-xs leading-normal sm:leading-6 text-muted-foreground"
               lines={4}
               text={terms}
+            />
+          </div>
+        ) : null}
+
+        {notes ? (
+          <div className="soft-panel shadow-none">
+            <p className="meta-label">Notes</p>
+            <TruncatedTextWithTooltip
+              className="mt-3 whitespace-pre-wrap text-xs leading-normal sm:leading-6 text-muted-foreground"
+              lines={4}
+              text={notes}
             />
           </div>
         ) : null}

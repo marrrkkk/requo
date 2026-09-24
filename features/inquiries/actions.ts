@@ -23,6 +23,7 @@ import {
   bulkArchiveInquiriesForBusiness,
   bulkChangeInquiryStatusForBusiness,
   bulkDeleteInquiriesForBusiness,
+  bulkUnarchiveInquiriesForBusiness,
   changeInquiryStatusForBusiness,
   createManualInquirySubmission,
   createPublicInquirySubmission,
@@ -690,6 +691,51 @@ export async function bulkChangeInquiryStatusAction(
   } catch (error) {
     console.error("Failed to bulk change inquiry status.", error);
     return { error: "We couldn't update those inquiries right now." };
+  }
+}
+
+export async function bulkUnarchiveInquiriesAction(
+  _prevState: InquiryBulkActionState,
+  formData: FormData,
+): Promise<InquiryBulkActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+  if (!ownerAccess.ok) return { error: ownerAccess.error };
+
+  const { user, businessContext } = ownerAccess;
+  const rawIds = formData.get("inquiryIds") as string;
+  const parsed = inquiryBulkActionSchema.safeParse({
+    inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    const result = await bulkUnarchiveInquiriesForBusiness({
+      businessId: businessContext.business.id,
+      inquiryIds: parsed.data.inquiryIds,
+      actorUserId: user.id,
+    });
+
+    updateCacheTags(getBusinessInquiryListCacheTags(businessContext.business.id));
+
+    if (result.affected === 0) {
+      return {
+        error: "No inquiries were restored. Selected inquiries may already be active.",
+        affected: 0,
+        skipped: result.skipped,
+      };
+    }
+
+    return {
+      success: `${result.affected} ${result.affected === 1 ? "inquiry" : "inquiries"} restored.`,
+      affected: result.affected,
+      skipped: result.skipped,
+    };
+  } catch (error) {
+    console.error("Failed to bulk restore inquiries.", error);
+    return { error: "We couldn't restore those inquiries right now." };
   }
 }
 

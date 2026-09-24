@@ -100,6 +100,7 @@ export function QuoteEditor({
   businessDefaults,
   businessName,
   businessSlug,
+  businessLogoStoragePath,
   currency,
   initialValues,
   linkedInquiry,
@@ -1234,6 +1235,8 @@ export function QuoteEditor({
 
       <QuotePreview
         businessName={businessName}
+        businessLogoStoragePath={businessLogoStoragePath}
+        businessSlug={businessSlug}
         quoteNumber={quoteNumber ?? "Assigned after save"}
         title={title || "Untitled quote"}
         customerName={customerName || "Customer name"}
