@@ -93,6 +93,7 @@ type DashboardDetailHeaderProps = {
   meta?: ReactNode;
   actions?: ReactNode;
   className?: string;
+  actionsClassName?: string;
 };
 
 export function DashboardDetailHeader({
@@ -102,6 +103,7 @@ export function DashboardDetailHeader({
   meta,
   actions,
   className,
+  actionsClassName,
 }: DashboardDetailHeaderProps) {
   const plainTitle = getPlainTextNode(title);
   const plainDescription = description ? getPlainTextNode(description) : null;
@@ -120,7 +122,7 @@ export function DashboardDetailHeader({
               )}
             </h1>
             {description ? (
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+              <p className="max-w-2xl text-sm leading-5 text-muted-foreground">
                 {plainDescription ? (
                   <TruncatedTextWithTooltip text={plainDescription} lines={2} />
                 ) : (
@@ -135,7 +137,9 @@ export function DashboardDetailHeader({
       </div>
 
       {actions ? (
-        <DashboardActionsRow className="dashboard-detail-header-actions">
+        <DashboardActionsRow
+          className={cn("dashboard-detail-header-actions", actionsClassName)}
+        >
           {actions}
         </DashboardActionsRow>
       ) : null}

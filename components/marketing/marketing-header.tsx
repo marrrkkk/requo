@@ -44,10 +44,12 @@ function DesktopActions() {
 
   return (
     <>
-      <BookDemoDialog>
-        <Button size="sm" variant="outline" className="border-border/80 bg-background font-mono text-xs uppercase tracking-wider hover:bg-accent">
-          Book a demo
-        </Button>
+      <BookDemoDialog
+        size="sm"
+        variant="outline"
+        className="border-border/80 bg-background font-mono text-xs uppercase tracking-wider hover:bg-accent"
+      >
+        Book a demo
       </BookDemoDialog>
       <Button asChild size="sm" className="bg-primary font-mono text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90">
         <Link href="/signup">
@@ -97,10 +99,12 @@ function MobileActions() {
     <>
       <SheetClose asChild>
         <div>
-          <BookDemoDialog>
-            <Button className="w-full font-mono text-xs uppercase tracking-wider" size="lg" variant="outline">
-              Book a demo
-            </Button>
+          <BookDemoDialog
+            size="lg"
+            variant="outline"
+            className="w-full font-mono text-xs uppercase tracking-wider"
+          >
+            Book a demo
           </BookDemoDialog>
         </div>
       </SheetClose>

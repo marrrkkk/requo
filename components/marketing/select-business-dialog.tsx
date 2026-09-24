@@ -271,7 +271,7 @@ export function SelectBusinessDialog({
           >
             <Link href="/new">
               <Plus className="size-3.5" />
-              Create business
+              Create
             </Link>
           </Button>
         </div>

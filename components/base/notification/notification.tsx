@@ -133,7 +133,7 @@ const styles = sortCx({
   header: "flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5",
   title: "text-sm font-medium text-foreground",
   timestamp: "text-sm text-muted-foreground",
-  description: "text-sm leading-6 text-muted-foreground",
+  description: "text-sm leading-5 text-muted-foreground",
   actions: "mt-1.5 flex flex-wrap items-center gap-2",
   close: "absolute top-3 right-3",
   status: {

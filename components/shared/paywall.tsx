@@ -222,7 +222,7 @@ export function LockedFeatureOverlay({
             <p className="text-sm font-semibold text-foreground">
               {displayTitle}
             </p>
-            <p className="text-sm leading-relaxed text-muted-foreground">
+            <p className="text-sm leading-snug text-muted-foreground">
               {displayDescription}
             </p>
           </div>

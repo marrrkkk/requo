@@ -199,9 +199,9 @@ test("owner can change a member role and remove them safely", async ({ page }) =
   });
 
   await staffRow.getByRole("button", { name: /Open actions/ }).click();
-  await page.getByRole("menuitem", { name: "Remove member" }).click();
+  await page.getByRole("menuitem", { name: "Remove" }).click();
   await expect(page.getByRole("heading", { name: "Remove member?" })).toBeVisible();
-  await page.getByRole("button", { name: "Remove member" }).click();
+  await page.getByRole("button", { name: "Remove" }).click();
 
   await expect(page.getByText(demoStaffEmail, { exact: true })).toHaveCount(0, {
     timeout: 20_000,

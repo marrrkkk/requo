@@ -19,7 +19,7 @@ export type MobileFullscreenNavProps = {
   /** User profile menu rendered at the bottom of the sidebar (same as desktop). */
   bottomSlot?: ReactNode;
   checklistSlot?: ReactNode;
-  /** When provided, the sidebar Quick Search opens the global quick-actions dialog (same as desktop). */
+  /** When provided, the sidebar Search opens the global record search dialog (same as desktop). */
   onQuickSearch?: () => void;
 };
 

@@ -28,7 +28,7 @@ type BoarduiMainSidebarProps = {
   topSlot?: ReactNode;
   /** Rendered at the bottom of the sidebar in place of the demo team card. */
   bottomSlot?: ReactNode;
-  /** When provided, Quick Search opens the global quick-actions dialog. */
+  /** When provided, Search opens the global record search dialog. */
   onQuickSearch?: () => void;
   /** Rendered inside the mobile drawer: always expanded, close button instead of collapse. */
   mobile?: boolean;

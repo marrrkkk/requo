@@ -138,9 +138,9 @@ export function DashboardShellFrame({
       {themeSyncSlot}
       <NavBadgeProvider>
       {navBadgeSlot}
-      <div className="flex min-h-svh flex-1 bg-background">
-        {/* Desktop sidebar — BoardUI panel flush to the left screen edge (hidden below lg; mobile uses the top bar + floating dock). */}
-        <div className="sticky top-0 hidden h-svh shrink-0 lg:block">
+      <div className="flex min-h-svh flex-1 bg-background transition-[padding-left] duration-300 ease-in-out lg:pl-[16.25rem] lg:has-[aside[data-collapsed=true]]:pl-[3.75rem]">
+        {/* Desktop sidebar — fixed BoardUI panel flush to the left screen edge (hidden below lg; mobile uses the top bar + floating dock). Fixed, not sticky: sticky rails ride up over the last pixels of long pages whenever the viewport shrinks below `h-svh` (e.g. a horizontal scrollbar), while a fixed rail never moves. This row reserves the rail width via padding, tracking the collapsed rail through the aside's `data-collapsed` flag. */}
+        <div className="fixed inset-y-0 left-0 z-40 hidden lg:block">
           <BoarduiMainSidebar
             businessSlug={businessSlug}
             role={role}
@@ -263,13 +263,9 @@ export function DashboardShellFrame({
         </div>
       </div>
       </NavBadgeProvider>
-      {/* Global quick-actions dialog — opened from the sidebar Quick Search. */}
+      {/* Global record search dialog — opened from the sidebar Search. */}
       <CommandMenu
         businessSlug={businessSlug}
-        businessId=""
-        userId=""
-        role="owner"
-        plan="free"
         open={commandOpen}
         onOpenChange={setCommandOpen}
         hideTrigger

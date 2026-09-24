@@ -92,6 +92,43 @@ test("marketing pixel background respects reduced motion and print", async ({ pa
   await expect(background).toBeHidden();
 });
 
+test("landing hard-load has zero hydration errors and demo dialog opens", async ({
+  page,
+}) => {
+  const hydrationErrors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      const text = message.text();
+      if (/hydration|didn't match the client/i.test(text)) {
+        hydrationErrors.push(text);
+      }
+    }
+  });
+  page.on("pageerror", (error) => {
+    if (/hydration/i.test(error.message)) {
+      hydrationErrors.push(error.message);
+    }
+  });
+
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  // Hero trigger renders as a button (issue #72: server once emitted
+  // <span class="contents"> while the client rendered <button>).
+  const heroCta = page
+    .getByRole("button", { name: "Book a demo" })
+    .first();
+  await expect(heroCta).toBeVisible();
+  expect(await heroCta.evaluate((node) => node.tagName)).toBe("BUTTON");
+
+  await heroCta.click();
+  await expect(
+    page.getByRole("dialog", { name: "Book a demo" }),
+  ).toBeVisible();
+
+  expect(hydrationErrors).toEqual([]);
+});
+
 test("marketing homepage highlights the signup-first workflow", async ({
   page,
 }) => {

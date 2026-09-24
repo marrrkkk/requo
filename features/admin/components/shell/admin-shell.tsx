@@ -48,7 +48,7 @@ export function AdminShell({
     <SidebarProvider defaultOpen>
       <div className="flex min-h-svh flex-1 bg-background" data-admin-shell="">
         {/* Desktop rail — hidden below lg; mobile uses the topbar + bottom dock. */}
-        <div className="sticky top-0 hidden h-svh shrink-0 lg:block">
+        <div className="sticky top-0 hidden h-svh shrink-0 self-start lg:block">
           <BoarduiAdminSidebar userSlot={sidebarUserSlot} />
         </div>
 

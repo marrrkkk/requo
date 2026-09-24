@@ -23,7 +23,7 @@ export type AdminSidebarProps = {
   onClose?: () => void;
   /** Expanded width fills its container instead of the fixed rail (fullscreen mobile nav). */
   flat?: boolean;
-  /** When provided, Quick Search opens the global quick-actions dialog. */
+  /** When provided, Search opens the global record search dialog. */
   onQuickSearch?: () => void;
   className?: string;
 };

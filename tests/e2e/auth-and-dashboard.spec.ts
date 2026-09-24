@@ -134,7 +134,7 @@ test("dashboard shows a branded not-found state for unknown records", async ({
   await expect(page.getByRole("link", { name: "Back to overview" })).toBeVisible();
 });
 
-test("dashboard quick actions keep the top bar stable after scrolling", async ({
+test("dashboard search keeps the top bar stable after scrolling", async ({
   page,
 }) => {
   await signIn(page);
@@ -153,9 +153,9 @@ test("dashboard quick actions keep the top bar stable after scrolling", async ({
     Math.round(element.getBoundingClientRect().top),
   );
 
-  await page.getByRole("button", { name: /Quick actions/i }).click();
+  await page.getByRole("button", { name: "Search", exact: true }).click();
 
-  await expect(page.getByRole("dialog", { name: "Quick actions" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Search records" })).toBeVisible();
   await expect(
     page.locator('[data-slot="dialog-overlay"][data-state="open"]'),
   ).toBeVisible();
@@ -181,7 +181,7 @@ test("sending a draft quote shows a safe delivery error when email is unavailabl
   );
   await page.waitForLoadState("networkidle");
 
-  await page.getByRole("button", { name: "Send quote" }).click();
+  await page.getByRole("button", { name: "Send" }).click();
   await page.getByRole("menuitem", { name: "Send now" }).click();
 
   await expect(

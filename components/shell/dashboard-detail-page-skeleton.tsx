@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 type DashboardDetailPageSkeletonProps = {
-  variant?: "inquiry" | "quote";
+  variant?: "inquiry" | "quote" | "invoice";
 };
 
 export function DashboardDetailPageSkeleton({
@@ -59,7 +59,13 @@ export function DashboardDetailPageSkeleton({
       </header>
 
       {variant === "quote" ? <AlertSkeleton /> : null}
-      {variant === "inquiry" ? <InquiryDetailSkeleton /> : <QuoteDetailSkeleton />}
+      {variant === "inquiry" ? (
+        <InquiryDetailSkeleton />
+      ) : variant === "quote" ? (
+        <QuoteDetailSkeleton />
+      ) : (
+        <InvoiceDetailSkeleton />
+      )}
     </DashboardPage>
   );
 }
@@ -310,6 +316,45 @@ function QuoteDetailSkeleton() {
         </SectionSkeleton>
       </DashboardSidebarStack>
     </DashboardDetailLayout>
+  );
+}
+
+function InvoiceDetailSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      <SectionSkeleton titleWidth="w-28" descriptionWidth="w-56">
+        <div className="overflow-hidden rounded-xl border border-border/75">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              className="flex items-center justify-between gap-4 border-t border-border/80 px-4 py-3 first:border-t-0"
+              key={index}
+            >
+              <Skeleton className="h-4 w-48 rounded-md" />
+              <Skeleton className="h-4 w-16 rounded-md" />
+            </div>
+          ))}
+        </div>
+        <ContentPanel lines={3} labelWidth="w-16" />
+      </SectionSkeleton>
+
+      <SectionSkeleton titleWidth="w-24" descriptionWidth="w-64">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <InfoTileSkeleton compact />
+          <InfoTileSkeleton compact />
+          <InfoTileSkeleton compact />
+        </div>
+        <Skeleton className="h-9 w-full rounded-md sm:h-8" />
+      </SectionSkeleton>
+
+      <SectionSkeleton titleWidth="w-20" descriptionWidth="w-52">
+        <ContentPanel lines={2} labelWidth="w-24" />
+      </SectionSkeleton>
+
+      <SectionSkeleton titleWidth="w-28" descriptionWidth="w-44">
+        <FeedSkeleton count={1} />
+        <Skeleton className="h-9 w-full rounded-md sm:h-8" />
+      </SectionSkeleton>
+    </div>
   );
 }
 

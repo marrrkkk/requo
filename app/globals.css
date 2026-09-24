@@ -49,8 +49,9 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  /* BoardUI Agent Thinking compat: tone tokens mapped onto Requo tokens so
-     the dot-wave indicator and timer follow the app theme (incl. dark mode). */
+  /* BoardUI compat — FROZEN (issue #73, ADR-015). Tone aliases for the
+     frozen agent-thinking indicator only. Do not expand to the full BoardUI
+     ramp; new UI uses Requo tokens (`DESIGN.md`). */
   --color-text-primary: var(--foreground);
   --color-text-secondary: var(--muted-foreground);
   --color-text-tertiary: color-mix(in srgb, var(--muted-foreground) 72%, transparent);
@@ -92,9 +93,11 @@
 }
 
 @theme {
-  /* BoardUI composite type utilities (values mirror the BoardUI typography
-     source, which is not in the render path — only tokens registered here
-     resolve to utilities). Small-end ramp: body-2 = 13px, caption = 11–12px. */
+  /* BoardUI composite type utilities — FROZEN (issue #73, ADR-015). Values
+     mirror the BoardUI typography source, which is not in the render path —
+     only tokens registered here resolve to utilities. Small-end ramp:
+     body-2 = 13px, caption = 11–12px. Do not add new BoardUI type tokens;
+     new UI uses `styles/typeset.css` roles (`DESIGN.md`). */
   --text-body-regular: 0.875rem;
   --text-body-regular--line-height: 1.25rem;
   --text-body-regular--letter-spacing: 0;
@@ -151,9 +154,8 @@
   --border: #d6ddd8;
   --input: #d6ddd8;
   --ring: #1b9b79;
-  /* BoardUI Agent Thinking compat: resolves the var() tone references the
-     dot-wave indicator sets inline (follows .dark overrides below via the
-     referenced tokens). */
+  /* BoardUI compat — FROZEN (issue #73, ADR-015). Resolves the var() tone
+     references the frozen dot-wave indicator sets inline. Do not expand. */
   --color-text-primary: var(--foreground);
   --color-text-secondary: var(--muted-foreground);
   --color-text-tertiary: color-mix(in srgb, var(--muted-foreground) 72%, transparent);
@@ -739,44 +741,41 @@ html[data-reload-loading="fade-out"] #app-root-content {
     scrollbar-gutter: stable;
     /* Ensure scrollbar behavior is consistent */
     overflow-y: scroll;
-    /* Minimal scrollbar styling */
+  }
+
+  /* Minimal scrollbars everywhere: page, dropdowns, modals, sheets,
+     selects, popovers, tables, sidebars. Thin transparent track with a
+     small rounded thumb derived from foreground, so light/dark adapt
+     without a separate override. Firefox uses the shorthand; WebKit uses
+     the pseudo-elements below. Class utilities (.no-scrollbar,
+     .hover-scrollbar, .ai-chat-scrollbar) still win over `*` by
+     specificity where they apply. */
+  * {
     scrollbar-width: thin;
-    scrollbar-color: rgb(214 221 216 / 0.5) transparent;
+    scrollbar-color: color-mix(in srgb, var(--foreground) 18%, transparent)
+      transparent;
   }
 
-  /* Webkit scrollbar styling (Chrome, Safari, Edge) */
-  html::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
   }
 
-  html::-webkit-scrollbar-track {
+  *::-webkit-scrollbar-track {
     background: transparent;
   }
 
-  html::-webkit-scrollbar-thumb {
-    background-color: rgb(214 221 216 / 0.5);
-    border-radius: 4px;
-    border: 2px solid transparent;
-    background-clip: content-box;
+  *::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--foreground) 18%, transparent);
+    border-radius: 9999px;
   }
 
-  html::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(214 221 216 / 0.8);
-    background-clip: content-box;
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in srgb, var(--foreground) 32%, transparent);
   }
 
-  /* Dark mode scrollbar */
-  .dark html {
-    scrollbar-color: rgb(255 255 255 / 0.1) transparent;
-  }
-
-  .dark html::-webkit-scrollbar-thumb {
-    background-color: rgb(255 255 255 / 0.1);
-  }
-
-  .dark html::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(255 255 255 / 0.2);
+  *::-webkit-scrollbar-corner {
+    background: transparent;
   }
 
   body {
@@ -1096,6 +1095,11 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   .dashboard-content {
     @apply mx-auto flex min-w-0 w-full max-w-[92rem] flex-1 flex-col;
+    /* Same backstop as dashboard-main below: contain an over-wide child so
+       no page-level horizontal scrollbar can shrink the viewport below the
+       `h-svh` sticky sidebar rail. `clip` keeps sticky + inner
+       `overflow-x-auto` regions working. */
+    overflow-x: clip;
   }
 
   .dashboard-page {
@@ -1266,6 +1270,13 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
   .dashboard-main {
     @apply flex flex-1 flex-col px-3 py-4 sm:px-5 sm:py-5 xl:px-6 xl:py-6;
+    /* Backstop against page-level horizontal scrollbars (e.g. an
+       over-bleeding full-width section): a horizontal scrollbar shrinks the
+       layout viewport below the `h-svh` sticky sidebar rail, which then
+       visibly rides up over the last pixels of page scroll. `clip` (unlike
+       `hidden`) creates no scroll container, so sticky descendants and
+       inner `overflow-x-auto` regions keep working. */
+    overflow-x: clip;
   }
 
   /* Quote settings tabs sit flush under the topbar at full column width. */
@@ -1340,13 +1351,25 @@ html[data-reload-loading="fade-out"] #app-root-content {
     height: calc(100svh - 65px);
   }
 
-  /* Home page — scrollable, uses full available width.
-     Cancels dashboard-main padding so content can breathe. */
+  /* Home page — flows with the window scroll (single scroll context), uses
+     full available width. The horizontal bleed exactly cancels
+     dashboard-main's padding (`px-3 / sm:px-5 / xl:px-6`): any overshoot
+     creates page-level horizontal overflow, which summons a horizontal
+     scrollbar, shrinks the layout viewport below the `h-svh` sticky rail,
+     and makes the whole sidebar ride up over the last pixels of page
+     scroll. Deliberately no inner `overflow-y-auto`: a nested scroller
+     here fights the window scroll (scroll chaining / anchoring) with the
+     same visible effect. */
   .home-page-container {
-    @apply -mx-3 -mb-5 sm:-mx-6 sm:-mb-7 xl:-mx-8 xl:-mb-8;
+    @apply -mx-3 -mb-5 sm:-mx-5 sm:-mb-7 xl:-mx-6 xl:-mb-8;
     @apply -mt-5 sm:-mt-7 xl:-mt-8;
-    @apply flex flex-col overflow-y-auto px-4 pt-6 pb-8 sm:px-6 sm:pt-8 lg:px-10;
+    @apply flex min-w-0 flex-col px-4 pt-6 pb-8 sm:px-6 sm:pt-8 lg:px-10;
     min-height: calc(100svh - 65px);
+    /* Contain over-wide home children (e.g. a long nowrap KPI value) so they
+       can never summon a page-level horizontal scrollbar and ride the sticky
+       sidebar rail up. `clip` creates no scroll container: the page keeps its
+       single window scroll and inner `overflow-x-auto` tables keep working. */
+    overflow-x: clip;
   }
 
   /* Home entrance animation — staggered fade-up for sections on initial mount */
@@ -1660,7 +1683,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .state-card-note {
-    @apply rounded-lg border border-border/80 px-4 py-3.5 text-sm leading-6 text-muted-foreground;
+    @apply rounded-lg border border-border/80 px-4 py-3.5 text-sm leading-5 text-muted-foreground;
     background: var(--surface-muted-bg);
     border-color: color-mix(in srgb, var(--surface-stroke) 88%, transparent);
     box-shadow: var(--surface-shadow-sm);
@@ -1687,7 +1710,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .form-section-description {
-    @apply max-w-2xl text-sm leading-6 text-muted-foreground;
+    @apply max-w-2xl text-sm leading-5 text-muted-foreground;
   }
 
   .form-actions {
@@ -2037,6 +2060,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
       height: 2rem !important;
       padding: 0 !important;
       padding-inline: 0 !important;
+      padding-inline-start: 0 !important;
+      padding-inline-end: 0 !important;
       gap: 0 !important;
       justify-content: center !important;
       align-items: center;
@@ -2678,6 +2703,13 @@ html[data-reload-loading="fade-out"] #app-root-content {
     padding-bottom: 8rem;
   }
 
+  /* ChatGPT-style user bubble: deliberately rounder than the shared 8px
+     product radius (20px). Scoped to chat turns only — not a general
+     surface radius. */
+  .chat-bubble {
+    border-radius: 1.25rem;
+  }
+
   /* ── Assistant pane height opt-in (scoped, no arithmetic) ──
      Nothing in the dashboard shell chain establishes a resolvable height
      (minimum-height all the way down), so the pane's full-height request
@@ -2771,12 +2803,13 @@ html[data-reload-loading="fade-out"] #app-root-content {
     }
   }
 
-  /* BoardUI Agent Thinking (components/application/agent-thinking): the agent
+  /* BoardUI Agent Thinking — FROZEN (issue #73, ADR-015;
+     components/application/agent-thinking): the agent
      thinking state in both chat surfaces. The label reuses the
      ai-chat-text-shimmer travel above; its base/highlight both derive from
      the tone the component sets via --bui-agent-thinking-tone, so every tone
      shimmers consistently. Verbatim from the BoardUI stylesheet (which is not
-     imported; only this section is wired). */
+     imported; only this section is wired). Do not expand. */
   .bui-agent-thinking-label {
     color: transparent;
     background-image: linear-gradient(
@@ -2952,9 +2985,11 @@ html[data-reload-loading="fade-out"] #app-root-content {
   outline: none !important;
 }
 
-/* BoardUI chart cards compat (components/application/dashboard/*): soft fade
+/* BoardUI chart cards compat — FROZEN (issue #73, ADR-015;
+   components/application/dashboard/*): soft fade
    applied to an animated number each time its target changes. Verbatim from
-   the BoardUI stylesheet (which is not imported; only this section is wired). */
+   the BoardUI stylesheet (which is not imported; only this section is wired).
+   Do not expand. */
 @keyframes number-fade {
   from {
     opacity: 0.35;

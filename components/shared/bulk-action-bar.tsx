@@ -70,21 +70,34 @@ export function BulkActionBar({
   }
 
   const content = (
-    <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] lg:bottom-4 z-50 flex justify-center px-4 pointer-events-none">
+    <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] lg:bottom-4 z-50 flex justify-center px-3 sm:px-4 pointer-events-none">
       <div
         data-padding="none"
-        className="soft-panel pointer-events-auto motion-safe:data-[state=open]:animate-in motion-safe:data-[state=open]:fade-in-0 motion-safe:data-[state=open]:slide-in-from-bottom-2 motion-safe:data-[state=open]:zoom-in-95 motion-safe:data-[state=open]:duration-200 motion-safe:data-[state=open]:ease-(--motion-ease-emphasized) motion-safe:data-[state=closed]:animate-out motion-safe:data-[state=closed]:fade-out-0 motion-safe:data-[state=closed]:slide-out-to-bottom-2 motion-safe:data-[state=closed]:zoom-out-95 motion-safe:data-[state=closed]:duration-150 motion-safe:data-[state=closed]:ease-(--motion-ease-standard) data-[state=closed]:pointer-events-none motion-reduce:animate-none flex w-max max-w-2xl items-center justify-between gap-3 border-border/80 bg-background/95 px-4 py-3 shadow-xl backdrop-blur"
+        className="soft-panel pointer-events-auto motion-safe:data-[state=open]:animate-in motion-safe:data-[state=open]:fade-in-0 motion-safe:data-[state=open]:slide-in-from-bottom-2 motion-safe:data-[state=open]:zoom-in-95 motion-safe:data-[state=open]:duration-200 motion-safe:data-[state=open]:ease-(--motion-ease-emphasized) motion-safe:data-[state=closed]:animate-out motion-safe:data-[state=closed]:fade-out-0 motion-safe:data-[state=closed]:slide-out-to-bottom-2 motion-safe:data-[state=closed]:zoom-out-95 motion-safe:data-[state=closed]:duration-150 motion-safe:data-[state=closed]:ease-(--motion-ease-standard) data-[state=closed]:pointer-events-none motion-reduce:animate-none flex w-full sm:w-max max-w-[calc(100vw-1.5rem)] sm:max-w-3xl flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 border-border/80 bg-background/95 px-3 py-2.5 sm:px-4 shadow-xl backdrop-blur"
         data-state={isExiting ? "closed" : "open"}
         role="toolbar"
         aria-label="Bulk actions"
       >
-        <div className="flex items-center gap-3 border-r border-border/50 pr-3">
-          <span className="text-sm font-medium">{selectedCount} selected</span>
-          
-          <div className="hidden items-center gap-1.5 sm:flex">
+        <div className="flex min-w-0 items-center gap-2.5 sm:border-r sm:border-border/60 sm:pr-3">
+          <span
+            aria-live="polite"
+            className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-sm"
+          >
+            <span className="flex min-w-6 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold tabular-nums text-primary-foreground">
+              {selectedCount}
+            </span>
+            <span className="font-medium">selected</span>
+          </span>
+
+          <span
+            aria-hidden="true"
+            className="h-4 w-px shrink-0 bg-border/70"
+          />
+
+          <div className="flex min-w-0 items-center gap-1 whitespace-nowrap">
             {allOnPageSelected ? (
               <button
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="shrink-0 rounded-sm px-1 py-0.5 text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={onDeselectAll}
                 type="button"
               >
@@ -92,7 +105,7 @@ export function BulkActionBar({
               </button>
             ) : (
               <button
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="shrink-0 rounded-sm px-1 py-0.5 text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={onSelectAllOnPage}
                 type="button"
               >
@@ -104,9 +117,14 @@ export function BulkActionBar({
               totalMatchingFilters > totalOnPage &&
               onSelectAllMatchingFilters && (
                 <>
-                  <span className="text-muted-foreground/40">·</span>
+                  <span
+                    aria-hidden="true"
+                    className="shrink-0 select-none text-muted-foreground/50"
+                  >
+                    ·
+                  </span>
                   <button
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
+                    className="shrink-0 truncate rounded-sm px-1 py-0.5 text-sm font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
                     disabled={selectedCount >= maxSelection}
                     onClick={onSelectAllMatchingFilters}
                     type="button"
@@ -119,10 +137,14 @@ export function BulkActionBar({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-2 sm:border-t-0 sm:pt-0">
           {children}
+          <span
+            aria-hidden="true"
+            className="h-5 w-px shrink-0 bg-border/70"
+          />
           <Button
-            className="ml-1 size-8 rounded-full"
+            className="ml-auto size-8 shrink-0 rounded-full sm:ml-1"
             onClick={onDeselectAll}
             size="icon"
             variant="ghost"

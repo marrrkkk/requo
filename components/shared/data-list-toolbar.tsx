@@ -57,6 +57,12 @@ type DataListToolbarProps = {
   isPending: boolean;
   onClear: () => void;
   canClear: boolean;
+  /**
+   * Extra filter row rendered inside the strip between the main grid and the
+   * result count — e.g. a date range. Stays visible on mobile (outside the
+   * filter sheet), so keep it compact.
+   */
+  children?: ReactNode;
 };
 
 export function DataListToolbar({
@@ -90,6 +96,7 @@ export function DataListToolbar({
   isPending,
   onClear,
   canClear,
+  children,
 }: DataListToolbarProps) {
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
@@ -373,6 +380,8 @@ export function DataListToolbar({
           {isPending ? <Spinner className="inline-flex" aria-hidden="true" /> : null}
         </DashboardActionsRow>
       </div>
+
+      {children}
 
       <p className="data-list-toolbar-count">{resultLabel}</p>
     </div>

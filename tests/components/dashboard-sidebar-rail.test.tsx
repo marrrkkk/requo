@@ -1,9 +1,23 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { DashboardSidebar } from "@/components/application/dashboard/dashboard-sidebar";
 import { BusinessAvatar } from "@/components/shared/business-avatar";
+
+vi.mock("@/components/theme-provider", () => ({
+  useTheme: () => ({
+    resolvedTheme: "light",
+    setTheme: vi.fn(),
+    theme: "system",
+    uiScale: "default",
+    setUiScale: vi.fn(),
+  }),
+}));
+
+vi.mock("@/features/theme/actions", () => ({
+  updateThemePreferenceAction: vi.fn().mockResolvedValue({ ok: true }),
+}));
 
 function renderSidebar() {
   return render(
@@ -15,13 +29,11 @@ function renderSidebar() {
   );
 }
 
-describe("DashboardSidebar quick search", () => {
+describe("DashboardSidebar search", () => {
   it("renders without the keyboard shortcut pill", () => {
     renderSidebar();
 
-    expect(
-      screen.getByRole("button", { name: "Quick Search" }),
-    ).toBeDefined();
+    expect(screen.getByRole("button", { name: "Search" })).toBeDefined();
     expect(screen.queryByText("⌘L")).toBeNull();
   });
 });
@@ -45,7 +57,7 @@ describe("DashboardSidebar collapsed rail", () => {
     ).toBeDefined();
     expect(screen.getByRole("button", { name: "Jane Doe" })).toBeDefined();
 
-    const search = screen.getByRole("button", { name: "Quick Search" });
+    const search = screen.getByRole("button", { name: "Search" });
     expect(search.className).toContain("size-9");
     expect(search.className).toContain("justify-center");
 

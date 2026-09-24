@@ -80,7 +80,7 @@ export function MarketingHero() {
         className="pb-28 pt-0 lg:pb-40"
         header={<MarketingHeader />}
       >
-      <section className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 sm:pb-28 sm:pt-16 lg:px-8 lg:pb-36 lg:pt-24 xl:px-0">
+      <section className="relative overflow-hidden px-5 pb-14 pt-12 sm:px-6 sm:pb-28 sm:pt-16 lg:px-8 lg:pb-36 lg:pt-24 xl:px-0">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute -left-12 -top-12 -z-10 h-[560px] w-[800px] max-w-[120vw] bg-background"
@@ -92,14 +92,14 @@ export function MarketingHero() {
           }}
         />
         <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-start gap-8 sm:gap-10 lg:gap-12">
-          <div className="flex w-full max-w-4xl flex-col items-start gap-4 text-left sm:gap-5">
-            <h1 className="font-sans text-[2.5rem] font-normal leading-[1.1] tracking-[-0.035em] text-foreground sm:text-[3.75rem] sm:leading-[1.08] lg:text-[4.75rem] lg:leading-[1.05]">
+          <div className="flex w-full max-w-4xl flex-col items-start gap-5 text-left sm:gap-5">
+            <h1 className="text-balance font-sans text-[2.75rem] font-medium leading-[1.02] tracking-[-0.04em] text-foreground sm:text-[3.75rem] sm:leading-[1.08] sm:tracking-[-0.035em] lg:text-[4.75rem] lg:leading-[1.05]">
               Manage every inquiry.
               <br />
               <span className="text-primary">Send every quote.</span>
             </h1>
-            <p className="max-w-xl font-sans text-[0.95rem] font-normal leading-relaxed text-muted-foreground sm:text-base lg:text-lg lg:leading-relaxed">
-              Requo helps service businesses capture inquiries, send quotes, and follow up on time. Keep every customer request organized from the first message to the accepted quote.
+            <p className="max-w-md font-sans text-[0.9375rem] font-normal leading-[1.6] text-muted-foreground sm:max-w-xl sm:text-base lg:text-lg lg:leading-snug">
+              Capture inquiries, send quotes, and follow up on time — all in one place.
             </p>
 
             <div className="flex flex-row items-center gap-3 pt-2">
@@ -109,14 +109,12 @@ export function MarketingHero() {
                   <ArrowRight data-icon="inline-end" />
                 </Link>
               </Button>
-              <BookDemoDialog>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="rounded-lg border-border/80 bg-secondary/30 px-6 font-mono text-xs font-medium uppercase tracking-wider text-foreground hover:bg-secondary/60"
-                >
-                  Book a demo
-                </Button>
+              <BookDemoDialog
+                size="lg"
+                variant="outline"
+                className="rounded-lg border-border/80 bg-secondary/30 px-6 font-mono text-xs font-medium uppercase tracking-wider text-foreground hover:bg-secondary/60"
+              >
+                Book a demo
               </BookDemoDialog>
             </div>
           </div>
@@ -153,7 +151,7 @@ export function MarketingHero() {
             </h2>
           </div>
           <div className="flex items-center">
-            <p className="text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7 lg:text-lg lg:leading-8">
+            <p className="text-sm leading-snug text-muted-foreground sm:text-base sm:leading-6 lg:text-lg lg:leading-7">
               You&rsquo;re busy doing the work. Requo gives every request a clear next step before it gets forgotten.
             </p>
           </div>
@@ -182,7 +180,7 @@ export function MarketingHero() {
                     <h3 className="whitespace-pre-line text-[0.95rem] font-semibold leading-snug tracking-tight text-foreground sm:text-base">
                       {point.hook}
                     </h3>
-                    <p className="text-sm leading-relaxed text-muted-foreground">
+                    <p className="text-sm leading-snug text-muted-foreground">
                       {point.detail}
                     </p>
                   </div>
@@ -203,7 +201,7 @@ export function MarketingHero() {
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
             Keep every opportunity moving.
           </h2>
-          <p className="max-w-lg text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7">
+          <p className="max-w-lg text-sm leading-snug text-muted-foreground sm:text-base sm:leading-6">
             Capture the request, send a quote, follow up on time, and know when it turns into work.
           </p>
         </InViewReveal>
@@ -268,7 +266,7 @@ export function MarketingHero() {
                 }}
               />
             </div>
-            <p className="relative z-10 max-w-md text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7 lg:pb-1">
+            <p className="relative z-10 max-w-md text-sm leading-snug text-muted-foreground sm:text-base sm:leading-6 lg:pb-1">
               Capture requests, send professional quotes, and see what needs attention without switching tools.
             </p>
           </div>
@@ -296,7 +294,7 @@ export function MarketingHero() {
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
             Questions you&rsquo;re probably asking.
           </h2>
-          <p className="max-w-2xl text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7 lg:text-lg lg:leading-8">
+          <p className="max-w-2xl text-sm leading-snug text-muted-foreground sm:text-base sm:leading-6 lg:text-lg lg:leading-7">
             Direct answers about how Requo works, what your customers see, and how it fits your workflow.
           </p>
         </InViewReveal>
@@ -335,7 +333,7 @@ export function MarketingHero() {
                       <AccordionTrigger className="py-3.5 text-left text-sm font-medium tracking-tight text-foreground sm:py-4 sm:text-base lg:text-lg hover:text-foreground/80 transition-colors">
                         {item.question}
                       </AccordionTrigger>
-                      <AccordionContent className="pb-4 text-xs leading-normal text-muted-foreground sm:pb-5 sm:text-sm sm:leading-6 lg:text-base lg:leading-7">
+                      <AccordionContent className="pb-4 text-xs leading-snug text-muted-foreground sm:pb-5 sm:text-sm sm:leading-5 lg:text-base lg:leading-6">
                         {item.answer}
                       </AccordionContent>
                     </AccordionItem>

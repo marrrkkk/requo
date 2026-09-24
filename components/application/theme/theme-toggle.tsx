@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { RiMoonLine, RiSunLine } from "@remixicon/react";
 import { Switch as AriaSwitch } from "react-aria-components";
 import { SwitchTrack } from "@/components/base/switch/switch";
 import { cx } from "@/utils/cx";
+import { useTheme } from "@/components/theme-provider";
+import { updateThemePreferenceAction } from "@/features/theme/actions";
+import { themeUserStorageKey } from "@/features/theme/types";
 
 export type ThemeMode = "light" | "dark";
-
-export const THEME_STORAGE_KEY = "boardui:theme";
-export const THEME_CHANGE_EVENT = "boardui:theme-change";
 
 const THEME_TRANSITION_DURATION = 820;
 const THEME_TRANSITION_EASING = "cubic-bezier(0.16, 1, 0.3, 1)";
@@ -84,28 +84,6 @@ function installThemeTransitionStyle(
   return style;
 }
 
-function storedTheme(): ThemeMode {
-  if (typeof window === "undefined") return "light";
-  try {
-    return window.localStorage.getItem(THEME_STORAGE_KEY) === "dark" ? "dark" : "light";
-  } catch {
-    return "light";
-  }
-}
-
-export function applyTheme(theme: ThemeMode, { persist = true }: { persist?: boolean } = {}) {
-  if (typeof document === "undefined") return;
-  document.documentElement.classList.toggle("dark", theme === "dark");
-  if (persist) {
-    try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
-    } catch {
-      // The control remains usable when storage is blocked or unavailable.
-    }
-  }
-  window.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT, { detail: theme }));
-}
-
 function elementCenter(element: HTMLElement | null): ThemeTransitionOrigin {
   if (!element) {
     return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
@@ -131,25 +109,30 @@ function normalizedOrigin(
  * Reveals the next theme from the interaction point using the View Transition
  * API. Keyboard activation starts at the control's center. Unsupported
  * browsers and reduced-motion users receive the same immediate theme change.
+ * The `update` callback commits the theme (canonical ThemeProvider state);
+ * it runs inside the transition so the reveal snapshots the new theme.
  */
 export async function applyThemeWithTransition(
-  theme: ThemeMode,
   {
     origin = null,
     element = null,
     duration = THEME_TRANSITION_DURATION,
+    update,
   }: {
     origin?: ThemeTransitionOrigin | null;
     element?: HTMLElement | null;
     duration?: number;
-  } = {},
+    update: () => void;
+  },
 ) {
-  if (typeof document === "undefined" || currentTheme() === theme) return;
+  if (typeof document === "undefined") {
+    return;
+  }
 
   const transitionDocument = document as ViewTransitionDocument;
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (!transitionDocument.startViewTransition || reduceMotion) {
-    applyTheme(theme);
+    update();
     return;
   }
   if (themeTransitionRunning) return;
@@ -165,42 +148,20 @@ export async function applyThemeWithTransition(
   const transitionStyle = installThemeTransitionStyle({ x, y }, radius, duration);
   try {
     const transition = transitionDocument.startViewTransition(() => {
-      flushSync(() => applyTheme(theme));
+      flushSync(() => update());
     });
 
     await transition.ready;
     await transition.finished;
   } catch {
-    // If the browser aborts a transition mid-flight, the theme still changes.
-    if (currentTheme() !== theme) applyTheme(theme);
+    // If the browser aborts a transition mid-flight, still commit the theme.
+    // The commit is idempotent, so re-running it here is safe.
+    update();
   } finally {
     transitionStyle.remove();
     document.documentElement.classList.remove("theme-transitioning");
     themeTransitionRunning = false;
   }
-}
-
-function currentTheme(): ThemeMode {
-  if (typeof document === "undefined") return "light";
-  return document.documentElement.classList.contains("dark") ? "dark" : "light";
-}
-
-function subscribe(onStoreChange: () => void) {
-  const onThemeChange = () => onStoreChange();
-  const onStorage = (event: StorageEvent) => {
-    if (event.key !== THEME_STORAGE_KEY) return;
-    applyTheme(event.newValue === "dark" ? "dark" : "light", { persist: false });
-  };
-  window.addEventListener(THEME_CHANGE_EVENT, onThemeChange);
-  window.addEventListener("storage", onStorage);
-  return () => {
-    window.removeEventListener(THEME_CHANGE_EVENT, onThemeChange);
-    window.removeEventListener("storage", onStorage);
-  };
-}
-
-export function useThemeMode(): ThemeMode {
-  return useSyncExternalStore(subscribe, currentTheme, () => "light");
 }
 
 export interface ThemeToggleProps {
@@ -218,23 +179,66 @@ export interface ThemeToggleProps {
   transitionDuration?: number;
 }
 
-/** Manual light/dark control. It never reads the operating-system theme. */
+/**
+ * Manual light/dark control backed by the canonical ThemeProvider
+ * (`requo-theme` storage + cookie + profile preference). It renders the
+ * resolved theme and persists an explicit light/dark choice, so it never
+ * disagrees with Appearance settings or reverts on reload.
+ */
 export function ThemeToggle({
   collapsed = false,
   appearance = "sidebar",
   className,
   transitionDuration = THEME_TRANSITION_DURATION,
 }: ThemeToggleProps) {
-  const theme = useThemeMode();
-  const dark = theme === "dark";
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
+  // Server always renders light (no localStorage/matchMedia); keep the first
+  // client render on light so hydration matches, then switch to the stored
+  // preference after mount.
+  const effectiveTheme = mounted ? resolvedTheme : "light";
+  const dark = effectiveTheme === "dark";
   const switchRef = useRef<HTMLLabelElement | null>(null);
   const pointerOriginRef = useRef<ThemeTransitionOrigin | null>(null);
 
-  // Makes the component self-contained in customer projects. BoardUI itself
-  // also runs the same lookup before hydration to avoid a first-paint flash.
-  useEffect(() => {
-    applyTheme(storedTheme(), { persist: false });
-  }, []);
+  const requestTheme = (
+    next: ThemeMode,
+    origin: ThemeTransitionOrigin | null,
+    element: HTMLElement | null,
+  ) => {
+    if (next === resolvedTheme) {
+      return;
+    }
+
+    // An explicit sidebar choice wins over the cached profile value: clear
+    // the user binding so ThemePreferenceSync promotes this choice to the
+    // profile on the next dashboard mount instead of overwriting it with
+    // stale data (same pattern as MarketingThemeToggle).
+    try {
+      window.localStorage.removeItem(themeUserStorageKey);
+    } catch {
+      // The control remains usable when storage is blocked or unavailable.
+    }
+    void updateThemePreferenceAction(next).catch((error) => {
+      console.error("Failed to save theme preference.", error);
+    });
+    void applyThemeWithTransition({
+      origin,
+      element,
+      duration: transitionDuration,
+      update: () => {
+        setTheme(next);
+        // Mirror the provider's DOM write synchronously so the transition
+        // snapshots the new theme; ThemeProvider reconciles right after.
+        document.documentElement.classList.toggle("dark", next === "dark");
+        document.documentElement.style.colorScheme = next;
+      },
+    });
+  };
 
   if (
     appearance === "segmented" ||
@@ -284,7 +288,7 @@ export function ThemeToggle({
           )}
         />
         {options.map(({ mode, label, Icon }) => {
-          const selected = theme === mode;
+          const selected = effectiveTheme === mode;
           return (
             <button
               key={mode}
@@ -298,11 +302,7 @@ export function ThemeToggle({
                   event.clientX === 0 && event.clientY === 0
                     ? null
                     : { x: event.clientX, y: event.clientY };
-                void applyThemeWithTransition(mode, {
-                  origin: pointerOrigin,
-                  element: event.currentTarget,
-                  duration: transitionDuration,
-                });
+                requestTheme(mode, pointerOrigin, event.currentTarget);
               }}
               className={cx(
                 "relative z-10 grid size-8 cursor-pointer place-items-center rounded-full outline-none",
@@ -341,11 +341,7 @@ export function ThemeToggle({
             event.clientX === 0 && event.clientY === 0
               ? null
               : { x: event.clientX, y: event.clientY };
-          void applyThemeWithTransition(dark ? "light" : "dark", {
-            origin: pointerOrigin,
-            element: event.currentTarget,
-            duration: transitionDuration,
-          });
+          requestTheme(dark ? "light" : "dark", pointerOrigin, event.currentTarget);
         }}
         className={cx(
           "flex size-9 cursor-pointer items-center justify-center rounded-md",
@@ -370,11 +366,7 @@ export function ThemeToggle({
       onChange={(selected) => {
         const origin = pointerOriginRef.current;
         pointerOriginRef.current = null;
-        void applyThemeWithTransition(selected ? "dark" : "light", {
-          origin,
-          element: switchRef.current,
-          duration: transitionDuration,
-        });
+        requestTheme(selected ? "dark" : "light", origin, switchRef.current);
       }}
       aria-label="Dark mode"
       className={({ isFocusVisible }) =>

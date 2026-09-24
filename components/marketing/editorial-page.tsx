@@ -24,7 +24,7 @@ export type EditorialFaq = {
 
 /**
  * Lean marketing template for feature, comparison, guide, about, and hub
- * pages: visible breadcrumbs, one H1, a 40–60 word definition block, custom
+ * pages: one H1, a 40–60 word definition block, custom
  * sections, FAQs, and the shared final CTA. Pages own their JSON-LD.
  */
 export function EditorialPage({
@@ -39,7 +39,7 @@ export function EditorialPage({
   ctaSub,
   children,
 }: {
-  breadcrumbs: readonly EditorialBreadcrumb[];
+  breadcrumbs?: readonly EditorialBreadcrumb[];
   eyebrow: string;
   title: string;
   definition: string;
@@ -61,35 +61,37 @@ export function EditorialPage({
         <section className="relative overflow-hidden px-4 pb-14 pt-12 sm:px-6 sm:pb-20 sm:pt-16 lg:px-8 lg:pb-24 lg:pt-24 xl:px-0">
           <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-start gap-5 sm:gap-6">
             <InViewReveal className="flex w-full flex-col items-start gap-5 sm:gap-6">
-              <nav aria-label="Breadcrumb">
-                <ol className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                  {breadcrumbs.map((crumb, index) => (
-                    <li
-                      className="flex items-center gap-1.5"
-                      key={crumb.name}
-                    >
-                      {index > 0 ? (
-                        <span aria-hidden="true">/</span>
-                      ) : null}
-                      {crumb.href && index < breadcrumbs.length - 1 ? (
-                        <Link
-                          className="transition-colors hover:text-foreground"
-                          href={crumb.href}
-                        >
-                          {crumb.name}
-                        </Link>
-                      ) : (
-                        <span aria-current="page">{crumb.name}</span>
-                      )}
-                    </li>
-                  ))}
-                </ol>
-              </nav>
+              {breadcrumbs && breadcrumbs.length > 0 ? (
+                <nav aria-label="Breadcrumb">
+                  <ol className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                    {breadcrumbs.map((crumb, index) => (
+                      <li
+                        className="flex items-center gap-1.5"
+                        key={crumb.name}
+                      >
+                        {index > 0 ? (
+                          <span aria-hidden="true">/</span>
+                        ) : null}
+                        {crumb.href && index < breadcrumbs.length - 1 ? (
+                          <Link
+                            className="transition-colors hover:text-foreground"
+                            href={crumb.href}
+                          >
+                            {crumb.name}
+                          </Link>
+                        ) : (
+                          <span aria-current="page">{crumb.name}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                </nav>
+              ) : null}
               <p className="meta-label !text-primary">{eyebrow}</p>
               <h1 className="max-w-3xl font-sans text-[2.5rem] font-normal leading-[1.08] tracking-[-0.035em] text-foreground sm:text-6xl sm:leading-[1.05] lg:text-[4.25rem]">
                 {title}
               </h1>
-              <p className="max-w-2xl font-sans text-[0.95rem] font-normal leading-relaxed text-muted-foreground sm:text-base lg:text-lg lg:leading-relaxed">
+              <p className="max-w-2xl font-sans text-[0.95rem] font-normal leading-snug text-muted-foreground sm:text-base lg:text-lg lg:leading-snug">
                 {definition}
               </p>
               <div className="flex flex-row flex-wrap items-center gap-3 pt-1">

@@ -33,7 +33,7 @@ test("public inquiry page rejects unsupported attachments", async ({ page }) => 
     buffer: Buffer.from("pretend-binary"),
   });
 
-  await page.getByRole("button", { name: "Send inquiry" }).click();
+  await page.getByRole("button", { name: "Send" }).click();
 
   await expect(
     page.getByText("Upload a PDF, common document file, or image."),
@@ -56,7 +56,7 @@ test("public inquiry page accepts a new submission @smoke", async ({ page }) => 
       "Need two front-window vinyl panels and a smaller door decal for a spring refresh.",
     );
 
-  await page.getByRole("button", { name: "Send inquiry" }).click();
+  await page.getByRole("button", { name: "Send" }).click();
 
   await expect(
     page.getByRole("heading", { name: "Inquiry received." }),
@@ -66,6 +66,6 @@ test("public inquiry page accepts a new submission @smoke", async ({ page }) => 
     page.getByRole("link", { name: "Submit another inquiry" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Send inquiry" }),
+    page.getByRole("button", { name: "Send" }),
   ).toHaveCount(0);
 });
