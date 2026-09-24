@@ -6,7 +6,7 @@ import { and, count, eq, gte } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { publicActionEvents } from "@/lib/db/schema";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 
 type AssertPublicActionRateLimitInput = {
   action:
@@ -104,7 +104,7 @@ export async function assertBusinessActionRateLimit({
     }
 
     await db.insert(publicActionEvents).values({
-      id: createId("pae"),
+      id: newEntityId(),
       action,
       key,
       createdAt: now,
@@ -161,7 +161,7 @@ export async function assertPublicActionRateLimit({
     }
 
     await db.insert(publicActionEvents).values({
-      id: createId("pae"),
+      id: newEntityId(),
       action,
       key,
       createdAt: now,

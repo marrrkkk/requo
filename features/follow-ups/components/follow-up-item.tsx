@@ -14,17 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 
-import { OptimisticPendingIndicator } from "@/components/shared/optimistic-pending-indicator";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -51,6 +41,7 @@ import {
 } from "@/features/follow-ups/components/follow-up-reassign-dialog";
 import {
   FollowUpDueBadge,
+  FollowUpSendModeBadge,
   FollowUpStatusBadge,
 } from "@/features/follow-ups/components/follow-up-status-badge";
 import type {
@@ -103,6 +94,23 @@ function ChannelIcon({
       return (
         <MessageSquare className={cn("size-3", className)} aria-hidden="true" />
       );
+  }
+}
+
+function formatQuoteAmount(totalInCents: number | null, currency: string | null) {
+  if (totalInCents === null || totalInCents === undefined) {
+    return null;
+  }
+
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency || "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(totalInCents / 100);
+  } catch {
+    return `${(totalInCents / 100).toFixed(0)}`;
   }
 }
 
@@ -209,6 +217,26 @@ export function FollowUpItem({
   const channelLabel = getFollowUpChannelLabel(followUp.channel);
   const dueLabel = formatFollowUpDate(followUp.dueAt);
   const isPending = followUp.status === "pending";
+  const staleLabel = (() => {
+    switch (followUp.quoteContext?.status) {
+      case "accepted":
+        return "Quote accepted · No action needed";
+      case "rejected":
+        return "Quote rejected · No action needed";
+      case "expired":
+        return "Quote expired · No action needed";
+      case "voided":
+        return "Quote voided · No action needed";
+      default:
+        return null;
+    }
+  })();
+  const quoteAmount = followUp.quoteContext
+    ? formatQuoteAmount(
+        followUp.quoteContext.totalInCents,
+        followUp.quoteContext.currency,
+      )
+    : null;
 
   return (
     <div
@@ -220,7 +248,7 @@ export function FollowUpItem({
       data-expanded={expanded}
       data-motion-state={motionState}
     >
-      {/* Header row: avatar + identity + meta + chevron + overflow */}
+      {/* Header row: identity + single status + chevron + overflow */}
       <div className="flex items-center gap-2 px-3 py-2.5 sm:px-4">
         <button
           aria-expanded={expanded}
@@ -231,37 +259,42 @@ export function FollowUpItem({
           onClick={() => setExpanded(!expanded)}
           type="button"
         >
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <span className="truncate text-sm font-medium text-foreground">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="flex min-w-0 items-baseline gap-2">
+              <span className="truncate text-sm font-medium text-foreground">
+                {followUp.customerName}
+              </span>
+              {quoteAmount ? (
+                <span className="shrink-0 text-xs font-semibold tabular-nums text-foreground/80">
+                  {quoteAmount}
+                </span>
+              ) : null}
+            </span>
+            <span className="truncate text-xs text-muted-foreground">
               {followUp.title}
             </span>
-            {followUp.customerName ? (
-              <span className="truncate text-xs text-muted-foreground">
-                {followUp.customerName}
+            {followUp.whyNow ? (
+              <span className="truncate text-xs text-muted-foreground/80">
+                {followUp.whyNow}
+              </span>
+            ) : null}
+            <span className="truncate text-xs text-muted-foreground/70">
+              {followUp.related.label} · Due {dueLabel} · via {channelLabel}
+            </span>
+            {staleLabel ? (
+              <span className="truncate text-xs text-muted-foreground/70">
+                {staleLabel}
               </span>
             ) : null}
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <span className="hidden items-center gap-1 text-xs text-muted-foreground lg:inline-flex">
-              <Calendar className="size-3" aria-hidden="true" />
-              {dueLabel}
-            </span>
-            <span
-              aria-hidden="true"
-              className="hidden size-1 rounded-full bg-muted-foreground/40 lg:inline-block"
-            />
-            <span
-              aria-label={channelLabel}
-              className="hidden text-muted-foreground lg:inline-flex"
-            >
-              <ChannelIcon channel={followUp.channel} />
-            </span>
             {isPending ? (
               <FollowUpDueBadge bucket={followUp.dueBucket} />
             ) : (
               <FollowUpStatusBadge status={followUp.status} />
             )}
+            <FollowUpSendModeBadge sendMode={followUp.sendMode ?? "manual"} />
             <ChevronDown
               aria-hidden="true"
               className={cn(
@@ -340,9 +373,17 @@ export function FollowUpItem({
                 <ArrowRight className="size-3" aria-hidden="true" />
               </Link>
             </div>
+            {followUp.whyNow ? (
+              <p className="text-sm leading-6 text-foreground">
+                {followUp.whyNow}
+              </p>
+            ) : null}
             <p className="text-sm leading-6 text-muted-foreground">
               {followUp.reason}
             </p>
+            {staleLabel ? (
+              <p className="text-xs text-muted-foreground">{staleLabel}</p>
+            ) : null}
 
             {/* Recurrence schedule and termination rule */}
             {followUp.recurrence !== "none" && (
@@ -465,34 +506,22 @@ export function FollowUpItem({
 
       {/* Delete confirm */}
       <form ref={deleteFormRef} action={deleteFormAction} className="hidden" />
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this follow-up?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This removes &ldquo;{followUp.title}&rdquo; from your list. This
-              cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel asChild>
-              <Button disabled={isDeletePending} variant="outline">
-                Cancel
-              </Button>
-            </AlertDialogCancel>
-            <AlertDialogAction asChild>
-              <Button
-                disabled={isDeletePending}
-                onClick={() => deleteFormRef.current?.requestSubmit()}
-                variant="destructive"
-              >
-                <OptimisticPendingIndicator pending={isDeletePending} />
-                Delete
-              </Button>
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmationDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Delete this follow-up?"
+        description={
+          <>
+            This removes &ldquo;{followUp.title}&rdquo; from your list. This
+            cannot be undone.
+          </>
+        }
+        confirmLabel="Delete"
+        onConfirm={() => deleteFormRef.current?.requestSubmit()}
+        isPending={isDeletePending}
+        tone="destructive"
+        icon={Trash2}
+      />
 
       {/* Reassign (hidden, for members > 1) */}
       {members.length > 1 && isPending ? (

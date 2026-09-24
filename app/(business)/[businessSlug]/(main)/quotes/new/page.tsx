@@ -198,6 +198,7 @@ async function NewQuoteContent({
           }}
           businessName={businessContext.business.name}
           businessSlug={businessContext.business.slug}
+          businessLogoStoragePath={businessContext.business.logoStoragePath}
           canUseAiGenerator={hasFeatureAccess(
             businessContext.business.plan,
             "aiQuoteDrafting",
@@ -221,6 +222,7 @@ async function NewQuoteContent({
           }}
           businessName={businessContext.business.name}
           businessSlug={businessContext.business.slug}
+          businessLogoStoragePath={businessContext.business.logoStoragePath}
           canUseAiGenerator={hasFeatureAccess(
             businessContext.business.plan,
             "aiQuoteDrafting",

@@ -367,7 +367,7 @@ export function ProposedInquiryCard({
 
           <div className="flex items-center gap-2">
             <Button disabled={busy} type="submit">
-              {approving ? "Sending…" : "Send inquiry"}
+              {approving ? "Sending…" : "Send"}
             </Button>
             <Button
               disabled={busy}

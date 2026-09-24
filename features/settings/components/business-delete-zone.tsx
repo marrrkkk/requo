@@ -4,15 +4,13 @@ import { useState } from "react";
 import { Archive, RotateCcw, Trash2 } from "lucide-react";
 
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  ResponsiveOverlay,
+  ResponsiveOverlayBody,
+  ResponsiveOverlayClose,
+  ResponsiveOverlayContent,
+  ResponsiveOverlayFooter,
+} from "@/components/ui/responsive-overlay";
+import { ConfirmationHeader } from "@/components/shared/confirmation-dialog";
 import {
   ServerActionButton,
   ServerActionConfirmDialog,
@@ -95,7 +93,7 @@ export function BusinessDeleteZone({
                 <ServerActionButton
                   action={unarchiveAction}
                   icon={RotateCcw}
-                  label="Restore business"
+                  label="Restore"
                   pendingLabel="Restoring..."
                 />
               </div>
@@ -112,7 +110,7 @@ export function BusinessDeleteZone({
                 <ServerActionButton
                   action={restoreAction}
                   icon={RotateCcw}
-                  label="Restore business"
+                  label="Restore"
                   pendingLabel="Restoring..."
                 />
               </div>
@@ -129,13 +127,13 @@ export function BusinessDeleteZone({
               <div className="mt-2">
                 <ServerActionConfirmDialog
                   action={archiveAction}
-                  confirmLabel="Archive business"
+                  confirmLabel="Archive"
                   confirmPendingLabel="Archiving..."
                   confirmVariant="default"
                   description="Archived businesses are read-only and hidden from active views. You can restore it later."
                   icon={Archive}
                   title="Archive this business?"
-                  triggerLabel="Archive business"
+                  triggerLabel="Archive"
                   triggerVariant="outline"
                 />
               </div>
@@ -158,23 +156,28 @@ export function BusinessDeleteZone({
                 onClick={() => setOpen(true)}
               >
                 <Trash2 data-icon="inline-start" aria-hidden="true" />
-                Delete workspace
+                Delete
               </Button>
             </div>
           </div>
         </div>
       </section>
 
-      <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent>
-          <form action={deleteFormAction}>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete business permanently?</AlertDialogTitle>
-              <AlertDialogDescription>
+      <ResponsiveOverlay open={open} onOpenChange={setOpen}>
+        <ResponsiveOverlayContent className="sm:max-w-lg">
+          <ConfirmationHeader
+            tone="destructive"
+            icon={Trash2}
+            title="Delete business permanently?"
+            description={
+              <>
                 This permanently removes {businessName}, all its inquiries,
                 quotes, forms, and follow-ups. This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
+              </>
+            }
+          />
+          <form action={deleteFormAction}>
+            <ResponsiveOverlayBody>
               <FieldGroup>
                 <Field
                   data-invalid={
@@ -212,32 +215,34 @@ export function BusinessDeleteZone({
                   </FieldContent>
                 </Field>
               </FieldGroup>
-            <AlertDialogFooter>
-              <AlertDialogCancel asChild>
+            </ResponsiveOverlayBody>
+            <ResponsiveOverlayFooter>
+              <ResponsiveOverlayClose asChild>
                 <Button disabled={isDeletePending} type="button" variant="outline">
                   Cancel
                 </Button>
-              </AlertDialogCancel>
-              <AlertDialogAction asChild>
-                <Button
-                  disabled={isDeletePending || !confirmationMatches}
-                  type="submit"
-                  variant="destructive"
-                >
-                  {isDeletePending ? (
-                    <>
-                      <Spinner data-icon="inline-start" aria-hidden="true" />
-                      Deleting...
-                    </>
-                  ) : (
-                    "Delete business"
-                  )}
-                </Button>
-              </AlertDialogAction>
-            </AlertDialogFooter>
+              </ResponsiveOverlayClose>
+              <Button
+                disabled={isDeletePending || !confirmationMatches}
+                type="submit"
+                variant="destructive"
+              >
+                {isDeletePending ? (
+                  <>
+                    <Spinner data-icon="inline-start" aria-hidden="true" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 data-icon="inline-start" aria-hidden="true" />
+                    Delete
+                  </>
+                )}
+              </Button>
+            </ResponsiveOverlayFooter>
           </form>
-        </AlertDialogContent>
-      </AlertDialog>
+        </ResponsiveOverlayContent>
+      </ResponsiveOverlay>
     </>
   );
 }

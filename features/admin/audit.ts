@@ -9,7 +9,7 @@ import {
 } from "@/features/admin/constants";
 import { db } from "@/lib/db/client";
 import { adminAuditLogs } from "@/lib/db/schema";
-import { prefixedId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 
 /**
  * Admin audit logging helpers.
@@ -191,7 +191,7 @@ export async function writeAdminAuditLog(
   const writer: DbWriter = input.tx ?? db;
 
   await writer.insert(adminAuditLogs).values({
-    id: prefixedId("aal"),
+    id: newEntityId(),
     adminUserId: input.context.adminUserId,
     adminEmail: input.context.adminEmail,
     action: input.action,

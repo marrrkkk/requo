@@ -1,74 +1,34 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
-  BookOpen,
-  Bot,
-  Building2,
-  Clock,
-  FileText,
-  GraduationCap,
-  Inbox,
-  Lock,
-  Monitor,
-  Moon,
-  PencilRuler,
-  Search,
-  Sparkles,
-  Sun,
-  Tags,
-  Upload,
-  UserPlus,
-  Zap,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import { toast } from "@/components/base/notification/notify";
+  RiFileTextLine,
+  RiInboxLine,
+  RiPriceTagLine,
+  RiReceiptLine,
+  RiStickyNoteLine,
+  RiToolsLine,
+} from "@remixicon/react";
+import { Search, XIcon } from "lucide-react";
 
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cx } from "@/utils/cx";
 import {
-  getBusinessFollowUpsPath,
-  getBusinessServicesPath,
-  getBusinessAiSettingsPath,
-  getBusinessMembersPath,
-  getBusinessNewInquiryPath,
-  getBusinessNewQuotePath,
-  getBusinessProductsPath,
-  getBusinessPublicChatPath,
-  getBusinessAssistantPath,
-  newBusinessPath,
-} from "@/features/businesses/routes";
-import { useTheme } from "@/components/theme-provider";
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
-import {
-  canManageBusinessMembers,
-  canManageOperationalBusinessSettings,
-  type BusinessMemberRole,
-} from "@/lib/business-members";
-import { hasFeatureAccess, type PlanFeature } from "@/lib/plans/entitlements";
-import {
-  getRequiredPlanLabel,
-  getUpgradeDescription,
-} from "@/features/paywall/lib/utils";
-import { UpgradeButton } from "@/features/billing/components/upgrade-button";
-import {
-  clearDashboardTourLocalStorage,
-  DASHBOARD_TOUR_DEV_SHOW_EVENT,
-} from "@/features/onboarding/tour-keys";
-import { getBusinessDashboardPath } from "@/features/businesses/routes";
+  clearRecentSearchRecords,
+  getRecentSearchRecords,
+  recordRecentSearchRecord,
+  type RecentSearchRecord,
+  type SearchRecordType,
+} from "@/components/shell/search-recents";
 
 export const OPEN_COMMAND_MENU_EVENT = "requo:open-command-menu";
 
@@ -78,33 +38,102 @@ export function openGlobalCommandMenu() {
 
 type CommandMenuProps = {
   businessSlug: string;
-  businessId: string;
-  userId: string;
-  role: BusinessMemberRole;
-  plan: plan;
-  /** Controlled open state (for triggering from the sidebar Quick Search). */
+  /** Controlled open state (for triggering from the sidebar search). */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   /** Hides the inline trigger button; only the dialog renders. */
   hideTrigger?: boolean;
 };
 
-type CreateAction = {
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  navigate: () => void;
-  /** Plan feature that gates this action, if any. */
-  feature?: PlanFeature;
-  /** Whether the current role is allowed to see this action. */
-  visible: boolean;
+type SearchState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "ready"; results: RecentSearchRecord[] };
+
+type SearchTab = "all" | SearchRecordType;
+
+const tabs: Array<{ value: SearchTab; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "inquiry", label: "Inquiries" },
+  { value: "quote", label: "Quotes" },
+  { value: "invoice", label: "Invoices" },
+  { value: "product", label: "Products" },
+  { value: "service", label: "Services" },
+  { value: "follow-up", label: "Follow-ups" },
+];
+
+const typeLabels: Record<SearchRecordType, string> = {
+  inquiry: "Inquiry",
+  quote: "Quote",
+  invoice: "Invoice",
+  product: "Product",
+  service: "Service",
+  "follow-up": "Follow-up",
 };
 
+function ResultIcon({ type }: { type: SearchRecordType }) {
+  const className = "size-4 shrink-0 text-muted-foreground";
+  switch (type) {
+    case "inquiry":
+      return <RiInboxLine className={className} aria-hidden="true" />;
+    case "quote":
+      return <RiFileTextLine className={className} aria-hidden="true" />;
+    case "invoice":
+      return <RiReceiptLine className={className} aria-hidden="true" />;
+    case "product":
+      return <RiPriceTagLine className={className} aria-hidden="true" />;
+    case "service":
+      return <RiToolsLine className={className} aria-hidden="true" />;
+    case "follow-up":
+      return <RiStickyNoteLine className={className} aria-hidden="true" />;
+  }
+}
+
+function ResultRow({
+  result,
+  onSelect,
+}: {
+  result: RecentSearchRecord;
+  onSelect: (result: RecentSearchRecord) => void;
+}) {
+  return (
+    <Link
+      href={result.href}
+      prefetch={true}
+      onClick={() => onSelect(result)}
+      className={cx(
+        "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+        "text-foreground hover:bg-muted",
+        "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
+      )}
+    >
+      <ResultIcon type={result.type} />
+      <span className="min-w-0 flex-1 truncate">
+        <span className="font-medium">{result.title}</span>
+        <span className="text-muted-foreground">
+          {" · "}
+          {typeLabels[result.type]}
+        </span>
+        {result.subtitle ? (
+          <span className="block truncate text-xs text-muted-foreground">
+            {result.subtitle}
+          </span>
+        ) : null}
+      </span>
+    </Link>
+  );
+}
+
+/**
+ * Global record search dialog (sidebar Search / ⌘K).
+ *
+ * Searches inquiries, quotes, invoices, products, services, and follow-ups
+ * through the business-scoped mobile-search endpoint. Type tabs appear once
+ * the user types; with an empty query the dialog lists last-opened records
+ * from per-business localStorage recents.
+ */
 export function CommandMenu({
   businessSlug,
-  businessId,
-  userId,
-  role,
-  plan,
   open: controlledOpen,
   onOpenChange,
   hideTrigger = false,
@@ -112,11 +141,12 @@ export function CommandMenu({
   const [internalOpen, setInternalOpen] = React.useState(false);
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
-  const [lockedAction, setLockedAction] = React.useState<CreateAction | null>(
-    null,
-  );
-  const router = useRouter();
-  const { setTheme } = useTheme();
+  const pathname = usePathname();
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const [query, setQuery] = React.useState("");
+  const [activeTab, setActiveTab] = React.useState<SearchTab>("all");
+  const [state, setState] = React.useState<SearchState>({ status: "idle" });
+  const [recents, setRecents] = React.useState<RecentSearchRecord[]>([]);
 
   const handleOpenChange = React.useCallback(
     (next: boolean) => {
@@ -127,9 +157,6 @@ export function CommandMenu({
     },
     [isControlled, onOpenChange],
   );
-
-  const canOperate = canManageOperationalBusinessSettings(role);
-  const canManageMembers = canManageBusinessMembers(role);
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -149,114 +176,86 @@ export function CommandMenu({
     return () => window.removeEventListener(OPEN_COMMAND_MENU_EVENT, handler);
   }, [handleOpenChange]);
 
-  const runCommand = React.useCallback(
-    (command: () => void) => {
-      handleOpenChange(false);
-      command();
-    },
-    [handleOpenChange],
-  );
-
-  function publicChatUrl() {
-    return `${window.location.origin}${getBusinessPublicChatPath(businessSlug)}`;
-  }
-
-  function copyPublicChatLink() {
-    void navigator.clipboard.writeText(publicChatUrl()).then(
-      () => toast.success("Public chat link copied"),
-      () => toast.error("Could not copy link"),
-    );
-  }
-
-  function handleReplayTour() {
-    clearDashboardTourLocalStorage(businessId);
-    router.push(getBusinessDashboardPath(businessSlug));
-    // Dispatch event after a short delay to let navigation settle
-    setTimeout(() => {
-      window.dispatchEvent(new Event(DASHBOARD_TOUR_DEV_SHOW_EVENT));
-    }, 500);
-    toast.success("Product tour restarted");
-  }
-
-  function selectCreate(action: CreateAction) {
-    if (!action.feature || hasFeatureAccess(plan, action.feature)) {
-      runCommand(action.navigate);
+  // Reset on open and refresh recents; focus the input.
+  React.useEffect(() => {
+    if (!open) {
       return;
     }
-    handleOpenChange(false);
-    setLockedAction(action);
-  }
+    setQuery("");
+    setActiveTab("all");
+    setState({ status: "idle" });
+    setRecents(getRecentSearchRecords(businessSlug));
+    const frame = window.requestAnimationFrame(() =>
+      inputRef.current?.focus(),
+    );
+    return () => window.cancelAnimationFrame(frame);
+  }, [open, businessSlug]);
 
-  const createActions: CreateAction[] = [
-    {
-      label: "Ask Assistant",
-      icon: Sparkles,
-      navigate: () => router.push(getBusinessAssistantPath(businessSlug)),
-      visible: true,
-    },
-    {
-      label: "New quote",
-      icon: FileText,
-      navigate: () => router.push(getBusinessNewQuotePath(businessSlug)),
-      visible: true,
-    },
-    {
-      label: "New inquiry",
-      icon: Inbox,
-      navigate: () => router.push(getBusinessNewInquiryPath(businessSlug)),
-      visible: true,
-    },
-    {
-      label: "New follow-up",
-      icon: Clock,
-      navigate: () => router.push(getBusinessFollowUpsPath(businessSlug)),
-      feature: "followUps",
-      visible: true,
-    },
-    {
-      label: "Invite team member",
-      icon: UserPlus,
-      navigate: () => router.push(getBusinessMembersPath(businessSlug)),
-      feature: "members",
-      visible: canManageMembers,
-    },
-    {
-      label: "New product",
-      icon: Tags,
-      navigate: () => router.push(getBusinessProductsPath(businessSlug)),
-      feature: "quoteLibrary",
-      visible: canOperate,
-    },
-    {
-      label: "Create service",
-      icon: PencilRuler,
-      navigate: () => router.push(getBusinessServicesPath(businessSlug)),
-      visible: canOperate,
-    },
-    {
-      label: "Import products (AI)",
-      icon: Upload,
-      navigate: () => router.push(getBusinessProductsPath(businessSlug)),
-      feature: "aiQuoteDrafting",
-      visible: canOperate,
-    },
-    {
-      label: "Add knowledge base entry",
-      icon: BookOpen,
-      navigate: () =>
-        router.push(`${getBusinessAiSettingsPath(businessSlug)}#knowledge`),
-      feature: "knowledgeBase",
-      visible: canOperate,
-    },
-    {
-      label: "Create new business",
-      icon: Building2,
-      navigate: () => router.push(newBusinessPath),
-      visible: true,
-    },
-  ];
+  // Close the dialog on successful navigation.
+  React.useEffect(() => {
+    if (open) {
+      handleOpenChange(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
-  const visibleCreateActions = createActions.filter((action) => action.visible);
+  // Debounced server search once the user types.
+  React.useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const trimmed = query.trim();
+    if (trimmed.length < 1) {
+      setState({ status: "idle" });
+      return;
+    }
+    setState({ status: "loading" });
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `/api/business/${encodeURIComponent(businessSlug)}/mobile-search?q=${encodeURIComponent(trimmed)}`,
+          { signal: controller.signal },
+        );
+        if (!response.ok) {
+          throw new Error(`Search failed: ${response.status}`);
+        }
+        const data = (await response.json()) as {
+          results?: RecentSearchRecord[];
+        };
+        setState({ status: "ready", results: data.results ?? [] });
+      } catch {
+        if (controller.signal.aborted) {
+          return;
+        }
+        setState({ status: "ready", results: [] });
+      }
+    }, 250);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [open, query, businessSlug]);
+
+  const handleSelect = React.useCallback(
+    (result: RecentSearchRecord) => {
+      recordRecentSearchRecord(businessSlug, result);
+      handleOpenChange(false);
+    },
+    [businessSlug, handleOpenChange],
+  );
+
+  const handleClearRecents = React.useCallback(() => {
+    clearRecentSearchRecords(businessSlug);
+    setRecents([]);
+  }, [businessSlug]);
+
+  const isSearching = query.trim().length >= 1;
+  const results = state.status === "ready" ? state.results : [];
+  const visibleResults =
+    activeTab === "all"
+      ? results
+      : results.filter((result) => result.type === activeTab);
 
   return (
     <>
@@ -268,7 +267,7 @@ export function CommandMenu({
         >
           <div className="flex items-center gap-2">
             <Search className="size-4 shrink-0" />
-            <span className="truncate">Quick actions…</span>
+            <span className="truncate">Search…</span>
           </div>
           <kbd className="pointer-events-none hidden select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100 sm:flex">
             <span className="text-xs">⌘</span>K
@@ -278,100 +277,128 @@ export function CommandMenu({
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
-          className="p-0 sm:max-w-[560px]"
+          className="h-[min(30rem,calc(100dvh-4rem))] gap-0 p-0 sm:max-w-[720px]"
           showCloseButton={false}
-          onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <DialogTitle className="sr-only">Quick actions</DialogTitle>
+          <DialogTitle className="sr-only">Search records</DialogTitle>
           <DialogDescription className="sr-only">
-            Create records, copy links, and toggle theme.
+            Search inquiries, quotes, invoices, products, services, and
+            follow-ups.
           </DialogDescription>
-          <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
-            <CommandInput placeholder="Search actions…" />
-            <CommandList className="no-scrollbar max-h-72 overflow-y-auto">
-              <CommandEmpty>No matching actions.</CommandEmpty>
-
-              <CommandGroup heading="Create">
-                {visibleCreateActions.map((action) => {
-                  const Icon = action.icon;
-                  const locked =
-                    action.feature && !hasFeatureAccess(plan, action.feature);
-                  return (
-                    <CommandItem
-                      key={action.label}
-                      onSelect={() => selectCreate(action)}
-                    >
-                      <Icon className="mr-2 h-4 w-4" />
-                      <span>{action.label}</span>
-                      {locked ? (
-                        <span className="ml-auto flex items-center gap-1 text-xs font-medium text-muted-foreground opacity-70">
-                          <Lock className="size-3" aria-hidden="true" />
-                          {getRequiredPlanLabel(action.feature!)}
-                        </span>
-                      ) : null}
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-
-              <CommandGroup heading="Other">
-                <CommandItem onSelect={() => runCommand(() => setTheme("light"))}>
-                  <Sun className="mr-2 h-4 w-4" />
-                  <span>Light</span>
-                </CommandItem>
-                <CommandItem onSelect={() => runCommand(() => setTheme("dark"))}>
-                  <Moon className="mr-2 h-4 w-4" />
-                  <span>Dark</span>
-                </CommandItem>
-                <CommandItem onSelect={() => runCommand(() => setTheme("system"))}>
-                  <Monitor className="mr-2 h-4 w-4" />
-                  <span>System</span>
-                </CommandItem>
-                <CommandItem onSelect={() => runCommand(copyPublicChatLink)}>
-                  <Bot className="mr-2 h-4 w-4" />
-                  <span>Copy public chat link</span>
-                </CommandItem>
-                <CommandItem onSelect={() => runCommand(handleReplayTour)}>
-                  <GraduationCap className="mr-2 h-4 w-4" />
-                  <span>Replay product tour</span>
-                </CommandItem>
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={lockedAction !== null}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) {
-            setLockedAction(null);
-          }
-        }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            {lockedAction ? (
-              <>
-                <DialogTitle className="flex items-center gap-2">
-                  {getRequiredPlanLabel(lockedAction.feature!)} Plan
-                </DialogTitle>
-                <DialogDescription>
-                  {getUpgradeDescription(lockedAction.feature!)}
-                </DialogDescription>
-              </>
+          <div className="flex shrink-0 items-center gap-1 px-4">
+            <input
+              ref={inputRef}
+              type="search"
+              aria-label="Search inquiries, quotes, invoices, products, services, and follow-ups"
+              placeholder="Search..."
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setActiveTab("all");
+              }}
+              className="h-12 min-w-0 flex-1 border-0 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden"
+            />
+            {query.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery("");
+                  setActiveTab("all");
+                  inputRef.current?.focus();
+                }}
+                aria-label="Clear search"
+                className="shrink-0 rounded-md px-2 py-1 text-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-border-focus-ring"
+              >
+                Clear
+              </button>
             ) : null}
-          </DialogHeader>
-          <div className="px-5 pb-5 sm:px-6 sm:pb-6">
-            <UpgradeButton
-              userId={userId}
-              businessId={businessId}
-              businessSlug={businessSlug}
-              currentPlan={plan}
+            <button
+              type="button"
+              onClick={() => handleOpenChange(false)}
+              aria-label="Close search"
+              className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-border-focus-ring"
             >
-              <Zap data-icon="inline-start" />
-              Upgrade
-            </UpgradeButton>
+              <XIcon className="size-4" aria-hidden="true" />
+            </button>
+          </div>
+
+          {isSearching ? (
+            <div className="shrink-0 px-3 py-2">
+              <Tabs
+                value={activeTab}
+                onValueChange={(value) => setActiveTab(value as SearchTab)}
+              >
+                <TabsList className="grid w-full grid-cols-7 gap-1">
+                  {tabs.map((tab) => (
+                    <TabsTrigger
+                      key={tab.value}
+                      value={tab.value}
+                      className="min-w-0 truncate px-1.5"
+                    >
+                      {tab.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            </div>
+          ) : null}
+
+          <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto p-2">
+            {!isSearching ? (
+              recents.length === 0 ? (
+                <p className="px-3 py-3 text-sm text-muted-foreground">
+                  Type to search inquiries, quotes, invoices, products,
+                  services, and follow-ups.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between px-3 py-1">
+                    <span className="meta-label text-muted-foreground">
+                      Last opened
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleClearRecents}
+                      aria-label="Clear last opened"
+                      className="shrink-0 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-border-focus-ring"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  {recents.map((result) => (
+                    <ResultRow
+                      key={`${result.type}-${result.id}`}
+                      result={result}
+                      onSelect={handleSelect}
+                    />
+                  ))}
+                </div>
+              )
+            ) : state.status === "loading" ? (
+              <p
+                className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground"
+                role="status"
+              >
+                <Spinner />
+                Searching…
+              </p>
+            ) : state.status === "ready" ? (
+              visibleResults.length === 0 ? (
+                <p className="px-3 py-3 text-sm text-muted-foreground">
+                  No matching records.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  {visibleResults.map((result) => (
+                    <ResultRow
+                      key={`${result.type}-${result.id}`}
+                      result={result}
+                      onSelect={handleSelect}
+                    />
+                  ))}
+                </div>
+              )
+            ) : null}
           </div>
         </DialogContent>
       </Dialog>

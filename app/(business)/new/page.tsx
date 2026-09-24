@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import type { Metadata } from "next";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +12,7 @@ import { createBusinessAction } from "@/features/businesses/actions";
 import { CreateBusinessForm } from "@/features/businesses/components/create-business-form";
 import { getBusinessQuotaForUser } from "@/features/businesses/quota";
 import { dashboardPath } from "@/features/businesses/routes";
+import { newEntityId } from "@/lib/ids";
 import { getEffectivePlanForUser } from "@/lib/billing/subscription-service";
 import { onboardingPath } from "@/features/onboarding/routes";
 import { UpgradePrompt } from "@/features/paywall";
@@ -54,16 +55,12 @@ async function NewBusinessPageContent() {
     oauthImage: session.user.image ?? null,
   });
 
-  const businessId = crypto.randomUUID();
+  const businessId = newEntityId();
 
   return (
     <div className="min-h-svh w-full bg-background">
-      <header className="sticky top-0 z-10 flex h-[4.5rem] w-full shrink-0 items-center justify-between border-b border-border/70 bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-4">
-          <BrandMark subtitle="Businesses" href={dashboardPath} />
-          <div className="h-4 w-px bg-border max-sm:hidden" />
-        </div>
-        <div className="flex items-center gap-3">
+      <NewBusinessHeader
+        userMenu={
           <AccountUserMenu
             user={{
               id: session.user.id,
@@ -72,8 +69,8 @@ async function NewBusinessPageContent() {
               avatarSrc,
             }}
           />
-        </div>
-      </header>
+        }
+      />
 
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
         <div className="space-y-2 pb-8">
@@ -105,18 +102,35 @@ async function NewBusinessPageContent() {
   );
 }
 
+function NewBusinessHeader({
+  userMenu,
+}: {
+  userMenu: ReactNode;
+}) {
+  return (
+    <div className="sticky top-0 z-30 flex h-13 items-center border-b border-border/70 bg-background px-3 lg:h-12 lg:border-b-0 lg:px-0">
+      <header className="flex min-w-0 flex-1 items-center">
+        <div className="dashboard-topbar-inner min-w-0 flex-1">
+          <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
+            <div className="min-w-0 flex-1">
+              <BrandMark href={dashboardPath} subtitle={null} />
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {userMenu}
+            </div>
+          </div>
+        </div>
+      </header>
+    </div>
+  );
+}
+
 function NewBusinessPageSkeleton() {
   return (
     <div className="min-h-svh w-full bg-background">
-      <header className="sticky top-0 z-10 flex h-[4.5rem] w-full shrink-0 items-center justify-between border-b border-border/70 bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-4">
-          <BrandMark subtitle="Businesses" href={dashboardPath} />
-          <div className="h-4 w-px bg-border max-sm:hidden" />
-        </div>
-        <div className="flex items-center gap-3">
-          <Skeleton className="size-9 rounded-full" />
-        </div>
-      </header>
+      <NewBusinessHeader
+        userMenu={<Skeleton className="size-9 rounded-full" />}
+      />
 
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
         <div className="space-y-2 pb-8">

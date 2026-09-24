@@ -1,8 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { toast } from "@/components/base/notification/notify";
 
+import { BulkActionBar } from "@/components/shared/bulk-action-bar";
 import { DataListPagination } from "@/components/shared/data-list-pagination";
+import { InvoiceBulkActions } from "@/features/invoices/components/invoice-bulk-actions";
 import { InvoiceListCards } from "@/features/invoices/components/invoice-list-cards";
 import { InvoiceListTable } from "@/features/invoices/components/invoice-list-table";
 import { getBusinessInvoicesPath } from "@/features/businesses/routes";
@@ -12,6 +15,7 @@ import { useBulkSelection } from "@/hooks/use-bulk-selection";
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
 const EMPTY_PAGE_CACHE: Record<number, InvoiceListItem[]> = {};
+const MAX_BULK_SELECTION = 50;
 
 function normalizePageCache(
   cachedPages: Record<number, InvoiceListItem[]> | null | undefined,
@@ -52,7 +56,7 @@ export function InvoiceListResultsClient({
     [displayPage, effectiveCachedPages],
   );
 
-  const { items: invoices, getMotionState } = useAnimatedList(invoicesFromCache);
+  const { items: invoices, getMotionState, removeItems } = useAnimatedList(invoicesFromCache);
   const cachedPageNumbers = useMemo(
     () =>
       Object.keys(effectiveCachedPages)
@@ -62,11 +66,13 @@ export function InvoiceListResultsClient({
   );
 
   const {
+    selectedCount,
     isSelected,
     toggle,
     selectAll,
     deselectAll,
     isAtLimit,
+    serializedIds,
     allSelected,
   } = useBulkSelection(invoices);
 
@@ -80,8 +86,45 @@ export function InvoiceListResultsClient({
     }
   };
 
+  const handleSelectAllMatchingFilters = () => {
+    const allMatchingIds = Object.values(effectiveCachedPages).flatMap(
+      (pageItems) => pageItems.map((item) => item.id),
+    );
+
+    if (allMatchingIds.length > MAX_BULK_SELECTION) {
+      selectAll(allMatchingIds.slice(0, MAX_BULK_SELECTION));
+      toast.info(
+        `Selection capped at ${MAX_BULK_SELECTION} items. ${allMatchingIds.length - MAX_BULK_SELECTION} items could not be selected.`,
+      );
+    } else {
+      selectAll(allMatchingIds);
+    }
+  };
+
+  const handleBulkComplete = useCallback(() => {
+    deselectAll();
+  }, [deselectAll]);
+
   return (
     <>
+      <BulkActionBar
+        selectedCount={selectedCount}
+        totalOnPage={invoices.length}
+        totalMatchingFilters={totalItems}
+        maxSelection={MAX_BULK_SELECTION}
+        allOnPageSelected={allOnPageSelected}
+        onSelectAllOnPage={handleSelectAllOnPage}
+        onSelectAllMatchingFilters={handleSelectAllMatchingFilters}
+        onDeselectAll={deselectAll}
+      >
+        <InvoiceBulkActions
+          selectedCount={selectedCount}
+          serializedIds={serializedIds}
+          invoices={invoices}
+          onComplete={handleBulkComplete}
+          onOptimisticRemove={removeItems}
+        />
+      </BulkActionBar>
       <InvoiceListCards
         invoices={invoices}
         businessSlug={businessSlug}

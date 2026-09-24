@@ -746,7 +746,7 @@ function RecentConversations({ businessSlug }: { businessSlug: string }) {
 function UserTurn({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
-      <div className="motion-card-enter max-w-[85%] rounded-2xl bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap text-foreground">
+      <div className="motion-card-enter chat-bubble max-w-[85%] bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap text-foreground">
         {text}
       </div>
     </div>

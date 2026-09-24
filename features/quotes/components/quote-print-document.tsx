@@ -1,8 +1,11 @@
+import { BusinessAvatar } from "@/components/shared/business-avatar";
 import { formatQuoteDate, formatQuoteDateTime, formatQuoteMoney } from "@/features/quotes/utils";
 import type { DashboardQuoteDetail } from "@/features/quotes/types";
 
 type QuotePrintDocumentProps = {
   businessName: string;
+  businessLogoStoragePath?: string | null;
+  businessSlug?: string;
   quote: DashboardQuoteDetail;
   acceptance?: {
     signerName: string;
@@ -13,9 +16,15 @@ type QuotePrintDocumentProps = {
 
 export function QuotePrintDocument({
   businessName,
+  businessLogoStoragePath,
+  businessSlug,
   quote,
   acceptance,
 }: QuotePrintDocumentProps) {
+  const logoUrl =
+    businessLogoStoragePath && businessSlug
+      ? `/api/business/${businessSlug}/logo`
+      : null;
 
   return (
     <article
@@ -31,9 +40,12 @@ export function QuotePrintDocument({
               <h2 className="font-heading text-3xl font-semibold tracking-tight text-balance">
                 {quote.title}
               </h2>
-              <p className="text-sm leading-6 text-muted-foreground">
-                Prepared by {businessName}
-              </p>
+              <div className="flex items-center gap-2.5">
+                <BusinessAvatar name={businessName} logoUrl={logoUrl} size="sm" />
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Prepared by {businessName}
+                </p>
+              </div>
             </div>
           </div>
 

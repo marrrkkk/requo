@@ -139,7 +139,7 @@ export function SettingsShellFrame({
     <SidebarProvider defaultOpen>
       <div className="flex min-h-svh flex-1 bg-background-full">
         {/* Desktop sidebar — BoardUI panel flush to the left screen edge (hidden below lg; mobile uses the top/bottom bars). */}
-        <div className="sticky top-0 hidden h-svh shrink-0 lg:block">
+        <div className="sticky top-0 hidden h-svh shrink-0 self-start lg:block">
           <BoarduiSettingsSidebar
             businessSlug={businessSlug}
             groups={groups}
@@ -298,11 +298,11 @@ export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserDat
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
-              className="h-auto cursor-pointer justify-between rounded-xl border-2 border-transparent bg-sidebar-accent py-2 pr-4 pl-2.5 hover:border-sidebar-border hover:bg-sidebar-accent group-data-[collapsed=true]/sidebar:h-9 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:border-transparent group-data-[collapsed=true]/sidebar:bg-transparent group-data-[collapsed=true]/sidebar:p-0 data-[state=open]:bg-sidebar-accent"
+              className="group/user-menu h-auto cursor-pointer justify-between rounded-xl border-2 border-transparent bg-sidebar-accent py-2 pr-3 pl-2.5 hover:border-sidebar-border hover:bg-sidebar-accent group-data-[collapsed=true]/sidebar:h-9 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:border-transparent group-data-[collapsed=true]/sidebar:bg-transparent group-data-[collapsed=true]/sidebar:p-0 data-[state=open]:border-sidebar-border data-[state=open]:bg-sidebar-accent"
               size="lg"
               tooltip={displayName}
             >
-              <span className="flex min-w-0 items-center gap-2">
+              <span className="flex min-w-0 flex-1 items-center gap-2">
                 <Avatar className="size-8 rounded-full border-0 bg-transparent">
                   {user.avatarSrc ? (
                     <AvatarImage
@@ -326,8 +326,8 @@ export function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserDat
                   </span>
                 </span>
               </span>
-              <span className="flex size-4 shrink-0 items-center justify-center rounded-xs bg-card group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden">
-                <ChevronDownSmall className="size-4 text-muted-foreground" />
+              <span className="flex size-4 shrink-0 items-center justify-center rounded-xs text-muted-foreground transition-colors group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden group-data-[state=open]/user-menu:text-foreground">
+                <ChevronDownSmall className="size-4 transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[state=open]/user-menu:rotate-180" />
               </span>
             </SidebarMenuButton>
           </DropdownMenuTrigger>

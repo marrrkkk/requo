@@ -38,6 +38,7 @@ import {
   acknowledgeQuoteUncertaintyForBusiness,
   bulkArchiveQuotesForBusiness,
   bulkDeleteDraftQuotesForBusiness,
+  bulkRestoreQuotesForBusiness,
   bulkVoidQuotesForBusiness,
   cancelAcceptedQuoteForBusiness,
   completeAcceptedQuoteForBusiness,
@@ -1405,5 +1406,50 @@ export async function bulkDeleteQuotesAction(
   } catch (error) {
     console.error("Failed to bulk delete quotes.", error);
     return { error: "We couldn't delete those quotes right now." };
+  }
+}
+
+export async function bulkRestoreQuotesAction(
+  _prevState: QuoteBulkActionState,
+  formData: FormData,
+): Promise<QuoteBulkActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+  if (!ownerAccess.ok) return { error: ownerAccess.error };
+
+  const { user, businessContext } = ownerAccess;
+  const rawIds = formData.get("quoteIds") as string;
+  const parsed = quoteBulkActionSchema.safeParse({
+    quoteIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    const result = await bulkRestoreQuotesForBusiness({
+      businessId: businessContext.business.id,
+      quoteIds: parsed.data.quoteIds,
+      actorUserId: user.id,
+    });
+
+    updateCacheTags(getBusinessQuoteListCacheTags(businessContext.business.id));
+
+    if (result.affected === 0) {
+      return {
+        error: "No quotes were restored. Selected quotes may already be active.",
+        affected: 0,
+        skipped: result.skipped,
+      };
+    }
+
+    return {
+      success: `${result.affected} quote${result.affected !== 1 ? "s" : ""} restored.`,
+      affected: result.affected,
+      skipped: result.skipped,
+    };
+  } catch (error) {
+    console.error("Failed to bulk restore quotes.", error);
+    return { error: "We couldn't restore those quotes right now." };
   }
 }

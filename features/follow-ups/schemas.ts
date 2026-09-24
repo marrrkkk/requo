@@ -5,6 +5,7 @@ import {
   followUpChannels,
   followUpDueFilterValues,
   followUpRecurrences,
+  followUpSendModes,
   followUpSortValues,
   followUpStatusFilterValues,
   followUpTerminationConditions,
@@ -81,6 +82,7 @@ export const followUpCreateSchema = z
       error: () => "Choose a follow-up channel.",
     }),
     category: z.enum(followUpCategories).default("sales"),
+    sendMode: z.enum(followUpSendModes).default("manual"),
     dueDate: z
       .string()
       .trim()
@@ -120,6 +122,7 @@ export const followUpEditSchema = z
       error: () => "Choose a follow-up channel.",
     }),
     category: z.enum(followUpCategories).default("sales"),
+    sendMode: z.enum(followUpSendModes).default("manual"),
     dueDate: z
       .string()
       .trim()

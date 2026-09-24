@@ -13,6 +13,10 @@ import {
   uniqueCacheTags,
 } from "@/lib/cache/business-tags";
 import {
+  getUserBusinessContextCacheTags,
+  getUserMembershipsCacheTags,
+} from "@/lib/cache/shell-tags";
+import {
   businessAiAgentSettingsSchema,
   businessEmailTemplateSettingsSchema,
   emailTemplateKindSchema,
@@ -161,6 +165,17 @@ export async function updateBusinessSettingsAction(
 
     // Invalidate dashboard-scoped cache tags — fast, no per-path overhead.
     updateCacheTags(getBusinessSettingsCacheTags(businessContext.business.id));
+
+    // Expire the shell membership/context caches so the business switcher
+    // picks up the new name/logo on the next refresh. Context tags are
+    // slug-keyed, so cover the previous slug too when it changed.
+    updateCacheTags(getUserMembershipsCacheTags(user.id));
+    updateCacheTags(getUserBusinessContextCacheTags(user.id, result.nextSlug));
+    if (result.previousSlug !== result.nextSlug) {
+      updateCacheTags(
+        getUserBusinessContextCacheTags(user.id, result.previousSlug),
+      );
+    }
 
     // Invalidate the public `/businesses/[slug]` profile cache keyed by
     // slug. Cover both old and new slugs when the slug changed so a stale

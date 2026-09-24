@@ -14,7 +14,7 @@ Related: `docs/architecture.md`, `docs/data.md` (tables), `docs/workflows.md` (e
 
 **Inquiry Note** = human-written note/response on an inquiry (`inquiry_notes`). Not a chat transcript. **Agent/Assistant Message** = a recorded chat message (`ai_agent_messages`, `owner_assistant_messages`).
 
-**Follow-up** (owner reminder task, `follow_ups`) vs **Follow-up Email** (unattended customer sequence, `quotes.autoFollowUp*`) vs **Suggested Message** (copy-paste draft) vs **Reply Snippet** (orphaned `reply_snippets` row, no send path). Never use "follow-up" alone for the email.
+**Follow-up** (owner reminder task, `follow_ups`) vs **Follow-up Email** (unattended customer sequence, `quotes.autoFollowUp*`) vs **Suggested Message** (copy-paste draft) vs **Reply Snippet** (orphaned `reply_snippets` row, no send path). Never use "follow-up" alone for the email. A follow-up's send mode is `manual` (owner sends it) or `automatic` (emailed to the customer at the due time).
 
 **Email Template** = customizable block config (`businesses.quote_email_template`, `invoice_email_template`, `quote_follow_up_template`). Edited in Settings → Email templates.
 

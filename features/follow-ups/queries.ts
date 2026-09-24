@@ -63,6 +63,7 @@ type FollowUpRow = {
   title: string;
   reason: string;
   channel: FollowUpView["channel"];
+  sendMode: FollowUpView["sendMode"];
   category: string;
   recurrence: string;
   recurrenceCount: number;
@@ -156,6 +157,7 @@ function mapFollowUpRow(row: FollowUpRow): FollowUpView {
     reason: row.reason,
     category: (row.category === "post_win" ? "post_win" : "sales") as FollowUpView["category"],
     channel: row.channel,
+    sendMode: row.sendMode ?? "manual",
     recurrence: (row.recurrence ?? "none") as FollowUpView["recurrence"],
     recurrenceCount: row.recurrenceCount ?? 0,
     recurrenceLimit: row.recurrenceLimit ?? null,
@@ -234,6 +236,7 @@ function getFollowUpSelection() {
     reason: followUps.reason,
     category: followUps.category,
     channel: followUps.channel,
+    sendMode: followUps.sendMode,
     recurrence: followUps.recurrence,
     recurrenceCount: followUps.recurrenceCount,
     recurrenceLimit: followUps.recurrenceLimit,
@@ -574,6 +577,36 @@ export async function getFollowUpListPageForBusiness({
 
 export function getPendingFollowUpCount(items: FollowUpView[]) {
   return items.filter((item) => item.status === "pending").length;
+}
+
+/**
+ * Dismissed + completed follow-ups for the History dialog, newest first.
+ * Kept lean (limit 50) — the full filterable list route remains for deep links.
+ */
+export async function getFollowUpHistoryForBusiness({
+  businessId,
+  limit = 50,
+}: {
+  businessId: string;
+  limit?: number;
+}): Promise<FollowUpView[]> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessFollowUpListCacheTags(businessId));
+
+  const rows = await getFollowUpBaseQuery()
+    .where(
+      and(
+        eq(followUps.businessId, businessId),
+        isNull(followUps.deletedAt),
+        or(eq(followUps.status, "completed"), eq(followUps.status, "skipped"))!,
+      ),
+    )
+    .orderBy(desc(followUps.updatedAt))
+    .limit(limit);
+
+  return rows.map(mapFollowUpRow);
 }
 
 export async function getFollowUpForBusiness({

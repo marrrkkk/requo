@@ -37,7 +37,7 @@ export function PrintPageShell({
               <h1 className="mt-2 font-heading text-2xl font-semibold tracking-tight text-balance">
                 {title}
               </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+              <p className="mt-2 max-w-2xl text-sm leading-5 text-muted-foreground">
                 {description}
               </p>
             </div>

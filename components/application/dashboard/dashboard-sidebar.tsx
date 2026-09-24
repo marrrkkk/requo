@@ -362,8 +362,8 @@ export function DashboardSidebar({
   /** Hides the demo Support/Settings secondary rows (e.g. inside the settings shell, which owns its own nav). */
   hideSecondaryNav?: boolean;
   /**
-   * When provided, the Quick Search row opens the global quick-actions
-   * dialog (the former topbar search) instead of filtering nav items.
+   * When provided, the Search row opens the global record search dialog
+   * instead of filtering nav items.
    */
   onQuickSearch?: () => void;
 } = {}) {
@@ -433,7 +433,7 @@ export function DashboardSidebar({
     <aside
       data-collapsed={collapsed}
       className={cx(
-        "group/sidebar flex h-full shrink-0 flex-col justify-between overflow-hidden",
+        "group/sidebar flex h-full shrink-0 flex-col overflow-hidden",
         flat
           ? "bg-background"
           : // Flush to the screen's left edge: no left border or inset gap,
@@ -452,14 +452,13 @@ export function DashboardSidebar({
         className,
       )}
     >
-      {/* `overflow-y: auto` forces the x axis to clip too, and this box hugs
-          its contents on every side — so the selected item's 1px ring, the
-          profile's hover pill (which outsets 6px) and focus rings all landed
-          outside it. Padding moves the clip edge out; the matching negative
-          margin borrows that space back from the rail's own padding, leaving
-          every child exactly where it was. */}
+      {/* Pinned header: the workspace switcher and search stay put while
+          only the primary nav below scrolls. Horizontal bleed (`-mx-2` +
+          `w-[calc(100%+1rem)]` + `px-2`) matches the nav scroller so all rows
+          align; no vertical negative margin here so it never overlaps the
+          scroller. */}
       <div
-        className="-m-2 flex min-h-0 w-[calc(100%+1rem)] flex-col gap-3 overflow-y-auto p-2 [scrollbar-width:none]"
+        className="-mx-2 flex w-[calc(100%+1rem)] shrink-0 flex-col gap-3 px-2 pt-2 pb-1"
       >
         {/* Workspace switcher / collapse control */}
         <div
@@ -486,7 +485,10 @@ export function DashboardSidebar({
               // remove the collapsed business avatar too.
               collapsed
                 ? "flex w-9 items-center justify-center"
-                : "-m-2 overflow-hidden p-2",
+                : // `flex-1` (capped by the `max-w` below) fixes the slot to
+                  // the full header width so the trigger never resizes with
+                  // the business name length — long names truncate instead.
+                  "-m-2 min-w-0 flex-1 overflow-hidden p-2",
               !collapsed &&
                 (mobile && flat && searchActive
                   ? "max-w-0 scale-95 opacity-0"
@@ -626,8 +628,8 @@ export function DashboardSidebar({
             <button
               ref={searchTriggerRef}
               type="button"
-              aria-label="Quick Search"
-              title={collapsed ? "Quick Search" : undefined}
+              aria-label="Search"
+              title={collapsed ? "Search" : undefined}
               onClick={activateSearch}
               className={cx(
                 "flex cursor-pointer items-center hover:bg-sidebar-accent/70",
@@ -646,13 +648,25 @@ export function DashboardSidebar({
                 <RiSearchLine className="size-5 shrink-0 text-muted-foreground" aria-hidden />
                 <Collapsible collapsed={collapsed}>
                   <span className="whitespace-nowrap text-sm leading-6 font-medium text-muted-foreground">
-                    Quick Search
+                    Search
                   </span>
                 </Collapsible>
               </span>
             </button>
           ))}
+        </div>
+      </div>
 
+        {/* Primary nav scroller — the only scroll region in the rail. The
+            header (switcher + search) above and the footer below stay pinned
+            while this scrolls. `overflow-y: auto` forces the x axis to clip
+            too, so padding moves the clip edge out and the matching negative
+            margin borrows that space back from the rail's own padding,
+            leaving every child exactly where it was (this keeps the selected
+            item's 1px ring and focus rings unclipped). */}
+        <div
+          className="-mx-2 flex min-h-0 w-[calc(100%+1rem)] flex-1 flex-col overflow-y-auto px-2 py-2 [scrollbar-width:none]"
+        >
           {/* Primary nav. The 2px inset is for the expanded rail only: the
               collapsed column is exactly as wide as a 36px item, so padding
               here pushes every item 2px right and the rail's own clip shaves
@@ -680,7 +694,6 @@ export function DashboardSidebar({
             )}
           </nav>
         </div>
-      </div>
 
       <div className={cx("flex w-full shrink-0 flex-col gap-3", collapsed && "items-center")}>
         {showThemeToggle &&

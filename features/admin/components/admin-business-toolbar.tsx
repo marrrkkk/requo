@@ -216,9 +216,9 @@ export function AdminBusinessToolbar({
             onClick={() =>
               askConfirm({
                 kind: "archive",
-                label: "Archive business",
+                label: "Archive",
                 description: `${businessName} becomes read-only and hides from active views. Reversible.`,
-                confirmLabel: "Archive business",
+                confirmLabel: "Archive",
               })
             }
             type="button"
@@ -237,9 +237,9 @@ export function AdminBusinessToolbar({
             onClick={() =>
               askConfirm({
                 kind: "restore",
-                label: "Restore business",
+                label: "Restore",
                 description: `${businessName} becomes active again.`,
-                confirmLabel: "Restore business",
+                confirmLabel: "Restore",
               })
             }
             type="button"
@@ -260,9 +260,9 @@ export function AdminBusinessToolbar({
             onClick={() =>
               askConfirm({
                 kind: "delete",
-                label: "Delete business",
+                label: "Delete",
                 description: `${businessName} is soft-deleted and drops out of lists. Restorable from this page — no data is removed.`,
-                confirmLabel: "Delete business",
+                confirmLabel: "Delete",
               })
             }
             type="button"

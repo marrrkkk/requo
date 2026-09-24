@@ -93,7 +93,14 @@ export function getInquiryRecordStateLabel(
 }
 
 export function formatInquiryDate(value: Date | string) {
-  return inquiryDateFormatter.format(new Date(value));
+  // Date-only strings ("YYYY-MM-DD", e.g. requested deadlines) parse as UTC
+  // midnight via `new Date`, which shifts the day in UTC-negative timezones.
+  // Treat them as local midnight, mirroring `formatQuoteDate`.
+  const date =
+    typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())
+      ? new Date(`${value.trim()}T00:00:00`)
+      : new Date(value);
+  return inquiryDateFormatter.format(date);
 }
 
 export function formatInquiryDateTime(value: Date | string) {

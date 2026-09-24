@@ -46,8 +46,38 @@ export default function NewInvoicePage({ params, searchParams }: NewInvoicePageP
 function NewInvoiceSkeleton() {
   return (
     <>
-      <PageHeader eyebrow="Billing" title="New invoice" description="Create a manual invoice." />
-      <div className="h-[34rem] animate-pulse rounded-lg bg-muted/40" />
+      <PageHeader eyebrow="New invoice" title="Create a new invoice" />
+      <div className="dashboard-detail-layout items-start xl:grid-cols-[minmax(0,1.08fr)_0.92fr]">
+        <div className="dashboard-side-stack min-w-0">
+          <div className="section-panel animate-pulse">
+            <div className="flex flex-col gap-5">
+              <div className="h-6 w-32 rounded-md bg-muted" />
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div className="grid gap-3">
+                  <div className="h-4 w-24 rounded-md bg-muted" />
+                  <div className="h-12 w-full rounded-xl bg-muted" />
+                </div>
+                <div className="grid gap-3">
+                  <div className="h-4 w-24 rounded-md bg-muted" />
+                  <div className="h-12 w-full rounded-xl bg-muted" />
+                </div>
+              </div>
+              <div className="grid gap-3">
+                <div className="h-4 w-24 rounded-md bg-muted" />
+                <div className="h-12 w-full rounded-xl bg-muted" />
+              </div>
+            </div>
+          </div>
+          <div className="section-panel animate-pulse">
+            <div className="h-6 w-28 rounded-md bg-muted" />
+            <div className="mt-5 h-24 w-full rounded-xl bg-muted" />
+          </div>
+        </div>
+        <div className="section-panel hidden animate-pulse xl:block">
+          <div className="h-8 w-40 rounded-md bg-muted" />
+          <div className="mt-5 h-64 w-full rounded-xl bg-muted" />
+        </div>
+      </div>
     </>
   );
 }
@@ -71,15 +101,14 @@ async function NewInvoiceContent({ params, searchParams }: NewInvoicePageProps) 
   return (
     <>
       <PageHeader
-        eyebrow="Billing"
-        title="New invoice"
-        description={
-          quote ? `Convert accepted quote ${quote.quoteNumber} into an invoice.` : "Create a manual invoice."
-        }
+        eyebrow="New invoice"
+        title={quote ? `Turn ${quote.quoteNumber} into an invoice` : "Create a new invoice"}
       />
       <NewInvoiceForm
         action={action}
         businessSlug={businessSlug}
+        businessName={businessContext.business.name}
+        businessLogoStoragePath={businessContext.business.logoStoragePath}
         currency={businessContext.business.defaultCurrency}
         quote={
           quote

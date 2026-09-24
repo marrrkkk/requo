@@ -102,10 +102,11 @@ type CreateFollowUpForBusinessInput = {
   quoteId?: string | null;
   actorUserId: string;
   assignedToUserId?: string | null;
-  followUp: Omit<FollowUpCreateInput, "recurrence" | "recurrenceLimit" | "category" | "terminationCondition"> & {
+  followUp: Omit<FollowUpCreateInput, "recurrence" | "recurrenceLimit" | "category" | "sendMode" | "terminationCondition"> & {
     recurrence?: FollowUpCreateInput["recurrence"];
     recurrenceLimit?: FollowUpCreateInput["recurrenceLimit"];
     category?: FollowUpCreateInput["category"];
+    sendMode?: FollowUpCreateInput["sendMode"];
     terminationCondition?: FollowUpCreateInput["terminationCondition"];
   };
   /** Business timezone for anchoring due date. */
@@ -124,6 +125,7 @@ function getFollowUpActionMetadata(input: {
   title: string;
   reason: string;
   channel: string;
+  sendMode?: string;
   dueAt: Date;
 }) {
   return {
@@ -131,8 +133,19 @@ function getFollowUpActionMetadata(input: {
     title: input.title,
     reason: input.reason,
     channel: input.channel,
+    ...(input.sendMode ? { sendMode: input.sendMode } : {}),
     dueAt: input.dueAt.toISOString(),
   };
+}
+
+export class FollowUpCreateValidationError extends Error {
+  field: "sendMode";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "FollowUpCreateValidationError";
+    this.field = "sendMode";
+  }
 }
 
 export async function createFollowUpForBusiness({
@@ -158,7 +171,7 @@ export async function createFollowUpForBusiness({
 
     if (resolvedInquiryId) {
       const [inquiry] = await tx
-        .select({ id: inquiries.id })
+        .select({ id: inquiries.id, customerEmail: inquiries.customerEmail })
         .from(inquiries)
         .where(
           and(
@@ -171,6 +184,12 @@ export async function createFollowUpForBusiness({
       if (!inquiry) {
         return null;
       }
+
+      if (followUp.sendMode === "automatic" && !inquiry.customerEmail) {
+        throw new FollowUpCreateValidationError(
+          "Automatic follow-ups need a customer email on the linked inquiry.",
+        );
+      }
     }
 
     if (resolvedQuoteId) {
@@ -178,6 +197,7 @@ export async function createFollowUpForBusiness({
         .select({
           id: quotes.id,
           inquiryId: quotes.inquiryId,
+          customerEmail: quotes.customerEmail,
         })
         .from(quotes)
         .where(
@@ -191,6 +211,12 @@ export async function createFollowUpForBusiness({
 
       if (!quote) {
         return null;
+      }
+
+      if (followUp.sendMode === "automatic" && !quote.customerEmail) {
+        throw new FollowUpCreateValidationError(
+          "Automatic follow-ups need a customer email on the linked quote.",
+        );
       }
 
       if (resolvedInquiryId && quote.inquiryId && quote.inquiryId !== resolvedInquiryId) {
@@ -210,6 +236,7 @@ export async function createFollowUpForBusiness({
       reason: followUp.reason,
       channel: followUp.channel,
       category: followUp.category ?? "sales",
+      sendMode: followUp.sendMode ?? "manual",
       recurrence: followUp.recurrence ?? "none",
       recurrenceLimit: followUp.recurrenceLimit ?? null,
       terminationCondition: followUp.terminationCondition ?? null,
@@ -234,6 +261,7 @@ export async function createFollowUpForBusiness({
         title: followUp.title,
         reason: followUp.reason,
         channel: followUp.channel,
+        sendMode: followUp.sendMode ?? "manual",
         dueAt,
       }),
       createdAt: now,
@@ -275,6 +303,7 @@ export async function completeFollowUpForBusiness({
         assignedToUserId: followUps.assignedToUserId,
         status: followUps.status,
         dueAt: followUps.dueAt,
+        sendMode: followUps.sendMode,
         recurrence: followUps.recurrence,
         recurrenceCount: followUps.recurrenceCount,
         recurrenceLimit: followUps.recurrenceLimit,
@@ -386,6 +415,7 @@ export async function completeFollowUpForBusiness({
           title: existingFollowUp.title,
           reason: existingFollowUp.reason,
           channel: existingFollowUp.channel as typeof followUps.$inferInsert.channel,
+          sendMode: existingFollowUp.sendMode,
           recurrence: existingFollowUp.recurrence,
           recurrenceCount: existingFollowUp.recurrenceCount + 1,
           recurrenceLimit: existingFollowUp.recurrenceLimit,
@@ -411,6 +441,7 @@ export async function completeFollowUpForBusiness({
             title: existingFollowUp.title,
             reason: existingFollowUp.reason,
             channel: existingFollowUp.channel,
+            sendMode: existingFollowUp.sendMode,
             dueAt: nextDueAt.toISOString(),
             parentFollowUpId: followUpId,
           },
@@ -665,6 +696,7 @@ export async function editFollowUpForBusiness({
         reason: followUp.reason,
         channel: followUp.channel,
         category: followUp.category ?? "sales",
+        sendMode: followUp.sendMode ?? "manual",
         dueAt,
         recurrence: followUp.recurrence ?? "none",
         recurrenceLimit: followUp.recurrenceLimit ?? null,
@@ -691,6 +723,7 @@ export async function editFollowUpForBusiness({
         reason: followUp.reason,
         channel: followUp.channel,
         category: followUp.category,
+        sendMode: followUp.sendMode,
         dueAt: dueAt.toISOString(),
       },
       createdAt: now,

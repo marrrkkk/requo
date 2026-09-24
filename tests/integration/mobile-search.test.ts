@@ -34,13 +34,16 @@ describe("mobile global search", () => {
     await closeTestDb();
   }, 30_000);
 
-  it("rejects queries that are too short or too long", () => {
+  it("rejects queries that are blank or too long", () => {
     expect(normalizeMobileSearchQuery("")).toBeNull();
-    expect(normalizeMobileSearchQuery("a")).toBeNull();
     expect(normalizeMobileSearchQuery("  ")).toBeNull();
     expect(normalizeMobileSearchQuery("x".repeat(81))).toBeNull();
     expect(normalizeMobileSearchQuery(42)).toBeNull();
     expect(normalizeMobileSearchQuery("  taylor  ")).toBe("taylor");
+  });
+
+  it("accepts single-character queries", () => {
+    expect(normalizeMobileSearchQuery("a")).toBe("a");
   });
 
   it("finds inquiries in the requested business", async () => {
@@ -74,7 +77,7 @@ describe("mobile global search", () => {
       searchMobileRecordsForBusiness({
         businessId: ids.businessId,
         businessSlug: ids.businessSlug,
-        query: "x",
+        query: "   ",
       }),
     ).resolves.toEqual([]);
   });

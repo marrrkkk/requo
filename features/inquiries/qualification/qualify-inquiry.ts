@@ -2,7 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db/client";
 import { inquiryDuplicates } from "@/lib/db/schema";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 
 import {
   findEmailRecencyDuplicate,
@@ -50,7 +50,7 @@ export async function qualifyInquiry(input: {
     // 3. Persist duplicate flag if found
     if (duplicate) {
       await db.insert(inquiryDuplicates).values({
-        id: createId("dup"),
+        id: newEntityId(),
         businessId,
         inquiryId,
         originalInquiryId: duplicate.originalInquiryId,

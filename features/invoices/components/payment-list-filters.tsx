@@ -4,8 +4,11 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import { DataListToolbar } from "@/components/shared/data-list-toolbar";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import { paymentMethods, paymentStatusFilterValues, type PaymentListFilters, type PaymentMethod, type PaymentStatusFilterValue } from "@/features/invoices/types";
+import { getPaymentMethodLabel, getPaymentStatusLabel } from "@/features/invoices/utils";
 
 type PaymentListFiltersProps = {
   filters: PaymentListFilters;
@@ -15,15 +18,6 @@ type PaymentListFiltersProps = {
 const statusOptions: PaymentStatusFilterValue[] = [...paymentStatusFilterValues];
 const methodOptions: Array<"all" | PaymentMethod> = ["all", ...paymentMethods];
 
-const methodLabels: Record<PaymentMethod, string> = {
-  cash: "Cash",
-  bank_transfer: "Bank Transfer",
-  gcash: "GCash",
-  maya: "Maya",
-  check: "Check",
-  other: "Other",
-};
-
 export function PaymentListFilters({ filters, resultCount }: PaymentListFiltersProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -32,35 +26,24 @@ export function PaymentListFilters({ filters, resultCount }: PaymentListFiltersP
   const [query, setQuery] = useState(filters.q ?? "");
   const [status, setStatus] = useState<PaymentStatusFilterValue>(filters.status);
   const [method, setMethod] = useState<"all" | PaymentMethod>(filters.method);
+  const [from, setFrom] = useState(filters.from ?? "");
+  const [to, setTo] = useState(filters.to ?? "");
 
   const hasMountedRef = useRef(false);
   const lastAppliedHrefRef = useRef<string>("");
 
-  const navigate = useCallback((nextQuery: string, nextStatus: PaymentStatusFilterValue, nextMethod: "all" | PaymentMethod) => {
-    const params = new URLSearchParams(searchParams.toString());
+  const navigate = useCallback((nextQuery: string, nextStatus: PaymentStatusFilterValue, nextMethod: "all" | PaymentMethod, nextFrom: string, nextTo: string) => {
+    const params = new URLSearchParams();
     const trimmedQuery = nextQuery.trim();
     if (trimmedQuery) params.set("q", trimmedQuery);
-    else params.delete("q");
     if (nextStatus !== "all") params.set("status", nextStatus);
-    else params.delete("status");
     if (nextMethod !== "all") params.set("method", nextMethod);
-    else params.delete("method");
-    params.delete("page");
+    if (nextFrom) params.set("from", nextFrom);
+    if (nextTo) params.set("to", nextTo);
     const href = params.size ? `${pathname}?${params.toString()}` : pathname;
     const currentHref = searchParams.size ? `${pathname}?${searchParams.toString()}` : pathname;
     if (href === currentHref || href === lastAppliedHrefRef.current) return;
     lastAppliedHrefRef.current = href;
-    startTransition(() => {
-      router.replace(href, { scroll: false });
-    });
-  }, [pathname, router, searchParams]);
-
-  const setDate = useCallback((key: "from" | "to", value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value) params.set(key, value);
-    else params.delete(key);
-    params.delete("page");
-    const href = params.size ? `${pathname}?${params.toString()}` : pathname;
     startTransition(() => {
       router.replace(href, { scroll: false });
     });
@@ -72,14 +55,13 @@ export function PaymentListFilters({ filters, resultCount }: PaymentListFiltersP
       return;
     }
     const timer = setTimeout(() => {
-      navigate(query, status, method);
+      navigate(query, status, method, from, to);
     }, 400);
     return () => clearTimeout(timer);
-  }, [navigate, query, status, method]);
+  }, [navigate, query, status, method, from, to]);
 
   return (
-    <div className="flex flex-col gap-3">
-      <DataListToolbar
+    <DataListToolbar
       description="Search by payment, invoice, customer, or reference."
       resultLabel={`${resultCount} ${resultCount === 1 ? "payment" : "payments"}`}
       searchId="payment-search"
@@ -93,11 +75,11 @@ export function PaymentListFilters({ filters, resultCount }: PaymentListFiltersP
       onFilterChange={(value) => {
         const nextStatus = value as PaymentStatusFilterValue;
         setStatus(nextStatus);
-        navigate(query, nextStatus, method);
+        navigate(query, nextStatus, method, from, to);
       }}
       filterOptions={statusOptions.map((option) => ({
         value: option,
-        label: option === "all" ? "All statuses" : option === "recorded" ? "Recorded" : "Voided",
+        label: option === "all" ? "All statuses" : getPaymentStatusLabel(option),
       }))}
       secondaryFilterId="payment-method-filter"
       secondaryFilterLabel="Filter by method"
@@ -105,48 +87,53 @@ export function PaymentListFilters({ filters, resultCount }: PaymentListFiltersP
       onSecondaryFilterChange={(value) => {
         const nextMethod = value as "all" | PaymentMethod;
         setMethod(nextMethod);
-        navigate(query, status, nextMethod);
+        navigate(query, status, nextMethod, from, to);
       }}
       secondaryFilterOptions={methodOptions.map((option) => ({
         value: option,
-        label: option === "all" ? "All methods" : methodLabels[option],
+        label: option === "all" ? "All methods" : getPaymentMethodLabel(option),
       }))}
       isPending={isPending}
       onClear={() => {
         setQuery("");
         setStatus("all");
         setMethod("all");
-        lastAppliedHrefRef.current = pathname;
-        startTransition(() => {
-          router.replace(pathname, { scroll: false });
-        });
+        setFrom("");
+        setTo("");
+        navigate("", "all", "all", "", "");
       }}
-      canClear={Boolean(query.trim() || status !== "all" || method !== "all" || filters.from || filters.to)}
-      />
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="grid gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground" htmlFor="payment-from">From</label>
-          <input
-            className="h-9 rounded-md border bg-background px-3 text-sm shadow-xs"
-            id="payment-from"
-            type="date"
-            key={`from-${filters.from ?? "none"}`}
-            defaultValue={filters.from ?? ""}
-            onChange={(event) => setDate("from", event.target.value)}
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground" htmlFor="payment-to">To</label>
-          <input
-            className="h-9 rounded-md border bg-background px-3 text-sm shadow-xs"
-            id="payment-to"
-            type="date"
-            key={`to-${filters.to ?? "none"}`}
-            defaultValue={filters.to ?? ""}
-            onChange={(event) => setDate("to", event.target.value)}
-          />
-        </div>
+      canClear={Boolean(query.trim() || status !== "all" || method !== "all" || from || to)}
+    >
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-2">
+        <Field className="min-w-0 flex-1 sm:max-w-44">
+          <FieldLabel className="sr-only" htmlFor="payment-from">From</FieldLabel>
+          <FieldContent>
+            <DatePicker
+              id="payment-from"
+              value={from}
+              onChange={(nextFrom) => {
+                setFrom(nextFrom);
+                navigate(query, status, method, nextFrom, to);
+              }}
+              placeholder="From"
+            />
+          </FieldContent>
+        </Field>
+        <Field className="min-w-0 flex-1 sm:max-w-44">
+          <FieldLabel className="sr-only" htmlFor="payment-to">To</FieldLabel>
+          <FieldContent>
+            <DatePicker
+              id="payment-to"
+              value={to}
+              onChange={(nextTo) => {
+                setTo(nextTo);
+                navigate(query, status, method, from, nextTo);
+              }}
+              placeholder="To"
+            />
+          </FieldContent>
+        </Field>
       </div>
-    </div>
+    </DataListToolbar>
   );
 }

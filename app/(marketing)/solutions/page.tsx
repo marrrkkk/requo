@@ -8,11 +8,8 @@ import {
   solutionLinks,
 } from "@/components/marketing/solutions-data";
 import { StructuredData } from "@/components/seo/structured-data";
-import { absoluteUrl, createPageMetadata } from "@/lib/seo/site";
-import {
-  getBreadcrumbListStructuredData,
-  getFaqPageStructuredData,
-} from "@/lib/seo/structured-data";
+import { createPageMetadata } from "@/lib/seo/site";
+import { getFaqPageStructuredData } from "@/lib/seo/structured-data";
 
 export const metadata: Metadata = createPageMetadata({
   description:
@@ -43,26 +40,15 @@ export default async function SolutionsHubPage() {
   "use cache";
   cacheLife("hours");
 
-  const breadcrumbStructuredData = getBreadcrumbListStructuredData({
-    items: [
-      { name: "Home", url: absoluteUrl("/") },
-      { name: "Solutions", url: absoluteUrl("/solutions") },
-    ],
-  });
   const faqStructuredData = getFaqPageStructuredData({ items: [...hubFaqs] });
 
   return (
     <>
       <StructuredData
-        data={breadcrumbStructuredData}
-        id="solutions-hub-breadcrumb-structured-data"
-      />
-      <StructuredData
         data={faqStructuredData}
         id="solutions-hub-faq-structured-data"
       />
       <EditorialPage
-        breadcrumbs={[{ name: "Home", href: "/" }, { name: "Solutions" }]}
         ctaHeadline="Find your workflow."
         ctaSub="Pick your industry and see the inquiry-to-paid loop with your fields."
         definition="Requo is quote software by industry: contractors, consultants, creatives, event producers, cleaning and outdoor crews, and print shops each get tailored inquiry fields, quote line items, follow-ups, and invoicing — one connected loop from first request to paid."

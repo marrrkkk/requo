@@ -19,6 +19,7 @@ import {
   createFollowUpForBusiness,
   deleteFollowUpForBusiness,
   editFollowUpForBusiness,
+  FollowUpCreateValidationError,
   reassignFollowUpForBusiness,
   rescheduleFollowUpForBusiness,
   skipFollowUpForBusiness,
@@ -81,6 +82,7 @@ function getCreateFieldErrors(
     reason: fieldErrors.reason,
     channel: fieldErrors.channel,
     category: fieldErrors.category,
+    sendMode: fieldErrors.sendMode,
     dueDate: fieldErrors.dueDate,
     recurrence: fieldErrors.recurrence,
     recurrenceLimit: fieldErrors.recurrenceLimit,
@@ -96,6 +98,7 @@ function getEditFieldErrors(
     reason: fieldErrors.reason,
     channel: fieldErrors.channel,
     category: fieldErrors.category,
+    sendMode: fieldErrors.sendMode,
     dueDate: fieldErrors.dueDate,
     recurrence: fieldErrors.recurrence,
     recurrenceLimit: fieldErrors.recurrenceLimit,
@@ -142,6 +145,7 @@ async function createFollowUpActionForRecord({
     reason: formData.get("reason"),
     channel: formData.get("channel"),
     category: formData.get("category") || "sales",
+    sendMode: formData.get("sendMode") || "manual",
     dueDate: formData.get("dueDate"),
     recurrence: formData.get("recurrence") || "none",
     recurrenceLimit: formData.get("recurrenceLimit") || null,
@@ -154,6 +158,19 @@ async function createFollowUpActionForRecord({
       "Check the follow-up details and try again.",
       getCreateFieldErrors,
     );
+  }
+
+  // Automatic sending only supports email in v1 (no SMS/WhatsApp sender infra).
+  if (
+    validationResult.data.sendMode === "automatic" &&
+    validationResult.data.channel !== "email"
+  ) {
+    return {
+      error: "Automatic sending is only available for the email channel.",
+      fieldErrors: {
+        sendMode: ["Automatic sending is only available for the email channel."],
+      },
+    };
   }
 
   // Reject terminal_status condition when no linked item exists
@@ -200,6 +217,13 @@ async function createFollowUpActionForRecord({
       followUpId: result.followUpId,
     };
   } catch (error) {
+    if (error instanceof FollowUpCreateValidationError) {
+      return {
+        error: error.message,
+        fieldErrors: { sendMode: [error.message] },
+      };
+    }
+
     console.error("Failed to create follow-up.", error);
 
     return {
@@ -455,6 +479,7 @@ export async function editFollowUpAction(
     reason: formData.get("reason"),
     channel: formData.get("channel"),
     category: formData.get("category") || "sales",
+    sendMode: formData.get("sendMode") || "manual",
     dueDate: formData.get("dueDate"),
     recurrence: formData.get("recurrence") || "none",
     recurrenceLimit: formData.get("recurrenceLimit") || null,
@@ -467,6 +492,18 @@ export async function editFollowUpAction(
       "Check the follow-up details and try again.",
       getEditFieldErrors,
     );
+  }
+
+  if (
+    validationResult.data.sendMode === "automatic" &&
+    validationResult.data.channel !== "email"
+  ) {
+    return {
+      error: "Automatic sending is only available for the email channel.",
+      fieldErrors: {
+        sendMode: ["Automatic sending is only available for the email channel."],
+      },
+    };
   }
 
   try {

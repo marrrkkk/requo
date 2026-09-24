@@ -2,55 +2,65 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * Products page skeleton fallback — matches the structure of the
- * BusinessProductLibraryManager component.
+ * BusinessProductLibraryManager list shell (actions row + toolbar strip +
+ * table rows).
  */
 export function ProductsPageSkeleton() {
   return (
     <div className="flex flex-col gap-4">
-      {/* Stats summary */}
-      <div className="grid gap-3 sm:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex items-start gap-3 rounded-xl border border-border/75 bg-card/97 p-4"
-          >
-            <Skeleton className="size-8 rounded-lg" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <Skeleton className="h-3 w-20 rounded" />
-              <Skeleton className="h-7 w-16 rounded" />
-              <Skeleton className="h-3 w-24 rounded" />
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Toolbar: tabs + buttons */}
-      <div className="flex flex-col gap-3">
-        <Skeleton className="h-9 w-full max-w-md rounded-md sm:h-8" />
-        <div className="flex flex-wrap gap-2">
-          <Skeleton className="h-9 w-32 rounded-md sm:h-8" />
-          <Skeleton className="h-9 w-28 rounded-md sm:h-8" />
-          <Skeleton className="h-9 w-32 rounded-md sm:h-8" />
+      {/* Actions row: usage hint + buttons */}
+      <div className="flex items-center justify-between gap-3">
+        <Skeleton className="h-4 w-32 rounded" />
+        <div className="flex flex-wrap justify-end gap-2">
+          <Skeleton className="h-8 w-28 rounded-md" />
+          <Skeleton className="h-8 w-24 rounded-md" />
+          <Skeleton className="h-8 w-28 rounded-md" />
         </div>
       </div>
 
-      {/* Entries list */}
-      <div className="overflow-hidden rounded-xl border border-border/75">
-        <div className="divide-y divide-border/60">
+      {/* Results card */}
+      <div className="dashboard-table-shell" data-list-card>
+        <div className="data-list-toolbar-strip" aria-hidden="true">
+          <div className="data-list-toolbar-grid">
+            <Skeleton className="h-9 min-w-0 flex-1 rounded-md sm:h-8" />
+            <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:max-w-44" />
+            <Skeleton className="hidden h-8 w-20 shrink-0 rounded-md sm:block" />
+          </div>
+          <Skeleton className="h-9 w-full max-w-xs rounded-md sm:h-8" />
+          <Skeleton className="h-4 w-28 rounded-md" />
+        </div>
+
+        {/* Desktop table rows */}
+        <div className="hidden sm:block">
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
-              className="flex items-start gap-3 px-4 py-2.5 sm:items-center sm:gap-4 sm:px-4 sm:py-3"
+              className="flex items-center gap-3 border-b border-border/60 px-4 py-3 last:border-b-0"
             >
-              <Skeleton className="mt-0.5 size-9 rounded-lg sm:mt-0" />
-              <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-4">
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <Skeleton className="h-4 w-40 rounded" />
-                  <Skeleton className="h-3 w-32 rounded" />
-                </div>
-                <Skeleton className="h-4 w-20 rounded" />
+              <Skeleton className="size-9 shrink-0 rounded-lg" />
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <Skeleton className="h-4 w-40 max-w-full rounded" />
+                <Skeleton className="h-3 w-32 max-w-full rounded" />
               </div>
-              <Skeleton className="size-8 rounded-md" />
+              <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
+              <Skeleton className="h-4 w-10 shrink-0 rounded" />
+              <Skeleton className="h-4 w-20 shrink-0 rounded" />
+              <Skeleton className="size-8 shrink-0 rounded-md" />
+            </div>
+          ))}
+        </div>
+
+        {/* Mobile rows */}
+        <div className="divide-y divide-border/60 sm:hidden">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-start gap-3 px-4 py-3.5">
+              <Skeleton className="size-9 shrink-0 rounded-lg" />
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <Skeleton className="h-4 w-36 max-w-full rounded" />
+                <Skeleton className="h-3 w-24 max-w-full rounded" />
+                <Skeleton className="h-4 w-16 rounded" />
+              </div>
+              <Skeleton className="size-8 shrink-0 rounded-md" />
             </div>
           ))}
         </div>

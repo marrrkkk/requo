@@ -1,10 +1,13 @@
 import { z } from "zod";
 
 import {
+  isSupportedBusinessCountryCode,
   isSupportedBusinessCurrencyCode,
+  normalizeBusinessCountryCode,
   normalizeBusinessCurrencyCode,
 } from "@/features/businesses/locale";
 import { businessTypes } from "@/features/inquiries/business-types";
+import { validateBusinessSlug } from "@/features/businesses/validation";
 
 export const createBusinessSchema = z.object({
   name: z
@@ -12,6 +15,30 @@ export const createBusinessSchema = z.object({
     .trim()
     .min(2, "Enter a business name.")
     .max(80, "Use 80 characters or fewer."),
+  slug: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z
+      .string()
+      .trim()
+      .min(2, "Enter a URL slug.")
+      .max(60, "Use 60 characters or fewer.")
+      .regex(
+        /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/,
+        "Use only lowercase letters, numbers, and hyphens.",
+      )
+      .refine(
+        (value) => validateBusinessSlug(value).valid,
+        "This slug is unavailable — it conflicts with a system route.",
+      )
+      .optional(),
+  ),
+  countryCode: z
+    .string()
+    .trim()
+    .min(1, "Choose a country.")
+    .transform(normalizeBusinessCountryCode)
+    .refine(isSupportedBusinessCountryCode, "Choose a valid country."),
   businessType: z.enum(businessTypes),
   defaultCurrency: z
     .string()

@@ -224,6 +224,22 @@ function readStoredTheme(
     if (storedTheme && isThemePreference(storedTheme)) {
       return storedTheme;
     }
+
+    // One-time migration from the legacy BoardUI key: the old sidebar toggle
+    // wrote `boardui:theme` instead of the canonical key, so adopt it once
+    // and persist through the canonical path (storage + cookie).
+    const legacyTheme = window.localStorage.getItem("boardui:theme");
+
+    if (legacyTheme === "light" || legacyTheme === "dark") {
+      persistThemePreference(legacyTheme, {
+        storageKey,
+      });
+
+      try {
+        window.localStorage.removeItem("boardui:theme");
+      } catch {}
+      return legacyTheme;
+    }
   } catch {}
 
   return fallbackTheme;

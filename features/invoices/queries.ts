@@ -589,6 +589,22 @@ export async function getPaymentListForBusiness({
   };
 }
 
+/**
+ * Page slice of the payment list — mirrors `getInvoiceListPageForBusiness`
+ * so the payments page can prefetch a cached page window like the other
+ * list pages. Thin wrapper over `getPaymentListForBusiness` (shared cache).
+ */
+export async function getPaymentListPageForBusiness({ businessId, filters, page = 1, pageSize = 20 }: { businessId: string; filters: Omit<PaymentListFilters, "page">; page?: number; pageSize?: number }): Promise<PaymentListItem[]> {
+  const { items } = await getPaymentListForBusiness({ businessId, filters: { ...filters, page }, page, pageSize });
+  return items;
+}
+
+/** Result count for the payment list's toolbar and pagination. */
+export async function getPaymentListCountForBusiness({ businessId, filters }: { businessId: string; filters: Omit<PaymentListFilters, "page"> }): Promise<number> {
+  const { total } = await getPaymentListForBusiness({ businessId, filters: { ...filters, page: 1 }, page: 1, pageSize: 1 });
+  return total;
+}
+
 export async function getPaymentDetailForBusiness({
   businessId,
   paymentId,

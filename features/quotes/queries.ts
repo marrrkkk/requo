@@ -15,7 +15,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
-import { after } from "next/server";
+import { after, connection } from "next/server";
 import { cache } from "react";
 
 import { db } from "@/lib/db/client";
@@ -838,6 +838,9 @@ async function getCachedQuoteSendPayloadForBusiness({
 async function getPublicQuoteByTokenImpl(
   token: string,
 ): Promise<PublicQuoteView | null> {
+  // Dynamic per-token page: `after()` below uses the clock, which is
+  // unstable during prerender. Opt into request-time rendering first.
+  await connection();
   scheduleExpiredQuoteSyncForPublicToken(token);
 
   const [quote] = await db

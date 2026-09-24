@@ -78,7 +78,7 @@ export function MarketingFeatureRow({
             <h3 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
               {title}
             </h3>
-            <p className="text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7">
+            <p className="text-sm leading-snug text-muted-foreground sm:text-base sm:leading-6">
               {description}
             </p>
           </div>

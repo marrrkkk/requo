@@ -15,6 +15,7 @@ export type QuoteEditorProps = {
   businessDefaults?: QuoteBusinessDefaults;
   businessName: string;
   businessSlug: string;
+  businessLogoStoragePath?: string | null;
   currency: string;
   initialValues: QuoteEditorValues;
   linkedInquiry: QuoteLinkedInquirySummary | null;

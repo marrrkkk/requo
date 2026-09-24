@@ -23,6 +23,10 @@ import {
 import { InfoTile } from "@/components/shared/info-tile";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { Button } from "@/components/ui/button";
+import {
+  MobileHeaderSlot,
+  mobileNavbarIconButtonClassName,
+} from "@/components/shell/mobile-header-slot";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
@@ -57,11 +61,9 @@ import {
   type InquiryContactMethod,
 } from "@/features/inquiries/form-config";
 import { getCustomerHistoryForBusiness } from "@/features/customers/queries";
-import { CompleteAcceptedQuoteButton } from "@/features/quotes/components/complete-accepted-quote-button";
 import { CopyQuoteLinkButton } from "@/features/quotes/components/copy-quote-link-button";
 import { QuoteWorkflowSteps } from "@/features/businesses/components/workflow-steps";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
-import { QuoteExportPopover } from "@/features/quotes/components/quote-export-popover";
 import { QuoteManageDropdown } from "@/features/quotes/components/quote-manage-dropdown";
 import { QuotePreviewButton } from "@/features/quotes/components/quote-preview-button";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
@@ -100,6 +102,7 @@ import {
   getPublicQuoteUrl,
   getQuoteEditorInitialValuesFromDetail,
 } from "@/features/quotes/utils";
+import { formatInquiryDate } from "@/features/inquiries/utils";
 import {
   getBusinessInquiryPath,
   getBusinessInvoicePath,
@@ -278,9 +281,13 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
         />
       ) : null}
       <DashboardDetailHeader
-        eyebrow="Quote"
+        // Doubles the class for specificity so this beats the shared
+        // `xl:max-w-xl` cap (same layer, source order not guaranteed).
+        actionsClassName="[&.dashboard-detail-header-actions]:xl:max-w-none"
+        className="[&_.dashboard-actions]:max-lg:hidden"
+        eyebrow={`Quote ${quote.quoteNumber}`}
         title={quote.title}
-        description={`Quote created · ${formatQuoteDateTime(quote.createdAt)}`}
+        description={`${quote.customerName} · ${quote.sentAt ? `Sent ${formatQuoteDate(quote.sentAt)}` : `Created ${formatQuoteDate(quote.createdAt)}`} · Valid until ${formatQuoteDate(quote.validUntil)}`}
         meta={
           <>
             <QuoteStatusBadge status={quote.status} />
@@ -288,23 +295,37 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
           </>
         }
         actions={
-          <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto">
-
-            <QuoteManageDropdown
-              archiveAction={archiveAction}
-              businessQuoteListHref={getBusinessQuotesPath(businessSlug)}
-              deleteDraftAction={deleteDraftAction}
-              isArchived={isArchived}
-              restoreArchivedAction={restoreArchivedAction}
-              saveAsTemplateAction={canSaveAsTemplate ? saveAsTemplate : undefined}
-              status={quote.status}
-              voidAction={voidAction}
-            />
-            <QuoteExportPopover
-              canExport={canExportData}
-              pdfHref={getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")}
-              pngHref={getBusinessQuoteExportPath(businessSlug, quote.id, "png")}
-            />
+          <MobileHeaderSlot desktopClassName="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:flex-nowrap [&>[data-slot=button]]:w-full sm:[&>[data-slot=button]]:w-auto">
+            {quote.status === "accepted" && !linkedInvoice ? (
+              <Button
+                asChild
+                aria-label="Create invoice"
+                title="Create invoice"
+                size="sm"
+                className={mobileNavbarIconButtonClassName}
+              >
+                <Link href={getBusinessNewInvoicePath(businessSlug, quote.id)}>
+                  <Receipt data-icon="inline-start" />
+                  <span className="hidden lg:inline">Create invoice</span>
+                </Link>
+              </Button>
+            ) : null}
+            {quote.status === "accepted" && linkedInvoice ? (
+              <Button
+                asChild
+                aria-label={`View invoice ${linkedInvoice.invoiceNumber}`}
+                title={`View invoice ${linkedInvoice.invoiceNumber}`}
+                size="sm"
+                className={mobileNavbarIconButtonClassName}
+              >
+                <Link
+                  href={getBusinessInvoicePath(businessSlug, linkedInvoice.id)}
+                >
+                  <Receipt data-icon="inline-start" />
+                  <span className="hidden lg:inline">View invoice</span>
+                </Link>
+              </Button>
+            ) : null}
             {/* Preview and the draft send dialog both need the line items, so
                 they resolve in one feed region instead of holding the
                 header's identity and management actions. */}
@@ -315,26 +336,37 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
                 openQuoteHref={customerQuoteUrl}
               />
             </Suspense>
-            {quote.status === "accepted" && linkedInvoice ? (
-              <Button asChild variant="outline">
-                <Link href={getBusinessInvoicePath(businessSlug, linkedInvoice.id)}>
-                  <Receipt data-icon="inline-start" />
-                  View invoice {linkedInvoice.invoiceNumber}
-                </Link>
-              </Button>
+            {quote.status !== "draft" &&
+            quote.status !== "accepted" &&
+            customerQuoteUrl ? (
+              <CopyQuoteLinkButton
+                url={customerQuoteUrl}
+                variant="outline"
+                size="sm"
+                compactOnMobile
+              />
             ) : null}
-            {quote.status === "accepted" && !linkedInvoice ? (
-              <Button asChild>
-                <Link href={getBusinessNewInvoicePath(businessSlug, quote.id)}>
-                  <Receipt data-icon="inline-start" />
-                  Create invoice
-                </Link>
-              </Button>
-            ) : null}
-            {quote.status === "accepted" && !quote.completedAt && !quote.canceledAt ? (
-              <CompleteAcceptedQuoteButton completeAction={completeAction} />
-            ) : null}
-          </div>
+            <QuoteManageDropdown
+              archiveAction={archiveAction}
+              businessQuoteListHref={getBusinessQuotesPath(businessSlug)}
+              deleteDraftAction={deleteDraftAction}
+              isArchived={isArchived}
+              restoreArchivedAction={restoreArchivedAction}
+              saveAsTemplateAction={canSaveAsTemplate ? saveAsTemplate : undefined}
+              status={quote.status}
+              voidAction={voidAction}
+              canExport={canExportData}
+              pdfHref={getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")}
+              pngHref={getBusinessQuoteExportPath(businessSlug, quote.id, "png")}
+              openQuoteHref={customerQuoteUrl}
+              showMarkWorkDone={
+                quote.status === "accepted" &&
+                !quote.completedAt &&
+                !quote.canceledAt
+              }
+              completeAction={completeAction}
+            />
+          </MobileHeaderSlot>
         }
       />
 
@@ -349,6 +381,7 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
             <QuoteEditorRegion
               businessId={businessId}
               businessName={businessContext.business.name}
+              businessLogoStoragePath={businessContext.business.logoStoragePath}
               businessPlan={businessContext.business.plan}
               businessSlug={businessSlug}
               quote={quote}
@@ -414,6 +447,8 @@ async function QuoteDetailRegion({ params }: QuoteDetailPageProps) {
               <QuotePreviewRegion
                 businessId={businessId}
                 businessName={businessContext.business.name}
+                businessLogoStoragePath={businessContext.business.logoStoragePath}
+                businessSlug={businessSlug}
                 quote={quote}
               />
             </Suspense>
@@ -525,9 +560,19 @@ async function QuoteHeaderFeedActionsRegion(
     resolveAutoFollowUpGate(props.businessId, props.businessPlan),
   ]);
 
+  const isDraft = props.quote.status === "draft";
+  const isAccepted = props.quote.status === "accepted";
+
   return (
     <>
+      {isDraft ? (
+        <SendQuoteDialog
+          {...buildSendDialogProps({ ...props, ...gate, items })}
+          compactOnMobile
+        />
+      ) : null}
       <QuotePreviewButton
+        variant={isDraft || isAccepted ? "outline" : "default"}
         quote={{
           id: props.quote.id,
           businessId: props.businessId,
@@ -567,9 +612,6 @@ async function QuoteHeaderFeedActionsRegion(
         businessName={props.businessName}
         openQuoteHref={props.openQuoteHref}
       />
-      {props.quote.status === "draft" ? (
-        <SendQuoteDialog {...buildSendDialogProps({ ...props, ...gate, items })} />
-      ) : null}
     </>
   );
 }
@@ -586,6 +628,7 @@ async function QuoteSendSectionRegion(props: SendDialogContext) {
 async function QuoteEditorRegion({
   businessId,
   businessName,
+  businessLogoStoragePath,
   businessPlan,
   businessSlug,
   quote,
@@ -593,6 +636,7 @@ async function QuoteEditorRegion({
 }: {
   businessId: string;
   businessName: string;
+  businessLogoStoragePath: string | null;
   businessPlan: Parameters<typeof hasFeatureAccess>[0];
   businessSlug: string;
   quote: DashboardQuoteDetailCore;
@@ -636,6 +680,7 @@ async function QuoteEditorRegion({
         }
         businessName={businessName}
         businessSlug={businessSlug}
+        businessLogoStoragePath={businessLogoStoragePath}
         canUseAiGenerator={hasFeatureAccess(businessPlan, "aiQuoteDrafting")}
         canUseQuoteLibrary={hasFeatureAccess(businessPlan, "quoteLibrary")}
         currency={quote.currency}
@@ -659,10 +704,14 @@ async function QuoteEditorRegion({
 async function QuotePreviewRegion({
   businessId,
   businessName,
+  businessLogoStoragePath,
+  businessSlug,
   quote,
 }: {
   businessId: string;
   businessName: string;
+  businessLogoStoragePath: string | null;
+  businessSlug: string;
   quote: DashboardQuoteDetailCore;
 }) {
   const items = await getQuoteItemsForBusiness({
@@ -673,6 +722,8 @@ async function QuotePreviewRegion({
   return (
     <QuotePreview
       businessName={businessName}
+      businessLogoStoragePath={businessLogoStoragePath}
+      businessSlug={businessSlug}
       quoteNumber={quote.quoteNumber}
       title={quote.title}
       customerName={quote.customerName}
@@ -880,7 +931,14 @@ function QuoteLinkedInquirySection({
           </DashboardDetailFeed>
           <div className="grid gap-3 sm:grid-cols-2">
             <InfoTile label="Subject" value={quote.linkedInquiry.subject ?? "—"} />
-            <InfoTile label="Deadline" value={quote.linkedInquiry.requestedDeadline ?? "No deadline"} />
+            <InfoTile
+              label="Deadline"
+              value={
+                quote.linkedInquiry.requestedDeadline
+                  ? formatInquiryDate(quote.linkedInquiry.requestedDeadline)
+                  : "No deadline"
+              }
+            />
           </div>
         </div>
       ) : (
@@ -1395,7 +1453,7 @@ function getContactHandleUrl(method: string, handle: string): string | null {
 function QuoteHeaderActionsFallback() {
   return (
     <>
-      <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-28" />
+      <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-36" />
       <Skeleton className="h-9 w-full rounded-md sm:h-8 sm:w-32" />
     </>
   );

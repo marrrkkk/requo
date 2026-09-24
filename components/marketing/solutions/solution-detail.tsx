@@ -44,7 +44,7 @@ export function SolutionDetailPage({ detail }: { detail: SolutionDetail }) {
               <h1 className="font-sans text-[2.5rem] font-normal leading-[1.08] tracking-[-0.035em] text-foreground sm:text-6xl sm:leading-[1.05] lg:text-[4.25rem]">
                 {detail.headline}
               </h1>
-              <p className="max-w-xl font-sans text-[0.95rem] font-normal leading-relaxed text-muted-foreground sm:text-base lg:text-lg lg:leading-relaxed">
+              <p className="max-w-xl font-sans text-[0.95rem] font-normal leading-snug text-muted-foreground sm:text-base lg:text-lg lg:leading-snug">
                 {detail.definition}
               </p>
               <div className="flex flex-row flex-wrap items-center gap-3 pt-1">
@@ -86,7 +86,7 @@ export function SolutionDetailPage({ detail }: { detail: SolutionDetail }) {
             >
               {detail.featuresHeading}
             </h2>
-            <p className="text-sm leading-6 text-muted-foreground sm:text-base sm:leading-7">
+            <p className="text-sm leading-5 text-muted-foreground sm:text-base sm:leading-6">
               {detail.featuresIntro}
             </p>
           </InViewReveal>
@@ -109,7 +109,7 @@ export function SolutionDetailPage({ detail }: { detail: SolutionDetail }) {
             >
               {detail.demoHeadline}
             </h2>
-            <p className="text-sm leading-6 text-muted-foreground sm:text-base sm:leading-7">
+            <p className="text-sm leading-5 text-muted-foreground sm:text-base sm:leading-6">
               {detail.demoIntro}
             </p>
           </InViewReveal>
@@ -130,7 +130,7 @@ export function SolutionDetailPage({ detail }: { detail: SolutionDetail }) {
             >
               Your customer just taps a link.
             </h2>
-            <p className="text-sm leading-6 text-muted-foreground sm:text-base sm:leading-7">
+            <p className="text-sm leading-5 text-muted-foreground sm:text-base sm:leading-6">
               No account, no app to install. They review the details and respond
               — you see every view, accept, and change request.
             </p>
@@ -170,7 +170,7 @@ export function SolutionDetailPage({ detail }: { detail: SolutionDetail }) {
             >
               Explore another workflow.
             </h2>
-            <p className="text-sm leading-6 text-muted-foreground sm:text-base sm:leading-7">
+            <p className="text-sm leading-5 text-muted-foreground sm:text-base sm:leading-6">
               Every solution runs on the same six features —{" "}
               <Link
                 className="font-medium text-primary hover:underline"

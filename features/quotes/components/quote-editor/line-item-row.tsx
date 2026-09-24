@@ -7,23 +7,13 @@ import { CSS } from "@dnd-kit/utilities";
 
 import { StatusBadge, type StatusTone } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
 import type { AiQuoteLineItemReview } from "@/features/quotes/types";
 import { cn } from "@/lib/utils";
 import {
@@ -259,41 +249,25 @@ export function LineItemCard({
         );
       })()}
 
-      <AlertDialog onOpenChange={setConfirmSaveOpen} open={confirmSaveOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Save to pricing library?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This adds a reusable pricing block for &ldquo;
-              {item.description.trim().slice(0, 80)}
-              {item.description.trim().length > 80 ? "…" : ""}
-              &rdquo; at {formatMoney(unitPriceInCents, currency)} per unit. You
-              can reuse it on future quotes.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSavingToPricing}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={isSavingToPricing}
-              onClick={(event) => {
-                event.preventDefault();
-                void handleConfirmSaveToPricing();
-              }}
-            >
-              {isSavingToPricing ? (
-                <>
-                  <Spinner aria-hidden="true" data-icon="inline-start" />
-                  Saving...
-                </>
-              ) : (
-                "Save to pricing"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmationDialog
+        open={confirmSaveOpen}
+        onOpenChange={setConfirmSaveOpen}
+        title="Save to pricing library?"
+        description={
+          <>
+            This adds a reusable pricing block for &ldquo;
+            {item.description.trim().slice(0, 80)}
+            {item.description.trim().length > 80 ? "…" : ""}
+            &rdquo; at {formatMoney(unitPriceInCents, currency)} per unit. You
+            can reuse it on future quotes.
+          </>
+        }
+        confirmLabel="Save to pricing"
+        onConfirm={() => void handleConfirmSaveToPricing()}
+        isPending={isSavingToPricing}
+        tone="neutral"
+        icon={Bookmark}
+      />
     </div>
   );
 }

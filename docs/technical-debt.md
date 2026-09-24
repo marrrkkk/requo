@@ -14,12 +14,12 @@ Architectural inconsistencies found during the documentation reset. Documented o
 - Evidence: was defined in `lib/db/schema/quotes.ts`; zero references in `lib/`, `features/`, `app/`.
 - Resolved: the declaration was removed and `drizzle/0030_omniscient_cassandra_nova.sql` drops the type. The column and its index were already dropped back in `0012_remove_jobs_invoices_automations.sql`, and no table, policy, or view referenced the type, so the drop is data-free. Post-acceptance state continues to live on invoices, not this enum.
 
-## 3. BoardUI / shadcn duality
+## 3. BoardUI / shadcn duality (resolved as frozen compat — issue #73)
 
-- Evidence: `components/base/*` (16 dirs) + `components/application/` + `components/foundations/` exist alongside canonical `components/ui/*` (shadcn) and `DESIGN.md`; only 3 BoardUI compat tokens mapped in `app/globals.css:50-54`.
+- Evidence: `components/base/*` (15 dirs, not 16) + `components/application/` + `components/foundations/` exist alongside canonical `components/ui/*` (40 files) and `DESIGN.md`; BoardUI compat in `app/globals.css` covers tone aliases, composite type ramp, agent-thinking + chart-card blocks (frozen, do not expand).
 - Affected: UI contributions — two component systems invite parallel patterns.
-- Impact: medium (drift risk). `DESIGN.md` + shadcn remain canonical per this reset; the BoardUI rules block was removed from `AGENTS.md` for that reason.
-- Direction: decide per component whether `components/base/*` stays (adopt + document in `DESIGN.md`) or is removed; until then, build new UI on `components/ui/*` + `components/shared/*`.
+- Impact: medium (drift risk). `DESIGN.md` + shadcn remain canonical; the BoardUI prefer-rule was removed from guidance for that reason.
+- Direction (decided): per-component keep as frozen shims per `DESIGN.md` Known inconsistencies + `docs/architecture/adr-015-boardui-compat-freeze.md`; until a dedicated migration lands, build new UI only on `components/ui/*` + `components/shared/*`. `base/kbd/kbd.tsx` already deleted; no further deletions proven safe by reachability (sidebar shell, notification stack, breadcrumb, tabs, stat-cards, agent-thinking all live).
 
 ## 4. Legacy styling debt (already tracked in `DESIGN.md`)
 

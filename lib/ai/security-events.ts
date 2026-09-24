@@ -2,7 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db/client";
 import { aiSecurityEvents } from "@/lib/db/schema";
-import { prefixedId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 
 // ---------------------------------------------------------------------------
 // AI Security Events Logger
@@ -49,7 +49,7 @@ export function logAiSecurityEvent(params: LogAiSecurityEventParams): void {
   // Fire-and-forget: start the async work but don't block the caller
   void (async () => {
     try {
-      const id = prefixedId("ase");
+      const id = newEntityId();
       const inputHash = await hashInput(rawInput);
 
       await db.insert(aiSecurityEvents).values({

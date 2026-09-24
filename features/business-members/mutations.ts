@@ -1,6 +1,7 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
+import { newEntityId } from "@/lib/ids";
 import { and, eq, gt, isNull } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
@@ -30,7 +31,7 @@ export async function createBusinessMemberInvite({
   expiresAt: Date;
 }): Promise<{ inviteId: string }> {
   const tokenHash = hashOpaqueToken(token);
-  const inviteId = randomUUID();
+  const inviteId = newEntityId();
 
   const [row] = await db
     .insert(businessMemberInvites)
@@ -127,7 +128,7 @@ export async function acceptBusinessMemberInvite({
   await db
     .insert(businessMembers)
     .values({
-      id: randomUUID(),
+      id: newEntityId(),
       businessId: invite.businessId,
       userId,
       role: invite.role,
@@ -172,7 +173,7 @@ export async function getOrCreateBusinessInviteLink({
   const inserted = await db
     .insert(businessInviteLinks)
     .values({
-      id: randomUUID(),
+      id: newEntityId(),
       businessId,
       createdByUserId: userId,
       role: "staff",
@@ -230,7 +231,7 @@ export async function regenerateBusinessInviteLink({
   }
 
   await db.insert(businessInviteLinks).values({
-    id: randomUUID(),
+    id: newEntityId(),
     businessId,
     createdByUserId: userId,
     role: "staff",
@@ -314,7 +315,7 @@ export async function acceptBusinessInviteLink({
   await db
     .insert(businessMembers)
     .values({
-      id: randomUUID(),
+      id: newEntityId(),
       businessId: link.businessId,
       userId,
       role: link.role,

@@ -17,6 +17,8 @@ import { toast } from "@/components/base/notification/notify";
 
 import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
 import { Button } from "@/components/ui/button";
+import { mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
+import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -161,6 +163,12 @@ type SendQuoteDialogProps = {
    * button opens the full-page preview in a new tab instead of the inline panel.
    */
   previewHref?: string;
+  /**
+   * Collapse the trigger to an icon-only navbar button below `lg`
+   * (list-page header treatment). Only set for header instances portaled
+   * via `MobileHeaderSlot` — body instances keep their full label.
+   */
+  compactOnMobile?: boolean;
 };
 
 const initialSendState: QuoteSendActionState = {};
@@ -185,6 +193,7 @@ export function SendQuoteDialog({
   acknowledgeAction,
   previewData,
   previewHref,
+  compactOnMobile = false,
 }: SendQuoteDialogProps) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"ready" | "sent">("ready");
@@ -392,9 +401,20 @@ export function SendQuoteDialog({
   return (
     <ResponsiveOverlay open={open} onOpenChange={handleOpenChange}>
       <ResponsiveOverlayTrigger asChild>
-        <Button disabled={disabled} type="button">
+        <Button
+          disabled={disabled}
+          type="button"
+          size={compactOnMobile ? "sm" : undefined}
+          className={compactOnMobile ? cn(mobileNavbarIconButtonClassName) : undefined}
+          aria-label={compactOnMobile ? "Send quote" : undefined}
+          title={compactOnMobile ? "Send quote" : undefined}
+        >
           <SendHorizontal data-icon="inline-start" />
-          Send quote
+          {compactOnMobile ? (
+            <span className="hidden lg:inline">Send</span>
+          ) : (
+            "Send"
+          )}
         </Button>
       </ResponsiveOverlayTrigger>
 

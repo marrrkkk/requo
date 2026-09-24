@@ -14,7 +14,7 @@ import {
   businessMembers,
   user,
 } from "@/lib/db/schema";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 
 type DbClient = (typeof import("@/lib/db/client"))["db"];
 type AuditWriter = Pick<DbClient, "insert" | "select">;
@@ -72,7 +72,7 @@ export async function writeAuditLog(
   });
 
   await writer.insert(auditLogs).values({
-    id: createId("adt"),
+    id: newEntityId(),
     businessId: input.businessId,
     actorUserId: input.actorUserId ?? null,
     entityType: input.entityType,

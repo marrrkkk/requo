@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { LockedFeaturePage } from "@/components/shared/paywall";
 import { ProductsPageSkeleton } from "@/components/shell/products-page-skeleton";
@@ -43,12 +44,12 @@ export default function BusinessProductsPage({
   params: Promise<{ businessSlug: string }>;
 }) {
   return (
-    <>
+    <DashboardPage>
       <PageHeader title="Products" />
       <Suspense fallback={<ProductsPageSkeleton />}>
         <ProductsRegion params={params} />
       </Suspense>
-    </>
+    </DashboardPage>
   );
 }
 

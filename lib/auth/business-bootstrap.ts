@@ -9,7 +9,7 @@ import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
 import { createInquiryFormConfigDefaults } from "@/features/inquiries/form-config";
 import { createInquiryPageConfigDefaults } from "@/features/inquiries/page-config";
 import { db } from "@/lib/db/client";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import {
   activityLogs,
   profiles,
@@ -141,9 +141,9 @@ export async function bootstrapBusinessForUser(
           fallback: "business",
         }),
       );
-      const businessId = createId("biz");
-      const membershipId = createId("bm");
-      const activityId = createId("act");
+      const businessId = newEntityId();
+      const membershipId = newEntityId();
+      const activityId = newEntityId();
       const defaultInquiryForm = createInquiryFormPreset({
         businessType: "general_project_services",
         businessName,
@@ -171,7 +171,7 @@ export async function bootstrapBusinessForUser(
       });
 
       await tx.insert(businessInquiryForms).values({
-        id: createId("ifm"),
+        id: newEntityId(),
         businessId,
         name: defaultInquiryForm.name,
         slug: defaultInquiryForm.slug,

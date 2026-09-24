@@ -3,7 +3,7 @@ import "server-only";
 import { and, count, eq, gte, isNotNull, isNull, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import {
   analyticsBenchmarks,
   businesses,
@@ -131,7 +131,7 @@ export async function computeAnalyticsBenchmarks(): Promise<AnalyticsBenchmarksS
       await db
         .insert(analyticsBenchmarks)
         .values({
-          id: createId("abm"),
+          id: newEntityId(),
           industryCategory,
           sizeTier,
           metricKey,

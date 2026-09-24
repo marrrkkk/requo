@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  CheckCircle2,
-  CircleDashed,
+  ArrowRight,
+  ArrowUpRight,
+  Check,
   Minimize2,
   PartyPopper,
   X,
@@ -17,13 +18,9 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { ActivationChecklistItem } from "@/features/onboarding/activation-checklist";
 
-export type ChecklistItem = {
-  id: string;
-  title: string;
-  complete: boolean;
-  href: string;
-};
+export type ChecklistItem = ActivationChecklistItem;
 
 type SidebarChecklistProps = {
   items: ChecklistItem[];
@@ -40,6 +37,9 @@ export function SidebarChecklist({ items }: SidebarChecklistProps) {
   const totalCount = items.length;
   const allComplete = completedCount === totalCount;
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+  const currentStepId = items.find(
+    (item) => !item.complete && !item.disabled,
+  )?.id;
 
   // Check localStorage for dismissal
   useEffect(() => {
@@ -127,7 +127,7 @@ export function SidebarChecklist({ items }: SidebarChecklistProps) {
         </PopoverTrigger>
         <PopoverContent
           align="start"
-          className="w-72 p-0"
+          className="w-80 p-0"
           side="right"
           sideOffset={8}
         >
@@ -136,8 +136,8 @@ export function SidebarChecklist({ items }: SidebarChecklistProps) {
               <p className="font-heading text-sm font-semibold text-foreground">
                 Getting started
               </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {completedCount}/{totalCount} steps completed
+              <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                {completedCount} of {totalCount} done
               </p>
             </div>
             <button
@@ -152,7 +152,7 @@ export function SidebarChecklist({ items }: SidebarChecklistProps) {
 
           {/* Progress bar */}
           <div className="px-4 pt-3 pb-1">
-            <div className="h-1.5 overflow-hidden rounded-full bg-border">
+            <div className="h-1 overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full bg-primary transition-all duration-500"
                 style={{ width: `${progressPercent}%` }}
@@ -160,35 +160,103 @@ export function SidebarChecklist({ items }: SidebarChecklistProps) {
             </div>
           </div>
 
-          <div className="flex flex-col py-1">
-            {items.map((item) => (
-              <Link
-                key={item.id}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-2 text-sm transition-colors hover:bg-accent/50",
-                  item.complete && "opacity-60",
-                )}
-              >
-                {item.complete ? (
-                  <CheckCircle2 className="size-4 shrink-0 text-primary" />
-                ) : (
-                  <CircleDashed className="size-4 shrink-0 text-muted-foreground" />
-                )}
-                <span
-                  className={cn(
-                    "min-w-0 flex-1 truncate",
-                    item.complete
-                      ? "text-muted-foreground line-through"
-                      : "font-medium text-foreground",
+          <ol className="flex flex-col px-2 py-1">
+            {items.map((item, index) => {
+              const isCurrent = item.id === currentStepId;
+              const stepNumber = index + 1;
+
+              const rowBody = (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "flex size-5 shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-semibold tabular-nums",
+                      item.complete && "bg-primary text-primary-foreground",
+                      !item.complete &&
+                        isCurrent &&
+                        "border border-primary text-primary",
+                      !item.complete &&
+                        !isCurrent &&
+                        "border border-border text-muted-foreground",
+                    )}
+                  >
+                    {item.complete ? (
+                      <Check className="size-3" strokeWidth={3} />
+                    ) : (
+                      stepNumber
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className={cn(
+                        "block truncate text-sm leading-5 font-medium",
+                        item.complete || item.disabled
+                          ? "text-muted-foreground"
+                          : "text-foreground",
+                      )}
+                    >
+                      {item.title}
+                    </span>
+                    <span className="block truncate text-xs leading-5 text-muted-foreground">
+                      {item.detail}
+                    </span>
+                  </span>
+                  {item.complete ? (
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      Done
+                    </span>
+                  ) : item.disabled ? (
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      Locked
+                    </span>
+                  ) : item.external ? (
+                    <ArrowUpRight
+                      className="size-3.5 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <ArrowRight
+                      className="size-3.5 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
                   )}
-                >
-                  {item.title}
-                </span>
-              </Link>
-            ))}
-          </div>
+                </>
+              );
+
+              const rowClassName = cn(
+                "flex items-center gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors",
+                !item.disabled && "hover:bg-accent/60",
+                item.disabled && "opacity-60",
+                isCurrent && "bg-accent/40",
+              );
+
+              if (item.disabled) {
+                return (
+                  <li key={item.id}>
+                    <div className={rowClassName} aria-disabled="true">
+                      {rowBody}
+                    </div>
+                  </li>
+                );
+              }
+
+              return (
+                <li key={item.id}>
+                  <Link
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    {...(item.external
+                      ? { target: "_blank", rel: "noopener noreferrer" }
+                      : {})}
+                    className={rowClassName}
+                    aria-label={`${item.title} — ${item.actionLabel}`}
+                  >
+                    {rowBody}
+                  </Link>
+                </li>
+              );
+            })}
+          </ol>
 
           {/* Dismiss option */}
           <div className="border-t border-border/60 px-4 py-2">

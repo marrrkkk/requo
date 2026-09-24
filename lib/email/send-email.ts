@@ -4,7 +4,7 @@ import { and, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { emailProviders as defaultEmailProviders } from "@/lib/email/providers";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import {
   classifyEmailError,
   EmailProviderError,
@@ -207,7 +207,7 @@ async function createOrClaimOutbox(input: NormalizedSendEmailInput) {
   const [created] = await db
     .insert(emailOutbox)
     .values({
-      id: createId("eml"),
+      id: newEntityId(),
       businessId: input.businessId,
       userId: input.userId,
       type: input.emailType,
@@ -326,7 +326,7 @@ async function recordAttempt({
   retryable: boolean;
 }) {
   await db.insert(emailAttempts).values({
-    id: createId("ema"),
+    id: newEntityId(),
     emailOutboxId,
     provider,
     status: result ? "success" : "failed",

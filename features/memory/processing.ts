@@ -10,7 +10,7 @@ import { generateEmbeddings } from "@/lib/ai/embeddings";
 import { sanitizeMemoryContent } from "@/lib/ai/input-sanitizer";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { db } from "@/lib/db/client";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import {
   businessKnowledgeChunks,
   businessKnowledgeFiles,
@@ -176,7 +176,7 @@ export async function processKnowledgeFile({
       if (chunks.length > 0) {
         await tx.insert(businessKnowledgeChunks).values(
           chunks.map((chunk, index) => ({
-            id: createId("knc"),
+            id: newEntityId(),
             businessId,
             fileId,
             position: index,

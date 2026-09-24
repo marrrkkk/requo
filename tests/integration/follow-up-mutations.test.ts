@@ -5,6 +5,7 @@ import { createInquiryFormConfigDefaults } from "@/features/inquiries/form-confi
 import {
   completeFollowUpForBusiness,
   createFollowUpForBusiness,
+  FollowUpCreateValidationError,
   rescheduleFollowUpForBusiness,
   skipFollowUpForBusiness,
 } from "@/features/follow-ups/mutations";
@@ -158,7 +159,9 @@ describe("features/follow-ups/mutations", () => {
       },
     });
 
-    expect(result?.followUpId).toMatch(/^fup_/);
+    expect(result?.followUpId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
 
     const [followUp] = await testDb
       .select()
@@ -293,8 +296,7 @@ describe("features/follow-ups/mutations", () => {
     );
   }, 15_000);
 
-  it("does not create follow-ups for records outside the scoped business", async () => {
-    const result = await createFollowUpForBusiness({
+  it("does not create follow-ups for records outside the scoped business", async () => {    const result = await createFollowUpForBusiness({
       businessId,
       inquiryId: "missing_inquiry",
       actorUserId: ownerUserId,
@@ -308,5 +310,117 @@ describe("features/follow-ups/mutations", () => {
     });
 
     expect(result).toBeNull();
+  });
+
+  it("defaults send mode to manual and persists automatic", async () => {
+    const manual = await createFollowUpForBusiness({
+      businessId,
+      inquiryId,
+      actorUserId: ownerUserId,
+      assignedToUserId: ownerUserId,
+      followUp: {
+        title: "Manual send mode default",
+        reason: "Defaults should keep existing behavior.",
+        channel: "email",
+        dueDate: "2026-04-28",
+      },
+    });
+
+    const [manualRow] = await testDb
+      .select({ sendMode: followUps.sendMode })
+      .from(followUps)
+      .where(eq(followUps.id, manual!.followUpId));
+
+    expect(manualRow.sendMode).toBe("manual");
+
+    const automatic = await createFollowUpForBusiness({
+      businessId,
+      quoteId,
+      actorUserId: ownerUserId,
+      assignedToUserId: ownerUserId,
+      followUp: {
+        title: "Automatic send mode",
+        reason: "Customer should receive this by email.",
+        channel: "email",
+        sendMode: "automatic",
+        dueDate: "2026-04-29",
+      },
+    });
+
+    const [automaticRow] = await testDb
+      .select({ sendMode: followUps.sendMode })
+      .from(followUps)
+      .where(eq(followUps.id, automatic!.followUpId));
+
+    expect(automaticRow.sendMode).toBe("automatic");
+  });
+
+  it("rejects automatic follow-ups without a customer email", async () => {
+    const noEmailInquiryId = "test_follow_up_inquiry_no_email";
+    const now = new Date("2026-04-20T00:00:00.000Z");
+
+    await testDb
+      .insert(inquiries)
+      .values({
+        id: noEmailInquiryId,
+        businessId,
+        businessInquiryFormId: formId,
+        status: "new",
+        subject: "No email inquiry",
+        customerName: "No Email",
+        customerEmail: null,
+        details: "Customer left no email address.",
+        submittedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoNothing();
+
+    await expect(
+      createFollowUpForBusiness({
+        businessId,
+        inquiryId: noEmailInquiryId,
+        actorUserId: ownerUserId,
+        assignedToUserId: ownerUserId,
+        followUp: {
+          title: "Automatic without email",
+          reason: "This should be rejected.",
+          channel: "email",
+          sendMode: "automatic",
+          dueDate: "2026-04-30",
+        },
+      }),
+    ).rejects.toBeInstanceOf(FollowUpCreateValidationError);
+  });
+
+  it("inherits send mode on recurring follow-ups", async () => {
+    const created = await createFollowUpForBusiness({
+      businessId,
+      quoteId,
+      actorUserId: ownerUserId,
+      assignedToUserId: ownerUserId,
+      followUp: {
+        title: "Recurring automatic",
+        reason: "Each occurrence should stay automatic.",
+        channel: "email",
+        sendMode: "automatic",
+        dueDate: "2026-05-01",
+        recurrence: "daily",
+      },
+    });
+
+    await completeFollowUpForBusiness({
+      businessId,
+      followUpId: created!.followUpId,
+      actorUserId: ownerUserId,
+    });
+
+    const spawned = await testDb
+      .select({ sendMode: followUps.sendMode })
+      .from(followUps)
+      .where(eq(followUps.parentFollowUpId, created!.followUpId));
+
+    expect(spawned).toHaveLength(1);
+    expect(spawned[0].sendMode).toBe("automatic");
   });
 });

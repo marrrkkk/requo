@@ -59,6 +59,22 @@ import type { BusinessMemberRole } from "@/lib/business-members";
 /*  Business Switcher                                                          */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Versioned logo URL for switcher avatars. The `v` param busts the browser
+ * cache the moment a new logo is saved (businesses.updatedAt changes on every
+ * settings save) and lets the logo routes serve immutable caching.
+ */
+function getSwitcherLogoUrl(
+  basePath: string,
+  business: Pick<BusinessContext["business"], "logoStoragePath" | "updatedAt">,
+) {
+  if (!business.logoStoragePath) {
+    return null;
+  }
+
+  return `${basePath}?v=${business.updatedAt.getTime()}`;
+}
+
 export function BusinessSwitcher({
   currentBusiness,
   memberships,
@@ -131,7 +147,7 @@ export function BusinessSwitcher({
           >
             <BusinessAvatar
               name={business.name}
-              logoUrl={business.logoStoragePath ? "/api/business/logo" : null}
+              logoUrl={getSwitcherLogoUrl("/api/business/logo", business)}
               loading="eager"
             />
             <span className="min-w-0 flex-1 truncate text-sm font-medium text-sidebar-foreground group-data-[collapsed=true]/sidebar:hidden">
@@ -148,7 +164,7 @@ export function BusinessSwitcher({
           <div className="flex items-start gap-3.5 group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center">
             <BusinessAvatar
               name={business.name}
-              logoUrl={business.logoStoragePath ? "/api/business/logo" : null}
+              logoUrl={getSwitcherLogoUrl("/api/business/logo", business)}
               className="size-14 rounded-xl border-sidebar-border shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] dark:border-white/8 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_1px_rgba(0,0,0,0.18)] [&_[data-slot=avatar-image]]:rounded-xl [&_[data-slot=avatar-fallback]]:rounded-xl [&_[data-slot=avatar-fallback]]:text-sm [&_[data-slot=avatar-fallback]]:text-sidebar-foreground group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-image]]:group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-fallback]]:group-data-[collapsible=icon]:rounded-lg [&_[data-slot=avatar-fallback]]:group-data-[collapsible=icon]:text-xs"
             />
             <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
@@ -198,7 +214,10 @@ export function BusinessSwitcher({
                 >
                   <BusinessAvatar
                     name={membership.business.name}
-                    logoUrl={membership.business.logoStoragePath ? `/api/business/${membership.business.slug}/logo` : null}
+                    logoUrl={getSwitcherLogoUrl(
+                      `/api/business/${membership.business.slug}/logo`,
+                      membership.business,
+                    )}
                   />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">
@@ -383,11 +402,11 @@ export function DashboardUserMenu({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
-              className="h-auto cursor-pointer justify-between rounded-xl border-2 border-transparent bg-sidebar-accent py-2 pr-4 pl-2.5 hover:border-sidebar-border hover:bg-sidebar-accent group-data-[collapsed=true]/sidebar:h-9 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:border-transparent group-data-[collapsed=true]/sidebar:bg-transparent group-data-[collapsed=true]/sidebar:p-0 data-[state=open]:bg-sidebar-accent"
+              className="group/user-menu h-auto cursor-pointer justify-between rounded-xl border-2 border-transparent bg-sidebar-accent py-2 pr-3 pl-2.5 hover:border-sidebar-border hover:bg-sidebar-accent group-data-[collapsed=true]/sidebar:h-9 group-data-[collapsed=true]/sidebar:w-9 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:rounded-full group-data-[collapsed=true]/sidebar:border-transparent group-data-[collapsed=true]/sidebar:bg-transparent group-data-[collapsed=true]/sidebar:p-0 data-[state=open]:border-sidebar-border data-[state=open]:bg-sidebar-accent"
               size="lg"
               tooltip={displayName}
             >
-              <span className="flex min-w-0 items-center gap-2">
+              <span className="flex min-w-0 flex-1 items-center gap-2">
                 <Avatar className="rounded-full border-0 bg-transparent">
                   {user.avatarSrc ? (
                     <AvatarImage alt={`${displayName} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
@@ -405,8 +424,8 @@ export function DashboardUserMenu({
                   </span>
                 </span>
               </span>
-              <span className="flex size-4 shrink-0 items-center justify-center rounded-xs bg-card group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden">
-                <ChevronDownSmall className="size-4 text-muted-foreground" />
+              <span className="flex size-4 shrink-0 items-center justify-center rounded-xs text-muted-foreground transition-colors group-data-[collapsed=true]/sidebar:hidden group-data-[collapsible=icon]:hidden group-data-[state=open]/user-menu:text-foreground">
+                <ChevronDownSmall className="size-4 transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[state=open]/user-menu:rotate-180" />
               </span>
             </SidebarMenuButton>
           </DropdownMenuTrigger>
@@ -578,7 +597,7 @@ export function MobileBusinessSwitcher({
           >
             <BusinessAvatar
               name={business.name}
-              logoUrl={business.logoStoragePath ? "/api/business/logo" : null}
+              logoUrl={getSwitcherLogoUrl("/api/business/logo", business)}
               size="sm"
               loading="eager"
             />
@@ -605,7 +624,10 @@ export function MobileBusinessSwitcher({
                   >
                     <BusinessAvatar
                       name={membership.business.name}
-                      logoUrl={membership.business.logoStoragePath ? `/api/business/${membership.business.slug}/logo` : null}
+                      logoUrl={getSwitcherLogoUrl(
+                        `/api/business/${membership.business.slug}/logo`,
+                        membership.business,
+                      )}
                     />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-foreground">

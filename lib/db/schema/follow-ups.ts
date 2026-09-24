@@ -44,6 +44,11 @@ export const followUpTerminationConditionEnum = pgEnum(
   ["count", "terminal_status"],
 );
 
+export const followUpSendModeEnum = pgEnum("follow_up_send_mode", [
+  "manual",
+  "automatic",
+]);
+
 export const followUps = pgTable(
   "follow_ups",
   {
@@ -64,6 +69,8 @@ export const followUps = pgTable(
     reason: text("reason").notNull(),
     category: text("category").notNull().default("sales"),
     channel: followUpChannelEnum("channel").notNull().default("email"),
+    /** Manual = owner sends it; automatic = emailed to customer at dueAt. */
+    sendMode: followUpSendModeEnum("send_mode").notNull().default("manual"),
     dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     skippedAt: timestamp("skipped_at", { withTimezone: true }),

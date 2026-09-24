@@ -83,7 +83,7 @@ export function WorkflowTabs() {
       </div>
       <div className="grid min-h-[24rem] lg:grid-cols-[1.05fr_1fr]" role="tabpanel">
         <div className="flex min-h-[19rem] items-center justify-center bg-muted/25 p-5 sm:p-8"><div className="w-full max-w-lg overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm"><StepPreview active={active} /></div></div>
-        <div className="flex flex-col justify-center border-t border-border p-7 sm:p-10 lg:border-l lg:border-t-0 lg:p-12"><p className="meta-label mb-4 text-primary">STEP 0{active + 1} / {title}</p><h3 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">{subtitle}</h3><p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground sm:text-base sm:leading-7">{description}</p><Link className="mt-7 inline-flex w-fit items-center gap-2 text-sm font-medium text-primary hover:underline" href="/signup">Start free <ArrowRight className="size-4" /></Link></div>
+        <div className="flex flex-col justify-center border-t border-border p-7 sm:p-10 lg:border-l lg:border-t-0 lg:p-12"><p className="meta-label mb-4 text-primary">STEP 0{active + 1} / {title}</p><h3 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">{subtitle}</h3><p className="mt-4 max-w-md text-sm leading-5 text-muted-foreground sm:text-base sm:leading-6">{description}</p><Link className="mt-7 inline-flex w-fit items-center gap-2 text-sm font-medium text-primary hover:underline" href="/signup">Start free <ArrowRight className="size-4" /></Link></div>
       </div>
     </div>
   );

@@ -31,7 +31,7 @@ import { businessKnowledgeFiles } from "@/lib/db/schema";
 import { getBusinessMemoryCacheTags } from "@/lib/cache/business-tags";
 import { inngest } from "@/lib/inngest/client";
 import { inngestEvents } from "@/lib/inngest/events";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import { updateTag } from "next/cache";
 
 // ---------------------------------------------------------------------------
@@ -420,7 +420,7 @@ export async function uploadKnowledgeFileAction(
     }
   }
 
-  const fileId = createId("knf");
+  const fileId = newEntityId();
   const extension = finalExtension;
   const storagePath = `${businessId}/${fileId}${extension.toLowerCase()}`;
 

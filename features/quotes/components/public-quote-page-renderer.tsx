@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { BusinessAvatar } from "@/components/shared/business-avatar";
 import type { ReactNode } from "react";
 
 import {
@@ -95,16 +95,15 @@ function QuotePageContent({
           {/* Header: Business + Quote title */}
           <header className="flex flex-col gap-5 pb-6 sm:pb-8">
             <div className="flex items-center gap-3">
-              {quote.businessLogoStoragePath && quote.businessSlug ? (
-                <Image
-                  src={`/api/business/${quote.businessSlug}/logo`}
-                  alt={`${quote.businessName} logo`}
-                  width={36}
-                  height={36}
-                  unoptimized
-                  className="size-9 rounded-lg border border-border/60 bg-background/50 object-cover"
-                />
-              ) : null}
+              <BusinessAvatar
+                name={quote.businessName}
+                logoUrl={
+                  quote.businessLogoStoragePath && quote.businessSlug
+                    ? `/api/business/${quote.businessSlug}/logo`
+                    : null
+                }
+                size="sm"
+              />
               <span className="text-sm font-medium text-muted-foreground">
                 {quote.businessName}
               </span>

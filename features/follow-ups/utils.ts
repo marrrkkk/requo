@@ -1,16 +1,17 @@
 import type { StatusTone } from "@/components/shared/status-badge";
-import { prefixedId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import type {
   FollowUpChannel,
   FollowUpDueBucket,
   FollowUpRecurrence,
+  FollowUpSendMode,
   FollowUpStatus,
   FollowUpTerminationCondition,
 } from "@/features/follow-ups/types";
 
 export const followUpStatusLabels: Record<FollowUpStatus, string> = {
   pending: "To do",
-  completed: "Contacted",
+  completed: "Done",
   skipped: "Dismissed",
 };
 
@@ -38,6 +39,11 @@ export const followUpDueBucketLabels: Record<FollowUpDueBucket, string> = {
   done: "Done",
 };
 
+export const followUpSendModeLabels: Record<FollowUpSendMode, string> = {
+  manual: "Manual",
+  automatic: "Automated",
+};
+
 /**
  * Semantic tone per follow-up state — the colour lives in
  * `components/shared/status-badge`. Exhaustive `Record`s, so adding a member to
@@ -59,6 +65,15 @@ export const followUpDueBucketTones: Record<FollowUpDueBucket, StatusTone> = {
   upcoming: "neutral",
   done: "neutral",
 };
+
+export const followUpSendModeTones: Record<FollowUpSendMode, StatusTone> = {
+  manual: "neutral",
+  automatic: "info",
+};
+
+export function getFollowUpSendModeLabel(sendMode: FollowUpSendMode) {
+  return followUpSendModeLabels[sendMode];
+}
 
 export const followUpRecurrenceLabels: Record<FollowUpRecurrence, string> = {
   none: "No repeat",
@@ -118,11 +133,11 @@ export const followUpOutcomeChoices = [
 ] as const satisfies readonly import("@/features/follow-ups/types").FollowUpOutcomeType[];
 
 export function createFollowUpId() {
-  return prefixedId("fup");
+  return newEntityId();
 }
 
 export function createActivityId() {
-  return prefixedId("act");
+  return newEntityId();
 }
 
 export function getTodayUtcDateString(now = new Date()) {

@@ -130,7 +130,7 @@ function InlineVariant({
     <div className={cn("flex flex-wrap items-center gap-3", className)}>
       <p
         className={cn(
-          "leading-relaxed text-muted-foreground",
+          "leading-snug text-muted-foreground",
           sizeTextClasses[size],
         )}
       >
@@ -182,7 +182,7 @@ function CardVariant({
       <CardContent className="flex flex-col gap-4">
         <p
           className={cn(
-            "leading-relaxed text-muted-foreground",
+            "leading-snug text-muted-foreground",
             sizeTextClasses[size],
           )}
         >
@@ -225,7 +225,7 @@ function BannerVariant({
       <div className="flex flex-wrap items-center gap-2">
         <p
           className={cn(
-            "leading-relaxed text-muted-foreground",
+            "leading-snug text-muted-foreground",
             sizeTextClasses[size],
           )}
         >
@@ -280,7 +280,7 @@ function EmptyStateVariant({
       <div className="flex max-w-md flex-col items-center gap-1.5">
         <p
           className={cn(
-            "leading-relaxed text-muted-foreground",
+            "leading-snug text-muted-foreground",
             sizeTextClasses[size],
           )}
         >

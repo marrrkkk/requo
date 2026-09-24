@@ -18,16 +18,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import {
   Dialog,
   DialogContent,
@@ -299,7 +290,7 @@ export function KnowledgeManager({
             type="button"
           >
             <Plus data-icon="inline-start" />
-            New entry
+            New
           </Button>
         </div>
       </div>
@@ -733,7 +724,7 @@ function AddMemoryEntryDialog({
                   Saving…
                 </>
               ) : (
-                "Save entry"
+                "Save"
               )}
             </Button>
           </DialogFooter>
@@ -926,33 +917,22 @@ function DeleteConfirmDialog({
   }
 
   return (
-    <AlertDialog
+    <ConfirmationDialog
       open={Boolean(entry)}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-    >
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete {itemTypeLabel}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This permanently removes &ldquo;{entry.title}&rdquo; from your
-            knowledge base. AI won&apos;t reference it in future drafts.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel asChild>
-            <Button type="button" variant="outline">
-              Cancel
-            </Button>
-          </AlertDialogCancel>
-          <AlertDialogAction asChild>
-            <Button onClick={handleDelete} type="button" variant="destructive">
-              Delete
-            </Button>
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      title={`Delete ${itemTypeLabel}?`}
+      description={
+        <>
+          This permanently removes &ldquo;{entry.title}&rdquo; from your
+          knowledge base. AI won&apos;t reference it in future drafts.
+        </>
+      }
+      confirmLabel="Delete"
+      onConfirm={handleDelete}
+      tone="destructive"
+      icon={Trash2}
+    />
   );
 }

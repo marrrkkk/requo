@@ -508,11 +508,13 @@ test("inquiry detail exposes PDF export and print-safe document", async ({
   await signIn(page);
   await openBusinessesPage(page, "/inquiries/demo_inquiry_quoted_booth_kit");
 
-  await expect(page.getByRole("button", { name: "Export" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "More actions" }),
+  ).toBeVisible();
   await expect(page.getByRole("link", { name: "Print" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Generate quote" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Export" }).click();
+  await page.getByRole("button", { name: "More actions" }).click();
   await expect(page.getByRole("link", { name: "Export PDF" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Export PNG" })).toBeVisible();
 
@@ -552,10 +554,12 @@ test("quote detail exposes export formats and returns PDF and PNG downloads", as
   await signIn(page);
   await openBusinessesPage(page, "/quotes/demo_quote_sent_1002");
 
-  await expect(page.getByRole("button", { name: "Export" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Print" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Preview" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "More actions" }),
+  ).toBeVisible();
 
-  await page.getByRole("button", { name: "Export" }).click();
+  await page.getByRole("button", { name: "More actions" }).click();
   await expect(page.getByRole("link", { name: "Export PDF" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Export PNG" })).toBeVisible();
 

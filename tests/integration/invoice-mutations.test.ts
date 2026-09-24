@@ -110,7 +110,9 @@ describe("features/invoices/mutations", () => {
   it("creates manual invoices with calculated totals", async () => {
     const created = await createInvoiceForBusiness(manualInvoiceInput());
 
-    expect(created && "id" in created && created.id).toMatch(/^inv_/);
+    expect(created && "id" in created && created.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
 
     const [stored] = await testDb.select().from(invoices).where(eq(invoices.id, (created as { id: string }).id));
     expect(stored).toEqual(

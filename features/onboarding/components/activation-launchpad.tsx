@@ -1,24 +1,16 @@
 import Link from "next/link";
-import {
-  Check,
-  CircleDashed,
-  ClipboardCheck,
-  FileText,
-  Globe,
-  Send,
-} from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
 
 import {
   DashboardActionsRow,
   DashboardSection,
 } from "@/components/shared/dashboard-layout";
 import {
-  getBusinessServicesPath,
-  getBusinessNewQuotePath,
-} from "@/features/businesses/routes";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+  getActivationChecklist,
+} from "@/features/onboarding/activation-checklist";
 import { getBusinessDashboardSummaryData } from "@/features/businesses/queries";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type ActivationLaunchpadProps = {
   businessName: string;
@@ -46,178 +38,163 @@ export async function ActivationLaunchpad({
     return null;
   }
 
-  const publicInquiryPath = `/inquire/${businessSlug}`;
+  const launchpadItems = getActivationChecklist({
+    businessSlug,
+    publicInquiryEnabled,
+    totalInquiries: summary.totalInquiries,
+    totalQuotes: summary.totalQuotes,
+  });
 
-  const launchpadItems = [
-    {
-      id: "review-service",
-      title: "Review your service",
-      detail: "Check the default fields and customize if needed.",
-      complete: true, // Service always exists after onboarding
-      href: getBusinessServicesPath(businessSlug),
-      icon: FileText,
-    },
-    {
-      id: "publish-link",
-      title: publicInquiryEnabled ? "Copy your public link" : "Publish your service",
-      detail: publicInquiryEnabled
-        ? "Share it on your website or send directly to customers."
-        : "Make your service live so customers can submit inquiries.",
-      complete: publicInquiryEnabled,
-      href: getBusinessServicesPath(businessSlug),
-      icon: Globe,
-    },
-    {
-      id: "test-inquiry",
-      title: hasInquiry ? "First inquiry received" : "Send a test inquiry",
-      detail: hasInquiry
-        ? `${summary.totalInquiries} ${summary.totalInquiries === 1 ? "inquiry" : "inquiries"} in your inbox.`
-        : "Submit a test inquiry through your public service to see how it works.",
-      complete: hasInquiry,
-      href: publicInquiryEnabled
-        ? publicInquiryPath
-        : getBusinessServicesPath(businessSlug),
-      icon: Send,
-      external: publicInquiryEnabled && !hasInquiry,
-    },
-    {
-      id: "first-quote",
-      title: hasQuote ? "First quote created" : "Turn it into a quote",
-      detail: hasQuote
-        ? `${summary.totalQuotes} ${summary.totalQuotes === 1 ? "quote" : "quotes"} sent or in progress.`
-        : hasInquiry
-        ? "Create your first quote from an inquiry."
-        : "You'll create a quote after receiving an inquiry.",
-      complete: hasQuote,
-      href: getBusinessNewQuotePath(businessSlug),
-      icon: ClipboardCheck,
-      disabled: !hasInquiry,
-    },
-  ];
+  const completedSteps = launchpadItems.filter((item) => item.complete).length;
+  const totalSteps = launchpadItems.length;
+  const remainingSteps = totalSteps - completedSteps;
+  const progressPercent = Math.round((completedSteps / totalSteps) * 100);
 
-  const remainingSteps = launchpadItems.filter((item) => !item.complete).length;
+  // First incomplete, non-disabled step is the current focus.
+  const currentStepId = launchpadItems.find(
+    (item) => !item.complete && !item.disabled,
+  )?.id;
+  const nextStep = launchpadItems.find(
+    (item) => !item.complete && !item.disabled && item.href,
+  );
 
   return (
     <DashboardSection
       action={
-        <Badge variant="secondary">
-          {remainingSteps === 0
-            ? "Ready to go"
-            : `${remainingSteps} step${remainingSteps === 1 ? "" : "s"} left`}
-        </Badge>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {completedSteps} of {totalSteps} done
+          </span>
+          <span
+            aria-hidden="true"
+            className="h-1 w-16 overflow-hidden rounded-full bg-muted"
+          >
+            <span
+              className="block h-full rounded-full bg-primary transition-[width]"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </span>
+        </div>
       }
-      description={`Get ${businessName} live. Complete these steps to activate your inquiry-to-quote workflow.`}
+      description={`Get ${businessName} live — ${remainingSteps} step${remainingSteps === 1 ? "" : "s"} to activate your inquiry-to-quote workflow.`}
       footer={
-        publicInquiryEnabled && !hasInquiry ? (
+        nextStep ? (
           <DashboardActionsRow>
-            <Button asChild variant="secondary">
+            <Button asChild size="sm">
               <Link
-                href={publicInquiryPath}
-                prefetch={false}
-                rel="noopener noreferrer"
-                target="_blank"
+                href={nextStep.href}
+                prefetch={!nextStep.external}
+                {...(nextStep.external
+                  ? { target: "_blank", rel: "noopener noreferrer" }
+                  : {})}
               >
-                <Send data-icon="inline-start" />
-                Send test inquiry
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>
-                <ClipboardCheck data-icon="inline-start" />
-                Create quote
+                {nextStep.actionLabel}
+                <ArrowRight data-icon="inline-end" />
               </Link>
             </Button>
           </DashboardActionsRow>
-        ) : hasInquiry && !hasQuote ? (
-          <DashboardActionsRow>
-            <Button asChild>
-              <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>
-                <ClipboardCheck data-icon="inline-start" />
-                Create your first quote
-              </Link>
-            </Button>
-          </DashboardActionsRow>
-        ) : (
-          <DashboardActionsRow>
-            <Button asChild variant="secondary">
-              <Link href={getBusinessServicesPath(businessSlug)} prefetch={true}>
-                <Globe data-icon="inline-start" />
-                View service settings
-              </Link>
-            </Button>
-          </DashboardActionsRow>
-        )
+        ) : undefined
       }
-      title="Get your inquiry flow live"
+      title="Getting started"
+      headerClassName="pb-3"
     >
-      <div className="grid gap-3 md:grid-cols-2">
-        {launchpadItems.map((item) => {
-          const Icon = item.icon;
-          const content = (
+      <ol className="flex flex-col divide-y divide-border/60">
+        {launchpadItems.map((item, index) => {
+          const isCurrent = item.id === currentStepId;
+          const stepNumber = index + 1;
+
+          const rowBody = (
             <>
               <span
                 aria-hidden="true"
-                className={
-                  item.complete
-                    ? "flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
-                    : "flex size-6 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground"
-                }
+                className={cn(
+                  "flex size-5 shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-semibold tabular-nums",
+                  item.complete &&
+                    "bg-primary text-primary-foreground",
+                  !item.complete &&
+                    isCurrent &&
+                    "border border-primary text-primary",
+                  !item.complete &&
+                    !isCurrent &&
+                    "border border-border text-muted-foreground",
+                )}
               >
                 {item.complete ? (
-                  <Check className="size-3.5" strokeWidth={3} />
+                  <Check className="size-3" strokeWidth={3} />
                 ) : (
-                  <Icon className="size-4" />
+                  stepNumber
                 )}
               </span>
-              <div className="min-w-0">
-                <p
-                  className={`text-sm font-semibold ${item.disabled ? "text-muted-foreground" : "text-foreground"}`}
+              <span className="min-w-0 flex-1">
+                <span
+                  className={cn(
+                    "block text-sm leading-5 font-medium",
+                    item.complete || item.disabled
+                      ? "text-muted-foreground"
+                      : "text-foreground",
+                  )}
                 >
                   {item.title}
-                </p>
-                <p className="text-sm leading-6 text-muted-foreground">
+                </span>
+                <span className="block truncate text-xs leading-5 text-muted-foreground">
                   {item.detail}
-                </p>
-              </div>
+                </span>
+              </span>
+              {item.complete ? (
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  Done
+                </span>
+              ) : item.disabled ? (
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  Locked
+                </span>
+              ) : (
+                <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground transition-colors group-hover:text-foreground">
+                  <span className="hidden sm:inline">{item.actionLabel}</span>
+                  {item.external ? (
+                    <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                  ) : (
+                    <ArrowRight className="size-3.5" aria-hidden="true" />
+                  )}
+                </span>
+              )}
             </>
           );
 
-          if (item.disabled) {
-            return (
-              <div
-                data-padding="none"
-                className="soft-panel flex items-start gap-3 px-4 py-4 opacity-60"
-                key={item.id}
-              >
-                {content}
-              </div>
-            );
-          }
+          const rowClassName = cn(
+            "group flex items-center gap-3 px-2 py-2.5 text-left",
+            !item.disabled && "transition-colors hover:bg-accent/60 rounded-lg",
+            item.disabled && "opacity-60",
+            isCurrent && "rounded-lg bg-accent/40",
+          );
 
-          if (item.href) {
+          if (item.disabled || !item.href) {
             return (
-              <Link
-                data-padding="none"
-                href={item.href}
-                key={item.id}
-                prefetch={!item.external}
-                {...(item.external
-                  ? { target: "_blank", rel: "noopener noreferrer" }
-                  : {})}
-                className="soft-panel group flex items-start gap-3 px-4 py-4 transition-colors hover:border-border/80 hover:bg-accent/22"
-              >
-                {content}
-              </Link>
+              <li key={item.id}>
+                <div className={rowClassName} aria-disabled={item.disabled}>
+                  {rowBody}
+                </div>
+              </li>
             );
           }
 
           return (
-            <div data-padding="none" className="soft-panel flex items-start gap-3 px-4 py-4" key={item.id}>
-              {content}
-            </div>
+            <li key={item.id}>
+              <Link
+                href={item.href}
+                prefetch={!item.external}
+                {...(item.external
+                  ? { target: "_blank", rel: "noopener noreferrer" }
+                  : {})}
+                className={rowClassName}
+                aria-label={`${item.title} — ${item.actionLabel}`}
+              >
+                {rowBody}
+              </Link>
+            </li>
           );
         })}
-      </div>
+      </ol>
     </DashboardSection>
   );
 }

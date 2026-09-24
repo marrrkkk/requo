@@ -14,7 +14,7 @@ import {
 } from "@/lib/plans/usage";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { sendQuoteAutoFollowUpEmail } from "@/lib/resend/client";
-import { prefixedId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 
 export type AutoFollowUpsSummary = {
   processed: number;
@@ -191,7 +191,7 @@ export async function processQuoteAutoFollowUps(): Promise<AutoFollowUpsSummary>
         .where(eq(quotes.id, row.quoteId));
 
       await db.insert(activityLogs).values({
-        id: prefixedId("act"),
+        id: newEntityId(),
         businessId: row.businessId,
         quoteId: row.quoteId,
         type: "quote.auto_follow_up_sent",

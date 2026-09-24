@@ -110,7 +110,7 @@ export function NeedsAttentionTabs({
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex flex-col">
       {/* Category filter tabs */}
       <div className="flex shrink-0 flex-wrap items-center gap-1.5 pb-2">
         {visibleFilters.map((filter) => (
@@ -138,8 +138,12 @@ export function NeedsAttentionTabs({
         ))}
       </div>
 
-      {/* Filtered items — scrollable with infinite scroll */}
-      <div className="hover-scrollbar min-h-0 flex-1 overflow-y-auto pr-1">
+      {/* Filtered items — flow with the window scroll (single scroll
+          context on /home). Deliberately no inner `overflow-y-auto`: a nested
+          scroller traps wheel/touch over the queue and fights scroll anchoring
+          with the sticky sidebar rail. Infinite scroll observes against the
+          viewport, so it keeps working. */}
+      <div className="flex flex-col">
         <div className="flex flex-col">
           {visibleItems.length ? (
             visibleItems.map((item) => (

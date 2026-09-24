@@ -10,7 +10,7 @@ export type AdminFullscreenNavProps = {
   onOpenChange: (open: boolean) => void;
   /** Streamed user menu slot (Suspense-wrapped by the console layout). */
   userSlot: ReactNode;
-  /** When provided, Quick Search opens the global quick-actions dialog. */
+  /** When provided, Search opens the global record search dialog. */
   onQuickSearch?: () => void;
 };
 

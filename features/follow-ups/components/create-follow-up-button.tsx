@@ -28,12 +28,14 @@ import type {
   FollowUpChannel,
   FollowUpCreateActionState,
   FollowUpRecurrence,
+  FollowUpSendMode,
   FollowUpTerminationCondition,
 } from "@/features/follow-ups/types";
-import { followUpChannels, followUpRecurrences, followUpTerminationConditions } from "@/features/follow-ups/types";
+import { followUpChannels, followUpRecurrences, followUpSendModes, followUpTerminationConditions } from "@/features/follow-ups/types";
 import {
   followUpChannelLabels,
   followUpRecurrenceLabels,
+  followUpSendModeLabels,
   followUpTerminationConditionLabels,
   getQuickFollowUpDueDate,
 } from "@/features/follow-ups/utils";
@@ -56,6 +58,11 @@ type CreateFollowUpButtonProps = {
 const channelOptions = followUpChannels.map((channel) => ({
   label: followUpChannelLabels[channel],
   value: channel,
+}));
+
+const sendModeOptions = followUpSendModes.map((sendMode) => ({
+  label: followUpSendModeLabels[sendMode],
+  value: sendMode,
 }));
 
 const recurrenceOptions = followUpRecurrences.map((r) => ({
@@ -81,6 +88,7 @@ export function CreateFollowUpButton({
   const [title, setTitle] = useState("");
   const [reason, setReason] = useState("");
   const [channel, setChannel] = useState<FollowUpChannel>("email");
+  const [sendMode, setSendMode] = useState<FollowUpSendMode>("manual");
   const [dueDate, setDueDate] = useState(getQuickFollowUpDueDate("3d"));
   const [recurrence, setRecurrence] = useState<FollowUpRecurrence>("none");
   const [recurrenceLimit, setRecurrenceLimit] = useState("");
@@ -122,6 +130,7 @@ export function CreateFollowUpButton({
     setTitle("");
     setReason("");
     setChannel("email");
+    setSendMode("manual");
     setDueDate(getQuickFollowUpDueDate("3d"));
     setRecurrence("none");
     setRecurrenceLimit("");
@@ -153,7 +162,7 @@ export function CreateFollowUpButton({
           type="button"
         >
           <CalendarPlus data-icon="inline-start" />
-          <span className="hidden lg:inline">Create follow-up</span>
+          <span className="hidden lg:inline">Create</span>
         </Button>
       </ResponsiveOverlayTrigger>
       <ResponsiveOverlayContent className="sm:max-w-lg flex flex-col">
@@ -230,6 +239,34 @@ export function CreateFollowUpButton({
                   </FieldContent>
                 </Field>
 
+                <Field data-invalid={Boolean(state.fieldErrors?.sendMode?.[0])}>
+                  <FieldLabel htmlFor="quick-create-send-mode">Send mode</FieldLabel>
+                  <FieldDescription>
+                    {sendMode === "automatic"
+                      ? "Automated: emailed to the customer automatically when due."
+                      : "Manual: you'll send it yourself when it's due."}
+                  </FieldDescription>
+                  <FieldContent>
+                    <input name="sendMode" type="hidden" value={sendMode} />
+                    <Combobox
+                      aria-invalid={Boolean(state.fieldErrors?.sendMode?.[0])}
+                      id="quick-create-send-mode"
+                      onValueChange={(value) => setSendMode(value as FollowUpSendMode)}
+                      options={sendModeOptions}
+                      placeholder="Choose send mode"
+                      value={sendMode}
+                    />
+                  </FieldContent>
+                </Field>
+              </div>
+
+              {sendMode === "automatic" && channel !== "email" && (
+                <p className="text-sm text-destructive" role="alert">
+                  Automatic sending is only available for the email channel.
+                </p>
+              )}
+
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Field data-invalid={Boolean(state.fieldErrors?.dueDate?.[0])}>
                   <FieldLabel htmlFor="quick-create-due-date">Due date</FieldLabel>
                   <FieldContent>
@@ -361,7 +398,7 @@ export function CreateFollowUpButton({
               ) : (
                 <CalendarPlus data-icon="inline-start" />
               )}
-              {isPending ? "Creating..." : "Create follow-up"}
+              {isPending ? "Creating..." : "Create"}
             </Button>
           </ResponsiveOverlayFooter>
         </form>

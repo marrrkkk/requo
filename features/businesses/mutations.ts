@@ -9,7 +9,7 @@ import { getStarterTemplateDefinition } from "@/features/businesses/starter-temp
 import { assertBusinessQuotaAvailableForUser } from "@/features/businesses/quota";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { createInquiryFormPreset, normalizeInquiryFormSlug } from "@/features/inquiries/inquiry-forms";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import {
   createInquiryFormConfigDefaults,
   type InquiryFormConfig,
@@ -226,7 +226,7 @@ export async function createBusinessRecordForUser({
   const firstServiceName = namedServices[0] ?? defaultInquiryForm.name;
 
   await tx.insert(businessInquiryForms).values({
-    id: createId("ifm"),
+    id: newEntityId(),
     businessId,
     name: firstServiceName,
     slug: defaultInquiryForm.slug,
@@ -247,7 +247,7 @@ export async function createBusinessRecordForUser({
     );
 
     await tx.insert(businessInquiryForms).values({
-      id: createId("ifm"),
+      id: newEntityId(),
       businessId,
       name: serviceName,
       slug: formSlug,
@@ -272,7 +272,7 @@ export async function createBusinessRecordForUser({
   }
 
   await tx.insert(businessMembers).values({
-    id: createId("bm"),
+    id: newEntityId(),
     businessId,
     userId: user.id,
     role: "owner",
@@ -281,7 +281,7 @@ export async function createBusinessRecordForUser({
   });
 
   await tx.insert(activityLogs).values({
-    id: createId("act"),
+    id: newEntityId(),
     businessId,
     actorUserId: user.id,
     type: "business.created",
@@ -321,6 +321,7 @@ export async function createBusinessForUser({
   defaultCurrency,
   user,
   name,
+  preferredSlug,
   businessType,
   starterWorkflow,
   countryCode,
@@ -346,6 +347,7 @@ export async function createBusinessForUser({
       defaultCurrency,
       user,
       name,
+      preferredSlug,
       businessType,
       starterWorkflow,
       countryCode,
@@ -496,7 +498,7 @@ export async function archiveBusiness({
       .where(eq(businesses.id, businessId));
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.archived",
@@ -574,7 +576,7 @@ export async function unarchiveBusiness({
       .where(eq(businesses.id, businessId));
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.restored",
@@ -670,7 +672,7 @@ export async function trashBusiness({
       .where(eq(businesses.id, businessId));
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.trashed",
@@ -743,7 +745,7 @@ export async function restoreBusiness({
       .where(eq(businesses.id, businessId));
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       actorUserId,
       type: "business.restored",

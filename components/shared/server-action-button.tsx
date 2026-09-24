@@ -5,15 +5,13 @@ import type { LucideIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+  ResponsiveOverlay,
+  ResponsiveOverlayClose,
+  ResponsiveOverlayContent,
+  ResponsiveOverlayFooter,
+  ResponsiveOverlayTrigger,
+} from "@/components/ui/responsive-overlay";
+import { ConfirmationHeader } from "@/components/shared/confirmation-dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
@@ -48,6 +46,8 @@ type ServerActionButtonProps<State extends ServerActionState> =
     label: string;
     pendingLabel: string;
     variant?: React.ComponentProps<typeof Button>["variant"];
+    size?: React.ComponentProps<typeof Button>["size"];
+    className?: string;
   };
 
 type ServerActionConfirmDialogProps<State extends ServerActionState> =
@@ -59,6 +59,7 @@ type ServerActionConfirmDialogProps<State extends ServerActionState> =
     title: string;
     triggerLabel: string;
     triggerVariant?: React.ComponentProps<typeof Button>["variant"];
+    formValues?: Record<string, string>;
   };
 
 export function ServerActionButton<State extends ServerActionState>({
@@ -72,6 +73,8 @@ export function ServerActionButton<State extends ServerActionState>({
   redirectHref,
   refreshOnSuccess = true,
   variant = "outline",
+  size,
+  className,
 }: ServerActionButtonProps<State>) {
   const router = useProgressRouter();
   const { scheduleRefresh } = useDeferredRefresh();
@@ -110,7 +113,13 @@ export function ServerActionButton<State extends ServerActionState>({
         await formAction(formData);
       }}
     >
-      <Button disabled={disabled || isPending} type="submit" variant={variant}>
+      <Button
+        disabled={disabled || isPending}
+        type="submit"
+        variant={variant}
+        size={size}
+        className={className}
+      >
         {isPending ? (
           <>
             <Spinner data-icon="inline-start" aria-hidden="true" />
@@ -142,6 +151,7 @@ export function ServerActionConfirmDialog<State extends ServerActionState>({
   title,
   triggerLabel,
   triggerVariant = "outline",
+  formValues,
 }: ServerActionConfirmDialogProps<State>) {
   const router = useProgressRouter();
   const { scheduleRefresh } = useDeferredRefresh();
@@ -176,33 +186,40 @@ export function ServerActionConfirmDialog<State extends ServerActionState>({
   }, [onSuccess, redirectHref, refreshOnSuccess, router, scheduleRefresh, state.success]);
 
   return (
-    <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
-      <AlertDialogTrigger asChild>
+    <ResponsiveOverlay open={dialogOpen} onOpenChange={setDialogOpen}>
+      <ResponsiveOverlayTrigger asChild>
         <Button disabled={disabled} type="button" variant={triggerVariant}>
           {Icon ? <Icon data-icon="inline-start" /> : null}
           {triggerLabel}
         </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent className="sm:max-w-lg">
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel asChild>
-            <Button disabled={isPending} type="button" variant="ghost">
-              Cancel
-            </Button>
-          </AlertDialogCancel>
-          <form
-            action={async (formData) => {
-              optimistic?.onOptimistic();
-              await formAction(formData);
-            }}
-          >
-            {redirectHref ? (
-              <input name="redirectHref" type="hidden" value={redirectHref} />
-            ) : null}
+      </ResponsiveOverlayTrigger>
+      <ResponsiveOverlayContent className="sm:max-w-lg">
+        <ConfirmationHeader
+          tone={confirmVariant === "destructive" ? "destructive" : "neutral"}
+          icon={Icon}
+          title={title}
+          description={description}
+        />
+        <form
+          action={async (formData) => {
+            optimistic?.onOptimistic();
+            await formAction(formData);
+          }}
+        >
+          {redirectHref ? (
+            <input name="redirectHref" type="hidden" value={redirectHref} />
+          ) : null}
+          {formValues
+            ? Object.entries(formValues).map(([name, value]) => (
+                <input key={name} name={name} type="hidden" value={value} />
+              ))
+            : null}
+          <ResponsiveOverlayFooter>
+            <ResponsiveOverlayClose asChild>
+              <Button disabled={isPending} type="button" variant="outline">
+                Cancel
+              </Button>
+            </ResponsiveOverlayClose>
             <Button disabled={isPending} type="submit" variant={confirmVariant}>
               {isPending ? (
                 <>
@@ -210,13 +227,16 @@ export function ServerActionConfirmDialog<State extends ServerActionState>({
                   {confirmButtonLabel(confirmPendingLabel, confirmLabel)}
                 </>
               ) : (
-                confirmLabel
+                <>
+                  {Icon ? <Icon data-icon="inline-start" aria-hidden="true" /> : null}
+                  {confirmLabel}
+                </>
               )}
             </Button>
-          </form>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          </ResponsiveOverlayFooter>
+        </form>
+      </ResponsiveOverlayContent>
+    </ResponsiveOverlay>
   );
 }
 

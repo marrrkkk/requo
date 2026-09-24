@@ -72,7 +72,7 @@ describe("paywalled export actions", () => {
     const user = userEvent.setup();
     renderSendQuoteDialog({ pdfExportLocked: true });
 
-    await user.click(screen.getByRole("button", { name: "Send quote" }));
+    await user.click(screen.getByRole("button", { name: "Send" }));
 
     const lockedPdfAction = await screen.findByRole("button", {
       name: "PDF",

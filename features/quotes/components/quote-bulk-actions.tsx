@@ -5,14 +5,12 @@ import { Archive, Ban, Trash2 } from "lucide-react";
 import { toast } from "@/components/base/notification/notify";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmationHeader } from "@/components/shared/confirmation-dialog";
 import {
   ResponsiveOverlay,
   ResponsiveOverlayClose,
   ResponsiveOverlayContent,
-  ResponsiveOverlayDescription,
   ResponsiveOverlayFooter,
-  ResponsiveOverlayHeader,
-  ResponsiveOverlayTitle,
 } from "@/components/ui/responsive-overlay";
 import {
   bulkArchiveQuotesAction,
@@ -55,6 +53,7 @@ export function QuoteBulkActions({
   onOptimisticRemove,
 }: QuoteBulkActionsProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const ids = serializedIds.split(",").filter(Boolean);
 
   function buildQuoteIdsFormData(targetIds: string[]) {
@@ -69,20 +68,48 @@ export function QuoteBulkActions({
 
   return (
     <>
-      <Button
-        onClick={() => {
-          onOptimisticRemove?.(ids, async () => {
-            return bulkArchiveQuotesAction({}, buildQuoteIdsFormData(ids));
-          });
-          onComplete();
-        }}
-        size="sm"
-        type="button"
-        variant="outline"
+      <ResponsiveOverlay
+        open={showArchiveDialog}
+        onOpenChange={setShowArchiveDialog}
       >
-        <Archive data-icon="inline-start" />
-        Archive
-      </Button>
+        <Button
+          onClick={() => setShowArchiveDialog(true)}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          <Archive data-icon="inline-start" />
+          Archive
+        </Button>
+        <ResponsiveOverlayContent className="sm:max-w-md">
+          <ConfirmationHeader
+            tone="neutral"
+            icon={Archive}
+            title={`Archive ${selectedCount} quote${selectedCount !== 1 ? "s" : ""}?`}
+            description="Archived quotes are hidden from the active list. You can restore them later."
+          />
+          <ResponsiveOverlayFooter>
+            <ResponsiveOverlayClose asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </ResponsiveOverlayClose>
+            <Button
+              onClick={() => {
+                onOptimisticRemove?.(ids, async () => {
+                  return bulkArchiveQuotesAction({}, buildQuoteIdsFormData(ids));
+                });
+                setShowArchiveDialog(false);
+                onComplete();
+              }}
+              type="button"
+            >
+              <Archive data-icon="inline-start" />
+              Archive {selectedCount}
+            </Button>
+          </ResponsiveOverlayFooter>
+        </ResponsiveOverlayContent>
+      </ResponsiveOverlay>
 
       <Button
         onClick={() => {
@@ -113,18 +140,15 @@ export function QuoteBulkActions({
           Delete
         </Button>
         <ResponsiveOverlayContent className="sm:max-w-md">
-          <ResponsiveOverlayHeader>
-            <ResponsiveOverlayTitle>
-              Delete {selectedCount} quote{selectedCount !== 1 ? "s" : ""}
-            </ResponsiveOverlayTitle>
-            <ResponsiveOverlayDescription>
-              Only draft, non-archived quotes will be permanently deleted.
-              Other quotes will be skipped.
-            </ResponsiveOverlayDescription>
-          </ResponsiveOverlayHeader>
+          <ConfirmationHeader
+            tone="destructive"
+            icon={Trash2}
+            title={`Delete ${selectedCount} quote${selectedCount !== 1 ? "s" : ""}`}
+            description="Only draft, non-archived quotes will be permanently deleted. Other quotes will be skipped."
+          />
           <ResponsiveOverlayFooter>
             <ResponsiveOverlayClose asChild>
-              <Button type="button" variant="ghost">
+              <Button type="button" variant="outline">
                 Cancel
               </Button>
             </ResponsiveOverlayClose>

@@ -49,7 +49,7 @@ export function normalizeMobileSearchQuery(value: unknown) {
 
   const trimmed = value.trim().replace(/\s+/g, " ");
 
-  if (trimmed.length < 2 || trimmed.length > MAX_QUERY_LENGTH) {
+  if (trimmed.length < 1 || trimmed.length > MAX_QUERY_LENGTH) {
     return null;
   }
 

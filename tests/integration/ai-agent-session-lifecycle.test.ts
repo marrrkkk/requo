@@ -53,7 +53,9 @@ describe("ai-agent sessions & messages", () => {
     it("creates an active session with initial qualification state and 24h expiry", async () => {
     const result = await createActiveAgentSession(ids.businessId);
 
-    expect(result.sessionId).toMatch(/^ags_/);
+    expect(result.sessionId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
     expect(result.publicToken).toMatch(/^[0-9a-f]{64}$/);
     expect(result.expiresAt.getTime() - Date.now()).toBeGreaterThan(23 * 60 * 60 * 1000);
 

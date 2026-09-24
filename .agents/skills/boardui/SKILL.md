@@ -22,12 +22,12 @@ This skill is the always-loaded knowledge: the catalog, the rules, and the patte
 
 ## The workflow
 
-Follow this loop whenever building UI in a BoardUI project. Do not skip step 3: never hand-write a lookalike of a component the registry already ships.
+Follow this loop whenever building UI in a BoardUI project. In Requo (see `DESIGN.md`, issue #73) BoardUI dirs are frozen compat — do not skip the Requo override in steps 3-4.
 
-1. **Detect setup.** If the project has no `styles/theme.css` and no `utils/cx.ts`, BoardUI is not initialized. Run `npx boardui@latest init -y` once (installs Tailwind v4 + runtime deps, writes styles/, utils/, and the always-on agent rules), then wire the stylesheet import it prints.
-2. **Discover.** Component names are exact. Look them up in [references/components.md](references/components.md) (the full catalog with install commands and usage examples) instead of guessing. `npx boardui list` prints the free names.
-3. **Install, never rebuild.** `npx boardui@latest add <name> [more names]` writes the source files and installs missing npm deps. Registry dependencies resolve transitively, so installing `data-table` also brings the pieces it builds on.
-4. **Compose.** Import through the `@/` alias, e.g. `import { Button } from "@/components/base/buttons/button"`. Style only with the design rules below; page recipes live in [references/patterns.md](references/patterns.md).
+1. **Detect setup.** If the project has no `styles/theme.css` and no `utils/cx.ts`, BoardUI is not initialized. Run `npx boardui@latest init -y` once (installs Tailwind v4 + runtime deps, writes styles/, utils/, and the always-on agent rules), then wire the stylesheet import it prints. In Requo, setup is already done — skip init.
+2. **Discover.** Component names are exact. Look them up in [references/components.md](references/components.md) (the full catalog with install commands and usage examples) instead of guessing. `npx boardui list` prints the free names. In Requo, discover in `DESIGN.md` + `components/ui/*` + `components/shared/*` first.
+3. **Install, never rebuild — FROZEN IN REQUO.** Do not run `npx boardui@latest add` in Requo and do not write new `components/base/*` / `components/application/*` imports. `base/` (15 dirs) + `application/` + `foundations/` are frozen shims (sidebar, notification/toast, breadcrumb, tabs, stat-cards, agent-thinking); new UI builds only on `components/ui/*` + `components/shared/*`.
+4. **Compose.** Import through the `@/` alias, e.g. `import { Button } from "@/components/ui/button"` for new Requo code (`@/components/base/buttons/button` remains only inside the frozen shims listed in `DESIGN.md`). Style only with the design rules below; page recipes live in [references/patterns.md](references/patterns.md).
 5. **Verify before finishing.** No raw palette classes, no hand-stacked type utilities, no `dark:` color overrides, classes merged with `cx()`. If any slipped in, fix them.
 
 ## Design rules

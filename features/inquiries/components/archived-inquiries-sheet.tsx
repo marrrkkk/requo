@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Archive, Inbox, RotateCcw, Search, SearchX } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import {
   Empty,
@@ -23,21 +24,29 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Spinner } from "@/components/ui/spinner";
+import { FilterPills } from "@/components/shared/filter-pills";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
-import { ServerActionButton } from "@/components/shared/server-action-button";
+import { bulkUnarchiveInquiriesAction } from "@/features/inquiries/actions";
 import type {
   DashboardInquiryListItem,
   InquiryRecordActionState,
   InquiryStatus,
 } from "@/features/inquiries/types";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
-import { getInquirySourceLabel } from "@/features/inquiries/utils";
+import {
+  formatInquiryDate,
+  getInquirySourceLabel,
+} from "@/features/inquiries/utils";
+import { useAnimatedList } from "@/hooks/use-animated-list";
+import { useBulkSelection } from "@/hooks/use-bulk-selection";
 
 const statusFilterOptions: { label: string; value: InquiryStatus | "all" }[] = [
   { label: "All statuses", value: "all" },
   { label: "New", value: "new" },
   { label: "Waiting", value: "waiting" },
   { label: "Quoted", value: "quoted" },
+  { label: "Overdue", value: "overdue" },
   { label: "Won", value: "won" },
   { label: "Lost", value: "lost" },
 ];
@@ -63,9 +72,17 @@ export function ArchivedInquiriesSheet({
   );
   const [formFilter, setFormFilter] = useState("all");
 
+  const {
+    items: archived,
+    getMotionState,
+    isPendingKey,
+    removeItem,
+    removeItems,
+  } = useAnimatedList(items);
+
   const formOptions = useMemo(() => {
     const seen = new Map<string, string>();
-    for (const item of items) {
+    for (const item of archived) {
       const slug = item.inquiryFormSlug ?? "__no_form__";
       const name = item.inquiryFormName ?? getInquirySourceLabel(item.source);
       if (!seen.has(slug)) {
@@ -73,22 +90,50 @@ export function ArchivedInquiriesSheet({
       }
     }
     return Array.from(seen, ([slug, name]) => ({ slug, name }));
-  }, [items]);
+  }, [archived]);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    return items.filter((item) => {
+    return archived.filter((item) => {
       if (statusFilter !== "all" && item.status !== statusFilter) return false;
       if (formFilter !== "all" && (item.inquiryFormSlug ?? "__no_form__") !== formFilter)
         return false;
       if (!q) return true;
       return (
         item.customerName.toLowerCase().includes(q) ||
+        (item.customerEmail?.toLowerCase().includes(q) ?? false) ||
         getInquirySourceLabel(item.source).toLowerCase().includes(q) ||
         (item.subject?.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [items, query, statusFilter, formFilter]);
+  }, [archived, query, statusFilter, formFilter]);
+
+  const {
+    selectedCount,
+    selectedIds,
+    isSelected,
+    toggle,
+    selectAll,
+    deselectAll,
+    allSelected,
+  } = useBulkSelection(filtered);
+
+  const allFilteredSelected =
+    filtered.length > 0 &&
+    allSelected(filtered.map((item) => item.id));
+
+  function restoreSelected() {
+    const restoreIds = filtered
+      .filter((item) => selectedIds.has(item.id))
+      .map((item) => item.id);
+    if (restoreIds.length === 0) {
+      return;
+    }
+    const formData = new FormData();
+    formData.set("inquiryIds", restoreIds.join(","));
+    removeItems(restoreIds, () => bulkUnarchiveInquiriesAction({}, formData));
+    deselectAll();
+  }
 
   return (
     <Sheet>
@@ -103,9 +148,9 @@ export function ArchivedInquiriesSheet({
         >
           <Archive data-icon="inline-start" />
           <span className="hidden lg:inline">Archived</span>
-          {items.length > 0 ? (
+          {archived.length > 0 ? (
             <span className="ml-1 tabular-nums text-muted-foreground max-lg:hidden">
-              ({items.length})
+              ({archived.length})
             </span>
           ) : null}
         </Button>
@@ -114,73 +159,76 @@ export function ArchivedInquiriesSheet({
         <SheetHeader>
           <SheetTitle>Archived inquiries</SheetTitle>
           <SheetDescription>
-            {items.length === 0
+            {archived.length === 0
               ? "No archived inquiries yet."
-              : `${items.length} archived ${items.length === 1 ? "inquiry" : "inquiries"}`}
+              : `${archived.length} archived ${archived.length === 1 ? "inquiry" : "inquiries"}`}
           </SheetDescription>
         </SheetHeader>
-        <SheetBody className="flex flex-col gap-3 overflow-y-auto">
-          {items.length > 0 ? (
-            <div className="flex flex-col gap-2">
+        <SheetBody className="flex flex-col gap-4 overflow-y-auto">
+          {archived.length > 0 ? (
+            <div className="flex flex-col gap-3">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <label className="sr-only" htmlFor="archived-inquiry-search">
+                  Search archived inquiries
+                </label>
                 <Input
+                  id="archived-inquiry-search"
                   className="pl-9"
                   onChange={(event) => setQuery(event.currentTarget.value)}
-                  placeholder="Search by name or source..."
+                  placeholder="Search name, email, or subject..."
                   type="search"
                   value={query}
                 />
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {statusFilterOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
-                      statusFilter === option.value
-                        ? "border-primary/30 bg-primary/10 text-primary"
-                        : "border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
-                    }`}
-                    onClick={() => setStatusFilter(option.value)}
-                    type="button"
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+              <FilterPills
+                label="Status"
+                options={statusFilterOptions}
+                value={statusFilter}
+                onChange={setStatusFilter}
+              />
               {formOptions.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
-                      formFilter === "all"
-                        ? "border-primary/30 bg-primary/10 text-primary"
-                        : "border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
-                    }`}
-                    onClick={() => setFormFilter("all")}
-                    type="button"
-                  >
-                    All services
-                  </button>
-                  {formOptions.map((form) => (
-                    <button
-                      key={form.slug}
-                      className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
-                        formFilter === form.slug
-                          ? "border-primary/30 bg-primary/10 text-primary"
-                          : "border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
-                      }`}
-                      onClick={() => setFormFilter(form.slug)}
-                      type="button"
-                    >
-                      {form.name}
-                    </button>
-                  ))}
-                </div>
+                <FilterPills
+                  label="Service"
+                  options={[
+                    { label: "All services", value: "all" },
+                    ...formOptions.map((form) => ({
+                      label: form.name,
+                      value: form.slug,
+                    })),
+                  ]}
+                  value={formFilter}
+                  onChange={setFormFilter}
+                />
               ) : null}
             </div>
           ) : null}
 
-          {items.length === 0 ? (
+          {selectedCount > 0 ? (
+            <div
+              className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2"
+              role="toolbar"
+              aria-label="Archived inquiries bulk actions"
+            >
+              <span className="text-xs font-medium tabular-nums">
+                {selectedCount} selected
+              </span>
+              <Button size="xs" type="button" onClick={restoreSelected}>
+                <RotateCcw data-icon="inline-start" />
+                Restore selected
+              </Button>
+              <Button
+                size="xs"
+                type="button"
+                variant="ghost"
+                onClick={deselectAll}
+              >
+                Clear
+              </Button>
+            </div>
+          ) : null}
+
+          {archived.length === 0 ? (
             <Empty className="rounded-none border-0 py-8">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
@@ -211,36 +259,80 @@ export function ArchivedInquiriesSheet({
               </EmptyContent>
             </Empty>
           ) : (
-            <div className="flex flex-col gap-2">
-              <p className="text-xs text-muted-foreground">
-                {filtered.length} {filtered.length === 1 ? "result" : "results"}
-              </p>
-              {filtered.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-3 rounded-lg border border-border/70 px-3 py-3"
-                >
-                  <div className="min-w-0 flex-1">
-                    <Link
-                      className="block truncate text-sm font-medium text-foreground hover:underline"
-                      href={getBusinessInquiryPath(businessSlug, item.id)}
-                    >
-                      {item.customerName}
-                    </Link>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {item.inquiryFormName ?? getInquirySourceLabel(item.source)}
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="data-list-toolbar-count">
+                  {filtered.length} {filtered.length === 1 ? "result" : "results"}
+                </p>
+                {filtered.length > 1 && !allFilteredSelected ? (
+                  <button
+                    className="shrink-0 rounded-sm px-1 py-0.5 text-xs font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() =>
+                      selectAll(filtered.map((item) => item.id))
+                    }
+                    type="button"
+                  >
+                    Select all
+                  </button>
+                ) : null}
+              </div>
+              {filtered.map((item) => {
+                const pending = isPendingKey(item.id);
+                return (
+                  <div
+                    key={item.id}
+                    className="motion-list-item flex flex-col gap-1.5 rounded-xl border border-border/80 bg-background px-3.5 py-3"
+                    data-motion-state={getMotionState(item.id)}
+                  >
+                    <div className="flex items-start gap-2">
+                      <Checkbox
+                        aria-label={`Select inquiry from ${item.customerName}`}
+                        checked={isSelected(item.id)}
+                        onCheckedChange={() => toggle(item.id)}
+                        className="mt-0.5 size-4 rounded-md"
+                      />
+                      <Link
+                        className="block min-w-0 flex-1 truncate text-sm font-semibold tracking-tight text-foreground hover:underline"
+                        href={getBusinessInquiryPath(businessSlug, item.id)}
+                      >
+                        {item.customerName}
+                      </Link>
+                    </div>
+                    {item.customerEmail ? (
+                      <p className="truncate text-xs text-muted-foreground">
+                        {item.customerEmail}
+                      </p>
+                    ) : null}
+                    <p className="truncate text-xs text-muted-foreground/90">
+                      {item.inquiryFormName ??
+                        getInquirySourceLabel(item.source)}
+                      {" · "}
+                      {formatInquiryDate(item.submittedAt)}
                     </p>
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <InquiryStatusBadge size="sm" status={item.status} />
+                      <Button
+                        disabled={pending}
+                        onClick={() =>
+                          removeItem(item.id, () =>
+                            unarchiveAction(item.id, {}, new FormData()),
+                          )
+                        }
+                        size="xs"
+                        type="button"
+                        variant="outline"
+                      >
+                        {pending ? (
+                          <Spinner data-icon="inline-start" aria-hidden="true" />
+                        ) : (
+                          <RotateCcw data-icon="inline-start" />
+                        )}
+                        {pending ? "Restoring..." : "Restore"}
+                      </Button>
+                    </div>
                   </div>
-                  <InquiryStatusBadge status={item.status} />
-                  <ServerActionButton
-                    action={unarchiveAction.bind(null, item.id)}
-                    icon={RotateCcw}
-                    label="Restore"
-                    pendingLabel="..."
-                    variant="ghost"
-                  />
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </SheetBody>

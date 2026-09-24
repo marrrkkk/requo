@@ -3,7 +3,7 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Slot } from "radix-ui";
-import { PanelLeft } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -249,11 +249,13 @@ function SidebarTrigger({
 }: React.ComponentProps<typeof Button>) {
   const { isMobile, openMobile, state, toggleSidebar } = useSidebar();
   const isExpanded = isMobile ? openMobile : state === "expanded";
+  const SidebarToggleIcon = isExpanded ? PanelLeftClose : PanelLeftOpen;
 
   return (
     <Button
       data-sidebar="trigger"
       data-slot="sidebar-trigger"
+      data-state={isExpanded ? "open" : "closed"}
       className={cn("group/sidebar-trigger shrink-0", className)}
       onClick={(event) => {
         onClick?.(event);
@@ -263,14 +265,16 @@ function SidebarTrigger({
       variant="ghost"
       {...props}
     >
-      <PanelLeft
+      <SidebarToggleIcon
         className={cn(
           "transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-emphasized)]",
           isExpanded ? "translate-x-0" : "translate-x-0.5 scale-[0.98]",
         )}
         data-icon="inline-start"
       />
-      <span className="sr-only">Toggle sidebar</span>
+      <span className="sr-only">
+        {isExpanded ? "Close sidebar" : "Open sidebar"}
+      </span>
     </Button>
   );
 }

@@ -129,7 +129,7 @@ export function SolutionFeatures({
           <h3 className="font-heading text-base font-semibold tracking-tight">
             {item.title}
           </h3>
-          <p className="text-sm leading-6 text-muted-foreground">{item.body}</p>
+          <p className="text-sm leading-5 text-muted-foreground">{item.body}</p>
         </div>
       ))}
     </div>
@@ -178,7 +178,7 @@ export function CustomerViewSection({
               <h3 className="font-heading text-base font-semibold tracking-tight">
                 {point.title}
               </h3>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              <p className="mt-1 text-sm leading-5 text-muted-foreground">
                 {point.description}
               </p>
             </div>
@@ -228,7 +228,7 @@ export function SolutionFaq({
           <AccordionTrigger className="py-3.5 text-left text-sm font-medium tracking-tight text-foreground transition-colors hover:text-foreground/80 sm:py-4 sm:text-base">
             {item.question}
           </AccordionTrigger>
-          <AccordionContent className="pb-4 text-xs leading-normal text-muted-foreground sm:pb-5 sm:text-sm sm:leading-6">
+          <AccordionContent className="pb-4 text-xs leading-snug text-muted-foreground sm:pb-5 sm:text-sm sm:leading-5">
             {item.answer}
           </AccordionContent>
         </AccordionItem>
@@ -257,7 +257,7 @@ export function SolutionsFinalCta({
       >
         {headline}
       </h2>
-      <p className="max-w-xl text-sm leading-6 text-muted-foreground sm:text-base sm:leading-7">
+      <p className="max-w-xl text-sm leading-5 text-muted-foreground sm:text-base sm:leading-7">
         {sub}
       </p>
       <div className="flex flex-row flex-wrap items-center justify-center gap-3">
@@ -309,7 +309,7 @@ export function RelatedSolutions({ detail }: { detail: SolutionDetail }) {
               <span className="font-heading text-base font-semibold tracking-tight">
                 {link.title}
               </span>
-              <span className="text-sm leading-6 text-muted-foreground">
+              <span className="text-sm leading-5 text-muted-foreground">
                 {blurb}
               </span>
               <span className="mt-auto inline-flex items-center gap-1.5 pt-1 text-sm font-medium text-primary">

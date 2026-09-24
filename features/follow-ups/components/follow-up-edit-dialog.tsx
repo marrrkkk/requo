@@ -32,13 +32,15 @@ import type {
   FollowUpChannel,
   FollowUpEditActionState,
   FollowUpRecurrence,
+  FollowUpSendMode,
   FollowUpTerminationCondition,
   FollowUpView,
 } from "@/features/follow-ups/types";
-import { followUpChannels, followUpRecurrences, followUpTerminationConditions } from "@/features/follow-ups/types";
+import { followUpChannels, followUpRecurrences, followUpSendModes, followUpTerminationConditions } from "@/features/follow-ups/types";
 import {
   followUpChannelLabels,
   followUpRecurrenceLabels,
+  followUpSendModeLabels,
   followUpTerminationConditionLabels,
   getDateInputValue,
 } from "@/features/follow-ups/utils";
@@ -51,6 +53,11 @@ type FollowUpEditAction = (
 const channelOptions = followUpChannels.map((channel) => ({
   label: followUpChannelLabels[channel],
   value: channel,
+}));
+
+const sendModeOptions = followUpSendModes.map((sendMode) => ({
+  label: followUpSendModeLabels[sendMode],
+  value: sendMode,
 }));
 
 const recurrenceOptions = followUpRecurrences.map((r) => ({
@@ -84,6 +91,7 @@ export function FollowUpEditDialog({
   const [title, setTitle] = useState(followUp.title);
   const [reason, setReason] = useState(followUp.reason);
   const [channel, setChannel] = useState<FollowUpChannel>(followUp.channel);
+  const [sendMode, setSendMode] = useState<FollowUpSendMode>(followUp.sendMode ?? "manual");
   const [category, setCategory] = useState<FollowUpCategory>(followUp.category);
   const [dueDate, setDueDate] = useState(getDateInputValue(followUp.dueAt));
   const [recurrence, setRecurrence] = useState<FollowUpRecurrence>(followUp.recurrence);
@@ -106,6 +114,7 @@ export function FollowUpEditDialog({
     setTitle(followUp.title);
     setReason(followUp.reason);
     setChannel(followUp.channel);
+    setSendMode(followUp.sendMode ?? "manual");
     setCategory(followUp.category);
     setDueDate(getDateInputValue(followUp.dueAt));
     setRecurrence(followUp.recurrence);
@@ -156,7 +165,7 @@ export function FollowUpEditDialog({
               </Field>
 
               <Field data-invalid={Boolean(state.fieldErrors?.reason?.[0])}>
-                <FieldLabel htmlFor="edit-follow-up-reason">Reason</FieldLabel>
+                <FieldLabel htmlFor="edit-follow-up-reason">What do you need to do?</FieldLabel>
                 <FieldContent>
                   <Textarea
                     aria-invalid={Boolean(state.fieldErrors?.reason?.[0])}
@@ -171,104 +180,109 @@ export function FollowUpEditDialog({
                 </FieldContent>
               </Field>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field data-invalid={Boolean(state.fieldErrors?.channel?.[0])}>
-                  <FieldLabel htmlFor="edit-follow-up-channel">Channel</FieldLabel>
-                  <FieldContent>
-                    <input name="channel" type="hidden" value={channel} />
-                    <Combobox
-                      aria-invalid={Boolean(state.fieldErrors?.channel?.[0])}
-                      id="edit-follow-up-channel"
-                      onValueChange={(value) => setChannel(value as FollowUpChannel)}
-                      options={channelOptions}
-                      placeholder="Choose channel"
-                      value={channel}
-                    />
-                  </FieldContent>
-                </Field>
+              <Field data-invalid={Boolean(state.fieldErrors?.dueDate?.[0])}>
+                <FieldLabel htmlFor="edit-follow-up-due-date">When?</FieldLabel>
+                <FieldContent>
+                  <DatePicker
+                    ariaInvalid={Boolean(state.fieldErrors?.dueDate?.[0])}
+                    id="edit-follow-up-due-date"
+                    name="dueDate"
+                    onChange={setDueDate}
+                    required
+                    value={dueDate}
+                  />
+                </FieldContent>
+              </Field>
 
-                <Field data-invalid={Boolean(state.fieldErrors?.category?.[0])}>
-                  <FieldLabel htmlFor="edit-follow-up-category">Category</FieldLabel>
-                  <FieldContent>
-                    <input name="category" type="hidden" value={category} />
-                    <Combobox
-                      aria-invalid={Boolean(state.fieldErrors?.category?.[0])}
-                      id="edit-follow-up-category"
-                      onValueChange={(value) => setCategory(value as FollowUpCategory)}
-                      options={[...categoryOptions]}
-                      placeholder="Choose category"
-                      value={category}
-                    />
-                  </FieldContent>
-                </Field>
-              </div>
+              <Field data-invalid={Boolean(state.fieldErrors?.channel?.[0])}>
+                <FieldLabel htmlFor="edit-follow-up-channel">How?</FieldLabel>
+                <FieldContent>
+                  <input name="channel" type="hidden" value={channel} />
+                  <Combobox
+                    aria-invalid={Boolean(state.fieldErrors?.channel?.[0])}
+                    id="edit-follow-up-channel"
+                    onValueChange={(value) => setChannel(value as FollowUpChannel)}
+                    options={channelOptions}
+                    placeholder="Choose channel"
+                    value={channel}
+                  />
+                </FieldContent>
+              </Field>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field data-invalid={Boolean(state.fieldErrors?.dueDate?.[0])}>
-                  <FieldLabel htmlFor="edit-follow-up-due-date">Due date</FieldLabel>
-                  <FieldContent>
-                    <DatePicker
-                      ariaInvalid={Boolean(state.fieldErrors?.dueDate?.[0])}
-                      id="edit-follow-up-due-date"
-                      name="dueDate"
-                      onChange={setDueDate}
-                      required
-                      value={dueDate}
-                    />
-                  </FieldContent>
-                </Field>
-              </div>
+              <Field data-invalid={Boolean(state.fieldErrors?.sendMode?.[0])}>
+                <FieldLabel htmlFor="edit-follow-up-send-mode">How should this send?</FieldLabel>
+                <FieldDescription>
+                  {sendMode === "automatic"
+                    ? "Emailed to the customer automatically at the due time."
+                    : "You'll send it yourself when it's due."}
+                </FieldDescription>
+                <FieldContent>
+                  <input name="sendMode" type="hidden" value={sendMode} />
+                  <Combobox
+                    aria-invalid={Boolean(state.fieldErrors?.sendMode?.[0])}
+                    id="edit-follow-up-send-mode"
+                    onValueChange={(value) => setSendMode(value as FollowUpSendMode)}
+                    options={sendModeOptions}
+                    placeholder="Choose send mode"
+                    value={sendMode}
+                  />
+                </FieldContent>
+              </Field>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field data-invalid={Boolean(state.fieldErrors?.recurrence?.[0])}>
-                  <FieldLabel htmlFor="edit-follow-up-recurrence">Repeat</FieldLabel>
+              {sendMode === "automatic" && channel !== "email" && (
+                <p className="text-sm text-destructive" role="alert">
+                  Automatic sending is only available for the email channel.
+                </p>
+              )}
+
+              <Field data-invalid={Boolean(state.fieldErrors?.recurrence?.[0])}>
+                <FieldLabel htmlFor="edit-follow-up-recurrence">Repeat</FieldLabel>
+                <FieldContent>
+                  <input name="recurrence" type="hidden" value={recurrence} />
+                  <Combobox
+                    aria-invalid={Boolean(state.fieldErrors?.recurrence?.[0])}
+                    id="edit-follow-up-recurrence"
+                    onValueChange={(value) => {
+                      setRecurrence(value as FollowUpRecurrence);
+                      if (value === "none") {
+                        setTerminationCondition("none");
+                        setRecurrenceLimit("");
+                      }
+                    }}
+                    options={recurrenceOptions}
+                    placeholder="Don't repeat"
+                    value={recurrence}
+                  />
+                </FieldContent>
+              </Field>
+
+              {recurrence !== "none" && (
+                <Field data-invalid={Boolean(state.fieldErrors?.terminationCondition?.[0])}>
+                  <FieldLabel htmlFor="edit-follow-up-termination-condition">
+                    Stop when
+                  </FieldLabel>
                   <FieldContent>
-                    <input name="recurrence" type="hidden" value={recurrence} />
+                    <input
+                      name="terminationCondition"
+                      type="hidden"
+                      value={terminationCondition === "none" ? "" : terminationCondition}
+                    />
                     <Combobox
-                      aria-invalid={Boolean(state.fieldErrors?.recurrence?.[0])}
-                      id="edit-follow-up-recurrence"
+                      aria-invalid={Boolean(state.fieldErrors?.terminationCondition?.[0])}
+                      id="edit-follow-up-termination-condition"
                       onValueChange={(value) => {
-                        setRecurrence(value as FollowUpRecurrence);
-                        if (value === "none") {
-                          setTerminationCondition("none");
+                        setTerminationCondition(value as FollowUpTerminationCondition | "none");
+                        if (value !== "count") {
                           setRecurrenceLimit("");
                         }
                       }}
-                      options={recurrenceOptions}
-                      placeholder="No repeat"
-                      value={recurrence}
+                      options={terminationConditionOptions}
+                      placeholder="No end condition"
+                      value={terminationCondition}
                     />
                   </FieldContent>
                 </Field>
-
-                {recurrence !== "none" && (
-                  <Field data-invalid={Boolean(state.fieldErrors?.terminationCondition?.[0])}>
-                    <FieldLabel htmlFor="edit-follow-up-termination-condition">
-                      End condition
-                    </FieldLabel>
-                    <FieldContent>
-                      <input
-                        name="terminationCondition"
-                        type="hidden"
-                        value={terminationCondition === "none" ? "" : terminationCondition}
-                      />
-                      <Combobox
-                        aria-invalid={Boolean(state.fieldErrors?.terminationCondition?.[0])}
-                        id="edit-follow-up-termination-condition"
-                        onValueChange={(value) => {
-                          setTerminationCondition(value as FollowUpTerminationCondition | "none");
-                          if (value !== "count") {
-                            setRecurrenceLimit("");
-                          }
-                        }}
-                        options={terminationConditionOptions}
-                        placeholder="No end condition"
-                        value={terminationCondition}
-                      />
-                    </FieldContent>
-                  </Field>
-                )}
-              </div>
+              )}
 
               {recurrence !== "none" && terminationCondition === "count" && (
                 <Field data-invalid={Boolean(state.fieldErrors?.recurrenceLimit?.[0])}>
@@ -298,6 +312,21 @@ export function FollowUpEditDialog({
                   A linked inquiry or quote is required for this end condition.
                 </p>
               )}
+
+              <Field data-invalid={Boolean(state.fieldErrors?.category?.[0])}>
+                <FieldLabel htmlFor="edit-follow-up-category">Category</FieldLabel>
+                <FieldContent>
+                  <input name="category" type="hidden" value={category} />
+                  <Combobox
+                    aria-invalid={Boolean(state.fieldErrors?.category?.[0])}
+                    id="edit-follow-up-category"
+                    onValueChange={(value) => setCategory(value as FollowUpCategory)}
+                    options={[...categoryOptions]}
+                    placeholder="Choose category"
+                    value={category}
+                  />
+                </FieldContent>
+              </Field>
             </FieldGroup>
           </div>
           <ResponsiveOverlayFooter>

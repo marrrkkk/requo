@@ -232,6 +232,20 @@
       "when": 1790000000000,
       "tag": "0032_quote_acceptances",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790244429337,
+      "tag": "0033_follow_up_send_mode",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790248470546,
+      "tag": "0034_private_storage_buckets",
+      "breakpoints": true
     }
   ]
 }

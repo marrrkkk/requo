@@ -219,6 +219,7 @@ export const isMagicLinkEnabled = Boolean(
  */
 export const isInquiryAckEmailEnabled = !isLowEmailMode;
 export const isFollowUpReminderEmailEnabled = !isLowEmailMode;
+export const isFollowUpAutoSendEmailEnabled = !isLowEmailMode;
 export const isQuoteAutoFollowUpEmailEnabled = !isLowEmailMode;
 export const isAnalyticsDigestEmailEnabled = !isLowEmailMode;
 export const isAnalyticsScheduledReportEmailEnabled = !isLowEmailMode;
@@ -290,6 +291,14 @@ export function getActiveEmailPaths() {
       reason: isLowEmailMode
         ? "Disabled (LOW_EMAIL_MODE=1)."
         : "Per-quote autoFollowUpEnabled setting.",
+    },
+    {
+      key: "follow-up-auto-send",
+      label: "Automatic follow-up sends",
+      active: isFollowUpAutoSendEmailEnabled,
+      reason: isLowEmailMode
+        ? "Disabled (LOW_EMAIL_MODE=1)."
+        : "Per-follow-up sendMode setting.",
     },
     {
       key: "analytics-digest",

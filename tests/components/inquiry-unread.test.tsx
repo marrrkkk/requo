@@ -19,6 +19,20 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/acme/home",
 }));
 
+vi.mock("@/components/theme-provider", () => ({
+  useTheme: () => ({
+    resolvedTheme: "light",
+    setTheme: vi.fn(),
+    theme: "system",
+    uiScale: "default",
+    setUiScale: vi.fn(),
+  }),
+}));
+
+vi.mock("@/features/theme/actions", () => ({
+  updateThemePreferenceAction: vi.fn().mockResolvedValue({ ok: true }),
+}));
+
 vi.mock("@/features/inquiries/actions", () => ({
   markInquiryViewedAction: vi.fn(),
 }));

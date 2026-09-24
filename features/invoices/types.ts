@@ -153,6 +153,13 @@ export type InvoiceActionState = {
   invoiceNumber?: string;
 };
 
+export type InvoiceBulkActionState = {
+  success?: string;
+  error?: string;
+  affected?: number;
+  skipped?: number;
+};
+
 export type InvoiceDeliveryMethod = "requo" | "manual";
 
 export type PaymentActionState = {

@@ -17,6 +17,7 @@ export const followUpChannels = [
   "other",
 ] as const;
 export const followUpCategories = ["sales", "post_win"] as const;
+export const followUpSendModes = ["manual", "automatic"] as const;
 export const followUpRecurrences = [
   "none",
   "daily",
@@ -36,6 +37,7 @@ export type FollowUpDueFilterValue = (typeof followUpDueFilterValues)[number];
 export type FollowUpSortValue = (typeof followUpSortValues)[number];
 export type FollowUpChannel = (typeof followUpChannels)[number];
 export type FollowUpCategory = (typeof followUpCategories)[number];
+export type FollowUpSendMode = (typeof followUpSendModes)[number];
 export type FollowUpRecurrence = (typeof followUpRecurrences)[number];
 
 export type FollowUpRelatedKind = "inquiry" | "quote";
@@ -113,6 +115,7 @@ export type FollowUpView = {
   reason: string;
   category: FollowUpCategory;
   channel: FollowUpChannel;
+  sendMode: FollowUpSendMode;
   recurrence: FollowUpRecurrence;
   recurrenceCount: number;
   recurrenceLimit: number | null;
@@ -191,11 +194,11 @@ export type FollowUpSummaryCounts = {
 };
 
 export type FollowUpCreateFieldErrors = Partial<
-  Record<"title" | "reason" | "channel" | "category" | "dueDate" | "recurrence" | "recurrenceLimit" | "terminationCondition", string[] | undefined>
+  Record<"title" | "reason" | "channel" | "category" | "sendMode" | "dueDate" | "recurrence" | "recurrenceLimit" | "terminationCondition", string[] | undefined>
 >;
 
 export type FollowUpEditFieldErrors = Partial<
-  Record<"title" | "reason" | "channel" | "category" | "dueDate" | "recurrence" | "recurrenceLimit" | "terminationCondition", string[] | undefined>
+  Record<"title" | "reason" | "channel" | "category" | "sendMode" | "dueDate" | "recurrence" | "recurrenceLimit" | "terminationCondition", string[] | undefined>
 >;
 
 export type FollowUpRescheduleFieldErrors = Partial<

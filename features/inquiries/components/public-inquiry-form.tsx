@@ -418,7 +418,7 @@ export function PublicInquiryForm({
                   Sending inquiry...
                 </>
               ) : (
-                "Send inquiry"
+                "Send"
               )}
             </Button>
           </FormActions>

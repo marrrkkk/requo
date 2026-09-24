@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Eye } from "lucide-react";
+import { ReceiptText } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { BusinessQuotePreviewOverlay } from "@/features/quotes/components/business-quote-preview-overlay";
 import type { PublicQuoteView } from "@/features/quotes/types";
 import type { BusinessPlan } from "@/lib/plans/plans";
@@ -15,11 +16,13 @@ type QuotePreviewButtonProps = {
   businessName: string;
   /** Href to the public customer-facing quote page (when available). */
   openQuoteHref?: string | null;
+  variant?: React.ComponentProps<typeof Button>["variant"];
 };
 
 /**
- * Button that opens the full-screen quote preview overlay.
- * Replaces the previous Link-based navigation to a separate preview route.
+ * Single "Preview" button. Opens the in-app preview overlay; public link and
+ * copy actions live in the header's "More actions" menu to keep one primary
+ * per status.
  */
 export function QuotePreviewButton({
   quote,
@@ -27,19 +30,23 @@ export function QuotePreviewButton({
   businessContactEmail,
   businessName,
   openQuoteHref,
+  variant = "default",
 }: QuotePreviewButtonProps) {
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <Button
-        variant="outline"
-        size="sm"
         onClick={() => setOpen(true)}
         type="button"
+        variant={variant}
+        size="sm"
+        className={mobileNavbarIconButtonClassName}
+        aria-label="Preview quote"
+        title="Preview quote"
       >
-        <Eye data-icon="inline-start" />
-        Preview
+        <ReceiptText data-icon="inline-start" />
+        <span className="hidden lg:inline">Preview</span>
       </Button>
 
       <BusinessQuotePreviewOverlay

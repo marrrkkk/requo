@@ -10,7 +10,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { aiAgentRuns } from "@/lib/db/schema";
 import type { AgentRun, RunStatus, RunMetadata } from "@/features/ai-agent/types";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 
 /**
  * Start a new agent run.
@@ -28,7 +28,7 @@ export async function startAgentRun({
   provider: string;
   metadata?: RunMetadata;
 }): Promise<AgentRun> {
-  const runId = createId("agr");
+  const runId = newEntityId();
   const now = new Date();
 
   const [run] = await db

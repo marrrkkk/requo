@@ -5,6 +5,7 @@ import { sendAnalyticsDigestEmails } from "@/features/analytics/jobs/digest";
 import { computeDailyRollups } from "@/features/analytics/jobs/rollup";
 import { sendAnalyticsScheduledReports } from "@/features/analytics/jobs/scheduled-reports";
 import { processFollowUpReminders } from "@/features/follow-ups/jobs/reminders";
+import { processAutomaticFollowUpSends } from "@/features/follow-ups/jobs/auto-send";
 import { processAutoArchiveStaleInquiries } from "@/features/inquiries/jobs/auto-archive";
 import { processInvoiceOverdue } from "@/features/invoices/jobs/overdue";
 import { backfillMissingEmbeddings } from "@/features/memory/jobs/embedding-backfill";
@@ -24,6 +25,25 @@ export const followUpRemindersCron = inngest.createFunction(
   async ({ step }) =>
     step.run("process-follow-up-reminders", async () =>
       processFollowUpReminders(),
+    ),
+);
+
+/**
+ * `concurrency: { limit: 1 }` keeps hourly runs from overlapping. The job
+ * marks each automatic follow-up completed inside a row-locked transaction,
+ * so two concurrent runs could otherwise both send the same customer email.
+ */
+export const followUpAutoSendCron = inngest.createFunction(
+  {
+    id: "cron-follow-up-auto-send",
+    name: "Send automatic follow-ups",
+    triggers: [{ cron: "0 * * * *" }],
+    retries: 2,
+    concurrency: { limit: 1 },
+  },
+  async ({ step }) =>
+    step.run("process-auto-send", async () =>
+      processAutomaticFollowUpSends(),
     ),
 );
 
@@ -214,6 +234,7 @@ export const embeddingBackfillCron = inngest.createFunction(
 
 export const cronFunctions = [
   followUpRemindersCron,
+  followUpAutoSendCron,
   autoFollowUpsCron,
   quoteViewedFollowUpsCron,
   quoteExpiringSoonCron,

@@ -64,7 +64,6 @@ import { InquiryDuplicateBanner } from "@/features/inquiries/components/inquiry-
 import { InquiryNoteForm } from "@/features/inquiries/components/inquiry-note-form";
 import { InquiryQuoteActions } from "@/features/inquiries/components/inquiry-quote-actions";
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
-import { InquiryExportPopover } from "@/features/inquiries/components/inquiry-export-popover";
 import { InquiryManageDropdown } from "@/features/inquiries/components/inquiry-manage-dropdown";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { InquiryViewedTracker } from "@/features/inquiries/components/inquiry-viewed-tracker";
@@ -105,6 +104,10 @@ import {
   getBusinessServicePath,
 } from "@/features/businesses/routes";
 import { Button } from "@/components/ui/button";
+import {
+  MobileHeaderSlot,
+  mobileNavbarIconButtonClassName,
+} from "@/components/shell/mobile-header-slot";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { hasFeatureAccess } from "@/lib/plans";
 import { createNoIndexMetadata } from "@/lib/seo/site";
@@ -233,9 +236,10 @@ async function InquiryDetailRegion({
         />
       ) : null}
       <DashboardDetailHeader
-        eyebrow="Inquiry"
+        className="[&_.dashboard-actions]:max-lg:hidden"
+        eyebrow={`Inquiry ${inquiry.id.slice(0, 8)}`}
         title={inquiry.customerName}
-        description={`Inquiry received · ${formatInquiryDateTime(inquiry.submittedAt)}`}
+        description={`Received ${formatInquiryDate(inquiry.submittedAt)} · ${inquiry.requestedDeadline ? `Deadline ${formatInquiryDate(inquiry.requestedDeadline)}` : "No deadline"}`}
         meta={
           <>
             <InquiryStatusBadge status={inquiry.status} />
@@ -245,7 +249,46 @@ async function InquiryDetailRegion({
           </>
         }
         actions={
-          <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto">
+          <MobileHeaderSlot desktopClassName="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto">
+            {relatedQuotes ? (
+              <InquiryQuoteActions
+                businessSlug={businessSlug}
+                relatedQuotes={relatedQuotes}
+                canGenerateQuote={canGenerateQuote}
+                inquiryId={inquiry.id}
+                currency={businessContext.business.defaultCurrency}
+              />
+            ) : canGenerateQuote ? (
+              <Button
+                asChild
+                aria-label="Generate quote"
+                title="Generate quote"
+                size="sm"
+                className={mobileNavbarIconButtonClassName}
+              >
+                <Link href={getBusinessNewQuotePath(businessSlug, inquiry.id)}>
+                  <ReceiptText data-icon="inline-start" />
+                  <span className="hidden lg:inline">Generate quote</span>
+                </Link>
+              </Button>
+            ) : null}
+            {relatedQuotes &&
+            relatedQuotes.count === 1 &&
+            canGenerateQuote ? (
+              <Button
+                asChild
+                variant="outline"
+                aria-label="Generate quote"
+                title="Generate quote"
+                size="sm"
+                className={mobileNavbarIconButtonClassName}
+              >
+                <Link href={getBusinessNewQuotePath(businessSlug, inquiry.id)}>
+                  <ReceiptText data-icon="inline-start" />
+                  <span className="hidden lg:inline">Generate quote</span>
+                </Link>
+              </Button>
+            ) : null}
             <InquiryManageDropdown
               workflowStatus={workflowStatus}
               recordState={inquiry.recordState}
@@ -254,8 +297,6 @@ async function InquiryDetailRegion({
               archiveAction={archiveAction}
               unarchiveAction={unarchiveAction}
               deleteAction={deleteAction}
-            />
-            <InquiryExportPopover
               canExport={canExportData}
               pdfHref={getBusinessInquiryExportPath(
                 businessSlug,
@@ -268,23 +309,7 @@ async function InquiryDetailRegion({
                 "png",
               )}
             />
-            {relatedQuotes ? (
-              <InquiryQuoteActions
-                businessSlug={businessSlug}
-                relatedQuotes={relatedQuotes}
-                canGenerateQuote={canGenerateQuote}
-                inquiryId={inquiry.id}
-                currency={businessContext.business.defaultCurrency}
-              />
-            ) : canGenerateQuote ? (
-              <Button asChild>
-                <Link href={getBusinessNewQuotePath(businessSlug, inquiry.id)}>
-                  <ReceiptText data-icon="inline-start" />
-                  Generate quote
-                </Link>
-              </Button>
-            ) : null}
-          </div>
+          </MobileHeaderSlot>
         }
       />
 
@@ -718,7 +743,11 @@ function InquiryOverviewSection({
         <InfoTile
           icon={CalendarClock}
           label={systemFieldDefaultLabels.requestedDeadline}
-          value={inquiry.requestedDeadline ?? "Not provided"}
+          value={
+            inquiry.requestedDeadline
+              ? formatInquiryDate(inquiry.requestedDeadline)
+              : "No deadline"
+          }
         />
         <InfoTile
           icon={Tag}

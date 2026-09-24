@@ -3,7 +3,7 @@ import "server-only";
 import { and, desc, eq, gte, inArray, isNull } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import {
   type AnalyticsEventMetadata,
   analyticsEvents,
@@ -101,7 +101,7 @@ export async function recordAnalyticsEvent({
   }
 
   await db.insert(analyticsEvents).values({
-    id: createId("evt"),
+    id: newEntityId(),
     businessId,
     businessInquiryFormId,
     quoteId,

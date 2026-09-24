@@ -71,7 +71,7 @@ export function InfoTile({
             )}
           </div>
           {description ? (
-            <div className="mt-1.5 text-sm leading-6 text-muted-foreground">
+            <div className="mt-1.5 text-sm leading-5 text-muted-foreground">
               {description}
             </div>
           ) : null}

@@ -155,15 +155,15 @@ test.describe("Paywall & Free Plan Gating", () => {
     await page.goto("/businesses");
 
     // Create the 2nd free business (free tier allows up to 2).
-    await page.getByRole("button", { name: "Create business" }).first().click();
+    await page.getByRole("button", { name: "Create" }).first().click();
     await page.getByLabel("Business name").fill("Free Business 2");
-    await page.getByRole("dialog").getByRole("button", { name: "Create business" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Create" }).click();
 
     // After creation, navigate back to the businesses hub.
     await page.goto("/businesses");
 
     // Attempt to create one more business -> should show quota lock content.
-    await page.getByRole("button", { name: "Create business" }).first().click();
+    await page.getByRole("button", { name: "Create" }).first().click();
 
     const upgradeTitle = page
       .getByRole("heading", { name: /Add more businesses/i })

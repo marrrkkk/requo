@@ -93,7 +93,7 @@ describe("features/follow-ups/utils", () => {
 
   it("uses outcome-oriented status labels in the interface", () => {
     expect(getFollowUpStatusLabel("pending")).toBe("To do");
-    expect(getFollowUpStatusLabel("completed")).toBe("Contacted");
+    expect(getFollowUpStatusLabel("completed")).toBe("Done");
     expect(getFollowUpStatusLabel("skipped")).toBe("Dismissed");
     expect(followUpStatusLabels.pending).toBe("To do");
   });

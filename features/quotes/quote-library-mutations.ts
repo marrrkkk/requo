@@ -3,7 +3,7 @@ import "server-only";
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import {
   activityLogs,
   quoteLibraryEntries,
@@ -30,7 +30,7 @@ async function insertQuoteLibraryActivity(
   },
 ) {
   await tx.insert(activityLogs).values({
-    id: createId("act"),
+    id: newEntityId(),
     businessId,
     actorUserId,
     type,
@@ -54,7 +54,7 @@ export async function createQuoteLibraryEntryForBusiness({
   currency,
   entry,
 }: CreateQuoteLibraryEntryForBusinessInput) {
-  const entryId = createId("qlib");
+  const entryId = newEntityId();
   const now = new Date();
 
   return db.transaction(async (tx) => {
@@ -76,7 +76,7 @@ export async function createQuoteLibraryEntryForBusiness({
 
     await tx.insert(quoteLibraryEntryItems).values(
       entry.items.map((item, index) => ({
-        id: createId("qli"),
+        id: newEntityId(),
         businessId,
         entryId,
         description: item.description,
@@ -172,7 +172,7 @@ export async function updateQuoteLibraryEntryForBusiness({
 
     await tx.insert(quoteLibraryEntryItems).values(
       entry.items.map((item, index) => ({
-        id: createId("qli"),
+        id: newEntityId(),
         businessId,
         entryId,
         description: item.description,

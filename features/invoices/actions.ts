@@ -1,15 +1,16 @@
 "use server";
 
 import { revalidateTag, updateTag } from "next/cache";
+import { z } from "zod";
 
 import { getValidationActionState, getUserSafeErrorMessage } from "@/lib/action-state";
 import { getBusinessMessagingSettings, getBusinessOwnerEmails, getOperationalBusinessActionContext } from "@/lib/db/business-access";
 import { isEmailConfigured } from "@/lib/env";
 import { getBusinessInvoiceDetailCacheTags, getBusinessInvoiceListCacheTags, getBusinessOverviewCacheTags, uniqueCacheTags } from "@/lib/cache/business-tags";
-import { createInvoiceForBusiness, markInvoiceSentForBusiness, recordPaymentForBusiness, updateInvoiceDraftForBusiness, voidInvoiceForBusiness, voidPaymentForBusiness } from "@/features/invoices/mutations";
+import { createInvoiceForBusiness, markInvoiceSentForBusiness, recordPaymentForBusiness, updateInvoiceDraftForBusiness, voidInvoiceForBusiness, voidPaymentForBusiness, bulkVoidInvoicesForBusiness } from "@/features/invoices/mutations";
 import { getInvoiceForBusiness } from "@/features/invoices/queries";
 import { invoiceSchema, paymentSchema, voidPaymentSchema } from "@/features/invoices/schemas";
-import type { InvoiceActionState, PaymentActionState } from "@/features/invoices/types";
+import type { InvoiceActionState, InvoiceBulkActionState, PaymentActionState } from "@/features/invoices/types";
 import { sendPushInvoicePaidEvent, sendPushInvoiceSentEvent } from "@/lib/inngest/send";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { checkUsageAllowance } from "@/lib/plans/usage";
@@ -227,4 +228,57 @@ export async function voidInvoiceAction(invoiceId: string, _prev: InvoiceActionS
   if ("error" in result) return { error: result.error };
   invalidate(access.businessContext.business.id, invoiceId);
   return { success: "Invoice voided." };
+}
+
+// --- Bulk Action Server Actions ---
+
+const invoiceBulkActionSchema = z.object({
+  invoiceIds: z
+    .array(z.string().min(1))
+    .min(1, "Select at least one invoice.")
+    .max(50, "Cannot bulk-update more than 50 invoices at once."),
+});
+
+export async function bulkVoidInvoicesAction(
+  _prevState: InvoiceBulkActionState,
+  formData: FormData,
+): Promise<InvoiceBulkActionState> {
+  const access = await getOperationalBusinessActionContext();
+  if (!access.ok) return { error: access.error };
+
+  const rawIds = formData.get("invoiceIds") as string;
+  const parsed = invoiceBulkActionSchema.safeParse({
+    invoiceIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    const result = await bulkVoidInvoicesForBusiness({
+      businessId: access.businessContext.business.id,
+      invoiceIds: parsed.data.invoiceIds,
+      actorUserId: access.user.id,
+    });
+
+    invalidate(access.businessContext.business.id);
+
+    if (result.affected === 0) {
+      return {
+        error: "No invoices were voided. Void invoices, or invoices with recorded payments, are skipped.",
+        affected: 0,
+        skipped: result.skipped,
+      };
+    }
+
+    return {
+      success: `${result.affected} invoice${result.affected !== 1 ? "s" : ""} voided.`,
+      affected: result.affected,
+      skipped: result.skipped,
+    };
+  } catch (error) {
+    console.error("Failed to bulk void invoices.", error);
+    return { error: "We couldn't void those invoices right now." };
+  }
 }

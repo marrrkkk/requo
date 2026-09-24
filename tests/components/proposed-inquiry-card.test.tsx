@@ -76,7 +76,7 @@ describe("ProposedInquiryCard", () => {
     render(<Wrapper />);
 
     await user.clear(screen.getByLabelText("Your name"));
-    await user.click(screen.getByRole("button", { name: "Send inquiry" }));
+    await user.click(screen.getByRole("button", { name: "Send" }));
 
     expect(
       await screen.findByText(/Enter your name|Customer name is required/i),
@@ -106,7 +106,7 @@ describe("ProposedInquiryCard", () => {
     await user.tab();
     // Tab through fields until both actions are reachable — assert presence in
     // tab order rather than exact order.
-    const send = screen.getByRole("button", { name: "Send inquiry" });
+    const send = screen.getByRole("button", { name: "Send" });
     const discard = screen.getByRole("button", { name: "Discard" });
     expect(send).toBeInTheDocument();
     expect(discard).toBeInTheDocument();
@@ -137,7 +137,7 @@ describe("ProposedInquiryCard", () => {
     );
 
     expect(screen.getByLabelText("Sent inquiry receipt")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Send inquiry" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Discard" })).not.toBeInTheDocument();
     expect(screen.getByText("Ana Torres")).toBeInTheDocument();
   });

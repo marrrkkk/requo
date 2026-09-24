@@ -4,22 +4,21 @@ import { useEffect, useOptimistic, useState } from "react";
 import {
   Archive,
   Check,
+  ChevronDown,
+  Download,
+  Ellipsis,
+  FileText,
+  Lock,
   RotateCcw,
-  Settings,
   Trash2,
 } from "lucide-react";
 
 import { OptimisticPendingIndicator } from "@/components/shared/optimistic-pending-indicator";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  ConfirmationDialog,
+  type ConfirmationTone,
+} from "@/components/shared/confirmation-dialog";
+import type { LucideIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
 import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
 import { getInquiryStatusLabel } from "@/features/inquiries/utils";
 import {
@@ -61,6 +61,9 @@ type InquiryManageDropdownProps = {
     state: InquiryRecordActionState,
     formData: FormData,
   ) => Promise<InquiryRecordActionState>;
+  canExport?: boolean;
+  pdfHref?: string;
+  pngHref?: string;
 };
 
 type ConfirmAction = "status" | "archive" | "unarchive" | "delete" | null;
@@ -76,6 +79,9 @@ export function InquiryManageDropdown({
   archiveAction,
   unarchiveAction,
   deleteAction,
+  canExport = false,
+  pdfHref,
+  pngHref,
 }: InquiryManageDropdownProps) {
   const { runMutation, isPendingKey } = useOptimisticMutation();
   const [selectedStatus, setSelectedStatus] = useState(workflowStatus);
@@ -178,28 +184,43 @@ export function InquiryManageDropdown({
     isPendingKey("archive") ||
     isPendingKey("unarchive") ||
     isPendingKey("delete");
-  const isDestructive = confirmAction === "delete";
-
-  const confirmConfig: Record<Exclude<ConfirmAction, null>, { title: string; description: string; label: string }> = {
+  const confirmConfig: Record<
+    Exclude<ConfirmAction, null>,
+    {
+      title: string;
+      description: string;
+      label: string;
+      icon: LucideIcon;
+      tone: ConfirmationTone;
+    }
+  > = {
     status: {
       title: `Change status to "${getInquiryStatusLabel(selectedStatus)}"?`,
       description: `This will update the workflow status from "${getInquiryStatusLabel(optimisticWorkflowStatus)}" to "${getInquiryStatusLabel(selectedStatus)}".`,
       label: "Change status",
+      icon: Check,
+      tone: "neutral",
     },
     archive: {
       title: "Archive this inquiry?",
       description: "Archived inquiries are hidden from the active list. You can restore them later.",
       label: "Archive",
+      icon: Archive,
+      tone: "neutral",
     },
     unarchive: {
       title: "Restore this inquiry?",
       description: "This will move the inquiry back to the active list.",
       label: "Restore",
+      icon: RotateCcw,
+      tone: "neutral",
     },
     delete: {
       title: "Delete this inquiry?",
       description: "This permanently removes the inquiry from active views. This action cannot be undone.",
       label: "Delete",
+      icon: Trash2,
+      tone: "destructive",
     },
   };
 
@@ -210,16 +231,50 @@ export function InquiryManageDropdown({
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
-            aria-label="Manage inquiry"
-            size="icon"
             type="button"
-            variant="ghost"
+            variant="outline"
+            size="sm"
+            className={mobileNavbarIconButtonClassName}
+            aria-label="More actions"
+            title="More actions"
           >
-            <Settings />
+            <Ellipsis aria-hidden="true" className="lg:hidden" />
+            <span className="hidden lg:inline">More actions</span>
+            <ChevronDown
+              data-icon="inline-end"
+              className="opacity-60 max-lg:hidden"
+            />
             <OptimisticPendingIndicator pending={isPending} />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuContent align="end" className="w-56">
+          {pdfHref || pngHref ? (
+            canExport && pdfHref && pngHref ? (
+              <>
+                <DropdownMenuItem asChild>
+                  <a aria-label="Export PDF" href={pdfHref}>
+                    <Download />
+                    Export PDF
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a aria-label="Export PNG" href={pngHref}>
+                    <FileText />
+                    Export PNG
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            ) : (
+              <>
+                <DropdownMenuItem disabled title="Upgrade to Pro to export inquiry records as PDF or PNG.">
+                  <Lock />
+                  Export (Pro feature)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )
+          ) : null}
           {optimisticRecordState === "active" ? (
             <>
               <DropdownMenuSub>
@@ -274,38 +329,21 @@ export function InquiryManageDropdown({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <AlertDialog
-        open={confirmAction !== null}
-        onOpenChange={(open) => {
-          if (!open) setConfirmAction(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{config?.title}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {config?.description}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel asChild>
-              <Button disabled={isPending} variant="outline">
-                Cancel
-              </Button>
-            </AlertDialogCancel>
-            <AlertDialogAction asChild>
-              <Button
-                disabled={isPending}
-                onClick={handleConfirm}
-                variant={isDestructive ? "destructive" : "default"}
-              >
-                <OptimisticPendingIndicator pending={isPending} />
-                {config?.label}
-              </Button>
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {config ? (
+        <ConfirmationDialog
+          open={confirmAction !== null}
+          onOpenChange={(open) => {
+            if (!open) setConfirmAction(null);
+          }}
+          title={config.title}
+          description={config.description}
+          confirmLabel={config.label}
+          onConfirm={handleConfirm}
+          isPending={isPending}
+          tone={config.tone}
+          icon={config.icon}
+        />
+      ) : null}
     </>
   );
 }

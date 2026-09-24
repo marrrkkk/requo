@@ -5,7 +5,7 @@ import { db } from "@/lib/db/client";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { analyticsGoalThresholds } from "@/lib/db/schema";
 import { hasFeatureAccess } from "@/lib/plans";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 
 const routeParamsSchema = z.object({
   slug: z.string().trim().min(1).max(120),
@@ -106,7 +106,7 @@ export async function PUT(
   const [goal] = await db
     .insert(analyticsGoalThresholds)
     .values({
-      id: createId("agt"),
+      id: newEntityId(),
       businessId,
       metricKey,
       targetValue,

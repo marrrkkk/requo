@@ -2,7 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db/client";
 import { writeAuditLog } from "@/features/audit/mutations";
-import { prefixedId as createId } from "@/lib/ids";
+import { newEntityId } from "@/lib/ids";
 import {
   resolveSafeContentType,
   sanitizeStorageFileName,
@@ -30,7 +30,7 @@ import type {
 import { inquirySources } from "@/features/inquiries/types";
 import { getInquiryStatusLabel } from "@/features/inquiries/utils";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { qualifyInquiry } from "./qualification/qualify-inquiry";
 import {
   enqueueAiDraftQuoteOnQualify,
@@ -86,8 +86,8 @@ export async function createInquirySubmission({
   aiAssisted = false,
   escalated = false,
 }: CreateInquirySubmissionInput): Promise<CreatePublicInquirySubmissionResult> {
-  const inquiryId = createId("inq");
-  const activityId = createId("act");
+  const inquiryId = newEntityId();
+  const activityId = newEntityId();
   const now = new Date();
   const attachment = submission.attachment;
   const storageClient = attachment ? createSupabaseAdminClient() : null;
@@ -118,7 +118,7 @@ export async function createInquirySubmission({
 
     uploadedStoragePath = storagePath;
     preparedAttachment = {
-      id: createId("iat"),
+      id: newEntityId(),
       fileName: attachment.name,
       contentType: safeContentType,
       fileSize: attachment.size,
@@ -477,8 +477,8 @@ export async function addInquiryNoteForBusiness({
   authorUserId,
   body,
 }: AddInquiryNoteForBusinessInput) {
-  const noteId = createId("note");
-  const activityId = createId("act");
+  const noteId = newEntityId();
+  const activityId = newEntityId();
   const now = new Date();
 
   return db.transaction(async (tx) => {
@@ -535,7 +535,7 @@ export async function changeInquiryStatusForBusiness({
   actorUserId,
   nextStatus,
 }: ChangeInquiryStatusForBusinessInput) {
-  const activityId = createId("act");
+  const activityId = newEntityId();
   const now = new Date();
 
   return db.transaction(async (tx) => {
@@ -677,7 +677,7 @@ export async function updateInquiryFieldsForBusiness({
       .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)));
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       inquiryId,
       actorUserId,
@@ -795,7 +795,7 @@ export async function archiveInquiryForBusiness({
       .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)));
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       inquiryId,
       actorUserId,
@@ -874,7 +874,7 @@ export async function unarchiveInquiryForBusiness({
       .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)));
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       inquiryId,
       actorUserId,
@@ -939,7 +939,7 @@ export async function deleteInquiryForBusiness({
       .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)));
 
     await tx.insert(activityLogs).values({
-      id: createId("act"),
+      id: newEntityId(),
       businessId,
       inquiryId,
       actorUserId,
@@ -1073,5 +1073,58 @@ export async function bulkChangeInquiryStatusForBusiness({
   return {
     affected: result.length,
     skipped: inquiryIds.length - result.length,
+  };
+}
+
+export async function bulkUnarchiveInquiriesForBusiness({
+  businessId,
+  inquiryIds,
+}: {
+  businessId: string;
+  inquiryIds: string[];
+  actorUserId: string;
+}): Promise<{ affected: number; skipped: number }> {
+  const now = new Date();
+
+  const cleared = await db
+    .update(inquiries)
+    .set({
+      archivedAt: null,
+      archivedBy: null,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(inquiries.businessId, businessId),
+        inArray(inquiries.id, inquiryIds),
+        isNotNull(inquiries.archivedAt),
+        isNull(inquiries.deletedAt),
+      ),
+    )
+    .returning({ id: inquiries.id });
+
+  if (cleared.length === 0) {
+    return { affected: 0, skipped: inquiryIds.length };
+  }
+
+  // Legacy rows archived under the old "archived" status restore as "waiting",
+  // mirroring `unarchiveInquiryForBusiness`.
+  await db
+    .update(inquiries)
+    .set({ status: "waiting", updatedAt: now })
+    .where(
+      and(
+        eq(inquiries.businessId, businessId),
+        inArray(
+          inquiries.id,
+          cleared.map((row) => row.id),
+        ),
+        eq(inquiries.status, "archived"),
+      ),
+    );
+
+  return {
+    affected: cleared.length,
+    skipped: inquiryIds.length - cleared.length,
   };
 }

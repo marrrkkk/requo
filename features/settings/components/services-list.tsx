@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "@/components/base/notification/notify";
 import {
@@ -14,28 +14,21 @@ import {
   PencilLine,
   PencilRuler,
   Plus,
+  X,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import { MobileHeaderSlot, mobileNavbarIconButtonClassName } from "@/components/shell/mobile-header-slot";
-import { DashboardTableContainer } from "@/components/shared/dashboard-layout";
+import { DashboardActionsRow, DashboardEmptyState } from "@/components/shared/dashboard-layout";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Empty,
-  EmptyHeader,
-  EmptyTitle,
-  EmptyDescription,
-  EmptyMedia,
-  EmptyContent,
-} from "@/components/ui/empty";
 import {
   ResponsiveOverlay,
   ResponsiveOverlayBody,
@@ -91,6 +84,21 @@ type ServicesListProps = {
 
 const initialState: BusinessInquiryFormsActionState = {};
 
+type ServiceStatusFilter = "all" | "active" | "inactive";
+type ServiceSort = "name" | "newest" | "most-inquiries";
+
+const statusFilterOptions = [
+  { label: "All statuses", value: "all" },
+  { label: "Active", value: "active" },
+  { label: "Inactive", value: "inactive" },
+];
+
+const sortOptions = [
+  { label: "Name A–Z", value: "name" },
+  { label: "Newest first", value: "newest" },
+  { label: "Most inquiries", value: "most-inquiries" },
+];
+
 export function ServicesList({
   settings,
   createAction,
@@ -102,6 +110,9 @@ export function ServicesList({
     useActionStateWithSonner(createAction, initialState);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ServiceStatusFilter>("all");
+  const [sort, setSort] = useState<ServiceSort>("name");
   const [, unarchiveFormAction, isUnarchivePending] =
     useActionStateWithSonner(unarchiveAction, initialState);
   const effectiveplan = businessCheckout
@@ -114,12 +125,52 @@ export function ServicesList({
     hasFeatureAccess(effectiveplan, "multipleForms") ||
     activeForms.length === 0;
 
+  const filteredForms = useMemo(() => {
+    const trimmedQuery = query.trim().toLowerCase();
+    const matches =
+      statusFilter === "all"
+        ? activeForms
+        : activeForms.filter((form) =>
+            statusFilter === "active"
+              ? form.publicInquiryEnabled
+              : !form.publicInquiryEnabled,
+          );
+    const searched = trimmedQuery
+      ? matches.filter((form) =>
+          `${form.name} ${form.slug}`.toLowerCase().includes(trimmedQuery),
+        )
+      : matches;
+    return [...searched].sort((a, b) => {
+      switch (sort) {
+        case "newest":
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        case "most-inquiries":
+          return b.submittedInquiryCount - a.submittedInquiryCount;
+        case "name":
+        default:
+          return a.name.localeCompare(b.name);
+      }
+    });
+  }, [activeForms, query, statusFilter, sort]);
+
+  function clearFilters() {
+    setQuery("");
+    setStatusFilter("all");
+    setSort("name");
+  }
+
+  const canClear =
+    query.trim() !== "" || statusFilter !== "all" || sort !== "name";
+  const resultLabel = `${filteredForms.length} of ${activeForms.length} ${activeForms.length === 1 ? "service" : "services"}`;
+
   return (
-    <div className="flex flex-col gap-6">
-      {/* Toolbar */}
+    <div className="flex flex-col gap-4">
+      {/* Actions row */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          {archivedForms.length > 0 && (
+          {archivedForms.length > 0 ? (
             <ResponsiveOverlay
               open={isArchiveDialogOpen}
               onOpenChange={setIsArchiveDialogOpen}
@@ -177,7 +228,12 @@ export function ServicesList({
                 </ResponsiveOverlayBody>
               </ResponsiveOverlayContent>
             </ResponsiveOverlay>
-          )}
+          ) : activeForms.length > 0 ? (
+            <p className="truncate text-xs text-muted-foreground">
+              {activeForms.length}{" "}
+              {activeForms.length === 1 ? "service" : "services"}
+            </p>
+          ) : null}
         </div>
 
         {canCreateAdditionalForms ? (
@@ -194,10 +250,10 @@ export function ServicesList({
                 className={mobileNavbarIconButtonClassName}
               >
                 <Plus data-icon="inline-start" />
-                <span className="hidden lg:inline">Create service</span>
+                <span className="hidden lg:inline">Create</span>
               </Button>
             </ResponsiveOverlayTrigger>
-            <ResponsiveOverlayContent className="sm:max-w-xl">
+            <ResponsiveOverlayContent className="sm:max-w-md">
               <ResponsiveOverlayHeader>
                 <ResponsiveOverlayTitle>Create service</ResponsiveOverlayTitle>
                 <ResponsiveOverlayDescription>
@@ -205,18 +261,17 @@ export function ServicesList({
                 </ResponsiveOverlayDescription>
               </ResponsiveOverlayHeader>
 
-              <form
-                action={createFormAction}
-                className="flex min-h-0 flex-1 flex-col"
-              >
-                <ResponsiveOverlayBody className="gap-6">
-                  <FieldGroup className="rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-4">
+              <form action={createFormAction}>
+                <ResponsiveOverlayBody>
+                  <FieldGroup>
                     <Field data-invalid={Boolean(nameError) || undefined}>
                       <FieldLabel htmlFor="business-inquiry-form-create-name">
                         Service name
                       </FieldLabel>
                       <FieldContent>
                         <Input
+                          aria-invalid={Boolean(nameError) || undefined}
+                          autoComplete="off"
                           disabled={isCreatePending}
                           id="business-inquiry-form-create-name"
                           maxLength={80}
@@ -235,21 +290,15 @@ export function ServicesList({
                   </FieldGroup>
                 </ResponsiveOverlayBody>
 
-                <ResponsiveOverlayFooter className="grid grid-cols-1 sm:grid-cols-2">
+                <ResponsiveOverlayFooter>
                   <Button
-                    className="w-full"
                     onClick={() => setIsCreateDialogOpen(false)}
                     type="button"
                     variant="outline"
                   >
                     Cancel
                   </Button>
-                  <Button
-                    className="w-full"
-                    disabled={isCreatePending}
-                    size="lg"
-                    type="submit"
-                  >
+                  <Button disabled={isCreatePending} type="submit">
                     {isCreatePending ? (
                       <>
                         <Spinner
@@ -261,7 +310,7 @@ export function ServicesList({
                     ) : (
                       <>
                         <Plus data-icon="inline-start" />
-                        Create service
+                        Create
                       </>
                     )}
                   </Button>
@@ -284,141 +333,242 @@ export function ServicesList({
               className={mobileNavbarIconButtonClassName}
             >
               <Plus data-icon="inline-start" />
-              <span className="hidden lg:inline">Create service</span>
+              <span className="hidden lg:inline">Create</span>
             </Button>
           </LockedAction>
           </MobileHeaderSlot>
         )}
       </div>
 
-      {/* List */}
-      {activeForms.length ? (
-        <>
-          {/* Mobile list */}
-          <div className="flex flex-col gap-2 sm:hidden">
-            {activeForms.map((form) => (
-              <Link
-                key={form.id}
-                href={getBusinessServicePath(
-                  settings.slug,
-                  form.slug,
-                )}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background px-4 py-3.5 transition-colors hover:bg-muted/40"
-              >
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40 text-muted-foreground">
-                  <PencilRuler className="size-4" />
-                </div>
-                <div className="min-w-0 flex-1 space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-medium">{form.name}</p>
-                    {form.isDefault ? (
-                      <Badge
-                        variant="secondary"
-                        className="px-1.5 py-0 font-normal text-muted-foreground"
-                      >
-                        Default
-                      </Badge>
-                    ) : null}
-                  </div>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {form.submittedInquiryCount}{" "}
-                    {form.submittedInquiryCount === 1
-                      ? "inquiry"
-                      : "inquiries"}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <StatusBadge
-                    tone={form.publicInquiryEnabled ? "success" : "neutral"}
-                    label={form.publicInquiryEnabled ? "Active" : "Inactive"}
+      {/* Results */}
+      {activeForms.length === 0 ? (
+        <DashboardEmptyState
+          description="Create a service to publish a page for incoming inquiries."
+          icon={PencilRuler}
+          title="No active services"
+          variant="section"
+          action={
+            <Button onClick={() => setIsCreateDialogOpen(true)} size="sm">
+              <Plus data-icon="inline-start" />
+              Create
+            </Button>
+          }
+        />
+      ) : (
+        <div className="dashboard-table-shell" data-list-card>
+          <div className="data-list-toolbar-strip">
+            <div className="data-list-toolbar-grid">
+              <Field className="min-w-0 flex-1">
+                <FieldLabel className="sr-only" htmlFor="service-search">
+                  Search services
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    id="service-search"
+                    value={query}
+                    onChange={(event) => setQuery(event.currentTarget.value)}
+                    placeholder="Search name or slug"
+                    aria-label="Search services"
+                    autoComplete="off"
                   />
-                </div>
-              </Link>
-            ))}
+                </FieldContent>
+              </Field>
+              <Field className="min-w-0 sm:max-w-44">
+                <FieldLabel className="sr-only" htmlFor="service-status-filter">
+                  Filter services by status
+                </FieldLabel>
+                <FieldContent>
+                  <Combobox
+                    id="service-status-filter"
+                    value={statusFilter}
+                    onValueChange={(value) =>
+                      setStatusFilter(value as ServiceStatusFilter)
+                    }
+                    options={statusFilterOptions}
+                    placeholder="All statuses"
+                    searchPlaceholder="Search statuses"
+                  />
+                </FieldContent>
+              </Field>
+              <Field className="min-w-0 sm:max-w-44">
+                <FieldLabel className="sr-only" htmlFor="service-sort">
+                  Sort services
+                </FieldLabel>
+                <FieldContent>
+                  <Combobox
+                    id="service-sort"
+                    value={sort}
+                    onValueChange={(value) =>
+                      setSort(value as ServiceSort)
+                    }
+                    options={sortOptions}
+                    placeholder="Sort by"
+                    searchPlaceholder="Search sorting"
+                  />
+                </FieldContent>
+              </Field>
+              <DashboardActionsRow className="data-list-toolbar-actions">
+                <Button
+                  aria-label="Clear filters"
+                  className="size-9 shrink-0 px-0 sm:hidden"
+                  disabled={!canClear}
+                  onClick={clearFilters}
+                  size="icon"
+                  title="Clear filters"
+                  type="button"
+                  variant="ghost"
+                >
+                  <X />
+                </Button>
+                <Button
+                  className="hidden shrink-0 sm:inline-flex"
+                  size="sm"
+                  disabled={!canClear}
+                  onClick={clearFilters}
+                  type="button"
+                  variant="ghost"
+                >
+                  <X data-icon="inline-start" />
+                  Clear
+                </Button>
+              </DashboardActionsRow>
+            </div>
+
+            <p className="data-list-toolbar-count">{resultLabel}</p>
           </div>
 
-          {/* Desktop table */}
-          <DashboardTableContainer className="hidden sm:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Service</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Inquiries</TableHead>
-                  <TableHead className="w-[60px]" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {activeForms.map((form) => (
-                  <TableRow key={form.id}>
-                    <TableCell>
-                      <Link
-                        href={getBusinessServicePath(
-                          settings.slug,
-                          form.slug,
-                        )}
-                        className="group flex items-center gap-3 py-0.5"
-                      >
-                        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40 text-muted-foreground transition-colors group-hover:border-border group-hover:text-foreground">
-                          <PencilRuler className="size-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate font-medium group-hover:underline">
-                              {form.name}
-                            </span>
-                            {form.isDefault ? (
-                              <Badge
-                                variant="secondary"
-                                className="px-1.5 py-0 font-normal text-muted-foreground"
-                              >
-                                Default
-                              </Badge>
-                            ) : null}
-                          </div>
-                        </div>
-                      </Link>
-                    </TableCell>
-                    <TableCell>
+          {filteredForms.length > 0 ? (
+            <>
+              {/* Mobile list */}
+              <div className="flex flex-col gap-2 p-3 sm:hidden">
+                {filteredForms.map((form) => (
+                  <Link
+                    key={form.id}
+                    href={getBusinessServicePath(
+                      settings.slug,
+                      form.slug,
+                    )}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background px-4 py-3.5 transition-colors hover:bg-muted/40"
+                  >
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40 text-muted-foreground">
+                      <PencilRuler className="size-4" />
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-sm font-medium">{form.name}</p>
+                        {form.isDefault ? (
+                          <Badge
+                            variant="secondary"
+                            className="px-1.5 py-0 font-normal text-muted-foreground"
+                          >
+                            Default
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {form.submittedInquiryCount}{" "}
+                        {form.submittedInquiryCount === 1
+                          ? "inquiry"
+                          : "inquiries"}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
                       <StatusBadge
                         tone={form.publicInquiryEnabled ? "success" : "neutral"}
                         label={form.publicInquiryEnabled ? "Active" : "Inactive"}
                       />
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {form.submittedInquiryCount}
-                    </TableCell>
-                    <TableCell>
-                      <FormRowActions
-                        settingsSlug={settings.slug}
-                        businessName={settings.name}
-                        form={form}
-                      />
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                  </Link>
                 ))}
-              </TableBody>
-            </Table>
-          </DashboardTableContainer>
-        </>
-      ) : (
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <PencilRuler />
-            </EmptyMedia>
-            <EmptyTitle>No active services</EmptyTitle>
-            <EmptyDescription>
-              Create a service to publish a page for incoming inquiries.
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus data-icon="inline-start" />
-              Create service
-            </Button>
-          </EmptyContent>
-        </Empty>
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden overflow-x-auto no-scrollbar sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Service</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Inquiries</TableHead>
+                      <TableHead className="w-[60px]" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredForms.map((form) => (
+                      <TableRow key={form.id}>
+                        <TableCell>
+                          <Link
+                            href={getBusinessServicePath(
+                              settings.slug,
+                              form.slug,
+                            )}
+                            className="group flex items-center gap-3 py-0.5"
+                          >
+                            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40 text-muted-foreground transition-colors group-hover:border-border group-hover:text-foreground">
+                              <PencilRuler className="size-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="truncate font-medium group-hover:underline">
+                                  {form.name}
+                                </span>
+                                {form.isDefault ? (
+                                  <Badge
+                                    variant="secondary"
+                                    className="px-1.5 py-0 font-normal text-muted-foreground"
+                                  >
+                                    Default
+                                  </Badge>
+                                ) : null}
+                              </div>
+                            </div>
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge
+                            tone={form.publicInquiryEnabled ? "success" : "neutral"}
+                            label={form.publicInquiryEnabled ? "Active" : "Inactive"}
+                          />
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {form.submittedInquiryCount}
+                        </TableCell>
+                        <TableCell>
+                          <FormRowActions
+                            settingsSlug={settings.slug}
+                            businessName={settings.name}
+                            form={form}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          ) : (
+            <div className="p-4">
+              <DashboardEmptyState
+                description="Try another search or clear the filters."
+                icon={PencilRuler}
+                title="No services match"
+                variant="list"
+                action={
+                  <Button
+                    disabled={!canClear}
+                    onClick={clearFilters}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <X data-icon="inline-start" />
+                    Clear filters
+                  </Button>
+                }
+              />
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

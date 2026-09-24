@@ -45,7 +45,7 @@ type IconComponent = ComponentType<{
 
 export type StatCardsVariant = "plain" | "footer";
 
-/** Tint of the footer variant's gradient icon tile. */
+/** Kept for call-site compat; the footer tile is a single neutral style. */
 export type StatTone = "blue" | "orange" | "purple" | "pink" | "sky" | "emerald";
 
 export type Stat = {
@@ -60,7 +60,7 @@ export type Stat = {
   /** Which way the underlying metric moved — drives the arrow glyph, so
    *  prose labels like "20% slower" can still point the right way. */
   deltaDirection?: "up" | "down" | "flat";
-  /** Footer variant: icon tile tint (defaults to blue). */
+  /** Unused — kept so existing callers still typecheck; tile is neutral. */
   tone?: StatTone;
   /** Footer variant: comparison caption in the band ("From last month"). */
   caption?: string;
@@ -114,15 +114,9 @@ const DEFAULT_FOOTER_STATS: Stat[] = [
   },
 ];
 
-/** Gradient stops for the footer variant's icon tile, keyed by tone. */
-const TILE_TONES: Record<StatTone, string> = {
-  blue: "from-blue-500 to-blue-600",
-  orange: "from-orange-400 to-orange-500",
-  purple: "from-purple-500 to-purple-600",
-  pink: "from-pink-500 to-pink-600",
-  sky: "from-sky-400 to-sky-500",
-  emerald: "from-emerald-500 to-emerald-600",
-};
+/** Single neutral tile for the footer variant — matches the plain cards
+ *  and the rest of the dashboard (`bg-muted` + `text-foreground`).
+ *  `StatTone` is kept for call-site compat but no longer affects color. */
 
 /** Pill tint by sentiment — the footer band's delta readout. The glyph is
  *  chosen separately from the metric's direction so they can disagree. */
@@ -232,13 +226,8 @@ function FooterStatCard({ stat }: { stat: Stat }) {
     <section className="flex min-w-0 flex-col rounded-2xl border border-border/60 bg-card p-2">
       {/* Icon tile + optional info glyph, both hanging from the same top inset */}
       <div className="flex w-full items-start justify-between gap-2.5 p-2">
-        <span
-          className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-b",
-            TILE_TONES[stat.tone ?? "blue"],
-          )}
-        >
-          <stat.icon className="size-5 shrink-0 text-white" aria-hidden />
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground">
+          <stat.icon className="size-5 shrink-0" aria-hidden />
         </span>
         {stat.hint && <StatHint label={stat.label} hint={stat.hint} />}
       </div>

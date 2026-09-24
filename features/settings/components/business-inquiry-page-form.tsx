@@ -603,7 +603,7 @@ export function BusinessInquiryPageForm({
           className="flex flex-col gap-3"
         >
           <AccordionItem value="basics" data-padding="none" className="section-panel border-none p-0">
-            <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
+            <AccordionTrigger className="gap-4 px-5 py-4 hover:no-underline sm:px-6">
               <div className="flex flex-col gap-0.5">
                 <span className="font-heading text-base font-semibold tracking-tight text-foreground">
                   Basics
@@ -614,7 +614,7 @@ export function BusinessInquiryPageForm({
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-0 pb-0">
-              <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+              <div className="border-t border-border/60 px-5 pt-5 pb-5 sm:px-6 sm:pb-6">
                 <BasicsSection
                   formName={formName}
                   formSlug={formSlug}
@@ -630,7 +630,7 @@ export function BusinessInquiryPageForm({
           </AccordionItem>
 
           <AccordionItem value="content" data-padding="none" className="section-panel border-none p-0">
-            <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
+            <AccordionTrigger className="gap-4 px-5 py-4 hover:no-underline sm:px-6">
               <div className="flex flex-col gap-0.5">
                 <span className="font-heading text-base font-semibold tracking-tight text-foreground">
                   Content
@@ -641,7 +641,7 @@ export function BusinessInquiryPageForm({
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-0 pb-0">
-              <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+              <div className="border-t border-border/60 px-5 pt-5 pb-5 sm:px-6 sm:pb-6">
                 <ContentSection
                   headline={headline}
                   formTitle={formTitle}
@@ -675,7 +675,7 @@ export function BusinessInquiryPageForm({
           </AccordionItem>
 
           <AccordionItem value="layout" data-padding="none" className="section-panel border-none p-0">
-            <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
+            <AccordionTrigger className="gap-4 px-5 py-4 hover:no-underline sm:px-6">
               <div className="flex flex-col gap-0.5">
                 <span className="font-heading text-base font-semibold tracking-tight text-foreground">
                   Layout
@@ -686,7 +686,7 @@ export function BusinessInquiryPageForm({
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-0 pb-0">
-              <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+              <div className="border-t border-border/60 px-5 pt-5 pb-5 sm:px-6 sm:pb-6">
                 <LayoutSection
                   effectiveTemplate={effectiveTemplate}
                   mobileLayout={mobileLayout}
@@ -707,7 +707,7 @@ export function BusinessInquiryPageForm({
 
           {(effectiveTemplate !== "no_supporting_cards" || pageCustomizationLocked) ? (
             <AccordionItem value="cards" data-padding="none" className="section-panel border-none p-0">
-              <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
+              <AccordionTrigger className="gap-4 px-5 py-4 hover:no-underline sm:px-6">
                 <div className="flex flex-col gap-0.5">
                   <span className="font-heading text-base font-semibold tracking-tight text-foreground">
                     Supporting cards
@@ -719,7 +719,7 @@ export function BusinessInquiryPageForm({
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-0 pb-0">
-                <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+                <div className="border-t border-border/60 px-5 pt-5 pb-5 sm:px-6 sm:pb-6">
                   <CardsSection
                     cards={cards}
                     effectiveShowSupportingCards={effectiveShowSupportingCards}
@@ -741,7 +741,7 @@ export function BusinessInquiryPageForm({
           ) : null}
 
           <AccordionItem value="showcase" data-padding="none" className="section-panel border-none p-0">
-            <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
+            <AccordionTrigger className="gap-4 px-5 py-4 hover:no-underline sm:px-6">
               <div className="flex flex-col gap-0.5">
                 <span className="font-heading text-base font-semibold tracking-tight text-foreground">
                   Showcase image
@@ -754,7 +754,7 @@ export function BusinessInquiryPageForm({
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-0 pb-0">
-              <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+              <div className="border-t border-border/60 px-5 pt-5 pb-5 sm:px-6 sm:pb-6">
                 <ShowcaseSection
                   showcaseImageUrl={showcaseImageUrl}
                   showcaseImageFrame={showcaseImageFrame}
@@ -782,7 +782,7 @@ export function BusinessInquiryPageForm({
           </AccordionItem>
 
           <AccordionItem value="contact" data-padding="none" className="section-panel border-none p-0">
-            <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
+            <AccordionTrigger className="gap-4 px-5 py-4 hover:no-underline sm:px-6">
               <div className="flex flex-col gap-0.5">
                 <span className="font-heading text-base font-semibold tracking-tight text-foreground">
                   Business contact
@@ -795,7 +795,7 @@ export function BusinessInquiryPageForm({
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-0 pb-0">
-              <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+              <div className="border-t border-border/60 px-5 pt-5 pb-5 sm:px-6 sm:pb-6">
                 <ContactSection
                   showBusinessContact={showBusinessContact}
                   businessContactPhone={businessContactPhone}
