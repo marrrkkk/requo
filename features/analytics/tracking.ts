@@ -16,7 +16,29 @@ import { hashOpaqueToken } from "@/lib/security/tokens";
 
 export type PublicAnalyticsHeaderStore = Pick<Headers, "get">;
 
-type AnalyticsEventType = "inquiry_form_viewed" | "quote_public_viewed";
+export type VerticalAnalyticsEventType =
+  | "approval_requested"
+  | "approval_viewed"
+  | "approval_approved"
+  | "approval_changes_requested"
+  | "approval_expired"
+  | "change_order_created"
+  | "change_order_approved"
+  | "change_order_rejected"
+  | "schedule_created"
+  | "schedule_accepted"
+  | "schedule_prefill_used"
+  | "scope_block_added"
+  | "scope_required_missing"
+  | "readiness_blocked"
+  | "readiness_completed"
+  | "ai_pack_guidance_used"
+  | "ai_missing_info_detected";
+
+type AnalyticsEventType =
+  | "inquiry_form_viewed"
+  | "quote_public_viewed"
+  | VerticalAnalyticsEventType;
 
 const analyticsDuplicateWindowMs = 10_000;
 

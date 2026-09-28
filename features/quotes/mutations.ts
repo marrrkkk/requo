@@ -1112,6 +1112,7 @@ export async function markQuoteSentForBusiness({
         businessId: businesses.id,
         title: quotes.title,
         customerName: quotes.customerName,
+        totalInCents: quotes.totalInCents,
       })
       .from(quotes)
       .innerJoin(businesses, eq(quotes.businessId, businesses.id))
@@ -1125,6 +1126,55 @@ export async function markQuoteSentForBusiness({
     if (existingQuote.archivedAt || existingQuote.status !== "draft") {
       return {
         changed: false,
+        status: existingQuote.status,
+        quoteNumber: existingQuote.quoteNumber,
+        inquiryId: existingQuote.inquiryId,
+        publicToken: tryResolveStoredQuotePublicToken(existingQuote),
+      };
+    }
+
+    // Pack-aware send gates (verticalization P3/P4/P5): incomplete required
+    // scope blocks hard-block; critical intake gaps block; a schedule whose
+    // totals no longer match the draft blocks re-send until re-saved
+    // (stale gate — no silent mutation of reviewed commercial meaning).
+    const { evaluateScopeSendGate } = await import("@/features/scope-blocks/queries");
+    const { evaluateIntakeReadiness } = await import("@/features/businesses/intake-bindings");
+    const { getEditableScheduleForQuote } = await import("@/features/schedules/queries");
+
+    const [scopeGate, readiness] = await Promise.all([
+      evaluateScopeSendGate({ businessId, quoteId }),
+      evaluateIntakeReadiness({ businessId, inquiryId: existingQuote.inquiryId }),
+    ]);
+
+    const blockers = [
+      ...scopeGate.blocking.map((blocker) => blocker.reason),
+      ...readiness.blockedReasons,
+    ];
+
+    const editableSchedule = await getEditableScheduleForQuote({ businessId, quoteId });
+
+    if (editableSchedule && editableSchedule.quoteTotalCents !== existingQuote.totalInCents) {
+      blockers.push(
+        "The payment schedule no longer matches the quote total. Re-save it before sending.",
+      );
+    }
+
+    if (blockers.length > 0) {
+      await insertQuoteActivity(tx, {
+        businessId,
+        inquiryId: existingQuote.inquiryId,
+        quoteId,
+        actorUserId,
+        type: "quote.send_blocked",
+        summary: `Quote ${existingQuote.quoteNumber} send blocked: ${blockers[0]}.`,
+        metadata: { quoteNumber: existingQuote.quoteNumber, blockers: blockers.slice(0, 5) },
+        now,
+      });
+
+      return {
+        changed: false,
+        blocked: true as const,
+        blockers,
         status: existingQuote.status,
         quoteNumber: existingQuote.quoteNumber,
         inquiryId: existingQuote.inquiryId,
@@ -1838,6 +1888,25 @@ export async function onQuoteAccepted(
     now,
   );
 
+  // Commercial schedule acceptance snapshot (P5): the editable schedule
+  // becomes immutable truth with re-verified cents. Throws on incoherence —
+  // acceptance must never snapshot a broken schedule.
+  const [acceptedQuote] = await tx
+    .select({ totalInCents: quotes.totalInCents })
+    .from(quotes)
+    .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
+    .limit(1);
+
+  if (acceptedQuote) {
+    const { acceptScheduleForQuote } = await import("@/features/schedules/mutations");
+    await acceptScheduleForQuote(tx, {
+      businessId,
+      quoteId,
+      quoteTotalCents: acceptedQuote.totalInCents,
+      now,
+    });
+  }
+
   if (skippedCount > 0) {
     await insertQuoteActivity(tx, {
       businessId,
@@ -2348,6 +2417,9 @@ export async function archiveQuoteVersionAndRevise({
       .orderBy(asc(quoteItems.position));
 
     // Archive current version
+    const { listScopeBlocksForQuote } = await import("@/features/scope-blocks/queries");
+    const versionBlocks = await listScopeBlocksForQuote({ businessId, quoteId });
+
     await tx.insert(quoteVersions).values({
       id: newEntityId(),
       businessId,
@@ -2366,6 +2438,14 @@ export async function archiveQuoteVersionAndRevise({
       totalInCents: existingQuote.totalInCents,
       validUntil: existingQuote.validUntil,
       items: currentItems,
+      scopeBlocks: versionBlocks.map((block) => ({
+        id: block.id,
+        kind: block.kind,
+        position: block.position,
+        content: block.content,
+        required: block.required,
+        state: block.state,
+      })),
       createdAt: now,
       archivedAt: now,
     });

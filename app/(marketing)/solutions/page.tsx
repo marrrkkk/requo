@@ -13,7 +13,7 @@ import { getFaqPageStructuredData } from "@/lib/seo/structured-data";
 
 export const metadata: Metadata = createPageMetadata({
   description:
-    "Quote software for contractors, consultants, creatives, events, cleaning, and print shops. Pick your industry and see the inquiry-to-paid workflow.",
+    "Quote software for contractors, professional and IT services, creatives, photo/video and events, and custom fabrication and signage. Pick your industry and see the inquiry-to-paid workflow.",
   pathname: "/solutions",
   title: "Quote Software by Industry",
 });
@@ -22,12 +22,12 @@ const hubFaqs = [
   {
     question: "Which industries does Requo fit?",
     answer:
-      "Requo fits service businesses that quote custom scope: contractors and home services, professional services, creative and marketing studios, events and production, cleaning and outdoor services, and print and custom shops.",
+      "Requo fits service businesses that quote custom scope: contractors and home services, professional and IT services, creative and marketing studios, photo/video and event services, and custom fabrication and signage shops.",
   },
   {
     question: "How is each solution different?",
     answer:
-      "The loop is the same — inquiry to quote to follow-up to invoice — but each industry page shows its own fields, attachments, workflow stages, and FAQs, from property photos to event dates to print specs.",
+      "The loop is the same — inquiry to quote to follow-up to invoice — but each industry page shows its own fields, attachments, workflow stages, and FAQs, from property photos to shoot dates to fabrication specs.",
   },
   {
     question: "Can I use Requo for more than one trade?",
@@ -51,7 +51,7 @@ export default async function SolutionsHubPage() {
       <EditorialPage
         ctaHeadline="Find your workflow."
         ctaSub="Pick your industry and see the inquiry-to-paid loop with your fields."
-        definition="Requo is quote software by industry: contractors, consultants, creatives, event producers, cleaning and outdoor crews, and print shops each get tailored inquiry fields, quote line items, follow-ups, and invoicing — one connected loop from first request to paid."
+        definition="Requo is quote software by industry: contractors, professional and IT consultants, creatives, photo/video and event producers, and custom fabrication and signage shops each get tailored inquiry fields, quote line items, follow-ups, and invoicing — one connected loop from first request to paid."
         eyebrow="Solutions"
         faqSlug="solutions-hub"
         faqs={[...hubFaqs]}

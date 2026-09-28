@@ -14,7 +14,9 @@ type AssertPublicActionRateLimitInput = {
     | "demo-request"
     | "public-inquiry-submit"
     | "public-quote-respond"
-    | "public-quote-revision";
+    | "public-quote-revision"
+    | "approval-respond"
+    | "approval-artifact-view";
   scope: string;
   limit: number;
   windowMs: number;

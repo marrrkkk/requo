@@ -18,6 +18,8 @@ Related: `docs/architecture.md`, `docs/data.md` (tables), `docs/workflows.md` (e
 
 **Email Template** = customizable block config (`businesses.quote_email_template`, `invoice_email_template`, `quote_follow_up_template`). Edited in Settings → Email templates.
 
+**Behavior Pack** = product configuration selecting pack-aware behavior for a business (`features/businesses/behavior-packs.ts`, six packs). Separate from the stored `BusinessType` taxonomy (15 values, never reinterpreted), from starter templates (creation-time field seeds), and from starter workflows (onboarding field patterns) — the three concepts are never collapsed. Secondary stored types resolve to unpacked (`null`): legacy behavior preserved, intake presets and templates only. Current assignment per business in `business_pack_assignments` (one row, nullable pack); every seed/onboarding/switch/reset appends to `business_pack_assignment_history`. Switches are owner-only and future-only: history and commercial records are never rewritten.
+
 ## Core entities
 
 | Entity | Purpose | Ownership | Table(s) |
@@ -34,6 +36,12 @@ Related: `docs/architecture.md`, `docs/data.md` (tables), `docs/workflows.md` (e
 | Business Memory | Owner-maintained knowledge for RAG grounding | `businessId` | `business_memories`, `business_knowledge_files`, `business_knowledge_chunks` |
 | Notification | In-app event for a business | `businessId` | `business_notifications`, `..._states`, `..._reads` |
 | Subscription | Business billing state | `businessId` (unique) | `business_subscriptions`, `billing_events` |
+| Pack Recipe | Versioned behavior configuration per pack area; v1 seeded from code, owner-editable into new versions, never mutated once referenced | `businessId` | `pack_recipes` |
+| Scope Block | Typed commercial scope section on a quote (10 kinds); required/optional × complete/incomplete/waived; waiver is manager+, audit-logged, pinned at acceptance | `businessId` → quote | `quote_scope_blocks` |
+| Approval Chain | Identity shared by all versions in one approval sequence (proof/final-count/asset/milestone/hold-confirmation) | `businessId` | `approval_chains` |
+| Approval | One version row per chain; exactly one pending per chain; conditional-write transitions; customer token link | `businessId` → chain | `approvals`, `approval_artifacts` |
+| Change Order | Append-only delta child of the accepted quote (lines/blocks/schedule); one pending per quote; customer approval is a P1 instance | `businessId` → quote | `change_orders`, `change_order_lines` |
+| Commercial Schedule | Deposit/milestone/balance/retainer split of the quote total (percent-of-total bps or fixed); accepted versions immutable; v2 via approved CO | `businessId` → quote | `commercial_schedules`, `commercial_schedule_items` |
 
 ## Lifecycles and states
 

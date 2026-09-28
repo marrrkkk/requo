@@ -116,7 +116,7 @@ const staticPages = [
 
     changeFrequency: "monthly" as const,
 
-    path: "/solutions/professional-services",
+    path: "/solutions/professional-it-services",
 
     priority: 0.6,
 
@@ -136,7 +136,7 @@ const staticPages = [
 
     changeFrequency: "monthly" as const,
 
-    path: "/solutions/events-production",
+    path: "/solutions/photo-video",
 
     priority: 0.6,
 
@@ -146,7 +146,7 @@ const staticPages = [
 
     changeFrequency: "monthly" as const,
 
-    path: "/solutions/cleaning-outdoor-services",
+    path: "/solutions/events-rentals",
 
     priority: 0.6,
 
@@ -156,7 +156,7 @@ const staticPages = [
 
     changeFrequency: "monthly" as const,
 
-    path: "/solutions/print-custom-services",
+    path: "/solutions/custom-fabrication-signage",
 
     priority: 0.6,
 

@@ -1537,7 +1537,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    transition: color 150ms ease;
+    transition:
+      color var(--motion-duration-fast) var(--motion-ease-standard);
   }
 
   .public-page-header-link:hover,
@@ -1557,9 +1558,16 @@ html[data-reload-loading="fade-out"] #app-root-content {
     transform: scaleX(0);
     transform-origin: center;
     transition:
-      opacity 200ms ease,
-      transform 200ms ease;
+      opacity var(--motion-duration-fast) var(--motion-ease-standard),
+      transform var(--motion-duration-fast) var(--motion-ease-standard);
     pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .public-page-header-link,
+    .public-page-header-link .nav-underline {
+      transition: none;
+    }
   }
 
   .public-page-header-link:hover .nav-underline,

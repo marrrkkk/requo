@@ -218,3 +218,15 @@ export function getBusinessChecklistCacheTags(businessId: string) {
     `${scopeTag}:inquiries`,
   ]);
 }
+
+/**
+ * Tags for the behavior-pack assignment reader (verticalization F-01).
+ * Pack assignment is business configuration: the scope tag keeps dashboard
+ * reads coherent and the `:pack` tag lets future cached readers invalidate
+ * independently of settings.
+ */
+export function getBusinessPackCacheTags(businessId: string) {
+  const scopeTag = getBusinessScopeTag(businessId);
+
+  return uniqueCacheTags([scopeTag, `${scopeTag}:pack`]);
+}

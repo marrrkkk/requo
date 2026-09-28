@@ -21,6 +21,8 @@ import {
 import type { InvoiceStatus } from "@/features/invoices/types";
 import type { QuoteStatus } from "@/features/quotes/types";
 
+import type { BusinessType } from "@/features/inquiries/business-types";
+
 export type SolutionLink = {
   slug: string;
   title: string;
@@ -32,14 +34,8 @@ export const solutionLinks: readonly SolutionLink[] = [
   {
     slug: "contractors-home-services",
     title: "Contractors & Home Services",
-    description: "Quotes for remodels, installs, and on-site work.",
+    description: "Quotes for remodels, repairs, installs, and on-site work.",
     icon: House,
-  },
-  {
-    slug: "professional-services",
-    title: "Professional Services",
-    description: "Turn discovery inquiries into scoped proposals.",
-    icon: BriefcaseBusiness,
   },
   {
     slug: "creative-marketing",
@@ -48,24 +44,63 @@ export const solutionLinks: readonly SolutionLink[] = [
     icon: Palette,
   },
   {
-    slug: "events-production",
-    title: "Events & Production",
-    description: "Dates, venues, and details quoted in one place.",
+    slug: "professional-it-services",
+    title: "Professional & IT Services",
+    description: "Turn discovery inquiries into scoped proposals.",
+    icon: BriefcaseBusiness,
+  },
+  {
+    slug: "photo-video",
+    title: "Photo & Video",
+    description: "Shoots, coverage, and deliverables quoted in one place.",
+    icon: Camera,
+  },
+  {
+    slug: "events-rentals",
+    title: "Events & Rentals",
+    description: "Dates, venues, and guest counts quoted in one place.",
     icon: CalendarDays,
   },
   {
-    slug: "cleaning-outdoor-services",
-    title: "Cleaning & Outdoor Services",
-    description: "Property details and photos, priced clearly.",
-    icon: Sparkles,
-  },
-  {
-    slug: "print-custom-services",
-    title: "Print & Custom Services",
+    slug: "custom-fabrication-signage",
+    title: "Custom Fabrication & Signage",
     description: "Specs, dimensions, and made-to-order quotes.",
     icon: Printer,
   },
 ];
+
+/**
+ * Canonical solution → business-type mapping. Marketing positioning only:
+ * solutions are display/SEO pages, while `businessTypes` remain the stored
+ * taxonomy (`features/inquiries/business-types.ts`). Secondary types stay
+ * supported via the general flow but are not primary marketing ICP.
+ */
+export const solutionBusinessTypes: Record<string, readonly BusinessType[]> = {
+  "contractors-home-services": [
+    "contractor_home_improvement",
+    "repair_services",
+  ],
+  "creative-marketing": ["creative_marketing_services"],
+  "professional-it-services": [
+    "web_it_services",
+    "consulting_professional_services",
+  ],
+  "photo-video": ["photo_video_production"],
+  "events-rentals": ["event_services_rentals"],
+  "custom-fabrication-signage": ["fabrication_custom_build", "print_signage"],
+};
+
+/** Supported but not actively marketed as a primary solution. */
+export const secondaryBusinessTypes: readonly BusinessType[] = [
+  "cleaning_services",
+  "landscaping_outdoor_services",
+  "moving_relocation",
+  "auto_services",
+  "pet_services",
+];
+
+/** Fallback for project-based services that fit no specialized category. */
+export const fallbackBusinessType: BusinessType = "general_project_services";
 
 export type SolutionExampleField = {
   label: string;
@@ -353,14 +388,13 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     ],
     related: [
       {
-        slug: "cleaning-outdoor-services",
-        blurb:
-          "Property details and photos that turn a service request into a clear estimate.",
-      },
-      {
-        slug: "print-custom-services",
+        slug: "custom-fabrication-signage",
         blurb:
           "Specifications and files that keep a custom order quotable.",
+      },
+      {
+        slug: "events-rentals",
+        blurb: "Dates, venues, and guest counts quoted in one connected flow.",
       },
     ],
     ctaHeadline: "Ready for the next project inquiry?",
@@ -370,14 +404,14 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     seoDescription:
       "Turn scattered project inquiries into confident quotes: property details, photos, line-item pricing, follow-ups, invoices, and payment status in one workflow.",
   },
-  "professional-services": {
-    slug: "professional-services",
-    shortTitle: "Professional",
+  "professional-it-services": {
+    slug: "professional-it-services",
+    shortTitle: "Professional & IT",
     headline: "Turn client inquiries into clear proposals and paid work.",
     description:
       "Keep client requirements, scope, quotes, follow-ups, invoices, and payment status together — without rebuilding the same information across tools.",
     definition:
-      "Proposal software for professional services turns discovery inquiries into scoped, signable proposals: requirements and files stay on one record, deliverables and fees are priced line by line, clients respond through a secure link, and the approved scope converts into an invoice without retyping.",
+      "Proposal software for professional and IT services turns discovery inquiries into scoped, signable proposals: requirements and files stay on one record, deliverables and fees are priced line by line, clients respond through a secure link, and the approved scope converts into an invoice without retyping.",
     secondaryCtaLabel: "See the professional workflow",
     heroCard: {
       cardTitle: "Acme Consulting",
@@ -573,15 +607,15 @@ export const solutionDetails: Record<string, SolutionDetail> = {
           "Briefs, deliverables, and revisions quoted as one connected project.",
       },
       {
-        slug: "events-production",
+        slug: "events-rentals",
         blurb:
-          "Dates, venues, and packages quoted in a single workflow.",
+          "Dates, venues, and guest counts quoted in a single workflow.",
       },
     ],
     ctaHeadline: "Give the next client inquiry a clear path forward.",
     ctaSub:
       "Scope it once, propose it clearly, and follow it through to paid.",
-    seoTitle: "Proposal Software for Professional Services | Requo",
+    seoTitle: "Proposal Software for Professional & IT Services | Requo",
     seoDescription:
       "Turn client inquiries into scoped proposals: capture requirements, spell out deliverables, share secure links, follow up, and invoice from the approved scope.",
   },
@@ -783,14 +817,14 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     ],
     related: [
       {
-        slug: "professional-services",
+        slug: "professional-it-services",
         blurb:
           "Discovery inquiries turned into scoped, priced proposals.",
       },
       {
-        slug: "events-production",
+        slug: "photo-video",
         blurb:
-          "Dates, venues, and packages quoted in one connected flow.",
+          "Shoots, coverage, and deliverables quoted in one connected flow.",
       },
     ],
     ctaHeadline: "Give every project brief a clearer path to approval.",
@@ -800,14 +834,189 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     seoDescription:
       "From brief to approval: collect objectives and assets, quote deliverables line by line, handle revisions with per-item comments, and invoice the approved scope.",
   },
-  "events-production": {
-    slug: "events-production",
-    shortTitle: "Events",
-    headline: "Keep event inquiries, packages, quotes, and payments connected.",
+  "photo-video": {
+    slug: "photo-video",
+    shortTitle: "Photo & Video",
+    headline: "Quote shoots from the facts every booking depends on.",
     description:
-      "Capture the details that make an event quote possible, keep the opportunity organized, and follow it from first inquiry to payment.",
+      "Capture shoot dates, venues, coverage hours, and deliverables on one inquiry, approve the package with the client, and follow it from first message to paid.",
     definition:
-      "Event quote software prices the package from the four facts every event depends on: date, venue, guest count, and requested services land on one inquiry, line items build the package, view tracking plus follow-up tasks keep unbooked dates warm, and approval becomes the invoice.",
+      "Photo and video quote software prices shoots from coverage, not guesswork: date, venue, hours, and deliverables land on one inquiry, line items build the package, the client approves the exact version through a secure link, and the accepted quote becomes the invoice.",
+    secondaryCtaLabel: "See the shoot workflow",
+    heroCard: {
+      cardTitle: "Harper Wedding",
+      cardSubtitle: "Full-day coverage · $3,800",
+      fields: [
+        { label: "Date", value: "June 14" },
+        { label: "Coverage", value: "8 hours · 2 shooters" },
+        { label: "Deliverables", value: "400+ edited photos" },
+      ],
+      quoteLabel: "Quote",
+      quoteValue: "$3,800",
+      statusLabel: "Status",
+      statusValue: "Approved",
+      note: "Package and date approved",
+      quoteStatus: "accepted",
+    },
+    workflow: [
+      "Shoot inquiry",
+      "Date & coverage",
+      "Package",
+      "Quote",
+      "Follow-up",
+      "Approval",
+      "Invoice",
+      "Payment",
+    ],
+    demoHeadline: "One shoot. Inquiry to paid.",
+    demoIntro:
+      "One wedding booking, from inquiry to paid — nothing retyped.",
+    demoTabs: [
+      {
+        id: "inquiry",
+        label: "Shoot inquiry",
+        stageHeadline: "The date arrives first.",
+        stageBody:
+          "Date, venue, coverage hours, and deliverables land on one inquiry — the facts every shoot quote depends on.",
+        cardTitle: "Harper Wedding",
+        cardSubtitle: "June 14 inquiry",
+        fields: [
+          { label: "Date", value: "June 14" },
+          { label: "Venue", value: "Rosewood Barn" },
+          { label: "Coverage", value: "8 hours · 2 shooters" },
+        ],
+        quoteLabel: "Deliverables asked",
+        quoteValue: "400+ edited photos + album",
+        statusLabel: "Requirements",
+        statusValue: "Date + venue + hours upfront",
+        note: "Reference photos stay on the inquiry",
+        quoteStatus: "draft",
+      },
+      {
+        id: "quote",
+        label: "Quote",
+        stageHeadline: "Price the package without starting over.",
+        stageBody:
+          "Coverage and deliverables sit on the same inquiry. The client opens a link, approves the package, and the date is theirs.",
+        cardTitle: "Harper Wedding",
+        cardSubtitle: "Full-day coverage · $3,800",
+        fields: [
+          { label: "Package", value: "Full-day coverage" },
+          { label: "Rights", value: "Personal use spelled out" },
+          { label: "Terms", value: "Valid 30 days" },
+        ],
+        quoteLabel: "Quote",
+        quoteValue: "$3,800",
+        statusLabel: "Status",
+        statusValue: "Viewed",
+        note: "Secure link · package approval · version 1",
+        quoteStatus: "sent",
+      },
+      {
+        id: "paid",
+        label: "Paid",
+        stageHeadline: "Approval becomes an invoice.",
+        stageBody:
+          "The retainer-plus-balance schedule prefills the draft invoice. The manual payment is recorded by hand — balance $0.",
+        cardTitle: "Harper Wedding",
+        cardSubtitle: "Full-day coverage · paid",
+        fields: [
+          { label: "Quote", value: "$3,800 · approved" },
+          { label: "Invoice", value: "Prefilled from the schedule" },
+          { label: "Payment", value: "Bank transfer · recorded by hand" },
+        ],
+        quoteLabel: "Balance due",
+        quoteValue: "$0",
+        statusLabel: "Payment status",
+        statusValue: "Paid",
+        note: "One invoice per quote · manual payments only, no pay page",
+        quoteStatus: "accepted",
+        invoiceStatus: "paid",
+      },
+    ],
+    featuresHeading: "Everything around the shoot inquiry.",
+    featuresIntro:
+      "The pieces that turn a date and a rough idea into a booked, billable shoot.",
+    features: [
+      {
+        icon: Camera,
+        title: "Collect coverage facts upfront",
+        body: "Custom inquiry fields capture the shoot date, venue, coverage hours, and deliverables — plus usage rights, so the license is explicit before final files ship.",
+      },
+      {
+        icon: CheckCircle2,
+        title: "Approve the package, not a thread",
+        body: "The client approves the exact package version through a secure link — or requests changes with a comment. Re-uploads become new versions, never silent edits.",
+      },
+      {
+        icon: BellRing,
+        title: "Never lose an unbooked date",
+        body: "View tracking shows the quote landed. Follow-up tasks with due dates keep every pending shoot warm until the client decides.",
+      },
+      {
+        icon: ReceiptText,
+        title: "Invoice the approved shoot",
+        body: "The accepted quote becomes an invoice without retyping the package, prefilled from the retainer-and-balance schedule. Record each payment by hand as it arrives. Requo tracks payment status; it does not process cards or online payments.",
+      },
+    ],
+    customerView: {
+      cardTitle: "Harper Wedding · $3,800",
+      cardSubtitle: "Full-day coverage package",
+      fields: [
+        { label: "Date", value: "June 14 · 8 hours" },
+        { label: "Deliverables", value: "400+ edited photos + album" },
+      ],
+      quoteLabel: "Total",
+      quoteValue: "$3,800",
+      statusLabel: "Status",
+      statusValue: "Quote viewed",
+      note: "The client opens a secure link — no account needed. They approve, or request changes with a comment.",
+      quoteStatus: "sent",
+    },
+    faqs: [
+      {
+        question: "How do clients approve a shoot package?",
+        answer:
+          "Through a secure link: they approve the exact package version, or request changes with a comment. Re-uploads and resubmissions become new versions, so the approved record never changes silently.",
+      },
+      {
+        question: "Can I split payment into a retainer and balance?",
+        answer:
+          "Yes. Commercial schedules on the quote split the total into retainer, milestone, or balance items, and the accepted schedule prefills the draft invoice. Payments themselves are recorded by hand — Requo never moves money.",
+      },
+      {
+        question: "How do payments work for shoots?",
+        answer:
+          "The approved quote converts into an invoice without retyping the package. Record each payment by hand as it arrives — including partial ones — and the invoice shows as unpaid, partially paid, paid, or overdue. Requo tracks payment status; it does not process cards or online payments.",
+      },
+    ],
+    related: [
+      {
+        slug: "events-rentals",
+        blurb:
+          "Dates, venues, and guest counts quoted in a single workflow.",
+      },
+      {
+        slug: "creative-marketing",
+        blurb:
+          "Briefs, deliverables, and revisions quoted as one connected project.",
+      },
+    ],
+    ctaHeadline: "Book the next shoot with confidence.",
+    ctaSub:
+      "Pin the coverage facts early, approve the package, follow it to paid.",
+    seoTitle: "Photo & Video Quote Software | Requo",
+    seoDescription:
+      "Quote photo and video shoots with confidence: capture date, venue, and coverage, approve the exact package version, and invoice to paid.",
+  },
+  "events-rentals": {
+    slug: "events-rentals",
+    shortTitle: "Events & Rentals",
+    headline: "Quote events from the date, the venue, and the count.",
+    description:
+      "Capture event dates, venues, and guest counts on one inquiry, confirm the final count with the organizer, and follow every event from first message to paid.",
+    definition:
+      "Event quote software prices the occasion from the facts every event depends on: date, venue, and guest count land on one inquiry, line items build the services, the organizer confirms the final count through a secure link, and the accepted quote becomes the invoice.",
     secondaryCtaLabel: "See the event workflow",
     heroCard: {
       cardTitle: "Corporate Event",
@@ -827,7 +1036,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     workflow: [
       "Event inquiry",
       "Date & requirements",
-      "Package",
+      "Services",
       "Quote",
       "Follow-up",
       "Approval",
@@ -843,7 +1052,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
         label: "Event inquiry",
         stageHeadline: "The date arrives first.",
         stageBody:
-          "Date, venue, and guest count land on one inquiry — the four facts every event quote depends on.",
+          "Date, venue, and guest count land on one inquiry — the facts every event quote depends on.",
         cardTitle: "Corporate Event",
         cardSubtitle: "October 24 · 180 guests inquiry",
         fields: [
@@ -861,41 +1070,21 @@ export const solutionDetails: Record<string, SolutionDetail> = {
       {
         id: "quote",
         label: "Quote",
-        stageHeadline: "Price the package without starting over.",
+        stageHeadline: "Price the services without starting over.",
         stageBody:
-          "Services sit on the same event — date and venue already there. The organizer opens a link.",
+          "Services sit on the same event — date and venue already there. The organizer opens a link and confirms the final count.",
         cardTitle: "Corporate Event",
         cardSubtitle: "Full Production · $12,500",
         fields: [
-          { label: "Package", value: "Full Production" },
           { label: "Services", value: "AV · Lighting · Stage · Setup" },
+          { label: "Count", value: "180 · final-count approval" },
           { label: "Terms", value: "Valid 30 days" },
         ],
         quoteLabel: "Quote",
         quoteValue: "$12,500",
         statusLabel: "Status",
         statusValue: "Viewed",
-        note: "Secure link · line items per service · version 1",
-        quoteStatus: "sent",
-      },
-      {
-        id: "follow-up",
-        label: "Follow-up",
-        stageHeadline: "Never lose an unbooked date.",
-        stageBody:
-          "The first view is stamped, and a due task keeps the quote warm until the organizer decides.",
-        cardTitle: "Corporate Event",
-        cardSubtitle: "Full Production · $12,500",
-        fields: [
-          { label: "Quote", value: "$12,500 · viewed" },
-          { label: "Event date", value: "October 24 — approaching" },
-          { label: "Reminder", value: "Due today" },
-        ],
-        quoteLabel: "Quote",
-        quoteValue: "$12,500",
-        statusLabel: "Next step",
-        statusValue: "Follow up before the date books out",
-        note: "Owner task + copy-paste follow-up draft — no auto-send",
+        note: "Secure link · count confirmation · version 1",
         quoteStatus: "sent",
       },
       {
@@ -903,7 +1092,7 @@ export const solutionDetails: Record<string, SolutionDetail> = {
         label: "Paid",
         stageHeadline: "Approval becomes an invoice.",
         stageBody:
-          "The same package becomes the invoice. The manual payment is recorded by hand — balance $0.",
+          "The same services become the invoice. The manual payment is recorded by hand — balance $0.",
         cardTitle: "Corporate Event",
         cardSubtitle: "Full Production · paid",
         fields: [
@@ -927,17 +1116,12 @@ export const solutionDetails: Record<string, SolutionDetail> = {
       {
         icon: CalendarDays,
         title: "Collect the date before anything else",
-        body: "Custom inquiry fields capture the event date, venue, guest count, and services requested — the four facts every event quote depends on.",
+        body: "Custom inquiry fields capture the event date, venue, guest count, and services requested — the facts every event quote depends on.",
       },
       {
-        icon: Package,
-        title: "Quote packages line by line",
-        body: "Build the package from line items — AV, lighting, stage, setup, teardown — so when the guest count changes, the price changes with it. Revisions go out as new versions.",
-      },
-      {
-        icon: Camera,
-        title: "Keep plans and references attached",
-        body: "Floor plans, photos, and inspiration files attach to the inquiry. The crew quotes from the same details the client described.",
+        icon: Users,
+        title: "Confirm the final count, not a thread",
+        body: "The organizer confirms the headcount through a secure approval link. A recount creates a new version — the confirmed count is never edited in place. Counts drive readiness and approvals, never inventory.",
       },
       {
         icon: BellRing,
@@ -945,19 +1129,14 @@ export const solutionDetails: Record<string, SolutionDetail> = {
         body: "View tracking shows the quote landed. Follow-up tasks with due dates keep every pending event warm until the organizer decides.",
       },
       {
-        icon: Users,
-        title: "Remember every organizer",
-        body: "Past inquiries and quotes from the same organizer group into a history view by email — so repeat events start with the details you already know.",
-      },
-      {
         icon: ReceiptText,
         title: "Invoice the approved event",
-        body: "The approved quote becomes an invoice without retyping the package. Record each payment by hand as it arrives — including partial ones — and the status follows from unpaid to paid.",
+        body: "The approved quote becomes an invoice without retyping the services. Record each payment by hand as it arrives — including partial ones — and the status follows from unpaid to paid. Requo tracks payment status; it does not process cards or online payments.",
       },
     ],
     customerView: {
       cardTitle: "Corporate Event · $12,500",
-      cardSubtitle: "Full Production package",
+      cardSubtitle: "Full Production services",
       fields: [
         { label: "Date", value: "October 24 · 180 guests" },
         { label: "Services", value: "AV · Lighting · Stage · Setup" },
@@ -966,278 +1145,53 @@ export const solutionDetails: Record<string, SolutionDetail> = {
       quoteValue: "$12,500",
       statusLabel: "Status",
       statusValue: "Quote viewed",
-      note: "The organizer opens a secure link — no account needed. They accept, decline, or request changes to individual services.",
+      note: "The organizer opens a secure link — no account needed. They confirm the count, accept, decline, or request changes.",
       quoteStatus: "sent",
     },
     faqs: [
       {
-        question: "Can I collect event dates and requirements?",
+        question: "How do final headcounts work?",
         answer:
-          "Yes. Inquiry forms support custom fields for the event date, venue, guest count, and services requested — plus notes for load-in, teardown, and anything else the quote depends on.",
+          "The organizer confirms the count through a secure approval link. If the number changes, the recount creates a new approval version — history is preserved and the balance recalculates from the confirmed count. Counts never touch inventory.",
       },
       {
-        question: "Can I include event services in a quote?",
+        question: "What happens when event details change after approval?",
         answer:
-          "Yes. Quotes are built from line items, so AV, lighting, stage, setup, and teardown are each priced on their own line. When requirements change, you adjust the lines and resend the quote as a new version.",
-      },
-      {
-        question: "Can I track event inquiries before they are booked?",
-        answer:
-          "Yes. Open inquiries stay visible with statuses, view tracking shows when a quote has been seen, and follow-up tasks with due dates and reminders make sure no unbooked date goes quiet.",
-      },
-      {
-        question: "Can I keep customer information with the event request?",
-        answer:
-          "Yes. Contact details, notes, and attached plans and photos live on the inquiry itself. Past inquiries and quotes from the same organizer are grouped into a history view by email.",
+          "Changes go through change orders: the business proposes added, removed, or adjusted services, the organizer approves the delta through the same secure link family, and only approved changes join the commercial state.",
       },
       {
         question: "How do payments work for events?",
         answer:
-          "The approved quote converts into an invoice without retyping the package. Record each payment by hand as it arrives — including partial ones — and the invoice shows as unpaid, partially paid, paid, or overdue. Requo tracks payment status; it does not process cards or online payments.",
+          "The approved quote converts into an invoice without retyping the services. Record each payment by hand as it arrives — including partial ones — and the invoice shows as unpaid, partially paid, paid, or overdue. Requo tracks payment status; it does not process cards or online payments.",
       },
     ],
     related: [
       {
-        slug: "creative-marketing",
+        slug: "photo-video",
         blurb:
-          "Briefs and deliverables quoted as one connected project.",
+          "Shoots, coverage, and deliverables quoted in one connected flow.",
       },
       {
-        slug: "professional-services",
+        slug: "contractors-home-services",
         blurb:
-          "Discovery inquiries turned into scoped, priced proposals.",
+          "On-site work quoted from property details and photos.",
       },
     ],
     ctaHeadline: "Keep the next event opportunity moving.",
     ctaSub:
-      "Pin the details early, quote the right package, follow it to paid.",
-    seoTitle: "Event Inquiry & Quote Software | Requo",
+      "Pin the details early, confirm the count, follow it to paid.",
+    seoTitle: "Event Quote Software | Requo",
     seoDescription:
-      "Quote events with confidence: capture the date, venue, and guest count, price packages line by line, follow every open inquiry, and invoice to paid.",
+      "Quote events with confidence: capture the date, venue, and guest count, confirm the final count, and invoice to paid.",
   },
-  "cleaning-outdoor-services": {
-    slug: "cleaning-outdoor-services",
-    shortTitle: "Cleaning & Outdoor",
-    headline: "Turn service requests into clear quotes and repeatable work.",
-    description:
-      "Keep property details, service requirements, photos, quotes, follow-ups, invoices, and customer history connected.",
-    definition:
-      "Cleaning estimate software quotes property-based work from photos and facts: property type, size, condition, and access arrive with attached photos, standard services price from the library, customer history groups by email, and the accepted estimate becomes the invoice — so repeat visits quote in seconds without a site visit.",
-    secondaryCtaLabel: "See the service workflow",
-    heroCard: {
-      cardTitle: "Marcus Johnson",
-      cardSubtitle: "Exterior Cleaning · $680",
-      fields: [
-        { label: "Property", value: "Residential" },
-        { label: "Services", value: "House wash · Driveway · Walkway" },
-        { label: "Photos", value: "5 attached" },
-      ],
-      quoteLabel: "Quote",
-      quoteValue: "$680",
-      statusLabel: "Status",
-      statusValue: "Awaiting response",
-      note: "Follow-up reminder set",
-      quoteStatus: "sent",
-    },
-    workflow: [
-      "Service request",
-      "Property details",
-      "Estimate",
-      "Quote",
-      "Follow-up",
-      "Approval",
-      "Invoice",
-      "Payment",
-    ],
-    demoHeadline: "One exterior job. Request to paid.",
-    demoIntro:
-      "One exterior cleaning job, from request to paid — nothing retyped.",
-    demoTabs: [
-      {
-        id: "request",
-        label: "Service request",
-        stageHeadline: "The request arrives complete.",
-        stageBody:
-          "Property, services, and photos land on one request — often enough to price the job without a visit.",
-        cardTitle: "Marcus Johnson",
-        cardSubtitle: "Exterior cleaning request",
-        fields: [
-          { label: "Property", value: "Residential · 2 stories" },
-          { label: "Services", value: "House wash · Driveway · Walkway" },
-          { label: "Photos", value: "5 attached" },
-        ],
-        quoteLabel: "Estimate basis",
-        quoteValue: "$680",
-        statusLabel: "Request",
-        statusValue: "Photos + access notes in one place",
-        note: "Repeat-customer history sits on the same record",
-        quoteStatus: "draft",
-      },
-      {
-        id: "quote",
-        label: "Quote",
-        stageHeadline: "Price it from the photos.",
-        stageBody:
-          "Services sit on the same job — property and photos already there. The customer opens a link.",
-        cardTitle: "Marcus Johnson",
-        cardSubtitle: "Exterior Cleaning · $680",
-        fields: [
-          { label: "Services", value: "House wash · Driveway · Walkway" },
-          { label: "Property", value: "Residential" },
-          { label: "Terms", value: "Valid 30 days" },
-        ],
-        quoteLabel: "Quote",
-        quoteValue: "$680",
-        statusLabel: "Status",
-        statusValue: "Viewed",
-        note: "Secure link · priced from the photos, no visit needed",
-        quoteStatus: "sent",
-      },
-      {
-        id: "follow-up",
-        label: "Follow-up",
-        stageHeadline: "Know when to nudge.",
-        stageBody:
-          "View status plus a due task keep the estimate visible — even in the middle of your busiest week.",
-        cardTitle: "Marcus Johnson",
-        cardSubtitle: "Exterior Cleaning · $680",
-        fields: [
-          { label: "Quote", value: "$680 · sent, not viewed" },
-          { label: "Reminder", value: "Due today" },
-          { label: "History", value: "Reliable past customer" },
-        ],
-        quoteLabel: "Quote",
-        quoteValue: "$680",
-        statusLabel: "Next step",
-        statusValue: "Follow-up reminder set",
-        note: "Owner task + copy-paste follow-up draft — no auto-send",
-        quoteStatus: "sent",
-      },
-      {
-        id: "paid",
-        label: "Paid",
-        stageHeadline: "Approval becomes an invoice.",
-        stageBody:
-          "The same services become the invoice. The manual payment is recorded by hand — balance $0.",
-        cardTitle: "Marcus Johnson",
-        cardSubtitle: "Exterior Cleaning · paid",
-        fields: [
-          { label: "Quote", value: "$680 · approved" },
-          { label: "Invoice", value: "Sent from the quote" },
-          { label: "Payment", value: "Cash · recorded by hand" },
-        ],
-        quoteLabel: "Balance due",
-        quoteValue: "$0",
-        statusLabel: "Payment status",
-        statusValue: "Paid",
-        note: "One invoice per quote · manual payments only, no pay page",
-        quoteStatus: "accepted",
-        invoiceStatus: "paid",
-      },
-    ],
-    featuresHeading: "Everything around the service request.",
-    featuresIntro:
-      "The pieces that make small, property-dependent jobs quotable at volume.",
-    features: [
-      {
-        icon: ClipboardList,
-        title: "Ask about the property, not just the service",
-        body: "Custom inquiry fields capture property type, size, condition, and access — the details that decide whether the job is $300 or $900.",
-      },
-      {
-        icon: Camera,
-        title: "Get photos before you price",
-        body: "Customers attach photos to the request itself. You quote from what you can see, cut the back-and-forth, and skip visits that were never needed.",
-      },
-      {
-        icon: Users,
-        title: "Remember every customer",
-        body: "Past inquiries and quotes from the same customer are grouped into a history view by email. Repeat requests start with full context — what was done, when, and for how much.",
-      },
-      {
-        icon: BellRing,
-        title: "Follow up on every estimate",
-        body: "View tracking plus follow-up tasks with reminders keep each quote visible until it's approved — even in the middle of your busiest week.",
-      },
-      {
-        icon: Package,
-        title: "Price repeatable jobs in seconds",
-        body: "Save your standard services to the Products library and build estimates from the list — the same job costs the same every time, without retyping.",
-      },
-      {
-        icon: ReceiptText,
-        title: "Invoice without retyping",
-        body: "An approved quote becomes an invoice in one step. Record manual payments as they arrive and the status follows from unpaid to paid.",
-      },
-    ],
-    customerView: {
-      cardTitle: "Exterior Cleaning · $680",
-      cardSubtitle: "Sent by your service provider",
-      fields: [
-        { label: "Services", value: "House wash · Driveway · Walkway" },
-        { label: "Property", value: "Residential" },
-      ],
-      quoteLabel: "Total",
-      quoteValue: "$680",
-      statusLabel: "Status",
-      statusValue: "Awaiting response",
-      note: "The customer opens a secure link — no account needed. They accept, decline, or request changes in one tap.",
-      quoteStatus: "sent",
-    },
-    faqs: [
-      {
-        question: "Can customers submit property details?",
-        answer:
-          "Yes. Inquiry forms support custom fields for property type, size, condition, access, and the services requested — so the estimate starts from facts instead of a vague message.",
-      },
-      {
-        question: "Can I collect photos before preparing a quote?",
-        answer:
-          "Yes. Customers can attach photos to the request itself, and they stay on the inquiry next to the property details — often enough to price the job without a visit.",
-      },
-      {
-        question: "Can I keep previous customer information?",
-        answer:
-          "Yes. Past inquiries and quotes from the same customer are grouped into a history view by email, with your notes on each — so repeat requests start with full context.",
-      },
-      {
-        question: "Can I track service quotes that need follow-up?",
-        answer:
-          "Yes. View tracking shows whether a quote has been seen, and follow-up tasks with due dates and reminders keep every open estimate visible until the customer decides.",
-      },
-      {
-        question: "How do payments work for service jobs?",
-        answer:
-          "An accepted quote converts into an invoice without retyping. Record each manual payment — cash, bank transfer, GCash, Maya, check, or other — and the invoice shows as unpaid, partially paid, paid, or overdue. Requo tracks payment status; it does not process cards or online payments.",
-      },
-    ],
-    related: [
-      {
-        slug: "contractors-home-services",
-        blurb:
-          "Project inquiries with property details, photos, and estimates.",
-      },
-      {
-        slug: "events-production",
-        blurb:
-          "Date-driven inquiries quoted by package, followed to payment.",
-      },
-    ],
-    ctaHeadline: "Make the next service request easier to manage.",
-    ctaSub:
-      "Capture the property details, quote it clearly, and follow it through.",
-    seoTitle: "Cleaning Estimate Software | Requo",
-    seoDescription:
-      "Built for property-based work: collect property details and photos, send clear estimates, remember every customer, and track each quote to payment.",
-  },
-  "print-custom-services": {
-    slug: "print-custom-services",
-    shortTitle: "Print & Custom",
+  "custom-fabrication-signage": {
+    slug: "custom-fabrication-signage",
+    shortTitle: "Fabrication & Signage",
     headline: "Keep custom orders clear from request to payment.",
     description:
-      "Collect the specifications, quantities, files, and details you need to quote custom work — without losing the context behind the order.",
+      "Collect the specifications, quantities, files, and details you need to quote custom fabrication and signage work — without losing the context behind the order.",
     definition:
-      "Print quote software prices custom orders from specs, not guesswork: quantities, dimensions, materials, deadlines, and artwork files arrive on one order, options are priced line by line, the exact approved version is snapshotted, and it converts into the invoice without retyping.",
+      "Custom fabrication and signage quote software prices made-to-order work from specs, not guesswork: quantities, dimensions, materials, deadlines, and artwork files arrive on one order, options are priced line by line, the exact approved version is snapshotted, and it converts into the invoice without retyping.",
     secondaryCtaLabel: "See the custom-order workflow",
     heroCard: {
       cardTitle: "Brightline Retail",
@@ -1441,9 +1395,9 @@ export const solutionDetails: Record<string, SolutionDetail> = {
     ctaHeadline: "Turn the next custom request into a clear quote.",
     ctaSub:
       "Collect the specs and files first — the price writes itself from there.",
-    seoTitle: "Print Quote Software | Requo",
+    seoTitle: "Custom Fabrication & Signage Quotes | Requo",
     seoDescription:
-      "Quote custom work without the guesswork: gather specs and artwork, price options line by line, approve the exact version, and track each order to payment.",
+      "Quote custom fabrication and signage without the guesswork: gather specs and artwork, price options line by line, approve the exact version, and track each order to payment.",
   },
 };
 

@@ -674,3 +674,138 @@ export async function sendInquiryAcknowledgmentEmail({
     },
   });
 }
+
+/**
+ * Verticalization P1/P2 customer emails. Same record+version+transition
+ * content on retry (idempotent): the idempotency key pins the exact version,
+ * so re-sends are safe.
+ */
+export async function sendApprovalEmail({
+  businessId,
+  businessName,
+  customerEmail,
+  customerName,
+  title,
+  decision,
+  approvalUrl,
+  approvalId,
+  version,
+  replyToEmail,
+}: {
+  businessId: string;
+  businessName: string;
+  customerEmail: string;
+  customerName: string;
+  title: string;
+  decision: "requested" | "approved" | "changes_requested" | "expired" | "reminder";
+  approvalUrl?: string | null;
+  approvalId: string;
+  version: number;
+  replyToEmail?: string;
+}) {
+  if (!isEmailConfigured) {
+    return;
+  }
+
+  const senderConfigurationError = getConfigurationError("quote");
+
+  if (senderConfigurationError) {
+    throw new Error(senderConfigurationError);
+  }
+
+  const subject =
+    decision === "requested"
+      ? `${businessName}: your approval is needed — ${title}`
+      : decision === "reminder"
+        ? `${businessName}: reminder — ${title} is waiting for approval`
+        : `${businessName}: update on ${title}`;
+
+  const lines = [
+    `Hi ${customerName},`,
+    "",
+    decision === "requested"
+      ? `${businessName} asked you to review and approve: ${title}.`
+      : decision === "reminder"
+        ? `A friendly reminder from ${businessName}: ${title} is still waiting for your approval.`
+        : `There is an update from ${businessName} on: ${title}.`,
+    ...(approvalUrl ? ["", `Review it here: ${approvalUrl}`] : []),
+    "",
+    "This link is personal to you — please don't forward it.",
+  ];
+
+  const text = lines.join("\n");
+
+  await sendBrandedEmail({
+    emailType: "quote",
+    to: customerEmail,
+    replyTo: getFallbackReplyTo(replyToEmail),
+    subject,
+    html: `<p>${lines.map((line) => (line ? line : "<br />")).join("</p><p>")}</p>`,
+    text,
+    idempotencyKey: `approval:${approvalId}:v${version}:${decision}:${getRecipientKey(customerEmail)}`,
+    businessId,
+    metadata: { approvalId, version, businessId, decision },
+    tags: { type: "quote", event: `approval_${decision}` },
+  });
+}
+
+export async function sendChangeOrderEmail({
+  businessId,
+  businessName,
+  customerEmail,
+  customerName,
+  displayNumber,
+  decision,
+  approvalUrl,
+  changeOrderId,
+  replyToEmail,
+}: {
+  businessId: string;
+  businessName: string;
+  customerEmail: string;
+  customerName: string;
+  displayNumber: string;
+  decision: "submitted" | "approved" | "rejected";
+  approvalUrl?: string | null;
+  changeOrderId: string;
+  replyToEmail?: string;
+}) {
+  if (!isEmailConfigured) {
+    return;
+  }
+
+  const senderConfigurationError = getConfigurationError("quote");
+
+  if (senderConfigurationError) {
+    throw new Error(senderConfigurationError);
+  }
+
+  const subject =
+    decision === "submitted"
+      ? `${businessName}: please review change ${displayNumber}`
+      : `${businessName}: change ${displayNumber} ${decision}`;
+
+  const text = [
+    `Hi ${customerName},`,
+    "",
+    decision === "submitted"
+      ? `${businessName} proposed a change to your quote (${displayNumber}). Please review what changed and approve or decline it.`
+      : `${businessName} marked change ${displayNumber} as ${decision}.`,
+    ...(approvalUrl ? ["", `Review it here: ${approvalUrl}`] : []),
+    "",
+    "This link is personal to you — please don't forward it.",
+  ].join("\n");
+
+  await sendBrandedEmail({
+    emailType: "quote",
+    to: customerEmail,
+    replyTo: getFallbackReplyTo(replyToEmail),
+    subject,
+    html: `<p>${text.split("\n").map((line) => (line ? line : "<br />")).join("</p><p>")}</p>`,
+    text,
+    idempotencyKey: `change-order:${changeOrderId}:${decision}:${getRecipientKey(customerEmail)}`,
+    businessId,
+    metadata: { changeOrderId, businessId, decision },
+    tags: { type: "quote", event: `change_order_${decision}` },
+  });
+}

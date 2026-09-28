@@ -26,6 +26,7 @@ export const planFeatures = [
   "members",
   "auditLogs",
   "aiAgent",
+  "customWorkflowRecipes",
 ] as const;
 
 export type PlanFeature = (typeof planFeatures)[number];
@@ -52,6 +53,7 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "followUps",
     "autoFollowUps",
     "aiAgent",
+    "customWorkflowRecipes",
   ]),
   business: new Set<PlanFeature>([
     "analyticsConversion",
@@ -69,6 +71,7 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "members",
     "auditLogs",
     "aiAgent",
+    "customWorkflowRecipes",
   ]),
 };
 
@@ -119,6 +122,7 @@ export const planFeatureLabels: Record<PlanFeature, string> = {
   members: "Team members",
   auditLogs: "Audit logs",
   aiAgent: "AI agent",
+  customWorkflowRecipes: "Workflow recipes",
 };
 
 /** Short value description for use in paywall locked states. */
@@ -153,4 +157,6 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
     "Review meaningful admin, lifecycle, and security actions for this business.",
   aiAgent:
     "Answer customer questions and collect inquiries automatically on your public site.",
+  customWorkflowRecipes:
+    "Customize behavior-pack recipes: intake bindings, scope requirements, approval cadences, and schedule structures.",
 };

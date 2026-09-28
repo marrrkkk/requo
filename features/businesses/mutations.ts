@@ -4,6 +4,9 @@ import { and, count, eq, isNull } from "drizzle-orm";
 
 import { writeAuditLog } from "@/features/audit/mutations";
 import type { BusinessRecordState } from "@/features/businesses/lifecycle";
+import { assignPackForNewBusiness } from "@/features/businesses/pack-assignments";
+import { getBehaviorPack } from "@/features/businesses/behavior-packs";
+import { seedRecipesForBusiness } from "@/features/businesses/pack-recipes";
 import type { StarterWorkflowKey } from "@/features/businesses/starter-workflows";
 import { getStarterTemplateDefinition } from "@/features/businesses/starter-templates";
 import { assertBusinessQuotaAvailableForUser } from "@/features/businesses/quota";
@@ -215,6 +218,25 @@ export async function createBusinessRecordForUser({
     createdAt: now,
     updatedAt: now,
   });
+
+  // Behavior-pack assignment (verticalization F-01): derived from the stored
+  // type via the single resolver choke point. Future-only config row — the
+  // stored type and all existing records are untouched.
+  await assignPackForNewBusiness(tx, {
+    businessId,
+    businessType,
+    source: "onboarding",
+    actorUserId: user.id,
+    now,
+  });
+
+  // Recipe seed (F-02): packed businesses start on code-default v1 recipes.
+  // Unpacked (secondary) businesses evaluate against code defaults read-only.
+  const behaviorPack = getBehaviorPack(businessType);
+
+  if (behaviorPack) {
+    await seedRecipesForBusiness(tx, { businessId, pack: behaviorPack, now });
+  }
 
   // One service per named entry; first wins the default slot and the bare
   // /inquire/{slug} URL. Names are pre-validated upstream (trim + length),
