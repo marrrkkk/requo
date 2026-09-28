@@ -43,6 +43,8 @@ import { logAiInvocation } from "@/lib/ai/token-logger";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { normalizeBusinessInstructions } from "@/lib/ai/business-instructions";
+import { getBehaviorPack } from "@/features/businesses/behavior-packs";
+import { packRecipeDefaults } from "@/features/businesses/pack-recipe-defaults";
 import { agentTools } from "@/features/ai-agent/tools";
 import { agentConfigSchema } from "@/features/ai-agent/schemas";
 import {
@@ -92,12 +94,14 @@ function buildSystemPrompt({
   businessName,
   config,
   state,
+  businessType,
 }: {
   businessName: string;
   config: AgentConfig | null | undefined;
   state: QualificationState & {
     proposedInquiry?: import("@/features/ai-agent/types").ProposedInquiry | null;
   };
+  businessType?: string | null;
 }): string {
   const tone = config?.tone ?? "friendly";
 
@@ -130,6 +134,18 @@ function buildSystemPrompt({
   // prompt structure.
   const safeBusinessName = businessName.replace(/[\r\n]+/g, " ").trim().slice(0, 120) || "this business";
 
+  // AI-01 agent overlay: pack-critical labels join the required set so the
+  // extractor collects trade-critical information conversationally. Code
+  // defaults (not per-business recipe edits) keep the sync prompt path;
+  // guidance is product data, separate from owner instructions above.
+  const agentPack = getBehaviorPack(businessType ?? null);
+  const agentCriticalLabels = agentPack
+    ? packRecipeDefaults[agentPack].ai_guidance.criticalLabels
+    : [];
+  const verticalFocusBlock = agentCriticalLabels.length > 0
+    ? `\nVERTICAL FOCUS (${agentPack}): also collect ${agentCriticalLabels.join(", ")} when relevant — these decide whether the inquiry is quotable.\n`
+    : "";
+
   return `You are the chat assistant for ${safeBusinessName}.
 ${getAiCanaryDirective()}
 
@@ -147,7 +163,7 @@ REQUIRED INFORMATION TO COLLECT:
 CURRENT QUALIFICATION STATUS:
 - Collected: ${collectedList.length > 0 ? collectedList.join(", ") : "none yet"}
 - Still needed: ${missingList.length > 0 ? missingList.join(", ") : "none - ready to propose"}
-${stagedBlock}${instructionsBlock}
+${stagedBlock}${instructionsBlock}${verticalFocusBlock}
 RULES:
 1. Use get_services for the list of services the business offers, get_business_info for its description and contact details, and search_knowledge for pricing, capabilities, policies, and other details.
 2. Never invent pricing, timelines, or capabilities. Only share information you find through your tools.
@@ -352,6 +368,7 @@ export async function runAgent({
     businessName: business.name,
     config,
     state: freshState,
+    businessType: (business as { businessType?: string | null }).businessType ?? null,
   });
   const measuredOverhead = measurePromptOverhead(systemPrompt, agentTools);
 

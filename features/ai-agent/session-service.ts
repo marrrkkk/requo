@@ -98,6 +98,7 @@ export async function loadSessionByToken(
         name: businesses.name,
         slug: businesses.slug,
         plan: businesses.plan,
+        businessType: businesses.businessType,
         shortDescription: businesses.shortDescription,
         contactEmail: businesses.contactEmail,
         inquiryFormConfig: businesses.inquiryFormConfig,

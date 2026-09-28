@@ -28,6 +28,13 @@ import {
   normalizeAiQuoteClarificationMessage,
   normalizeAiQuoteMissingInfo,
 } from "@/features/ai/quote-missing-info";
+import { getBehaviorPack } from "@/features/businesses/behavior-packs";
+import {
+  applyPackMissingInfoCriticality,
+  buildPackGuidanceSection,
+  PACK_GUIDANCE_VERSION,
+} from "@/features/businesses/pack-guidance";
+import { getActiveRecipeForBusiness } from "@/features/businesses/pack-recipes";
 import {
   formatPricingCandidates,
   resolvePricingCandidate,
@@ -72,8 +79,8 @@ const MAX_NAME_LENGTH = 120;
 const MAX_PRICING_SOURCE_LABEL_LENGTH = 160;
 
 /** Semantic prompt version — bump when the prompt contract changes. */
-const GROUNDED_DRAFT_PROMPT_VERSION = "grounded-draft-v1";
-const GROUNDED_IMPROVEMENT_PROMPT_VERSION = "grounded-improvement-v1";
+const GROUNDED_DRAFT_PROMPT_VERSION = "grounded-draft-v2";
+const GROUNDED_IMPROVEMENT_PROMPT_VERSION = "grounded-improvement-v2";
 
 const PRICED_REVIEW_STATUSES = new Set<AiQuoteDraftItemReviewStatus>([
   "matched",
@@ -685,8 +692,45 @@ function computeQuoteReadiness(
 }
 
 // ---------------------------------------------------------------------------
-// Shared pipeline
+// Pack guidance resolution (AI-01)
 // ---------------------------------------------------------------------------
+
+type PackGuidanceResolution = {
+  pack: ReturnType<typeof getBehaviorPack>;
+  sectionText: string | null;
+  fingerprint: string | null;
+  recipeConfig: Record<string, unknown> | null;
+};
+
+/**
+ * Resolves the behavior pack from the stored type and builds the guidance
+ * section. Fail-open: guidance must never break drafting — a failure here
+ * falls back to the pre-verticalization prompt.
+ */
+async function resolvePackGuidance(
+  businessId: string,
+  businessType: unknown,
+): Promise<PackGuidanceResolution> {
+  const pack = getBehaviorPack(businessType);
+
+  if (!pack) {
+    return { pack, sectionText: null, fingerprint: null, recipeConfig: null };
+  }
+
+  try {
+    const recipe = await getActiveRecipeForBusiness(businessId, "ai_guidance", pack);
+    const section = buildPackGuidanceSection(pack, recipe.config);
+
+    return {
+      pack,
+      sectionText: section?.text ?? null,
+      fingerprint: `${pack}:v${recipe.version}:g${PACK_GUIDANCE_VERSION}`,
+      recipeConfig: recipe.config,
+    };
+  } catch {
+    return { pack, sectionText: null, fingerprint: null, recipeConfig: null };
+  }
+}
 
 type StageBResult = {
   candidates: PricingCandidate[];
@@ -731,6 +775,8 @@ function buildGroundedContext(input: {
   revisionContext?: string | null;
   currentItemsText?: string | null;
   existingDraftText?: string | null;
+  /** AI-01 pack guidance section (product data, separate from instructions). */
+  packGuidanceText?: string | null;
 }): string {
   const contextParts: string[] = [];
 
@@ -758,6 +804,10 @@ function buildGroundedContext(input: {
     contextParts.push(`\nEXISTING QUOTE DRAFT:\n${truncate(input.existingDraftText, 2000)}`);
   }
 
+  if (input.packGuidanceText) {
+    contextParts.push(`\n${truncate(input.packGuidanceText, 2000)}`);
+  }
+
   return contextParts.join("\n");
 }
 
@@ -770,9 +820,12 @@ function buildCacheSourceDataVersions(input: {
   revisionComment: string | null;
   currentItems: string | null;
   currentItemsData: unknown;
+  /** AI-01: pack + guidance versions in the fingerprint (no global invalidation). */
+  packGuidanceVersion?: string | null;
 }): Record<string, string | null> {
   return {
     inquiry: input.inquiryKey,
+    packGuidance: input.packGuidanceVersion ?? null,
     inquiryContentHash: contentHash(input.inquiryText.slice(0, 4000)),
     pricingCandidates: input.candidates.length
       ? JSON.stringify(
@@ -982,6 +1035,13 @@ async function finalizeDraft(input: {
   startTime: number;
   /** Cache hits skip usage deduction and cooldown. */
   fromCache?: boolean;
+  /**
+   * AI-01 (b): pack for missing-information criticality overlay. Applied to
+   * fresh generations only — cached outputs keep the attribution of the
+   * version under which they were generated.
+   */
+  pack?: ReturnType<typeof getBehaviorPack>;
+  packGuidanceRecipeConfig?: Record<string, unknown> | null;
 }): Promise<AiQuoteDraft | null> {
   const hydrationContext = {
     candidates: input.candidates,
@@ -1022,7 +1082,15 @@ async function finalizeDraft(input: {
   }
 
   const items = verification.items;
-  const missingInfo = normalizeAiQuoteMissingInfo(input.rawMissingInfo);
+  const normalizedMissingInfo = normalizeAiQuoteMissingInfo(input.rawMissingInfo);
+  const missingInfo =
+    input.fromCache || !input.pack
+      ? normalizedMissingInfo
+      : applyPackMissingInfoCriticality(
+          normalizedMissingInfo,
+          input.pack,
+          input.packGuidanceRecipeConfig ?? null,
+        );
   const clarificationMessage = normalizeAiQuoteClarificationMessage({
     message: input.rawClarification,
     missingInfo,
@@ -1283,6 +1351,9 @@ export async function generateQuoteDraftForBusiness(
   const revisionContext = input.revisionComment?.trim() || null;
   const currentItemsText = input.currentItems?.trim() || null;
 
+  // AI-01 (a): pack guidance injected into grounded-context assembly.
+  const packGuidance = await resolvePackGuidance(input.businessId, businessRow.businessType);
+
   // Stage C: structured draft generation.
   const systemInstructions = buildQuoteDraftPrompt(
     buildGroundedContext({
@@ -1291,6 +1362,7 @@ export async function generateQuoteDraftForBusiness(
       evidence: stageB.evidence,
       revisionContext,
       currentItemsText,
+      packGuidanceText: packGuidance.sectionText,
     }),
   );
 
@@ -1341,6 +1413,7 @@ export async function generateQuoteDraftForBusiness(
       revisionComment: input.revisionComment ?? null,
       currentItems: input.currentItems ?? null,
       currentItemsData: input.currentItemsData,
+      packGuidanceVersion: packGuidance.fingerprint,
     }),
   };
 
@@ -1472,6 +1545,8 @@ export async function generateQuoteDraftForBusiness(
       responseModel: response.model,
       responseProvider: response.provider,
       startTime,
+      pack: packGuidance.pack,
+      packGuidanceRecipeConfig: packGuidance.recipeConfig,
     });
 
     if (!draft) {
@@ -1616,12 +1691,16 @@ export async function generateQuoteImprovementForBusiness(
   const inquiryContextText = formatInquiryContextLines(inquiryContext, currency);
   const taskType = "quote_improvement" as const;
 
+  // AI-01 (a): pack guidance injected into grounded-context assembly.
+  const packGuidance = await resolvePackGuidance(input.businessId, businessRow.businessType);
+
   const systemInstructions = buildQuoteImprovementPrompt(
     buildGroundedContext({
       inquiryContextText,
       candidates: stageB.candidates,
       evidence: stageB.evidence,
       existingDraftText: input.existingQuoteDraft,
+      packGuidanceText: packGuidance.sectionText,
     }),
   );
 
@@ -1669,6 +1748,7 @@ export async function generateQuoteImprovementForBusiness(
       revisionComment: null,
       currentItems: null,
       currentItemsData: null,
+      packGuidanceVersion: packGuidance.fingerprint,
     }),
   };
 
@@ -1796,6 +1876,8 @@ export async function generateQuoteImprovementForBusiness(
       responseModel: response.model,
       responseProvider: response.provider,
       startTime,
+      pack: packGuidance.pack,
+      packGuidanceRecipeConfig: packGuidance.recipeConfig,
     });
 
     if (!draft) {
