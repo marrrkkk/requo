@@ -447,8 +447,8 @@ export function DashboardSidebar({
         collapsed
           ? "w-[3.75rem] px-[0.6875rem] py-3"
           : fluid
-            ? "w-full p-3 lg:w-[16.25rem]"
-            : "w-[16.25rem] p-3",
+            ? "w-full p-3 lg:w-[14.5rem]"
+            : "w-[14.5rem] p-3",
         className,
       )}
     >
