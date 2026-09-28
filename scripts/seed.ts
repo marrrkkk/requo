@@ -18,15 +18,24 @@ process.env.DISABLE_TRANSACTIONAL_EMAILS ??= "1";
 
 import { createHmac } from "node:crypto";
 
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import type { BusinessType } from "../features/inquiries/business-types";
 import type { InquirySubmittedFieldSnapshot } from "../features/inquiries/form-config";
 import { createInquiryFormPreset } from "../features/inquiries/inquiry-forms";
+import {
+  BEHAVIOR_PACK_VERSION,
+  getBehaviorPack,
+} from "../features/businesses/behavior-packs";
+import { packRecipeDefaults } from "../features/businesses/pack-recipe-defaults";
+import { computeScheduleCoherence } from "../features/schedules/coherence";
 import { db, dbConnection } from "../lib/db/client";
 import {
   activityLogs,
   analyticsEvents,
+  approvalArtifacts,
+  approvalChains,
+  approvals,
   auditLogs,
   billingEvents,
   businessInquiryForms,
@@ -35,23 +44,33 @@ import {
   businessNotificationReads,
   businessNotifications,
   businessNotificationStates,
+  businessPackAssignmentHistory,
+  businessPackAssignments,
   businesses,
   businessSubscriptions,
+  changeOrderLines,
+  changeOrders,
+  commercialScheduleItems,
+  commercialSchedules,
   emailAttempts,
   emailOutbox,
   followUps,
   inquiries,
   inquiryNotes,
+  packRecipes,
   paymentAttempts,
   profiles,
   quoteItems,
   quoteLibraryEntries,
   quoteLibraryEntryItems,
+  quoteScopeBlocks,
   quotes,
   replySnippets,
   user,
   userRecentBusinesses,
 } from "../lib/db/schema";
+import { packRecipeKinds } from "../lib/db/schema/pack-recipes";
+import type { ScopeBlockKind } from "../lib/db/schema/scope-blocks";
 import { env } from "../lib/env";
 import type { BusinessPlan } from "../lib/plans/plans";
 type InquiryStatus = "new" | "quoted" | "waiting" | "won" | "lost" | "archived" | "overdue";
@@ -217,6 +236,58 @@ const seedAccounts = mergeSeedAccounts([
         defaultCurrency: "USD",
         countryCode: "PH",
         contactEmail: "outdoors@marklouie.dev",
+        inquiryCount: 16,
+        quoteRatio: 0.55,
+      },
+      {
+        name: "Mark Louie Photo + Film",
+        slug: "mark-louie-photo-film",
+        businessType: "photo_video_production",
+        shortDescription:
+          "Wedding and event photo/video coverage with edited galleries and films.",
+        customerContactChannel: "Website form and planner referrals",
+        defaultCurrency: "USD",
+        countryCode: "PH",
+        contactEmail: "photo@marklouie.dev",
+        inquiryCount: 16,
+        quoteRatio: 0.55,
+      },
+      {
+        name: "Mark Louie Events",
+        slug: "mark-louie-events",
+        businessType: "event_services_rentals",
+        shortDescription:
+          "Corporate and private event production: AV, lighting, staging, and coordination.",
+        customerContactChannel: "Planners, venues, and public inquiry page",
+        defaultCurrency: "USD",
+        countryCode: "PH",
+        contactEmail: "events@marklouie.dev",
+        inquiryCount: 16,
+        quoteRatio: 0.55,
+      },
+      {
+        name: "Mark Louie Consulting",
+        slug: "mark-louie-consulting",
+        businessType: "consulting_professional_services",
+        shortDescription:
+          "Operations and systems consulting with scoped assessments and roadmaps.",
+        customerContactChannel: "Referrals and discovery calls",
+        defaultCurrency: "USD",
+        countryCode: "PH",
+        contactEmail: "consulting@marklouie.dev",
+        inquiryCount: 14,
+        quoteRatio: 0.55,
+      },
+      {
+        name: "Mark Louie Fabrication",
+        slug: "mark-louie-fabrication",
+        businessType: "fabrication_custom_build",
+        shortDescription:
+          "Custom fabrication, millwork, and signage built to spec and approved proof.",
+        customerContactChannel: "Contractors and public project request form",
+        defaultCurrency: "USD",
+        countryCode: "PH",
+        contactEmail: "fab@marklouie.dev",
         inquiryCount: 16,
         quoteRatio: 0.55,
       },
@@ -567,6 +638,17 @@ const resetTableNames = [
   "user_recent_businesses",
   "business_inquiry_forms",
   "businesses",
+  "business_pack_assignments",
+  "business_pack_assignment_history",
+  "pack_recipes",
+  "quote_scope_blocks",
+  "approval_chains",
+  "approval_artifacts",
+  "approvals",
+  "change_orders",
+  "change_order_lines",
+  "commercial_schedules",
+  "commercial_schedule_items",
   "payment_attempts",
   "refunds",
   "billing_events",
@@ -1084,6 +1166,48 @@ async function createBusiness(
     createdAt,
     updatedAt: seedNow,
   });
+
+  // Behavior-pack assignment + v1 recipes (verticalization F-01/F-02):
+  // mirrors the onboarding path so seeded businesses behave like
+  // production ones. Unpacked (secondary) types stay on code defaults.
+  const behaviorPack = getBehaviorPack(business.businessType);
+
+  if (behaviorPack) {
+    await db.insert(businessPackAssignments).values({
+      id: id("packassign"),
+      businessId,
+      pack: behaviorPack,
+      packVersion: BEHAVIOR_PACK_VERSION,
+      source: "seed",
+      createdAt,
+      updatedAt: seedNow,
+    });
+
+    await db.insert(businessPackAssignmentHistory).values({
+      id: id("packhist"),
+      businessId,
+      pack: behaviorPack,
+      packVersion: BEHAVIOR_PACK_VERSION,
+      source: "seed",
+      actorUserId: null,
+      createdAt,
+    });
+
+    await db.insert(packRecipes).values(
+      packRecipeKinds.map((kind) => ({
+        id: id("recipe"),
+        businessId,
+        pack: behaviorPack,
+        kind,
+        version: 1,
+        active: true,
+        config: { ...packRecipeDefaults[behaviorPack][kind] },
+        effectiveAt: createdAt,
+        createdAt,
+        updatedAt: seedNow,
+      })),
+    );
+  }
 
   await seedBusinessDefaults({
     businessId,
@@ -1715,6 +1839,150 @@ async function seedInvoicesForAcceptedQuotes(input: {
       `);
     }
   }
+}
+
+/** Minimal valid demo content per scope-block kind (complete by construction). */
+function demoScopeBlockContent(kind: ScopeBlockKind): Record<string, unknown> {
+  switch (kind) {
+    case "deliverables":
+      return { items: [{ label: "Scope walkthrough and measurements" }, { label: "Install and cleanup" }] };
+    case "exclusions":
+      return { items: [{ label: "Permits and third-party fees" }] };
+    case "assumptions":
+      return { items: [{ label: "Client provides site access on scheduled dates" }] };
+    case "allowances":
+      return { items: [{ label: "Materials allowance", amountCents: 50000 }] };
+    case "revision_cap":
+      return { rounds: 2, consolidationRule: "Consolidated feedback per round" };
+    case "acceptance_criteria":
+      return { items: [{ criterion: "Work matches the approved scope", responseDays: 5 }] };
+    case "usage_rights":
+      return { matrix: [{ media: "Digital", term: "1 year", territory: "Philippines" }], carveouts: [] };
+    case "client_responsibilities":
+      return { items: [{ label: "Provide access on scheduled dates" }] };
+    case "timeline":
+      return { milestones: [{ label: "Kickoff" }], note: "Display only" };
+    case "payment_schedule":
+      return { referenceSchedule: true };
+  }
+}
+
+/**
+ * Verticalization demo data (P3/P5): required scope blocks (complete) plus a
+ * coherent schedule on every draft quote of a packed business, so send gates
+ * pass out of the box and the workflows are tryable immediately. Fail-open:
+ * skips anything incoherent rather than breaking the seed.
+ */
+async function seedPackWorkflowDemo(input: {
+  businessId: string;
+  businessType: BusinessType;
+}) {
+  const pack = getBehaviorPack(input.businessType);
+
+  if (!pack) {
+    return { blocks: 0, schedules: 0 };
+  }
+
+  const draftQuotes = await db
+    .select({ id: quotes.id, totalInCents: quotes.totalInCents })
+    .from(quotes)
+    .where(
+      and(eq(quotes.businessId, input.businessId), eq(quotes.status, "draft")),
+    );
+
+  let blocks = 0;
+  let schedules = 0;
+  const requiredKinds = packRecipeDefaults[pack].scope.requiredKinds;
+  const structure = packRecipeDefaults[pack].schedule.structures[0];
+
+  for (const quote of draftQuotes) {
+    let position = 0;
+
+    for (const kind of requiredKinds) {
+      await db
+        .insert(quoteScopeBlocks)
+        .values({
+          id: id("scopeblock"),
+          businessId: input.businessId,
+          quoteId: quote.id,
+          kind,
+          position: position++,
+          content: demoScopeBlockContent(kind),
+          required: true,
+          state: "complete",
+          createdAt: seedNow,
+          updatedAt: seedNow,
+        })
+        .onConflictDoNothing();
+
+      blocks += 1;
+    }
+
+    if (!structure) {
+      continue;
+    }
+
+    const coherence = computeScheduleCoherence(
+      structure.splits.map((split, index) => ({
+        category: split.category,
+        label: `${split.category.charAt(0).toUpperCase()}${split.category.slice(1)} ${index + 1}`,
+        amountCents: null,
+        percentBps: split.percentBps,
+        dueCondition: index === 0 ? "on acceptance" : "on completion",
+      })),
+      quote.totalInCents,
+    );
+
+    if (!coherence.ok) {
+      continue;
+    }
+
+    const scheduleId = id("schedule");
+
+    await db
+      .insert(commercialSchedules)
+      .values({
+        id: scheduleId,
+        businessId: input.businessId,
+        quoteId: quote.id,
+        version: 1,
+        state: "scheduled",
+        quoteTotalCents: quote.totalInCents,
+        displayTotalCents: coherence.totalCents,
+        recipeVersion: 1,
+        createdByUserId: null,
+        createdAt: seedNow,
+        updatedAt: seedNow,
+      })
+      .onConflictDoNothing();
+
+    let itemPosition = 0;
+
+    for (const item of coherence.items) {
+      await db
+        .insert(commercialScheduleItems)
+        .values({
+          id: id("scheditem"),
+          businessId: input.businessId,
+          scheduleId,
+          position: itemPosition++,
+          category: item.category,
+          label: item.label,
+          amountCents: item.amountCents,
+          percentBps: item.percentBps,
+          computedAmountCents: item.computedAmountCents,
+          dueDate: null,
+          dueCondition: item.dueCondition,
+          createdAt: seedNow,
+          updatedAt: seedNow,
+        })
+        .onConflictDoNothing();
+    }
+
+    schedules += 1;
+  }
+
+  return { blocks, schedules };
 }
 
 function buildQuoteItems(input: {
@@ -2471,6 +2739,13 @@ async function main() {
         ownerUserId,
       });
 
+      // Verticalization demo: required scope blocks + schedule on draft
+      // quotes so pack send gates pass out of the box (packed only).
+      await seedPackWorkflowDemo({
+        businessId: createdBusiness.businessId,
+        businessType: business.businessType,
+      });
+
       const isPrimaryBusiness = business.slug === primaryBusinessSlug;
 
       if (isPrimaryBusiness) {
@@ -2478,6 +2753,11 @@ async function main() {
           businessId: createdBusiness.businessId,
           formId: createdBusiness.formId,
           ownerUserId,
+        });
+        // Same demo coverage for the deterministic smoke draft quote.
+        await seedPackWorkflowDemo({
+          businessId: createdBusiness.businessId,
+          businessType: business.businessType,
         });
         await seedPendingInvite({
           businessId: createdBusiness.businessId,
