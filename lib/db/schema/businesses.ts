@@ -167,6 +167,19 @@ export const businesses = pgTable(
     notifyInAppOnFollowUpReminder: boolean("notify_in_app_on_follow_up_reminder")
       .notNull()
       .default(true),
+    /** Verticalization P1/P2: in-app + push notification preference triples. */
+    notifyInAppOnApproval: boolean("notify_in_app_on_approval")
+      .notNull()
+      .default(true),
+    notifyPushOnApproval: boolean("notify_push_on_approval")
+      .notNull()
+      .default(false),
+    notifyInAppOnChangeOrder: boolean("notify_in_app_on_change_order")
+      .notNull()
+      .default(true),
+    notifyPushOnChangeOrder: boolean("notify_push_on_change_order")
+      .notNull()
+      .default(false),
     notifyOnQuoteExpiring: boolean("notify_on_quote_expiring")
       .notNull()
       .default(true),

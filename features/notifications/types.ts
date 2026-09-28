@@ -11,6 +11,12 @@ export const businessNotificationTypes = [
   "automation",
   "invoice_paid",
   "invoice_overdue",
+  "approval_requested",
+  "approval_approved",
+  "approval_changes_requested",
+  "approval_expired",
+  "change_order_created",
+  "change_order_decided",
 ] as const;
 
 export type BusinessNotificationType =

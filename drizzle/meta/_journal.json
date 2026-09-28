@@ -253,6 +253,13 @@
       "when": 1790276870920,
       "tag": "0035_behavior_packs",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790278456420,
+      "tag": "0036_verticalization_primitives",
+      "breakpoints": true
     }
   ]
 }

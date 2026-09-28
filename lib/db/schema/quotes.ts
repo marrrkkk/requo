@@ -256,6 +256,15 @@ export type QuoteVersionItemSnapshot = {
   position: number;
 };
 
+export type QuoteVersionScopeBlock = {
+  id: string;
+  kind: string;
+  position: number;
+  content: Record<string, unknown>;
+  required: boolean;
+  state: string;
+};
+
 export type QuoteRevisionItemComment = {
   itemId: string;
   itemDescription: string;
@@ -290,6 +299,11 @@ export const quoteVersions = pgTable(
     totalInCents: integer("total_in_cents").notNull().default(0),
     validUntil: date("valid_until", { mode: "string" }).notNull(),
     items: jsonb("items").$type<QuoteVersionItemSnapshot[]>().notNull().default([]),
+    /**
+     * Verticalization P3: structured scope blocks snapshotted with the quote
+     * version. Nullable — pre-migration versions have NULL (legacy branch).
+     */
+    scopeBlocks: jsonb("scope_blocks").$type<QuoteVersionScopeBlock[] | null>(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

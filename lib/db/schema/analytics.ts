@@ -20,6 +20,23 @@ import { quotes } from "@/lib/db/schema/quotes";
 export const analyticsEventTypeEnum = pgEnum("analytics_event_type", [
   "inquiry_form_viewed",
   "quote_public_viewed",
+  "approval_requested",
+  "approval_viewed",
+  "approval_approved",
+  "approval_changes_requested",
+  "approval_expired",
+  "change_order_created",
+  "change_order_approved",
+  "change_order_rejected",
+  "schedule_created",
+  "schedule_accepted",
+  "schedule_prefill_used",
+  "scope_block_added",
+  "scope_required_missing",
+  "readiness_blocked",
+  "readiness_completed",
+  "ai_pack_guidance_used",
+  "ai_missing_info_detected",
 ]);
 
 export type AnalyticsEventMetadata = {
@@ -27,6 +44,16 @@ export type AnalyticsEventMetadata = {
   utmSource?: string;
   utmMedium?: string;
   utmCampaign?: string;
+  /** Verticalization properties: pack/recipe versions, subject kind, record refs. No new PII. */
+  pack?: string | null;
+  packVersion?: number | null;
+  recipeKind?: string | null;
+  recipeVersion?: number | null;
+  subjectKind?: string | null;
+  approvalChainId?: string | null;
+  changeOrderId?: string | null;
+  scheduleId?: string | null;
+  actor?: string | null;
 };
 
 export const analyticsEvents = pgTable(
