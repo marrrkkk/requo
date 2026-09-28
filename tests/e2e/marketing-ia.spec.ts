@@ -19,11 +19,10 @@ test("@smoke solutions hub lists all industries with one H1", async ({
 
   for (const name of [
     "Contractors & Home Services",
-    "Professional Services",
+    "Professional & IT Services",
     "Creative & Marketing",
-    "Events & Production",
-    "Cleaning & Outdoor Services",
-    "Print & Custom Services",
+    "Photo, Video & Events",
+    "Custom Fabrication & Signage",
   ]) {
     await expect(
       page.getByRole("link", { name: new RegExp(name) }).first(),
