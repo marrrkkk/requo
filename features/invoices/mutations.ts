@@ -132,10 +132,36 @@ export async function createInvoiceForBusiness(input: CreateInvoiceInput) {
           sourceItems = await tx.select().from(quoteItems).where(and(eq(quoteItems.businessId, input.businessId), eq(quoteItems.quoteId, input.quoteId))).orderBy(quoteItems.position);
         }
 
-        const items = input.quoteId && sourceQuote
+        // P5 prefill: the latest approved schedule version maps 1:1 to
+        // draft invoice lines for owner review. Display only — no linkage.
+        let schedulePrefill: { scheduleId: string; version: number } | null = null;
+        let items = input.quoteId && sourceQuote
           ? sourceItems.map((item) => ({ description: item.description, quantity: item.quantity, unitPriceInCents: item.unitPriceInCents }))
           : input.items;
-        const discountInCents = input.quoteId && sourceQuote ? sourceQuote.discountInCents : input.discountInCents;
+
+        if (input.quoteId && sourceQuote) {
+          const { resolveSchedulePrefillLines } = await import("@/features/schedules/mutations");
+          const prefill = await resolveSchedulePrefillLines({
+            businessId: input.businessId,
+            quoteId: input.quoteId,
+          });
+
+          if (prefill) {
+            items = prefill.lines;
+            schedulePrefill = { scheduleId: prefill.scheduleId, version: prefill.version };
+
+            const { recordAnalyticsEvent } = await import("@/features/analytics/tracking");
+            const { hashOpaqueToken } = await import("@/lib/security/tokens");
+
+            await recordAnalyticsEvent({
+              businessId: input.businessId,
+              quoteId: input.quoteId,
+              eventType: "schedule_prefill_used",
+              visitorHash: hashOpaqueToken(`${input.businessId}:${input.actorUserId}`),
+              metadata: { scheduleId: prefill.scheduleId, actor: "user" },
+            }).catch(() => undefined);
+          }
+        }        const discountInCents = input.quoteId && sourceQuote ? sourceQuote.discountInCents : input.discountInCents;
         const taxInCents = input.quoteId && sourceQuote ? sourceQuote.taxInCents : input.taxInCents;
         const taxLabel = input.quoteId && sourceQuote ? sourceQuote.taxLabel : (input.taxLabel ?? null);
         const totals = calculateTotals(items, discountInCents, taxInCents);
@@ -170,7 +196,7 @@ export async function createInvoiceForBusiness(input: CreateInvoiceInput) {
           updatedAt: now,
         });
         await tx.insert(invoiceLineItems).values(totals.items.map((item) => ({ ...item, businessId: input.businessId, invoiceId: id, createdAt: now, updatedAt: now })));
-        await insertInvoiceActivity(tx, { businessId: input.businessId, invoiceId: id, actorUserId: input.actorUserId, type: "invoice.created", summary: `Draft invoice ${invoiceNumber} created.`, metadata: { invoiceNumber, quoteId: input.quoteId ?? null } });
+        await insertInvoiceActivity(tx, { businessId: input.businessId, invoiceId: id, actorUserId: input.actorUserId, type: "invoice.created", summary: `Draft invoice ${invoiceNumber} created.`, metadata: { invoiceNumber, quoteId: input.quoteId ?? null, schedulePrefill } });
         await writeAuditLog(tx, { businessId: input.businessId, actorUserId: input.actorUserId, entityType: "invoice", entityId: id, action: "invoice.created", metadata: { invoiceNumber, quoteId: input.quoteId ?? null, customerName: input.customerName } });
         return { id, invoiceNumber, existing: false } as const;
       });

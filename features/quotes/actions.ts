@@ -614,6 +614,12 @@ export async function sendQuoteAction(
       };
     }
 
+    if ("blocked" in result && result.blocked) {
+      return {
+        error: result.blockers[0] ?? "This quote is not ready to send yet.",
+      };
+    }
+
     if (!result.changed) {
       return {
         error: "Only active draft quotes can be sent.",
