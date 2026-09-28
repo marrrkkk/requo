@@ -36,6 +36,7 @@ export const auditActionLabels = {
   "business.deletion_canceled": "Business deletion canceled",
   "business.deleted": "Business deleted",
   "business.ownership_transferred": "Business ownership transferred",
+  "business.pack_assigned": "Behavior pack assigned",
   "subscription.checkout_succeeded": "Subscription checkout succeeded",
   "subscription.plan_changed": "Plan changed",
   "subscription.cancellation_requested": "Subscription cancellation requested",
