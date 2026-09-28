@@ -42,7 +42,8 @@ export type BusinessSettingsSection =
   | "audit-log"
   | "agent"
   | "ai"
-  | "members";
+  | "members"
+  | "workflow";
 
 export function getBusinessPath(slug: string) {
   return `/${slug}`;

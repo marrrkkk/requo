@@ -57,6 +57,11 @@ export function getUnifiedSettingsNavigation(
           icon: "mail",
         },
         {
+          href: `/${slug}/settings/workflow`,
+          label: "Workflow",
+          icon: "file-text",
+        },
+        {
           href: `/${slug}/settings/ai`,
           label: "Assistant",
           icon: "astroid",
@@ -171,6 +176,11 @@ export function getBusinessSettingsNavigation(
               href: getBusinessSettingsPath(slug, "email"),
               label: "Email",
               icon: "email" as const,
+            },
+            {
+              href: getBusinessSettingsPath(slug, "workflow"),
+              label: "Workflow",
+              icon: "quote" as const,
             },
           ],
         }

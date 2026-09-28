@@ -23,6 +23,12 @@ Source of truth: `lib/db/schema/index.ts` (barrel over 24 modules). Key modules:
 | `invoices.ts` | `invoices`, `invoice_line_items`, `payments` | Unique partial `(businessId, quoteId)` for non-void; manual payments only |
 | `follow-ups.ts` | `follow_ups` | Check `inquiryId OR quoteId`; partial `pending_due` index; `send_mode` enum `manual/automatic` |
 | `business-inquiry-forms.ts` | `business_inquiry_forms` | User-facing name "Service"; slug unique per business |
+| `business-packs.ts` | `business_pack_assignments`, `business_pack_assignment_history` | Behavior-pack assignment (F-01): one nullable-`pack` row per business + append-only history; `behavior_pack` enum of 6 |
+| `pack-recipes.ts` | `pack_recipes` | Versioned recipes per (business, kind); one active per kind (partial unique); `pack_recipe_kind` enum of 5 |
+| `scope-blocks.ts` | `quote_scope_blocks` | Typed scope sections; `scope_block_kind` enum of 10, `scope_block_state` enum of 3; waiver consistency CHECK |
+| `approvals.ts` | `approval_chains`, `approvals`, `approval_artifacts` | P1: chain identity + version rows (one pending per chain) + one-directional artifacts; subject exactly-one CHECKs |
+| `change-orders.ts` | `change_orders`, `change_order_lines` | P2: append-only COs (one pending per quote) + target-exactly-one deltas |
+| `schedules.ts` | `commercial_schedules`, `commercial_schedule_items` | P5: versioned schedules; one editable per quote; amount/% exclusivity CHECKs |
 | `quote-library.ts` | `quote_library_entries`, `quote_library_entry_items` | Kinds `block/package/template` |
 | `memories.ts` / `knowledge-files.ts` | `business_memories`, `business_knowledge_files`, `business_knowledge_chunks` | Categories incl. `pricing_knowledge` (context only); file status enum |
 | `ai.ts` / `ai-agent.ts` / `owner-assistant.ts` | `ai_usage_events`, `ai_token_logs`; `ai_agent_sessions/messages/runs`; `owner_assistant_sessions/messages` | Usage metering + chat persistence |
@@ -57,6 +63,6 @@ Bucket names: `features/inquiries/mutations.ts` (attachments), `features/memory/
 
 ## Migrations
 
-29 SQL files (`drizzle/0000_init` → `0028_inquiry_first_viewed`; no `0019`; `0021` duplicated — see `docs/technical-debt.md`). Notable: `0012` removed jobs/automations, `0014` renamed pricing → product library, `0016` agent v1, `0018` owner assistant, `0021` invoice payment tracking.
+29 SQL files (`drizzle/0000_init` → `0028_inquiry_first_viewed`; no `0019`; `0021` duplicated — see `docs/technical-debt.md`). Notable: `0012` removed jobs/automations, `0014` renamed pricing → product library, `0016` agent v1, `0018` owner assistant, `0021` invoice payment tracking, `0035` behavior-pack assignments.
 
 Dev flow: edit `lib/db/schema/*` → `npm run db:generate -- --name descriptive_name` → `npm run db:migrate` → commit schema + SQL together. Prod: `vercel-build` applies only. Never `db:push`/`db:generate` against production; never edit a committed migration. Full procedure: `docs/database-migrations.md`.

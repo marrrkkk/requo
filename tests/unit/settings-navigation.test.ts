@@ -32,6 +32,7 @@ describe("getUnifiedSettingsNavigation", () => {
       "General",
       "Quotes",
       "Email templates",
+      "Workflow",
       "Assistant",
       "Billing",
       "Members",
