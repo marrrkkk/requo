@@ -73,14 +73,14 @@ const footerColumns: FooterColumn[] = [
     title: "SOLUTIONS",
     links: [
       { label: "Contractors", href: "/solutions/contractors-home-services" },
-      { label: "Professional", href: "/solutions/professional-services" },
+      { label: "Professional & IT", href: "/solutions/professional-it-services" },
       { label: "Creative", href: "/solutions/creative-marketing" },
-      { label: "Events", href: "/solutions/events-production" },
+      { label: "Photo & Video", href: "/solutions/photo-video" },
+      { label: "Events & Rentals", href: "/solutions/events-rentals" },
       {
-        label: "Cleaning & Outdoor",
-        href: "/solutions/cleaning-outdoor-services",
+        label: "Fabrication & Signage",
+        href: "/solutions/custom-fabrication-signage",
       },
-      { label: "Print & Custom", href: "/solutions/print-custom-services" },
     ],
   },
   {

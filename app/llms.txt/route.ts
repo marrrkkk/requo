@@ -26,7 +26,7 @@ Annual billing includes two months free. Paid subscriptions are billed per busin
 - Home: /
 - Pricing: /pricing (machine-readable: /pricing.md)
 - Solutions hub: /solutions
-- Solutions: /solutions/contractors-home-services, /solutions/professional-services, /solutions/creative-marketing, /solutions/events-production, /solutions/cleaning-outdoor-services, /solutions/print-custom-services
+- Solutions: /solutions/contractors-home-services, /solutions/professional-it-services, /solutions/creative-marketing, /solutions/photo-video, /solutions/events-rentals, /solutions/custom-fabrication-signage
 - Features: /features/inquiries, /features/quotes, /features/follow-ups, /features/ai, /features/invoices, /features/analytics
 - About: /about
 - Compare: /compare/spreadsheets, /compare/job-management-software

@@ -219,6 +219,31 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
+        source: "/solutions/professional-services",
+        destination: "/solutions/professional-it-services",
+        permanent: true,
+      },
+      {
+        source: "/solutions/events-production",
+        destination: "/solutions/events-rentals",
+        permanent: true,
+      },
+      {
+        source: "/solutions/photo-video-events",
+        destination: "/solutions/photo-video",
+        permanent: true,
+      },
+      {
+        source: "/solutions/print-custom-services",
+        destination: "/solutions/custom-fabrication-signage",
+        permanent: true,
+      },
+      {
+        source: "/solutions/cleaning-outdoor-services",
+        destination: "/solutions",
+        permanent: true,
+      },
+      {
         source: "/:businessSlug/settings/inquiry",
         destination: "/:businessSlug/services",
         permanent: true,
